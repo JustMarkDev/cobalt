@@ -11,7 +11,7 @@ answers, as the signed-in person, see "How a screen reads and writes").
 
 ## Signed-out and static screens
 
-`/`, `/pricing`, `/privacy`, `/terms`, `/compare`, `/design`, `/docs/*`,
+`/`, `/pricing`, `/privacy`, `/terms`, `/design`, `/docs/*`,
 `/llms.txt` need no operation. `/status` reads `status.get`: what this server
 measured of its own answers, and mirrors and runners as the domain holds them. `/sign-in`, `/sign-up`, `/forgot-password`
 and `/welcome` belong to sign-in, not to the API (see Linked accounts below

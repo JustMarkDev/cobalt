@@ -1,12 +1,14 @@
+import { Fragment, useState } from 'react'
 import {
   CheckCircleIcon,
+  ChevronDownIcon,
   MinusCircleIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
-import type { Level } from '~/lib/compare'
-import { levelLabel, products, rows } from '~/lib/compare'
+import type { Group, Level, Row } from '~/lib/compare'
+import { groupLabel, levelLabel, products, rows } from '~/lib/compare'
 
 const tone: Record<Level, string> = {
   yes: 'text-success',
@@ -47,72 +49,112 @@ export function Legend() {
   )
 }
 
-/** One mark per cell: enough to see the shape of it, with the notes a click away. */
-export function CompareMatrix() {
+/** Consecutive columns of the same group, for the header row above the names. */
+const groups: Array<{ group: Group; span: number }> = products.reduce<
+  Array<{ group: Group; span: number }>
+>((acc, p) => {
+  const last = acc.at(-1)
+  if (last && last.group === p.group) last.span += 1
+  else acc.push({ group: p.group, span: 1 })
+  return acc
+}, [])
+
+/** A thin rule before the first column of each group. */
+const startsGroup = new Set(
+  products
+    .filter((p, i) => i > 0 && products[i - 1].group !== p.group)
+    .map((p) => p.id),
+)
+
+const colCount = products.length + 1
+
+/** What each product does on one row, and the pages we read it on. */
+function RowNotes({ row }: { row: Row }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border bg-card">
-      <table className="w-full min-w-[44rem] text-sm">
-        <caption className="sr-only">
-          How source.code compares with GitHub, GitLab, Bitbucket, GitCafe, and
-          Gitea and Forgejo
-        </caption>
-        <thead>
-          <tr className="border-b text-left">
-            <th
-              scope="col"
-              className="px-5 py-3 font-medium text-muted-foreground"
-            >
-              <span className="sr-only">Capability</span>
-            </th>
-            {products.map((p) => (
-              <th
-                key={p.id}
-                scope="col"
-                className={cn(
-                  'px-3 py-3 text-center font-medium whitespace-nowrap',
-                  p.id === 'us' && 'bg-muted/60',
-                )}
-              >
-                {p.name}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <th scope="row" className="px-5 py-3 text-left font-normal">
-                {r.question}
-              </th>
-              {products.map((p) => (
-                <td
-                  key={p.id}
-                  className={cn('px-3 py-3', p.id === 'us' && 'bg-muted/60')}
-                >
-                  <span className="flex justify-center">
-                    <LevelMark level={r.cells[p.id].level} />
+    <div className="sticky left-0 w-[calc(100vw-3.25rem)] space-y-4 px-4 py-5 sm:w-auto sm:px-5">
+      <p className="max-w-3xl text-sm text-muted-foreground">{row.why}</p>
+      <ul className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+        {products.map((p) => {
+          const c = row.cells[p.id]
+          return (
+            <li key={p.id} className="flex gap-2.5 text-sm">
+              <LevelMark level={c.level} className="mt-0.5" />
+              <div className="min-w-0 space-y-1">
+                <p>
+                  <b className="font-medium">{p.name}</b>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    · {levelLabel[c.level]}
                   </span>
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </p>
+                <p className="text-muted-foreground">{c.text}</p>
+                {c.sources && (
+                  <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                    {c.sources.map((s) => (
+                      <li key={s.href}>
+                        <a
+                          href={s.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline decoration-border underline-offset-4 hover:decoration-foreground"
+                        >
+                          {s.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
 
-/** The same rows with what each product does and the page we read it on. */
-export function CompareDetails() {
+/**
+ * One mark per cell, so the shape of it reads at a glance. Opening a row shows
+ * why it matters, what each product does, and the page we read it on.
+ */
+export function CompareTable() {
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
+  const toggle = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  let lastTopic = ''
   return (
     <div className="overflow-x-auto rounded-2xl border bg-card">
-      <table className="w-full min-w-[80rem] text-sm">
+      <table className="w-full min-w-[46rem] text-sm lg:min-w-[60rem]">
         <caption className="sr-only">
-          What each product does, row by row, with sources
+          How source.code compares with established hosts and new ones built
+          around agents. Open a row for notes and sources.
         </caption>
         <thead>
-          <tr className="border-b text-left">
-            <th scope="col" className="w-56 px-5 py-3 font-medium">
+          <tr className="text-xs text-muted-foreground">
+            <td className="sticky left-0 z-10 bg-card" />
+            {groups.map((g, i) => (
+              <th
+                key={i}
+                scope="colgroup"
+                colSpan={g.span}
+                className={cn(
+                  'px-2 pt-3 text-center font-normal',
+                  g.group === 'us' && 'bg-muted/60',
+                  i > 0 && 'border-l',
+                )}
+              >
+                {groupLabel[g.group] || <span className="sr-only">Us</span>}
+              </th>
+            ))}
+          </tr>
+          <tr className="border-b">
+            <th scope="col" className="sticky left-0 z-10 bg-card px-5 py-3">
               <span className="sr-only">Capability</span>
             </th>
             {products.map((p) => (
@@ -120,13 +162,14 @@ export function CompareDetails() {
                 key={p.id}
                 scope="col"
                 className={cn(
-                  'px-4 py-3 font-medium',
+                  'px-2 pt-1 pb-3 text-center align-bottom font-medium',
                   p.id === 'us' && 'bg-muted/60',
+                  startsGroup.has(p.id) && 'border-l',
                 )}
               >
-                {p.name}
+                <span className="block leading-tight">{p.name}</span>
                 {p.note && (
-                  <span className="block text-xs font-normal text-muted-foreground">
+                  <span className="block text-[11px] font-normal text-muted-foreground">
                     {p.note}
                   </span>
                 )}
@@ -134,54 +177,69 @@ export function CompareDetails() {
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y align-top">
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <th scope="row" className="px-5 py-4 text-left">
-                <span className="block text-xs font-normal text-muted-foreground">
-                  {r.topic}
-                </span>
-                <span className="font-medium">{r.question}</span>
-              </th>
-              {products.map((p) => {
-                const c = r.cells[p.id]
-                return (
-                  <td
-                    key={p.id}
-                    className={cn('px-4 py-4', p.id === 'us' && 'bg-muted/60')}
+        <tbody>
+          {rows.map((r) => {
+            const isOpen = open.has(r.id)
+            const showTopic = r.topic !== lastTopic
+            lastTopic = r.topic
+            return (
+              <Fragment key={r.id}>
+                {showTopic && (
+                  <tr className="border-t">
+                    <th
+                      scope="rowgroup"
+                      colSpan={colCount}
+                      className="px-5 pt-4 pb-1 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    >
+                      {r.topic}
+                    </th>
+                  </tr>
+                )}
+                <tr className={cn(isOpen && 'bg-muted/30')}>
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 w-40 min-w-40 bg-card p-0 text-left font-normal sm:w-auto"
                   >
-                    <div className="flex gap-2.5">
-                      <LevelMark level={c.level} className="mt-0.5" />
-                      <div className="min-w-0 space-y-1.5">
-                        <p className="text-muted-foreground">
-                          <b className="font-medium text-foreground">
-                            {levelLabel[c.level]}.
-                          </b>{' '}
-                          {c.text}
-                        </p>
-                        {c.sources && (
-                          <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                            {c.sources.map((s) => (
-                              <li key={s.href}>
-                                <a
-                                  href={s.href}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline decoration-border underline-offset-4 hover:decoration-foreground"
-                                >
-                                  {s.label}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
+                    <button
+                      type="button"
+                      onClick={() => toggle(r.id)}
+                      aria-expanded={isOpen}
+                      aria-controls={`compare-${r.id}`}
+                      className="flex w-full items-start gap-2 px-3 py-3 text-left text-xs sm:px-5 sm:text-sm hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                    >
+                      <ChevronDownIcon
+                        aria-hidden="true"
+                        className={cn(
+                          'mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform',
+                          isOpen && 'rotate-180',
                         )}
-                      </div>
-                    </div>
+                      />
+                      <span>{r.question}</span>
+                    </button>
+                  </th>
+                  {products.map((p) => (
+                    <td
+                      key={p.id}
+                      className={cn(
+                        'px-2 py-3',
+                        p.id === 'us' && 'bg-muted/60',
+                        startsGroup.has(p.id) && 'border-l',
+                      )}
+                    >
+                      <span className="flex justify-center">
+                        <LevelMark level={r.cells[p.id].level} />
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+                <tr id={`compare-${r.id}`} hidden={!isOpen}>
+                  <td colSpan={colCount} className="border-t bg-muted/30">
+                    {isOpen && <RowNotes row={r} />}
                   </td>
-                )
-              })}
-            </tr>
-          ))}
+                </tr>
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>
