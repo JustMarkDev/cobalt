@@ -1,5 +1,7 @@
 import * as React from 'react'
 import type { Asset, Platform, Release } from '~/lib/model/data'
+import { authClient } from '~/lib/auth/client'
+import { useOpMaybe, useWrite } from '~/lib/forge'
 
 export type Arch = 'arm64' | 'x64'
 export type Target = { os: Platform; arch: Arch | null }
@@ -87,8 +89,10 @@ export function setTargetOverride(target: Target | null) {
   emit({ override: target })
 }
 
+/** The first subscriber looks at the machine; later ones only listen. */
 function subscribe(cb: () => void) {
   listeners.add(cb)
+  start()
   return () => listeners.delete(cb)
 }
 
@@ -97,19 +101,39 @@ const SERVER: State = { detected: null, override: null }
 /**
  * The machine the visitor is on. `target` is null until the client has looked,
  * so server and first client render agree.
+ *
+ * A choice made in this browser comes first, then the one kept with the
+ * account (so it follows the person to a new browser), then what was
+ * detected. Picking one while signed in keeps it with the account too.
  */
 export function useTarget() {
-  React.useEffect(start, [])
   const s = React.useSyncExternalStore(
     subscribe,
     () => state,
     () => SERVER,
   )
+  const signedIn = authClient.useSession().data != null
+  const saved = useOpMaybe('preferences.get', {}, signedIn)?.download_target
+  const write = useWrite()
+  const chosen = s.override ?? saved ?? null
+  const setTarget = React.useCallback(
+    (next: Target | null) => {
+      setTargetOverride(next)
+      if (!signedIn) return
+      void write('preferences.update', {
+        body: {
+          download_target:
+            next && next.arch ? { os: next.os, arch: next.arch } : null,
+        },
+      })
+    },
+    [signedIn, write],
+  )
   return {
-    target: s.override ?? s.detected,
+    target: chosen ?? s.detected,
     detected: s.detected,
-    isOverridden: s.override !== null,
-    setTarget: setTargetOverride,
+    isOverridden: chosen !== null,
+    setTarget,
   }
 }
 

@@ -35,9 +35,6 @@ export function canAnimate(): boolean {
   )
 }
 
-const useIsoLayoutEffect =
-  typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
-
 /** Fade and rise an element in. Clears its inline styles afterwards. */
 export function enter(el: HTMLElement, rise = 6) {
   if (!canAnimate()) return
@@ -52,25 +49,29 @@ export function enter(el: HTMLElement, rise = 6) {
 }
 
 /**
- * Re-run the enter animation on the returned element whenever `trigger`
- * changes, without remounting its children (so their state survives).
+ * A ref that re-runs the enter animation on its element whenever `trigger`
+ * changes, without remounting its children (so their state survives). A new
+ * `trigger` makes a new callback, which React calls with the same element
+ * before the browser paints.
  */
 export function useEnterOnChange<T extends HTMLElement>(trigger: unknown) {
-  const ref = React.useRef<T>(null)
   const last = React.useRef(trigger)
-  useIsoLayoutEffect(() => {
-    if (last.current === trigger) return
-    last.current = trigger
-    if (ref.current) enter(ref.current)
-  }, [trigger])
-  return ref
+  return React.useCallback(
+    (el: T | null) => {
+      if (!el || last.current === trigger) return
+      last.current = trigger
+      enter(el)
+    },
+    [trigger],
+  )
 }
 
-/** Animate the element's children in one after another when it mounts. */
+/**
+ * A ref that animates its element's children in one after another when the
+ * element mounts.
+ */
 export function useStaggerIn<T extends HTMLElement>() {
-  const ref = React.useRef<T>(null)
-  useIsoLayoutEffect(() => {
-    const parent = ref.current
+  return React.useCallback((parent: T | null) => {
     if (!parent || !canAnimate()) return
     const items = Array.from(parent.children).slice(
       0,
@@ -88,5 +89,4 @@ export function useStaggerIn<T extends HTMLElement>() {
       })
     })
   }, [])
-  return ref
 }

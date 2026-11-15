@@ -6,7 +6,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import type { StatusItem } from '~/components/forge/status-card'
-import { Sparkline } from '~/components/dither-kit'
+import { Sparkline } from '~/components/charts'
 import { CopyField } from '~/components/forge/repo-shell'
 import { AnySection } from '~/components/forge/any-section'
 import { CompareTable, Legend } from '~/components/forge/compare-table'
@@ -120,7 +120,7 @@ function Landing() {
             body: 'Import your history from the hosts you have used and mirror out to them. If one goes away, nothing here changes.',
             visual: (
               <div className="h-16">
-                <Sparkline data={history} color="green" bloom="low" />
+                <Sparkline data={history} label="Downloads per day" />
               </div>
             ),
           },

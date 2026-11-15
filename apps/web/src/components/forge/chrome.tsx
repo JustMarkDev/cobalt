@@ -19,7 +19,7 @@ import { Pill } from '~/components/motion'
 import { Button } from '~/components/ui/button'
 import { Dropdown, MenuItem, MenuSeparator } from '~/components/ui/menu'
 import { switchAccount, useAccounts } from '~/lib/auth/accounts'
-import { setTargetOverride, useTarget } from '~/lib/platform'
+import { useTarget } from '~/lib/platform'
 import { authClient } from '~/lib/auth/client'
 import { socials } from '~/lib/site'
 
@@ -531,15 +531,13 @@ export function SiteHeader() {
       }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('keydown', onKey)
+    }
   }, [navigate])
   const unread = useOpMaybe('notifications.count', {}, signedIn)?.unread ?? 0
-  const { target, isOverridden } = useTarget()
-  // The machine chosen in settings follows the account to a new browser.
-  const saved = useOpMaybe('preferences.get', {}, signedIn)?.download_target
-  React.useEffect(() => {
-    if (saved && !isOverridden) setTargetOverride(saved)
-  }, [saved, isOverridden])
+  const { target } = useTarget()
   // Search used to be a shortcut and nothing else. This is the way in for everyone who
   // reaches for the mouse, and the only way on a phone.
   const searchButton = (

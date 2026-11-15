@@ -95,9 +95,6 @@ export function CopyField({
   )
 }
 
-type CountsApi = { setCounts: (c: Partial<Record<RepoPage, number>>) => void }
-const FrameContext = React.createContext<CountsApi | null>(null)
-
 /**
  * The repository chrome: header, tabs and page-level actions. It lives above
  * the tab pages so switching tabs only swaps the content below it. Nothing in
@@ -116,30 +113,19 @@ export function RepoFrame({
   actions?: React.ReactNode
   children: React.ReactNode
 }) {
-  const [live, setCounts] = React.useState<Partial<Record<RepoPage, number>>>(
-    {},
-  )
-  const api = React.useMemo(() => ({ setCounts }), [])
+  // The counts come from the repository read, which stays live: a new issue
+  // updates the tab without the page below reporting it.
   return (
-    <FrameContext value={api}>
+    <>
       <RepoHeader
         repo={repo}
         active={active}
-        counts={{ ...counts, ...live }}
+        counts={counts}
         actions={actions}
       />
       <PageTransition trigger={active}>{children}</PageTransition>
-    </FrameContext>
+    </>
   )
-}
-
-/** Let a page report a live count (open issues) to the tabs above it. */
-export function useRepoCounts(counts: Partial<Record<RepoPage, number>>) {
-  const api = React.use(FrameContext)
-  const key = JSON.stringify(counts)
-  React.useEffect(() => {
-    api?.setCounts(JSON.parse(key) as Partial<Record<RepoPage, number>>)
-  }, [api, key])
 }
 
 export function RepoHeader({

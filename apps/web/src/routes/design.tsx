@@ -27,11 +27,11 @@ import {
 import { BrandLogo, BrandTile, brandName, brands } from '~/components/brand'
 import {
   GroupedBars,
-  ShapeRadar,
-  ShareDonut,
+  RankedBars,
+  ShareBar,
+  Sparkline,
   TrendChart,
 } from '~/components/charts'
-import { Sparkline } from '~/components/dither-kit'
 import { Kbd, LangDot, Tile } from '~/components/forge/bits'
 import { DeveloperRow, RepoCard, RepoRow } from '~/components/forge/repo-card'
 import { SoftwareCard } from '~/components/forge/software-card'
@@ -180,7 +180,7 @@ function Design() {
           <p className="max-w-[65ch] text-muted-foreground">
             Everything the product is built from, in one place. Components are
             shadcn/ui underneath, on Base UI, restyled with our own tokens and
-            variants. Icons are Heroicons. Charts are Dither Kit. Brand logos
+            variants. Icons are Heroicons. Charts are our own SVG. Brand logos
             are the vendors&apos; own.
           </p>
         </header>
@@ -631,7 +631,7 @@ function Design() {
         <Section
           id="charts"
           title="Charts"
-          note="Dither Kit. Ordered-dither canvas charts that give data texture without chart-junk. Always in a parent with a height."
+          note="SVG and HTML from the theme tokens: 2px lines on a soft brand wash, hairline grids, series colours in a fixed order. Trend, grouped bars and sparkline fill a parent with a height; share and ranked bars size to their content."
         >
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Specimen
@@ -657,17 +657,17 @@ function Design() {
                   reviews: 10 + ((i * 5) % 12),
                 }))}
                 series={[
-                  { key: 'commits', label: 'Commits', color: 'green' },
-                  { key: 'reviews', label: 'Reviews', color: 'blue' },
+                  { key: 'commits', label: 'Commits' },
+                  { key: 'reviews', label: 'Reviews' },
                 ]}
               />
             </Specimen>
             <Specimen
               label="Share"
-              source="ShareDonut"
-              className="h-56 rounded-xl border bg-card p-3"
+              source="ShareBar"
+              className="rounded-xl border bg-card p-4"
             >
-              <ShareDonut
+              <ShareBar
                 data={[
                   { name: 'Rust', value: 62 },
                   { name: 'TypeScript', value: 24 },
@@ -676,17 +676,17 @@ function Design() {
               />
             </Specimen>
             <Specimen
-              label="Shape"
-              source="ShapeRadar"
-              className="h-56 rounded-xl border bg-card p-3"
+              label="Ranked"
+              source="RankedBars"
+              className="rounded-xl border bg-card p-4"
             >
-              <ShapeRadar
+              <RankedBars
                 data={[
-                  { axis: 'Commits', value: 46 },
-                  { axis: 'Reviews', value: 28 },
-                  { axis: 'Changes', value: 16 },
-                  { axis: 'Issues', value: 9 },
-                  { axis: 'Releases', value: 5 },
+                  { label: 'Commits', value: 46 },
+                  { label: 'Reviews', value: 28 },
+                  { label: 'Changes', value: 16 },
+                  { label: 'Issues', value: 9 },
+                  { label: 'Releases', value: 5 },
                 ]}
               />
             </Specimen>
@@ -695,13 +695,13 @@ function Design() {
             <div className="h-10 w-40">
               <Sparkline
                 data={sampleSeries.map((p) => p.value)}
-                color="green"
+                label="Commits per week"
               />
             </div>
             <div className="h-10 w-40">
               <Sparkline
                 data={sampleSeries.map((p) => 60 - p.value)}
-                color="blue"
+                label="Open issues per week"
               />
             </div>
           </Specimen>

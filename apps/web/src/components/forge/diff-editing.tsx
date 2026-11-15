@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { EditProvider } from '@pierre/diffs/react'
+import { useQuery } from '@tanstack/react-query'
 import type { EditorFactory } from '@pierre/diffs/react'
 
 /**
@@ -7,23 +8,19 @@ import type { EditorFactory } from '@pierre/diffs/react'
  * Until it arrives `factory` is undefined and a diff should stay read-only.
  */
 export function useEditorFactory(wanted: boolean) {
-  const [factory, setFactory] = React.useState<EditorFactory<any, any>>()
-  React.useEffect(() => {
-    if (!wanted || factory) return
-    let live = true
-    void import('@pierre/diffs/edit').then(({ Editor }) => {
-      if (live)
-        setFactory(
-          () =>
-            ((type: 'file' | 'file-diff', options: object, key?: string) =>
-              new Editor(type, options, key)) as EditorFactory<any, any>,
-        )
-    })
-    return () => {
-      live = false
-    }
-  }, [wanted, factory])
-  return factory
+  return useQuery({
+    queryKey: ['pierre-editor'],
+    queryFn: () =>
+      import('@pierre/diffs/edit').then(
+        ({ Editor }) =>
+          ((type: 'file' | 'file-diff', options: object, key?: string) =>
+            new Editor(type, options, key)) as EditorFactory<any, any>,
+      ),
+    enabled: wanted,
+    // Code, not data: loaded once, kept for the page's life.
+    staleTime: Infinity,
+    gcTime: Infinity,
+  }).data
 }
 
 export function EditingProvider({

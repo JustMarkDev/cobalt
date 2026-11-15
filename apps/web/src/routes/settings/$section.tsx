@@ -19,7 +19,6 @@ import { Input } from '~/components/ui/input'
 import { Chip, SectionLabel, SourceBadge } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
 import { TargetPicker } from '~/components/forge/download-button'
-import { useTarget } from '~/lib/platform'
 import { Bots } from '~/components/forge/agents-panels'
 import { IntegrationsPanel } from '~/components/forge/integrations-panel'
 import { Toggle } from '~/components/forge/repo-pages'
@@ -750,20 +749,9 @@ function Privacy() {
 }
 
 // ---------------------------------------------------------------------------
+// What is picked here is kept with the account, so it follows you to another
+// browser (`useTarget` saves it as it is picked).
 function Downloads() {
-  const prefs = useOp('preferences.get', {})
-  const write = useWrite()
-  const { target, isOverridden } = useTarget()
-  const saved = prefs.download_target
-  // What is picked here is kept with the account, so it follows you to
-  // another browser; this browser's own choice is applied at once.
-  React.useEffect(() => {
-    if (!target) return
-    const next =
-      isOverridden && target.arch ? { os: target.os, arch: target.arch } : null
-    if (JSON.stringify(next) === JSON.stringify(saved)) return
-    void write('preferences.update', { body: { download_target: next } })
-  }, [target, isOverridden, saved, write])
   return (
     <div className="max-w-2xl">
       <Header id="downloads" title="Downloads">

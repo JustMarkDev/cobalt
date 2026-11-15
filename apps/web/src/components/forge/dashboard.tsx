@@ -11,8 +11,7 @@ import type {
   Severity,
 } from '~/lib/model/dashboard'
 import { BrandLogo } from '~/components/brand'
-import { TrendChart } from '~/components/charts'
-import { Sparkline } from '~/components/dither-kit'
+import { Sparkline, TrendChart } from '~/components/charts'
 import { Stagger } from '~/components/motion'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -115,7 +114,7 @@ export function SummaryStrip({ data }: { data: DashboardData }) {
         badge={<Delta value={data.downloads.change} />}
         context="Across all releases"
         spark={
-          <Sparkline data={data.downloads.daily} color="green" bloom="low" />
+          <Sparkline data={data.downloads.daily} label="Downloads per day" />
         }
       />
       <Stat

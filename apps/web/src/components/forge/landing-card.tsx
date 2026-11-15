@@ -38,36 +38,37 @@ function useStarted(at: { owner: string; repo: string; number: string }) {
   )
 }
 
+/**
+ * The landing operation `id`, read again every second until it ends. The page
+ * and its landing card read it with the same key, so they share one poll.
+ */
+export function useLandingOperation(id: string | null | undefined) {
+  return useQuery({
+    ...opQuery('operations.get', { id: id ?? '' }),
+    enabled: !!id,
+    refetchInterval: (q) => {
+      const state = (q.state.data as { state?: string } | undefined)?.state
+      return state === 'succeeded' || state === 'failed' ? false : 1000
+    },
+  }).data
+}
+
 export function LandingCard({
   at,
   landed,
   sha,
   operation,
-  onDone,
 }: {
   at: { owner: string; repo: string; number: string }
   landed: boolean
   sha: string
   /** The landing under way, when landing runs steps: followed until it ends. */
   operation?: string | null
-  onDone?: (ok: boolean) => void
 }) {
   const l = useOpMaybe('changes.landability', at)
   const remembered = useStarted(at)
   operation ??= remembered
-  const op = useQuery({
-    ...opQuery('operations.get', { id: operation ?? '' }),
-    enabled: !!operation,
-    refetchInterval: (q) => {
-      const state = (q.state.data as { state?: string } | undefined)?.state
-      return state === 'succeeded' || state === 'failed' ? false : 1000
-    },
-  }).data
-  const ended = op?.state === 'succeeded' || op?.state === 'failed'
-  React.useEffect(() => {
-    if (ended) onDone?.(op.state === 'succeeded')
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- once, when it ends
-  }, [ended])
+  const op = useLandingOperation(operation)
   if (op && operation) return <OperationSteps op={op} />
   if (!l) return null
   const waits = new Map(l.blockers.map((b) => [b.id, b]))

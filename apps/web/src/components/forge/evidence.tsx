@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   CheckCircleIcon,
   CpuChipIcon,
@@ -148,21 +149,18 @@ function OriginChip({ o }: { o: Origin }) {
  * fetched and drawn in a sandboxed frame that cannot reach this page.
  */
 function PagePreview({ title, src }: { title: string; src: string }) {
-  const [html, setHtml] = React.useState<string | null>(null)
-  const [failed, setFailed] = React.useState(false)
-  React.useEffect(() => {
-    let live = true
-    fetch(src)
-      .then((r) =>
-        r.ok ? r.text() : Promise.reject(new Error(String(r.status))),
-      )
-      .then((t) => live && setHtml(t))
-      .catch(() => live && setFailed(true))
-    return () => {
-      live = false
-    }
-  }, [src])
-  if (failed)
+  const page = useQuery({
+    queryKey: ['evidence-page', src],
+    queryFn: async () => {
+      const r = await fetch(src)
+      if (!r.ok) throw new Error(String(r.status))
+      return r.text()
+    },
+    staleTime: Infinity,
+    retry: false,
+  })
+  const html = page.data ?? null
+  if (page.isError)
     return (
       <p className="text-sm text-muted-foreground">
         The preview could not be loaded.

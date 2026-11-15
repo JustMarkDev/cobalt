@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, SectionLabel, Seg, Tile } from './bits'
-import { slugOf, useRepoCounts } from './repo-shell'
+import { slugOf } from './repo-shell'
 import { WorkWithAgent } from './work-with-agent'
 import type { Repo } from '~/lib/model/data'
 import type { Label } from '@source-code/sdk'
@@ -21,7 +21,7 @@ import { IssueHistory } from './issue-history'
 import { Viewers, usePresence } from './presence'
 import { manages, useAccount, useMe } from '~/lib/auth/accounts'
 import { timeAgo } from '~/lib/repo'
-import { ShareDonut, TrendChart } from '~/components/charts'
+import { ShareBar, TrendChart } from '~/components/charts'
 import { Button } from '~/components/ui/button'
 
 type LabelColor = Label['color']
@@ -105,7 +105,6 @@ function IssueList({ repo }: { repo: Repo }) {
 
   const count = (l: typeof lists.open) =>
     `${l.data.length}${l.has_more ? '+' : ''}`
-  useRepoCounts({ issues: lists.open.data.length })
 
   const shown = lists[state].data.filter(
     (i) =>
@@ -551,29 +550,26 @@ export function InsightsPage({ repo }: { repo: Repo }) {
           <Panel className="h-56 p-3">
             <TrendChart data={weekly} unit="Commits" className="h-full" />
           </Panel>
-          <div className="h-44">
-            <ShareDonut
-              data={[
-                { name: 'People', value: human },
-                { name: 'Agents', value: agent },
-                { name: 'Bots', value: bot },
-              ].filter((x) => x.value > 0)}
-            />
-          </div>
+          <ShareBar
+            className="max-w-md"
+            data={[
+              { name: 'People', value: human },
+              { name: 'Agents', value: agent },
+              { name: 'Bots', value: bot },
+            ]}
+          />
         </section>
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Downloads by platform</h2>
             {release ? (
-              <div className="h-52">
-                <ShareDonut
-                  data={release.assets.map((a) => ({
-                    name: `${a.platform} ${a.arch}`,
-                    value: a.downloads,
-                  }))}
-                />
-              </div>
+              <ShareBar
+                data={release.assets.map((a) => ({
+                  name: `${a.platform} ${a.arch}`,
+                  value: a.downloads,
+                }))}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">
                 Publish a release to see platform data.

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { RequireAuth } from '~/components/forge/auth'
 import { EmptyState, PageTitle } from '~/components/forge/bits'
@@ -37,28 +38,27 @@ function Join() {
   const navigate = useNavigate()
   // What accepting would do, asked without doing it, so the page can say
   // which organization this is before you join.
-  const [offer, setOffer] = React.useState<Member | null>(null)
-  const [error, setError] = React.useState<string | null>(null)
+  const dryRun = useQuery({
+    queryKey: ['invitation-offer', token, me?.handle],
+    queryFn: async () => {
+      const r = await write(
+        'invitations.accept',
+        { body: { token: token ?? '' } },
+        { dryRun: true },
+      )
+      if (r.error)
+        throw new Error(r.error.code === 'not_found' ? GONE : r.error.message)
+      return r.data
+    },
+    enabled: !!token && !!me,
+    retry: false,
+    staleTime: Infinity,
+  })
+  const offer: Member | null = dryRun.data ?? null
+  const [joinError, setError] = React.useState<string | null>(null)
+  const error = joinError ?? (dryRun.error ? dryRun.error.message : null)
   const [busy, setBusy] = React.useState(false)
   const org = useAccount(offer?.account ?? '')
-
-  React.useEffect(() => {
-    if (!token || !me) return
-    let stale = false
-    void write(
-      'invitations.accept',
-      { body: { token } },
-      { dryRun: true },
-    ).then((r) => {
-      if (stale) return
-      if (r.error)
-        setError(r.error.code === 'not_found' ? GONE : r.error.message)
-      else setOffer(r.data)
-    })
-    return () => {
-      stale = true
-    }
-  }, [token, me, write])
 
   if (!token || error)
     return (
