@@ -627,8 +627,13 @@ describe('what keeps it fast must not make it wrong', () => {
   test('memory is bounded: old idempotency keys and old events are dropped', async () => {
     const store = new MemoryIdempotencyStore(86_400_000, clock(), 1000)
     for (let i = 0; i < 5000; i++) {
-      await store.begin('a', `k${i}`, 'x')
-      await store.complete('a', `k${i}`, { status: 200, headers: {}, body: '' })
+      const b = await store.begin('a', `k${i}`, 'x')
+      if (b.state !== 'new') throw new Error('held')
+      await store.complete('a', `k${i}`, b.lease, {
+        status: 200,
+        headers: {},
+        body: '',
+      })
     }
     expect(store.size).toBe(1000)
     const h = harness({ events: new EventLog(clock(), 100) })

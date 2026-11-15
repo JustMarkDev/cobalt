@@ -20,6 +20,7 @@ import { EvidenceSection, TestReport } from './evidence'
 import { slugOf } from './repo-shell'
 import { StateIcon, StatusCard } from './status-card'
 import { WorkWithAgent } from './work-with-agent'
+import { idleLanding, landingReducer, landingView } from '~/lib/landing-state'
 import {
   LandingCard,
   rememberLanding,
@@ -561,15 +562,10 @@ function ChangeDetail({
     React.useState<Record<string, FindingState>>(initial)
   const [error, setError] = React.useState('')
   const ci = change.ci
-  const [started, setLanding] = React.useState<'idle' | 'landing' | 'landed'>(
-    change.state === 'landed' ? 'landed' : 'idle',
-  )
+  // What this page asked for; what it shows follows the server (`landingView`).
+  const [ask, dispatch] = React.useReducer(landingReducer, idleLanding)
+  const followed = useLandingOperation(at, ask)
   const [events, setEvents] = React.useState<Array<TimelineEvent>>([])
-  const [operation, setOperation] = React.useState<string | null>(null)
-  // A landing with steps is an operation; once it ends, its end is the state.
-  const ended = useLandingOperation(operation)?.state
-  const landing =
-    ended === 'succeeded' ? 'landed' : ended === 'failed' ? 'idle' : started
   // Who else has this change open, and the file each is on.
   const inView = useFileInView(tab === 'code')
   const viewers = usePresence(
@@ -647,7 +643,12 @@ function ChangeDetail({
       : []),
   ]
   const blockers = items.filter((i) => i.state !== 'pass')
-  const canLand = blockers.length === 0 && change.state !== 'draft'
+  const landing = landingView({
+    change: change.state,
+    blockers: blockers.length,
+    ask,
+    ...followed,
+  })
 
   const note =
     change.state === 'draft'
@@ -662,16 +663,21 @@ function ChangeDetail({
     return !r.error
   }
   // Resolving and dismissing are the API's; the rest is this page's state.
+  // Shown at once; put back as it was if the API says no.
   const set = (id: string, next: FindingState) => {
+    const was = state[id]
     setState((s) => ({ ...s, [id]: next }))
+    const undo = (r: { error: { message: string } | null }) => {
+      if (!fail(r)) setState((s) => ({ ...s, [id]: was }))
+    }
     if (next.s === 'resolved')
-      void write('findings.resolve', { ...at, finding: id }).then(fail)
+      void write('findings.resolve', { ...at, finding: id }).then(undo)
     if (next.s === 'dismissed')
       void write('findings.dismiss', {
         ...at,
         finding: id,
         body: { reason: next.reason },
-      }).then(fail)
+      }).then(undo)
   }
   const send = (id: string) => {
     const f = list.find((x) => x.id === id)
@@ -808,26 +814,29 @@ function ChangeDetail({
           <div className="min-w-0 space-y-6">
             <StatusCard
               items={items}
-              landing={landing}
-              canLand={canLand}
+              landing={landing.phase}
+              canLand={landing.canLand}
               changeId={change.id}
               note={note}
               onGoto={setTab}
               onLand={() => {
-                setLanding('landing')
-                setOperation(null)
+                if (!landing.canLand) return
+                dispatch({ type: 'send' })
                 void write('changes.land', {
                   ...at,
                   body: { expected_tree: api.head.tree },
                 }).then((r) => {
-                  if (!fail(r)) return setLanding('idle')
-                  // With landing steps, it is an operation the card follows.
-                  if (r.data?.object === 'operation') {
+                  if (r.error)
+                    return dispatch({
+                      type: 'refused',
+                      message: r.error.message,
+                    })
+                  // With landing steps, it is an operation the page follows.
+                  if (r.data.object === 'operation') {
                     rememberLanding(at, r.data.id)
-                    setOperation(r.data.id)
-                    return
+                    return dispatch({ type: 'following', operation: r.data.id })
                   }
-                  setLanding('landed')
+                  dispatch({ type: 'landed' })
                   log({
                     kind: 'land',
                     who: 'you',
@@ -839,7 +848,9 @@ function ChangeDetail({
                 })
               }}
             />
-            {error && <p className="text-sm text-danger">{error}</p>}
+            {(landing.message ?? error) && (
+              <p className="text-sm text-danger">{landing.message ?? error}</p>
+            )}
             <StackCard repo={repo} change={change} all={stack} />
             <section className="space-y-2">
               <h3 className="text-sm font-medium">Description</h3>
@@ -866,9 +877,9 @@ function ChangeDetail({
           <aside className="space-y-3">
             <LandingCard
               at={at}
-              landed={landing === 'landed'}
+              landed={landing.phase === 'landed'}
               sha={api.head.sha}
-              operation={operation}
+              {...followed}
             />
             <h3 className="text-sm font-medium">On other hosts</h3>
             <MirrorCard repo={repo} change={change} />
@@ -1002,11 +1013,14 @@ function CodeReview({
   const rank = (p: string) =>
     guide ? guide.order.findIndex((o) => o.path === p) + 1 || 1e6 : 0
   const names = Object.keys(base).sort((x, y) => rank(x) - rank(y))
-  const [editing, setEditing] = React.useState(false)
+  // Editing happens only where the code can be edited (the newest patch
+  // set, not comparing): asked for there, and never shown anywhere else.
   const canEdit = editable && ps === latest && !compare
-  // Leaving the newest patch set (or comparing) ends editing. Set while
-  // rendering, so React redoes this render before anything is shown.
-  if (editing && !canEdit) setEditing(false)
+  const [wantsEditing, setEditing] = React.useState(false)
+  // Leaving the place where it can be done ends it, so coming back starts
+  // read-only. Done while drawing, not in an effect after it.
+  if (wantsEditing && !canEdit) setEditing(false)
+  const editing = wantsEditing && canEdit
   const factory = useEditorFactory(editing)
   const { model } = useFileTree({
     paths: names,
@@ -1282,7 +1296,7 @@ function CodeReview({
                       />
                     )
                   }}
-                  edit={editing && canEdit && Boolean(factory)}
+                  edit={editing && Boolean(factory)}
                   editStateKey={`${change.id}:${name}`}
                   onEditComplete={(e) => {
                     if (e.newFile && e.newFile.contents !== after)

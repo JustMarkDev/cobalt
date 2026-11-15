@@ -1,4 +1,5 @@
 import { newId } from '../ids'
+import { automationNextRun } from '../lifecycles'
 import { apiError } from '../problem'
 import type { Scope } from '../auth'
 import type { EventRecord } from '../events'
@@ -52,11 +53,6 @@ export type AutomationRec = {
 
 export const automationEvery = ['hour', 'day', 'week'] as const
 export type AutomationEvery = (typeof automationEvery)[number]
-const INTERVAL: Record<AutomationEvery, number> = {
-  hour: 3_600_000,
-  day: 86_400_000,
-  week: 7 * 86_400_000,
-}
 
 /** Event types, as an automation names them. */
 const triggerOf: Partial<Record<string, AutomationTrigger>> = {
@@ -141,10 +137,9 @@ export abstract class DomainAutomations extends DomainIntegrations {
     return run
   }
 
-  /** When a scheduled automation fires next; null when it has no schedule. */
+  /** When a scheduled automation fires next; null without a schedule or when turned off. */
   private nextRun(a: AutomationRec) {
-    if (!a.triggers.includes('schedule')) return null
-    return (a.lastScheduled ?? a.created) + INTERVAL[a.every ?? 'week']
+    return automationNextRun(a)
   }
 
   /**
@@ -160,7 +155,7 @@ export abstract class DomainAutomations extends DomainIntegrations {
       if (!repo) continue
       for (const a of list) {
         const next = this.nextRun(a)
-        if (!a.enabled || next === null || next > now) continue
+        if (next === null || next > now) continue
         a.lastScheduled = now
         this.wake(repo, a, `its ${a.every ?? 'week'}ly schedule`, null)
         fired++

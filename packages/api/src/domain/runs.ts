@@ -1,3 +1,4 @@
+import { runStateAt } from '../lifecycles'
 import { newId } from '../ids'
 import { pageSorted } from '../cursor'
 import { apiError } from '../problem'
@@ -34,9 +35,7 @@ export abstract class DomainRuns extends DomainTeams {
 
   /** A run that outlived its token is over, whether or not anyone said so. */
   protected runState(r: RunRec): z.infer<typeof S.Run>['state'] {
-    return r.state === 'running' && r.expires <= this.now()
-      ? 'expired'
-      : r.state
+    return runStateAt(r, this.now())
   }
 
   presentRun(r: RunRec, secret: string | null = null): z.infer<typeof S.Run> {

@@ -93,12 +93,40 @@ export class ConvexUploads implements UploadPort {
     return this.signer.verify(rec, exp, sig, this.now())
   }
 
+  /**
+   * The upload is marked as having its file before its bytes are kept, in
+   * one step that only one request can win; if keeping them then fails, the
+   * mark is taken back. A second request never overwrites the first's bytes.
+   */
   async put(rec: UploadRec, bytes: Uint8Array, contentType: string) {
     const problem = checkFile(rec, bytes, contentType, this.blobs)
     if (problem) return problem
-    await this.blobs.put(rec.id, bytes)
-    rec.sha256 = sha256Hex(bytes)
+    const sha256 = sha256Hex(bytes)
+    const refused = await run<string | null>(
+      this.call,
+      'mutation',
+      'forge/uploads:receive',
+      { id: rec.id, sha256 },
+      'system',
+    )
+    if (refused) return refused
+    try {
+      await this.blobs.put(rec.id, bytes)
+    } catch (e) {
+      await run(
+        this.call,
+        'mutation',
+        'forge/uploads:unreceive',
+        { id: rec.id, sha256 },
+        'system',
+      )
+      throw e
+    }
+    rec.sha256 = sha256
     rec.state = 'uploaded'
+    // Already saved by `receive`.
+    const held = uploadScope.getStore()?.get(rec.id)
+    if (held?.rec === rec) held.json = fields(rec)
     return null
   }
 

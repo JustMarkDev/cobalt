@@ -1,3 +1,11 @@
+import {
+  canMove,
+  cancelPipeline,
+  pipelineLifecycle,
+  reportStep,
+  settlePipeline,
+} from '@source-code/api/lifecycles'
+import type { PipelineStatus } from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { query } from '../_generated/server'
@@ -17,7 +25,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
  * the run. Claiming is one transaction, so two runners never take one job.
  */
 
-type Status = 'queued' | 'running' | 'success' | 'failure' | 'canceled'
+type Status = PipelineStatus
 type Line = { t: string; level: string | null }
 type Step = {
   name: string
@@ -54,9 +62,6 @@ export type PipelineRun = {
   jobs: Array<Job>
   version: number
 }
-
-const done = (s: string) =>
-  s === 'success' || s === 'failure' || s === 'canceled'
 
 /** A run as stored: lines come back only when asked for. */
 async function load(
@@ -515,14 +520,10 @@ export const report = mutation({
     const s = j?.steps.at(a.step - 1)
     if (!j || !s || a.job < 1 || a.step < 1)
       fail('not_found', `Run ${a.n} has no job ${a.job} step ${a.step}.`)
-    if (done(r.status))
-      fail('invalid_state', `Run ${a.n} has already finished.`)
-    if (j.status !== 'running')
-      fail(
-        'invalid_state',
-        `Job ${a.job} of run ${a.n} is ${j.status}; a runner claims it first.`,
-      )
-    s.status = a.status
+    const moved = reportStep(r, a.job, a.step, a.status)
+    if ('refusal' in moved) fail('invalid_state', moved.refusal)
+    // The same report again (a runner's retry) changes nothing.
+    if (moved.repeated) return out(present(repo, r, true))
     if (a.duration_ms !== undefined) s.duration = a.duration_ms
     for (const l of a.lines ?? [])
       s.lines.push({ t: l.text, level: l.level ?? null })
@@ -537,27 +538,8 @@ export const report = mutation({
         job: j.name,
         step: s.name,
       })
-      // A failed step stops the job: what is left is skipped.
-      for (const rest of j.steps.slice(a.step))
-        if (rest.status === 'queued') rest.status = 'skipped'
     }
-    const over = (x: { status: string }) =>
-      x.status === 'success' ||
-      x.status === 'failure' ||
-      x.status === 'skipped' ||
-      x.status === 'canceled'
-    if (j.steps.every(over)) {
-      j.status = j.steps.some((x) => x.status === 'failure')
-        ? 'failure'
-        : 'success'
-      j.duration = j.steps.reduce((t, x) => t + x.duration, 0)
-    }
-    if (r.jobs.every(over)) {
-      r.status = r.jobs.some((x) => x.status === 'failure')
-        ? 'failure'
-        : 'success'
-      r.finished = Date.now()
-    }
+    settlePipeline(r, Date.now())
     r.version++
     await save(ctx, repo, doc, r)
     return out(present(repo, r, true))
@@ -577,15 +559,9 @@ export const cancel = mutation({
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const doc = await runOf(ctx, repo, a.n)
     const r = await load(ctx, doc)
-    if (done(r.status))
+    if (!canMove(pipelineLifecycle, r.status, 'canceled'))
       fail('invalid_state', `Run ${a.n} has already finished.`)
-    r.status = 'canceled'
-    r.finished = Date.now()
-    for (const j of r.jobs) {
-      if (!done(j.status) && j.status !== 'skipped') j.status = 'canceled'
-      for (const s of j.steps)
-        if (!done(s.status) && s.status !== 'skipped') s.status = 'canceled'
-    }
+    cancelPipeline(r, Date.now())
     r.version++
     await save(ctx, repo, doc, r)
     return finish(a.dry, await shown(ctx, repo, doc, r))

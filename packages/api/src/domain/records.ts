@@ -181,6 +181,8 @@ export type ChangeRec = {
   title: string
   description: string
   state: 'draft' | 'open' | 'landed' | 'abandoned'
+  /** While abandoned: the state it was abandoned from. */
+  abandonedFrom?: 'draft' | 'open'
   author: ActorRec
   base: string
   branch: string
@@ -543,12 +545,8 @@ export type ReleaseRec = {
   version: number
 }
 
-export type PipelineStatus =
-  | 'queued'
-  | 'running'
-  | 'success'
-  | 'failure'
-  | 'canceled'
+export type { PipelineStatus } from '../lifecycles'
+import type { PipelineStatus } from '../lifecycles'
 export type LogLevel = 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error'
 export type PipelineRunRec = {
   id: string

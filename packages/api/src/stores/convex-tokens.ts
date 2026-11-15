@@ -133,6 +133,24 @@ export class ConvexOAuthState implements OAuthState {
     return (await this.m<T | null>('use', { kind, key })) ?? undefined
   }
 
+  swap(
+    kind: OAuthKind,
+    key: string,
+    field: string,
+    from: string,
+    value: unknown,
+    expires: number | null,
+  ) {
+    return this.m<boolean>('swap', {
+      kind,
+      key,
+      field,
+      from,
+      value: JSON.stringify(value),
+      expires,
+    })
+  }
+
   count(kind: OAuthKind, upTo: number) {
     return this.q<number>('count', { kind, upTo })
   }

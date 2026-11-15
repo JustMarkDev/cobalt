@@ -1,4 +1,6 @@
 import { MemoryOAuthState } from './oauth-state'
+import { canMove, deviceLifecycle } from './lifecycles'
+import type { DeviceStatus } from './lifecycles'
 import type { OAuthState } from './oauth-state'
 import { createHash } from 'node:crypto'
 import { randomSource } from './ids'
@@ -134,17 +136,24 @@ type Refresh = {
   clientId: string
 }
 
+/**
+ * A device code. It moves only as `deviceLifecycle` allows, and only by a
+ * swap from the state it was read in; polling writes `DevicePoll`, never this.
+ */
 type Device = {
   userCode: string
   client: Client
   scopes: ReadonlyArray<Scope>
   audience: ReadonlyArray<Audience>
   expires: number
+  /** The interval it started with; `DevicePoll` keeps the current one. */
   interval: number
-  lastPoll: number
-  status: 'pending' | 'approved' | 'denied'
+  status: DeviceStatus
   handle: string | null
 }
+
+/** How a device code is being polled: kept apart, so a poll never rewrites the code. */
+type DevicePoll = { interval: number; lastPoll: number }
 
 export type Guard = (
   req: Request,
@@ -993,7 +1002,6 @@ export class OAuthServer {
       audience,
       expires: this.now() + DEVICE_TTL,
       interval: 5,
-      lastPoll: 0,
       status: 'pending',
       handle: null,
     }
@@ -1025,27 +1033,34 @@ export class OAuthServer {
         'expired_token',
         'The device code expired. Start again.',
       )
-    if (t - d.lastPoll < d.interval * 1000 - 200) {
-      d.interval += 5
-      d.lastPoll = t
-      await this.state.set('device', hash, d, d.expires)
+    const poll = (await this.state.get<DevicePoll>('device_poll', hash)) ?? {
+      interval: d.interval,
+      lastPoll: 0,
+    }
+    if (t - poll.lastPoll < poll.interval * 1000 - 200) {
+      const slower = { interval: poll.interval + 5, lastPoll: t }
+      await this.state.set('device_poll', hash, slower, d.expires)
       return oauthError(
         'slow_down',
-        `Poll no faster than every ${d.interval} seconds.`,
+        `Poll no faster than every ${slower.interval} seconds.`,
       )
     }
-    d.lastPoll = t
+    await this.state.set(
+      'device_poll',
+      hash,
+      { interval: poll.interval, lastPoll: t },
+      d.expires,
+    )
     if (d.status === 'denied') {
       await this.state.delete('device', hash)
+      await this.state.delete('device_poll', hash)
       return oauthError('access_denied', 'The person said no.')
     }
-    if (d.status === 'pending') {
-      await this.state.set('device', hash, d, d.expires)
+    if (d.status === 'pending')
       return oauthError(
         'authorization_pending',
         'Waiting for the person to approve.',
       )
-    }
     // Of two polls at once, only one turns the approval into a token.
     const was = await this.state.use<Device & { used?: boolean }>(
       'device',
@@ -1054,6 +1069,7 @@ export class OAuthServer {
     if (!was || was.used)
       return oauthError('invalid_grant', 'The device code is not valid.')
     await this.state.delete('device', hash)
+    await this.state.delete('device_poll', hash)
     await this.state.delete('user_code', d.userCode)
     const a = await this.o.auth.createAuthorization({
       clientId: d.client.id,
@@ -1111,10 +1127,27 @@ export class OAuthServer {
       return entry('That code was not found or has expired.')
     const decision = form.get('decision')
     if (decision === 'approve' || decision === 'deny') {
-      d.status = decision === 'approve' ? 'approved' : 'denied'
-      d.handle = user.handle
-      d.scopes = d.scopes.filter((s) => this.maxScopes(user.handle).includes(s))
-      await this.state.set('device', hash!, d, d.expires)
+      const to: DeviceStatus = decision === 'approve' ? 'approved' : 'denied'
+      // Moved only from the state it was read in: of two answers at once,
+      // one counts, and nothing else ever writes the code back.
+      const moved =
+        canMove(deviceLifecycle, d.status, to) &&
+        (await this.state.swap(
+          'device',
+          hash!,
+          'status',
+          d.status,
+          {
+            ...d,
+            status: to,
+            handle: user.handle,
+            scopes: d.scopes.filter((s) =>
+              this.maxScopes(user.handle).includes(s),
+            ),
+          },
+          d.expires,
+        ))
+      if (!moved) return entry('That code was not found or has expired.')
       return page(
         'Done',
         `<h1>${decision === 'approve' ? 'Device connected' : 'Request denied'}</h1><p>You can close this window.</p>`,

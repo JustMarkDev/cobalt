@@ -1,3 +1,4 @@
+import { canMove, grantLifecycle } from '../lifecycles'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { ENVIRONMENTS } from '../extras'
@@ -922,9 +923,9 @@ export const approveGrant = defineOp({
         const x = await d.svc.extras.open(full)
         const g = x.grants.find((e) => e.id === ctx.params.grant)
         if (!g) throw apiError('not_found', `No grant ${ctx.params.grant}.`)
-        if (g.state === 'revoked')
-          throw apiError('invalid_state', 'That grant was revoked.')
         if (g.state === 'active') return presentGrant(d, full, g, ctx.now())
+        if (!canMove(grantLifecycle, g.state, 'active'))
+          throw apiError('invalid_state', 'That grant was revoked.')
         if (!ctx.dryRun) {
           g.state = 'active'
           g.expires = ctx.now() + ctx.body.ttl_minutes * 60_000
@@ -975,7 +976,7 @@ export const revokeGrant = defineOp({
         const x = await d.svc.extras.open(full)
         const g = x.grants.find((e) => e.id === ctx.params.grant)
         if (!g) throw apiError('not_found', `No grant ${ctx.params.grant}.`)
-        if (!ctx.dryRun && g.state !== 'revoked') {
+        if (!ctx.dryRun && canMove(grantLifecycle, g.state, 'revoked')) {
           g.state = 'revoked'
           x.note(ctx.principal!.handle, `revoked ${g.id}`)
         }

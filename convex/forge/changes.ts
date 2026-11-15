@@ -1,3 +1,5 @@
+import { attachUpload } from '../lib/uploads'
+import { changeTarget } from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
 import { sha1 } from '@noble/hashes/legacy.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
@@ -1275,12 +1277,8 @@ export const transition = mutation({
           token_scopes: [...p.scopes],
         },
       })
-    const from: Record<typeof a.action, Array<ChangeRec['state']>> = {
-      ready: ['draft'],
-      abandon: ['draft', 'open'],
-      restore: ['abandoned'],
-    }
-    if (!from[a.action].includes(c.state))
+    const next = changeTarget(a.action, c)
+    if (!next)
       fail(
         'invalid_state',
         `Change #${c.number} is ${c.state}; it cannot be ${a.action === 'ready' ? 'marked ready' : a.action === 'abandon' ? 'abandoned' : 'restored'}.`,
@@ -1297,7 +1295,11 @@ export const transition = mutation({
         )
     }
     const was = c.state
-    c.state = a.action === 'abandon' ? 'abandoned' : 'open'
+    c.abandonedFrom =
+      next === 'abandoned' && (was === 'draft' || was === 'open')
+        ? was
+        : undefined
+    c.state = next
     touch(c)
     await commit(ctx, repo, l, was, {
       type: a.action === 'abandon' ? 'change.abandoned' : 'change.updated',
@@ -1320,7 +1322,7 @@ export function checkLandable(
     fail('insufficient_scope', 'Landing needs pulls:merge.', {
       extra: { required_scopes: ['pulls:merge'], token_scopes: [...p.scopes] },
     })
-  if (c.state !== 'open')
+  if (!changeTarget('land', c))
     fail(
       'invalid_state',
       c.state === 'draft'
@@ -1383,6 +1385,8 @@ async function doLand(
 ) {
   const c = l.rec
   const was = c.state
+  if (!changeTarget('land', c))
+    fail('invalid_state', `#${c.number} is ${c.state}; it cannot land.`)
   c.state = 'landed'
   c.landed = Date.now()
   touch(c)
@@ -1715,6 +1719,7 @@ export const addEvidence = mutation({
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const l = await loadChange(ctx, repo, a.ref)
     const by = await actorFor(ctx, p.handle, p.class)
+    await attachUpload(ctx, a.upload.id, repo)
     const e: EvidenceRec = {
       id: newId('evidence', Date.now()),
       kind: a.kind,

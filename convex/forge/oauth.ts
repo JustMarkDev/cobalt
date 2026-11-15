@@ -74,6 +74,34 @@ export const use = mutation({
   },
 })
 
+/**
+ * Replaces an entry only while its `field` is still `from`, in one step: of
+ * two writes racing to move it on, exactly one does. Answers whether it did.
+ */
+export const swap = mutation({
+  args: {
+    kind: v.string(),
+    key: v.string(),
+    field: v.string(),
+    from: v.string(),
+    value: v.string(),
+    expires: v.union(v.null(), v.number()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const e = await entry(ctx, a.kind, a.key)
+    if (!e) return out(false)
+    const now = JSON.parse(e.value) as Record<string, unknown>
+    if (now[a.field] !== a.from) return out(false)
+    await ctx.db.patch('oauthState', e._id, {
+      value: a.value,
+      expires: a.expires,
+    })
+    return out(true)
+  },
+})
+
 export const count = query({
   args: { kind: v.string(), upTo: v.number() },
   returns: v.string(),

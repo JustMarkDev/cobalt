@@ -1,3 +1,4 @@
+import { canMove, deliveryLifecycle } from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { matchesType } from '@source-code/api/events'
@@ -409,6 +410,14 @@ export const report = mutation({
     const h = d && (await ctx.db.get('webhooks', d.hookId))
     // Gone while it was being sent: nothing to count it on.
     if (!d || !h) return out({ retryAt: null })
+    // Only the claim that sent it reports on it. A late answer from a claim
+    // that ran out (another server holds it now, or already finished it) is
+    // dropped, so a delivery is counted once and never leaves a final state.
+    if (
+      !canMove(deliveryLifecycle, d.state, 'succeeded') ||
+      d.claimedUntil !== a.at + CLAIM_MS
+    )
+      return out({ retryAt: null })
     const attempts = [
       ...d.attempts,
       {

@@ -18,6 +18,10 @@ domain/         the data behind the API. `port.ts` is the interface the
 events.ts       the event log and its per-topic waiters
 limiter.ts      leased rate limits over a shared store, concurrency guard
 idempotency.ts  idempotency store (interface + memory)
+lifecycles.ts   every record that moves through states (changes, runs,
+                operations, pipelines, deliveries, uploads, device codes,
+                grants, automation schedules) and the moves it may make;
+                the memory domain and `convex/` both write states through it
 auth.ts         tokens, principals, scopes
 openapi.ts      OpenAPI 3.1 from the operations
 openapi-diff.ts the "v1 only adds" check
@@ -76,6 +80,9 @@ committed files.
 - A flood of denied requests must not become a flood of store writes.
 - A page that calls Convex itself gets what the operation answers, refusals
   included (`screens.test.ts`).
+- A state changes only by a move in `lifecycles.ts`, checked where it is
+  written, in the same transaction. A new state or move goes in the table
+  first (`lifecycles.test.ts`, `stores/state-machines.test.ts`).
 
 ## What is not real yet
 

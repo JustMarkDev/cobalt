@@ -11,6 +11,8 @@ export type OAuthKind =
   | 'code'
   | 'refresh'
   | 'device'
+  /** How fast a device code is polled, apart from the code, so polling never rewrites it. */
+  | 'device_poll'
   | 'user_code'
 
 export interface OAuthState {
@@ -28,6 +30,18 @@ export interface OAuthState {
    * using the same code at once, exactly one sees it unused.
    */
   use: <T>(kind: OAuthKind, key: string) => Promise<T | undefined>
+  /**
+   * Replaces it only while its `field` is still `from`, in one step: of two
+   * writes racing to move it on, exactly one does. Answers whether it did.
+   */
+  swap: (
+    kind: OAuthKind,
+    key: string,
+    field: string,
+    from: string,
+    value: unknown,
+    expires: number | null,
+  ) => Promise<boolean>
   /** How many there are, counting no further than `upTo`. */
   count: (kind: OAuthKind, upTo: number) => Promise<number>
   /** Forget what expired. */
@@ -67,6 +81,21 @@ export class MemoryOAuthState implements OAuthState {
     const before = structuredClone(e.value) as T
     ;(e.value as { used?: boolean }).used = true
     return Promise.resolve(before)
+  }
+
+  swap(
+    kind: OAuthKind,
+    key: string,
+    field: string,
+    from: string,
+    value: unknown,
+    expires: number | null,
+  ) {
+    const e = this.map(kind).get(key)
+    if (!e || (e.value as Record<string, unknown>)[field] !== from)
+      return Promise.resolve(false)
+    this.map(kind).set(key, { value: structuredClone(value), expires })
+    return Promise.resolve(true)
   }
 
   count(kind: OAuthKind, upTo: number) {

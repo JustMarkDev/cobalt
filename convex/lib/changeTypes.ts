@@ -124,13 +124,16 @@ export type EvidenceRec = {
   by: ActorRec
   created: number
 }
-export type ChangeState = 'draft' | 'open' | 'landed' | 'abandoned'
+export type { ChangeState } from '@source-code/api/lifecycles'
+import type { ChangeState } from '@source-code/api/lifecycles'
 export type ChangeRec = {
   id: string
   number: number
   title: string
   description: string
   state: ChangeState
+  /** While abandoned: the state it was abandoned from. */
+  abandonedFrom?: 'draft' | 'open'
   author: ActorRec
   base: string
   branch: string

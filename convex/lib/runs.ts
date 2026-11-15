@@ -1,4 +1,6 @@
 import { newId } from '@source-code/api/ids'
+import { runStateAt } from '@source-code/api/lifecycles'
+import { internal } from '../_generated/api'
 import { runIdOf } from '@source-code/api/trailers'
 import { iso, repoRef, urls } from './present'
 import { actorFor, emit } from './events'
@@ -24,9 +26,17 @@ export const RUN_SCOPES = [
   'secrets:schema',
 ] as const
 
-/** A run that outlived its token is over, whether or not anyone said so. */
-export const runState = (r: Doc<'runs'>, at: number) =>
-  r.state === 'running' && r.expires <= at ? ('expired' as const) : r.state
+/** A run as it stands at `at` (`@source-code/api/lifecycles`). */
+export const runState = (r: Doc<'runs'>, at: number) => runStateAt(r, at)
+
+/** A new run's token runs out at `expires`; the run is marked expired then. */
+export async function scheduleExpiry(
+  ctx: MutationCtx,
+  run: Id<'runs'>,
+  expires: number,
+) {
+  await ctx.scheduler.runAt(expires, internal.forge.runs.expire, { run })
+}
 
 export async function presentRun(
   ctx: QueryCtx,
@@ -147,6 +157,7 @@ export async function startRunFor(
     finished: null,
     version: 1,
   })
+  await scheduleExpiry(ctx, id, at + ttlMinutes * 60_000)
   const run = (await ctx.db.get('runs', id))!
   const agent = await actorFor(ctx, handle, 'agent')
   await emit(

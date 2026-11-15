@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
+import { canMove, runLifecycle } from '@source-code/api/lifecycles'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
@@ -15,6 +16,7 @@ import {
   RUN_SCOPES,
   presentRun,
   runState,
+  scheduleExpiry,
 } from '../lib/runs'
 import type { Actor } from '../lib/actor'
 import type { Doc } from '../_generated/dataModel'
@@ -101,15 +103,15 @@ export const start = mutation({
         hint: 'Setting secrets is a person-only action.',
       })
     const at = Date.now()
+    // Only runs whose token is still good: an expired one never counts,
+    // whether or not its expiry has been written yet.
     const mine = await ctx.db
       .query('runs')
-      .withIndex('by_handle_and_state', (q) =>
-        q.eq('handle', p.handle).eq('state', 'running'),
+      .withIndex('by_handle_and_state_and_expires', (q) =>
+        q.eq('handle', p.handle).eq('state', 'running').gt('expires', at),
       )
-      .take(RUNS_RUNNING * 5)
-    if (
-      mine.filter((r) => runState(r, at) === 'running').length >= RUNS_RUNNING
-    )
+      .take(RUNS_RUNNING)
+    if (mine.length >= RUNS_RUNNING)
       fail(
         'limit_reached',
         `You can have ${RUNS_RUNNING} runs going at once.`,
@@ -142,6 +144,7 @@ export const start = mutation({
       finished: null,
       version: 1,
     })
+    await scheduleExpiry(ctx, id, at + a.ttl_minutes * 60_000)
     const run = (await ctx.db.get('runs', id))!
     const agent = await actorFor(ctx, p.handle, 'agent')
     await emit(
@@ -351,20 +354,44 @@ export const end = mutation({
   },
 })
 
+/** A running run whose token ran out is expired: it ended at its deadline. */
+async function expireRun(ctx: MutationCtx, r: Doc<'runs'>, at: number) {
+  if (runState(r, at) !== 'expired' || r.state !== 'running') return
+  if (!canMove(runLifecycle, r.state, 'expired')) return
+  await ctx.db.patch('runs', r._id, {
+    state: 'expired',
+    finished: r.expires,
+    version: r.version + 1,
+  })
+  await revokeToken(ctx, r.tokenId)
+}
+
+/** Scheduled at a run's deadline when it starts. */
+export const expire = internalMutation({
+  args: { run: v.id('runs') },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    const r = await ctx.db.get('runs', a.run)
+    if (r) await expireRun(ctx, r, Date.now())
+    return null
+  },
+})
+
 /** Runs and operations over for more than a week, a batch at a time. */
 async function sweepOld(ctx: MutationCtx) {
-  const cutoff = Date.now() - 7 * 86_400_000
-  for (const r of await ctx.db
-    .query('runs')
-    .withIndex('by_finished', (q) => q.gt('finished', 0).lt('finished', cutoff))
-    .take(500))
-    await ctx.db.delete('runs', r._id)
-  // A run whose token ran out without anyone finishing it is over too.
+  const now = Date.now()
+  const cutoff = now - 7 * 86_400_000
+  // Runs from before expiry was written, still marked running.
   for (const r of await ctx.db
     .query('runs')
     .withIndex('by_state_and_expires', (q) =>
-      q.eq('state', 'running').lt('expires', cutoff),
+      q.eq('state', 'running').lte('expires', now),
     )
+    .take(500))
+    await expireRun(ctx, r, now)
+  for (const r of await ctx.db
+    .query('runs')
+    .withIndex('by_finished', (q) => q.gt('finished', 0).lt('finished', cutoff))
     .take(500))
     await ctx.db.delete('runs', r._id)
   for (const o of await ctx.db

@@ -777,10 +777,15 @@ describe('who can see what', () => {
 
   test('a completed idempotency key cannot evict itself', async () => {
     const store = new MemoryIdempotencyStore(24 * 3_600_000, Date.now, 3, 300)
-    await store.begin('s', 'big', 'f')
-    await store.begin('s', 'other', 'f')
-    await store.complete('s', 'other', { status: 200, headers: {}, body: '' })
-    await store.complete('s', 'big', {
+    const big = await store.begin('s', 'big', 'f')
+    const other = await store.begin('s', 'other', 'f')
+    if (big.state !== 'new' || other.state !== 'new') throw new Error('held')
+    await store.complete('s', 'other', other.lease, {
+      status: 200,
+      headers: {},
+      body: '',
+    })
+    await store.complete('s', 'big', big.lease, {
       status: 200,
       headers: {},
       body: 'x'.repeat(500),

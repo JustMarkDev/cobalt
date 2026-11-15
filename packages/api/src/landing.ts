@@ -9,12 +9,10 @@ import type { Landing } from './policy-file'
  * Plain JavaScript: the Convex functions import it too.
  */
 
-export type StepState =
-  | 'pending'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'skipped'
+import { canMove, landingStepLifecycle } from './lifecycles'
+import type { StepState } from './lifecycles'
+
+export type { StepState } from './lifecycles'
 
 export type LandingStepRec = {
   kind: 'land' | 'run_pipeline' | 'webhook'
@@ -85,7 +83,7 @@ export function presentSteps(
 /** After a step fails, the ones after it never run. */
 export function skipRest(steps: Array<LandingStepRec>, from: number) {
   for (const s of steps.slice(from))
-    if (s.state === 'pending') {
+    if (canMove(landingStepLifecycle, s.state, 'skipped')) {
       s.state = 'skipped'
       s.detail = 'Not run: a step before it failed.'
     }

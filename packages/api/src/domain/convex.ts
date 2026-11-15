@@ -45,7 +45,7 @@ export function claimsOf(who: Principal | 'system') {
   if (who.repos) claims.sx_rep = who.repos.join(',')
   // A write under an Idempotency-Key marks the key in its own transaction.
   const held = heldKey.getStore()
-  if (held) claims.sx_idem = JSON.stringify([held.scope, held.key])
+  if (held) claims.sx_idem = JSON.stringify([held.scope, held.key, held.lease])
   return claims
 }
 
