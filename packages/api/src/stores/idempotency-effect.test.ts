@@ -34,38 +34,51 @@ async function setup() {
   await t.run((ctx) =>
     load(ctx, exportWorld(sample.domain, sample.domain.svc.auth as never)),
   )
-  const begin = (key: string) =>
-    t.mutation(forge.apiStores.beginIdempotency, {
+  // The lease each key was last handed, as the API would hold it.
+  const leases = new Map<string, string>()
+  const begin = async (key: string) => {
+    const r = await t.mutation(forge.apiStores.beginIdempotency, {
       secret: SECRET,
       scope: 'dana@dana:tok',
       key,
       fingerprint: 'f',
       ttlMs: 24 * 3_600_000,
     })
-  const abort = (key: string) =>
+    if (r.state === 'new') leases.set(key, r.lease)
+    return r
+  }
+  const abort = (key: string, lease = leases.get(key)) =>
     t.mutation(forge.apiStores.abortIdempotency, {
       secret: SECRET,
       scope: 'dana@dana:tok',
       key,
+      lease,
     })
   // Dana, as the API signs her: the principal, and the key her request holds.
-  const dana = (key: string | null) =>
+  const dana = (key: string | null, lease = key && leases.get(key)) =>
     t.withIdentity({
       subject: 'dana',
       sx_tok: 'tok',
       sx_cls: 'human',
       sx_act: 'dana',
       sx_scp: 'repo:read repo:write issues:read issues:write',
-      ...(key ? { sx_idem: JSON.stringify(['dana@dana:tok', key]) } : {}),
+      ...(key
+        ? { sx_idem: JSON.stringify(['dana@dana:tok', key, lease]) }
+        : {}),
     })
-  const openIssue = (key: string | null, title: string, name = 'gitfs') =>
-    dana(key).mutation(forge.forge.issues.create, {
+  const openIssue = (
+    key: string | null,
+    title: string,
+    name = 'gitfs',
+    lease = key ? leases.get(key) : undefined,
+  ) =>
+    dana(key, lease).mutation(forge.forge.issues.create, {
       owner: 'dana',
       name,
       title,
     })
   const later = () => setSystemTime(new Date(Date.now() + LEASE + 1_000))
-  return { t, begin, abort, dana, openIssue, later }
+  return { t, begin, abort, dana, openIssue, later, leases }
 }
 
 test('a request that wrote and then crashed never runs again', async () => {
@@ -143,10 +156,10 @@ test('the API signs the held key into each call, and only while the request hold
     repos: null,
   } as never
   expect(claimsOf(principal).sx_idem).toBeUndefined()
-  const inside = heldKey.run({ scope: 's', key: 'k' }, () =>
+  const inside = heldKey.run({ scope: 's', key: 'k', lease: 'l1' }, () =>
     Promise.resolve().then(() => claimsOf(principal)),
   )
-  expect((await inside).sx_idem).toBe('["s","k"]')
+  expect((await inside).sx_idem).toBe('["s","k","l1"]')
 
   // Through the pipeline: the domain sees the key only for a keyed write.
   const api = createSampleApi({})

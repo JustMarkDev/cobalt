@@ -15,7 +15,10 @@ import { createHash } from 'node:crypto'
  * domain signs it into the JWT of each call, so a write marks the key in the
  * write's own transaction.
  */
-export const heldKey = new AsyncLocalStorage<{ scope: string; key: string }>()
+export const heldKey = new AsyncLocalStorage<HeldKey>()
+
+/** A key, as the request that holds it holds it: its lease names the holder. */
+export type HeldKey = { scope: string; key: string; lease: string }
 
 export type StoredResponse = {
   status: number
@@ -23,25 +26,36 @@ export type StoredResponse = {
   body: string
 }
 
+/**
+ * What became of a key. `new` gives the caller the key, under a lease: a
+ * request whose lease was taken over can no longer finish the key or write
+ * under it.
+ */
 export type Begin =
-  | { state: 'new' }
+  | { state: 'new'; lease: string }
   | { state: 'replay'; response: StoredResponse }
   | { state: 'conflict' }
   | { state: 'in_progress' }
 
 export interface IdempotencyStore {
   begin: (scope: string, key: string, fingerprint: string) => Promise<Begin>
+  /** Keeps the answer, if `lease` still holds the key. */
   complete: (
     scope: string,
     key: string,
+    lease: string,
     response: StoredResponse,
   ) => Promise<void>
-  /** The request failed before it had an effect we can replay; allow a retry. */
-  abort: (scope: string, key: string) => Promise<void>
+  /**
+   * The request failed before it had an effect we can replay; allow a retry.
+   * Only while `lease` still holds the key.
+   */
+  abort: (scope: string, key: string, lease: string) => Promise<void>
 }
 
 type Entry = {
   fingerprint: string
+  lease: string
   response?: StoredResponse
   expires: number
   /** Rough size in characters: the key, the fingerprint, the headers and the body. */
@@ -115,15 +129,28 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
     if (found) this.held -= found.chars
     const chars = sizeOf(id, fingerprint)
     this.held += chars
-    this.entries.set(id, { fingerprint, expires: now + this.ttlMs, chars })
+    const lease = `${now.toString(36)}.${++this.leases}`
+    this.entries.set(id, {
+      fingerprint,
+      lease,
+      expires: now + this.ttlMs,
+      chars,
+    })
     this.evict()
-    return Promise.resolve({ state: 'new' })
+    return Promise.resolve({ state: 'new', lease })
   }
 
-  complete(scope: string, key: string, response: StoredResponse) {
+  private leases = 0
+
+  complete(
+    scope: string,
+    key: string,
+    lease: string,
+    response: StoredResponse,
+  ) {
     const id = `${scope}\u0000${key}`
     const entry = this.entries.get(id)
-    if (entry) {
+    if (entry && entry.lease === lease && !entry.response) {
       const chars = entry.chars + sizeOf('', '', response) - 160
       this.held += chars - entry.chars
       entry.chars = chars
@@ -133,10 +160,12 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
     return Promise.resolve()
   }
 
-  abort(scope: string, key: string) {
+  abort(scope: string, key: string, lease: string) {
     const id = `${scope}\u0000${key}`
     const entry = this.entries.get(id)
-    if (entry) this.held -= entry.chars
+    if (!entry || entry.lease !== lease || entry.response)
+      return Promise.resolve()
+    this.held -= entry.chars
     this.entries.delete(id)
     return Promise.resolve()
   }

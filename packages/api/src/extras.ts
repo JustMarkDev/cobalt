@@ -10,6 +10,8 @@ import { newId } from './ids'
  * unexpired grant for a development environment, writes an audit entry, and is
  * never cached. The values in the sample are stand-ins.
  */
+import type { GrantState } from './lifecycles'
+
 export const ENVIRONMENTS = ['development', 'preview', 'production'] as const
 export type Environment = (typeof ENVIRONMENTS)[number]
 
@@ -51,7 +53,7 @@ export type RecipientRec = {
 export type GrantRec = {
   id: string
   environment: Environment
-  state: 'pending' | 'active' | 'revoked'
+  state: GrantState
   variables: Array<string>
   reason: string | null
   requestedBy: string

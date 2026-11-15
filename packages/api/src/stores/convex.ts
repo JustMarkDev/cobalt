@@ -122,7 +122,8 @@ export class ConvexIdempotencyStore implements IdempotencyStore {
 
   async begin(scope: string, key: string, fingerprint: string): Promise<Begin> {
     const r = await this.guarded<
-      | { state: 'new' | 'conflict' | 'in_progress' }
+      | { state: 'new'; lease: string }
+      | { state: 'conflict' | 'in_progress' }
       | {
           state: 'replay'
           response: { status: number; headers: string; body: string }
@@ -147,19 +148,21 @@ export class ConvexIdempotencyStore implements IdempotencyStore {
   async complete(
     scope: string,
     key: string,
+    lease: string,
     response: StoredResponse,
   ): Promise<void> {
     // The write already happened. If this fails the key stays "in progress", which makes a retry wait instead of repeat.
     await this.guarded('apiStores:completeIdempotency', {
       scope,
       key,
+      lease,
       status: response.status,
       headers: JSON.stringify(response.headers),
       body: response.body,
     })
   }
 
-  async abort(scope: string, key: string): Promise<void> {
-    await this.guarded('apiStores:abortIdempotency', { scope, key })
+  async abort(scope: string, key: string, lease: string): Promise<void> {
+    await this.guarded('apiStores:abortIdempotency', { scope, key, lease })
   }
 }

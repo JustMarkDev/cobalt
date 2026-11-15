@@ -1,11 +1,15 @@
 import { newId } from '../ids'
 import { apiError } from '../problem'
+import {
+  canMove,
+  cancelPipeline,
+  pipelineLifecycle,
+  reportStep,
+  settlePipeline,
+} from '../lifecycles'
 import type { CursorPosition } from '../cursor'
 import type { PipelineRunRec, PipelineStatus, RepoRec, Viewer } from './records'
 import { DomainReleases } from './releases'
-
-const done = (s: PipelineStatus) =>
-  s === 'success' || s === 'failure' || s === 'canceled'
 
 /**
  * Pipeline runs: a workflow run on a runner, its jobs, their steps and the log
@@ -308,14 +312,10 @@ export abstract class DomainPipelines extends DomainReleases {
     const s = j?.steps.at(step - 1)
     if (!j || !s || job < 1 || step < 1)
       throw apiError('not_found', `Run ${n} has no job ${job} step ${step}.`)
-    if (done(r.status))
-      throw apiError('invalid_state', `Run ${n} has already finished.`)
-    if (j.status !== 'running')
-      throw apiError(
-        'invalid_state',
-        `Job ${job} of run ${n} is ${j.status}; a runner claims it first.`,
-      )
-    s.status = body.status
+    const moved = reportStep(r, job, step, body.status)
+    if ('refusal' in moved) throw apiError('invalid_state', moved.refusal)
+    // The same report again (a runner's retry) changes nothing.
+    if (moved.repeated) return this.presentPipelineRun(repo, r, true)
     if (body.duration_ms !== undefined) s.duration = body.duration_ms
     for (const l of body.lines ?? [])
       s.lines.push({ t: l.text, level: l.level ?? null })
@@ -330,27 +330,8 @@ export abstract class DomainPipelines extends DomainReleases {
         job: j.name,
         step: s.name,
       })
-      // A failed step stops the job: what is left is skipped.
-      for (const rest of j.steps.slice(step))
-        if (rest.status === 'queued') rest.status = 'skipped'
     }
-    const finished = (x: { status: string }) =>
-      x.status === 'success' ||
-      x.status === 'failure' ||
-      x.status === 'skipped' ||
-      x.status === 'canceled'
-    if (j.steps.every(finished)) {
-      j.status = j.steps.some((x) => x.status === 'failure')
-        ? 'failure'
-        : 'success'
-      j.duration = j.steps.reduce((t, x) => t + x.duration, 0)
-    }
-    if (r.jobs.every(finished)) {
-      r.status = r.jobs.some((x) => x.status === 'failure')
-        ? 'failure'
-        : 'success'
-      r.finished = this.now()
-    }
+    settlePipeline(r, this.now())
     r.version++
     return this.presentPipelineRun(repo, r, true)
   }
@@ -364,20 +345,11 @@ export abstract class DomainPipelines extends DomainReleases {
   ) {
     const repo = this.resolve(owner, name, p, 'write')
     const r = this.runOf(repo, n)
-    if (done(r.status))
+    if (!canMove(pipelineLifecycle, r.status, 'canceled'))
       throw apiError('invalid_state', `Run ${n} has already finished.`)
     if (dry)
       return this.presentPipelineRun(repo, { ...r, status: 'canceled' }, true)
-    const at = this.now()
-    r.status = 'canceled'
-    r.finished = at
-    for (const j of r.jobs) {
-      if (!done(j.status as PipelineStatus) && j.status !== 'skipped')
-        j.status = 'canceled'
-      for (const s of j.steps)
-        if (!done(s.status as PipelineStatus) && s.status !== 'skipped')
-          s.status = 'canceled'
-    }
+    cancelPipeline(r, this.now())
     r.version++
     return this.presentPipelineRun(repo, r, true)
   }

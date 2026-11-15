@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
+import { automationNextRun } from '@source-code/api/lifecycles'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
@@ -23,12 +24,6 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
  * time its trigger fires, and starts a run its bot picks up.
  */
 
-const INTERVAL: Record<string, number> = {
-  hour: 3_600_000,
-  day: 86_400_000,
-  week: 7 * 86_400_000,
-}
-
 /** Event types, as an automation names them. */
 const triggerOf: Record<string, string> = {
   'issue.created': 'issue.created',
@@ -38,15 +33,7 @@ const triggerOf: Record<string, string> = {
   'finding.raised': 'finding.raised',
 }
 
-const nextRunOf = (a: {
-  triggers: Array<string>
-  every?: string
-  lastScheduled?: number
-  created: number
-}) =>
-  a.triggers.includes('schedule')
-    ? (a.lastScheduled ?? a.created) + INTERVAL[a.every ?? 'week']
-    : null
+const nextRunOf = automationNextRun
 
 async function bumpRev(ctx: MutationCtx, repo: Doc<'repos'>) {
   const c = await counters(ctx, repo)
@@ -151,9 +138,13 @@ async function tick(ctx: MutationCtx) {
     .query('automations')
     .withIndex('by_nextRun', (q) => q.gt('nextRun', 0).lte('nextRun', at))
     .take(500)) {
-    if (!a.enabled) continue
     const repo = await ctx.db.get('repos', a.repoId)
-    if (!repo) continue
+    // Due but unable to fire: turned off (before the schedule was cleared on
+    // turning off) or its repository is gone. It leaves the queue for good.
+    if (!a.enabled || !repo) {
+      await ctx.db.patch('automations', a._id, { nextRun: null })
+      continue
+    }
     await ctx.db.patch('automations', a._id, {
       lastScheduled: at,
       nextRun: nextRunOf({ ...a, lastScheduled: at }),

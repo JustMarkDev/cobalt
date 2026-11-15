@@ -1,3 +1,4 @@
+import { attachUpload } from '../lib/uploads'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { query } from '../_generated/server'
@@ -719,6 +720,7 @@ export const addEvidence = mutation({
     const i = await issueOf(ctx, repo, args.number)
     const by = await actorFor(ctx, p.handle, p.class)
     const at = Date.now()
+    await attachUpload(ctx, args.upload.id, repo)
     const id = await ctx.db.insert('issueEvidence', {
       issueId: i._id,
       publicId: newId('evidence', at),

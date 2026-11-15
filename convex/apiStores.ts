@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import { env, internalMutation, mutation } from './_generated/server'
+import { heldBy } from './lib/idempotency'
 
 /**
  * The shared stores behind the HTTP API: rate-limit counters and idempotency
@@ -14,7 +15,7 @@ import { env, internalMutation, mutation } from './_generated/server'
  */
 
 const stateValidator = v.union(
-  v.object({ state: v.literal('new') }),
+  v.object({ state: v.literal('new'), lease: v.string() }),
   v.object({ state: v.literal('conflict') }),
   v.object({ state: v.literal('in_progress') }),
   v.object({
@@ -115,6 +116,9 @@ const lost = {
   }),
 }
 
+const leaseId = (now: number) =>
+  `${now.toString(36)}.${Math.random().toString(36).slice(2, 12)}`
+
 export const beginIdempotency = mutation({
   args: {
     secret: v.string(),
@@ -143,8 +147,11 @@ export const beginIdempotency = mutation({
       // is gone.
       if (now - (row.started ?? now) > LEASE_MS) {
         if (row.effect === undefined) {
-          await ctx.db.patch('apiIdempotency', row._id, { started: now })
-          return { state: 'new' as const }
+          // A new lease: the request that went quiet no longer holds the
+          // key, so it can neither write under it nor finish it.
+          const lease = leaseId(now)
+          await ctx.db.patch('apiIdempotency', row._id, { started: now, lease })
+          return { state: 'new' as const, lease }
         }
         await ctx.db.patch('apiIdempotency', row._id, { response: lost })
         return { state: 'replay' as const, response: lost }
@@ -152,14 +159,16 @@ export const beginIdempotency = mutation({
       return { state: 'in_progress' as const }
     }
     if (row) await ctx.db.delete('apiIdempotency', row._id)
+    const lease = leaseId(now)
     await ctx.db.insert('apiIdempotency', {
       scope: args.scope,
       key: args.key,
       fingerprint: args.fingerprint,
       expires: now + args.ttlMs,
       started: now,
+      lease,
     })
-    return { state: 'new' as const }
+    return { state: 'new' as const, lease }
   },
 })
 
@@ -172,6 +181,7 @@ export const completeIdempotency = mutation({
     secret: v.string(),
     scope: v.string(),
     key: v.string(),
+    lease: v.optional(v.string()),
     status: v.number(),
     headers: v.string(),
     body: v.string(),
@@ -185,7 +195,8 @@ export const completeIdempotency = mutation({
         q.eq('scope', args.scope).eq('key', args.key),
       )
       .unique()
-    if (!row) return null
+    // Finished by a request that no longer holds the key: not its to finish.
+    if (!heldBy(row, args.lease) || row.response) return null
     const tooBig = args.body.length + args.headers.length > MAX_BODY
     await ctx.db.patch('apiIdempotency', row._id, {
       response: tooBig
@@ -208,7 +219,12 @@ export const completeIdempotency = mutation({
 })
 
 export const abortIdempotency = mutation({
-  args: { secret: v.string(), scope: v.string(), key: v.string() },
+  args: {
+    secret: v.string(),
+    scope: v.string(),
+    key: v.string(),
+    lease: v.optional(v.string()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     assertSecret(args.secret)
@@ -218,7 +234,7 @@ export const abortIdempotency = mutation({
         q.eq('scope', args.scope).eq('key', args.key),
       )
       .unique()
-    if (!row) return null
+    if (!heldBy(row, args.lease) || row.response) return null
     // A request that failed after one of its writes committed must not run
     // again: its key keeps an answer that says so.
     if (row.effect !== undefined)

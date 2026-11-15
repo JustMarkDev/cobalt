@@ -1,3 +1,4 @@
+import { attachUpload } from '../lib/uploads'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { internal } from '../_generated/api'
@@ -261,6 +262,8 @@ export const create = mutation({
       published: at,
       version: 1,
     }
+    for (const x of a.assets)
+      if (x.uploadId) await attachUpload(ctx, x.uploadId, repo)
     await insertRelease(ctx, repo._id, r)
     const shown = present(repo, r)
     await emit(

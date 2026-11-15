@@ -13,10 +13,34 @@ import { startWorkflow } from './pipelines'
 import { enqueue } from './webhooks'
 import { actorRef } from '../schema'
 import type { LandingStepRec } from '@source-code/api/landing'
+import {
+  canMove,
+  isTerminal,
+  landingStepLifecycle,
+  operationLifecycle,
+} from '@source-code/api/lifecycles'
+import type { StepState } from '@source-code/api/lifecycles'
 import type { Actor } from '../lib/actor'
 import type { ActorRef } from '../lib/events'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
+
+const stepArgs = {
+  operation: v.id('operations'),
+  repo: v.id('repos'),
+  // `[number, tree]` pairs: the tree each change must still be at.
+  trees: v.array(v.array(v.string())),
+  i: v.number(),
+  // Who asked, as they were checked when they asked.
+  as: v.object({
+    handle: v.string(),
+    actingAs: v.string(),
+    class: v.union(v.literal('human'), v.literal('agent'), v.literal('bot')),
+    scopes: v.array(v.string()),
+    repos: v.union(v.null(), v.array(v.string())),
+  }),
+  by: actorRef,
+}
 
 /**
  * The landing engine: one step of an operation's plan per transaction. Each
@@ -24,39 +48,30 @@ import type { MutationCtx } from '../_generated/server'
  * policy file's landing steps run. A step that fails stops the operation with
  * the reason and the rest are skipped; what landed stays landed. Each step's
  * outcome is kept on the operation.
+ *
+ * The operation and its steps move only as `lifecycles.ts` allows. A step's
+ * own work runs as a nested transaction (`doStep`): when it fails, every
+ * write it made rolls back, and only the failure is kept.
  */
 export const step = internalMutation({
-  args: {
-    operation: v.id('operations'),
-    repo: v.id('repos'),
-    // `[number, tree]` pairs: the tree each change must still be at.
-    trees: v.array(v.array(v.string())),
-    i: v.number(),
-    // Who asked, as they were checked when they asked.
-    as: v.object({
-      handle: v.string(),
-      actingAs: v.string(),
-      class: v.union(v.literal('human'), v.literal('agent'), v.literal('bot')),
-      scopes: v.array(v.string()),
-      repos: v.union(v.null(), v.array(v.string())),
-    }),
-    by: actorRef,
-  },
+  args: stepArgs,
   returns: v.null(),
   handler: async (ctx, a) => {
     const op = await ctx.db.get('operations', a.operation)
     const repo = await ctx.db.get('repos', a.repo)
     if (!op || !repo) return null
-    const p: Actor = {
-      ...a.as,
-      scopes: new Set(a.as.scopes),
-      tokenId: null,
-      system: false,
-    }
+    // Already over (or this step already ran): nothing more to do.
+    if (isTerminal(operationLifecycle, op.state)) return null
     const steps = JSON.parse(op.steps ?? '[]') as Array<LandingStepRec>
-    const finished = async (fields: Partial<typeof op>) => {
+    if (a.i < steps.length && steps[a.i].state !== 'pending') return null
+    const finished = async (
+      state: 'succeeded' | 'failed',
+      fields: Partial<typeof op>,
+    ) => {
+      if (!canMove(operationLifecycle, op.state, state)) return
       await ctx.db.patch('operations', op._id, {
         ...fields,
+        state,
         steps: JSON.stringify(steps),
         finished: Date.now(),
       })
@@ -71,28 +86,19 @@ export const step = internalMutation({
       )
     }
     if (a.i >= steps.length) {
-      await finished({ state: 'succeeded', result: op.pending ?? null })
+      await finished('succeeded', { result: op.pending ?? null })
       return null
     }
     const s = steps[a.i]
-    const trees = Object.fromEntries(a.trees) as Record<string, string>
+    const move = (to: StepState) => {
+      if (!canMove(landingStepLifecycle, s.state, to))
+        throw new Error(`A landing step cannot go from ${s.state} to ${to}.`)
+      s.state = to
+    }
+    move('running')
+    let detail: string
     try {
-      if (s.kind === 'land') {
-        const doc = await findChange(ctx, repo, s.target)
-        if (!doc)
-          throw new ConvexError({
-            code: 'not_found',
-            detail: `No change #${s.target}.`,
-          })
-        const l = await hydrate(ctx, doc)
-        const view = await viewFor(ctx, repo, p, Date.now(), [l.rec])
-        checkLandable(view, l.rec, p, trees[s.target])
-        await doLand(ctx, repo, l, a.by)
-        s.detail = `Landed as ${l.rec.patchSets[l.rec.patchSets.length - 1].sha.slice(0, 7)}.`
-      } else if (s.kind === 'run_pipeline') {
-        const r = await startWorkflow(ctx, repo, s.target, p.handle)
-        s.detail = `Started ${s.target} run #${r.number}.`
-      } else s.detail = await callWebhook(ctx, repo, s.target, a.by)
+      detail = await ctx.runMutation(internal.forge.stackLanding.doStep, a)
     } catch (e) {
       const data = (e instanceof ConvexError ? e.data : null) as {
         code?: string
@@ -106,12 +112,11 @@ export const step = internalMutation({
         data?.code && data.code in errorCatalog ? data.code : 'internal'
       ) as keyof typeof errorCatalog
       const entry = errorCatalog[code]
-      s.state = 'failed'
+      move('failed')
       s.finished = Date.now()
       s.detail = data?.detail ?? 'Unexpected failure.'
       skipRest(steps, a.i + 1)
-      await finished({
-        state: 'failed',
+      await finished('failed', {
         error: JSON.stringify({
           type: `https://source.code/docs/api/errors#${code}`,
           title: entry.title,
@@ -127,10 +132,14 @@ export const step = internalMutation({
       })
       return null
     }
-    s.state = 'succeeded'
+    move('succeeded')
+    s.detail = detail
     s.finished = Date.now()
     await ctx.db.patch('operations', op._id, {
-      state: 'running',
+      ...(op.state === 'queued' &&
+      canMove(operationLifecycle, op.state, 'running')
+        ? { state: 'running' as const }
+        : {}),
       done: a.i + 1,
       steps: JSON.stringify(steps),
     })
@@ -139,6 +148,42 @@ export const step = internalMutation({
       i: a.i + 1,
     })
     return null
+  },
+})
+
+/** One step's work. It throws to refuse, and then none of its writes are kept. */
+export const doStep = internalMutation({
+  args: stepArgs,
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const op = (await ctx.db.get('operations', a.operation))!
+    const repo = (await ctx.db.get('repos', a.repo))!
+    const s = (JSON.parse(op.steps ?? '[]') as Array<LandingStepRec>)[a.i]
+    const p: Actor = {
+      ...a.as,
+      scopes: new Set(a.as.scopes),
+      tokenId: null,
+      system: false,
+    }
+    const trees = Object.fromEntries(a.trees) as Record<string, string>
+    if (s.kind === 'land') {
+      const doc = await findChange(ctx, repo, s.target)
+      if (!doc)
+        throw new ConvexError({
+          code: 'not_found',
+          detail: `No change #${s.target}.`,
+        })
+      const l = await hydrate(ctx, doc)
+      const view = await viewFor(ctx, repo, p, Date.now(), [l.rec])
+      checkLandable(view, l.rec, p, trees[s.target])
+      await doLand(ctx, repo, l, a.by)
+      return `Landed as ${l.rec.patchSets[l.rec.patchSets.length - 1].sha.slice(0, 7)}.`
+    }
+    if (s.kind === 'run_pipeline') {
+      const r = await startWorkflow(ctx, repo, s.target, p.handle)
+      return `Started ${s.target} run #${r.number}.`
+    }
+    return await callWebhook(ctx, repo, s.target, a.by)
   },
 })
 

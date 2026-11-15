@@ -240,6 +240,7 @@ export async function hydrate(
     created: doc.created,
     updated: doc.updated,
     landed: doc.landed,
+    ...(doc.abandonedFrom ? { abandonedFrom: doc.abandonedFrom } : {}),
     version: doc.version,
   }
   return { doc, rec, parts }
@@ -335,6 +336,7 @@ function changeFields(rec: ChangeRec) {
     created: rec.created,
     updated: rec.updated,
     landed: rec.landed,
+    abandonedFrom: rec.state === 'abandoned' ? rec.abandonedFrom : undefined,
     version: rec.version,
   }
 }

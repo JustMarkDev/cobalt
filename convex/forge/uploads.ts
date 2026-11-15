@@ -1,9 +1,14 @@
+import {
+  canMove,
+  uploadLifecycle,
+  uploadMoveRefusal,
+} from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { system } from '../lib/actor'
-import { out } from '../lib/errors'
+import { fail, out } from '../lib/errors'
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
@@ -81,7 +86,11 @@ export const get = query({
   },
 })
 
-/** Saves what a request changed: the file arrived, or it was attached somewhere. */
+/**
+ * Saves what a request changed: the file arrived, or it was attached
+ * somewhere. Only a move `uploadLifecycle` allows is saved; saving what it
+ * already is changes nothing.
+ */
 export const save = mutation({
   args: {
     id: v.string(),
@@ -94,7 +103,53 @@ export const save = mutation({
   handler: async (ctx, { id, ...fields }) => {
     await system(ctx)
     const u = await byId(ctx, id)
-    if (u) await ctx.db.patch('uploads', u._id, fields)
+    if (!u) return out(null)
+    const refusal = uploadMoveRefusal(u, fields)
+    if (refusal) fail('invalid_state', refusal)
+    await ctx.db.patch('uploads', u._id, fields)
+    return out(null)
+  },
+})
+
+/**
+ * The file arrived: a pending upload is uploaded, once. Of two requests
+ * sending its file at once, exactly one is answered null; the other is told
+ * why not, before it keeps any bytes.
+ */
+export const receive = mutation({
+  args: { id: v.string(), sha256: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const u = await byId(ctx, a.id)
+    if (!u) return out('This upload no longer exists.')
+    const refusal =
+      u.state === 'uploaded'
+        ? 'This upload already has its file.'
+        : uploadMoveRefusal(u, { ...u, state: 'uploaded', sha256: a.sha256 })
+    if (refusal) return out(refusal)
+    await ctx.db.patch('uploads', u._id, {
+      state: 'uploaded',
+      sha256: a.sha256,
+    })
+    return out(null)
+  },
+})
+
+/** Its bytes could not be kept after all: back to waiting, if nothing uses it yet. */
+export const unreceive = mutation({
+  args: { id: v.string(), sha256: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const u = await byId(ctx, a.id)
+    if (
+      u &&
+      canMove(uploadLifecycle, u.state, 'pending') &&
+      u.sha256 === a.sha256 &&
+      !u.attachedTo
+    )
+      await ctx.db.patch('uploads', u._id, { state: 'pending', sha256: null })
     return out(null)
   },
 })

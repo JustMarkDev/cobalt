@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Chip, Panel } from './bits'
 import { StateIcon } from './status-card'
 import { opQuery, useOpMaybe } from '~/lib/forge'
+import { followedOperation } from '~/lib/landing-state'
+import type { LandingAsk } from '~/lib/landing-state'
 
 /**
  * How a change will land and what it waits on, from `landability`: the
@@ -39,18 +41,24 @@ function useStarted(at: { owner: string; repo: string; number: string }) {
 }
 
 /**
- * The landing operation `id`, read again every second until it ends. The page
- * and its landing card read it with the same key, so they share one poll.
+ * The landing operation a change page follows, read until it ends: the one
+ * the page asked for, or one this tab started before the page was drawn
+ * again. The page works out what to show from it (`landingView`).
  */
-export function useLandingOperation(id: string | null | undefined) {
-  return useQuery({
-    ...opQuery('operations.get', { id: id ?? '' }),
-    enabled: !!id,
+export function useLandingOperation(
+  at: { owner: string; repo: string; number: string },
+  ask: LandingAsk,
+) {
+  const operation = followedOperation(ask, useStarted(at))
+  const op = useQuery({
+    ...opQuery('operations.get', { id: operation ?? '' }),
+    enabled: !!operation,
     refetchInterval: (q) => {
       const state = (q.state.data as { state?: string } | undefined)?.state
       return state === 'succeeded' || state === 'failed' ? false : 1000
     },
   }).data
+  return { operation, op: operation ? op : undefined }
 }
 
 export function LandingCard({
@@ -58,17 +66,16 @@ export function LandingCard({
   landed,
   sha,
   operation,
+  op,
 }: {
   at: { owner: string; repo: string; number: string }
   landed: boolean
   sha: string
-  /** The landing under way, when landing runs steps: followed until it ends. */
-  operation?: string | null
+  /** The landing under way, when landing runs steps (`useLandingOperation`). */
+  operation: string | null
+  op: ReturnType<typeof useLandingOperation>['op']
 }) {
   const l = useOpMaybe('changes.landability', at)
-  const remembered = useStarted(at)
-  operation ??= remembered
-  const op = useLandingOperation(operation)
   if (op && operation) return <OperationSteps op={op} />
   if (!l) return null
   const waits = new Map(l.blockers.map((b) => [b.id, b]))

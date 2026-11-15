@@ -131,13 +131,18 @@ export const convexFactory: DomainFactory = ({
     exclusive(() => callNow(kind, name, args, who))
   // Scheduled work runs on a timer of 0, and may schedule more (the
   // sequencer, a stack landing step by step). Run it all, a few rounds deep.
+  // Work scheduled for later (a run's expiry at its deadline) is not due, so
+  // it is not waited for.
   const settle = async () => {
     for (let i = 0; i < 50; i++) {
       await new Promise((r) => setTimeout(r, 0))
       await t.finishInProgressScheduledFunctions()
+      const at = Date.now()
       const pending = await t.run(async (ctx) =>
         (await ctx.db.system.query('_scheduled_functions').collect()).some(
-          (j) => j.state.kind === 'pending' || j.state.kind === 'inProgress',
+          (j) =>
+            j.state.kind === 'inProgress' ||
+            (j.state.kind === 'pending' && j.scheduledTime <= at),
         ),
       )
       if (!pending) return

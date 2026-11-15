@@ -1,3 +1,11 @@
+import {
+  canMove,
+  changeTarget,
+  isTerminal,
+  landingStepLifecycle,
+  operationLifecycle,
+} from '../lifecycles'
+import type { OperationState, StepState } from '../lifecycles'
 import { createHash } from 'node:crypto'
 import { newId } from '../ids'
 import { pageSorted } from '../cursor'
@@ -1110,17 +1118,12 @@ export abstract class DomainChanges extends DomainIssues {
           token_scopes: [...p!.scopes],
         },
       })
-    const from: Record<typeof action, Array<ChangeRec['state']>> = {
-      ready: ['draft'],
-      abandon: ['draft', 'open'],
-      restore: ['abandoned'],
-    }
-    if (!from[action].includes(c.state))
+    const next = changeTarget(action, c)
+    if (!next)
       throw apiError(
         'invalid_state',
         `Change #${c.number} is ${c.state}; it cannot be ${action === 'ready' ? 'marked ready' : action === 'abandon' ? 'abandoned' : 'restored'}.`,
       )
-    const next = action === 'abandon' ? 'abandoned' : 'open'
     if (action === 'restore') {
       const branchOwner = repo.openChangeByBranch.get(c.branch)
       if (branchOwner && branchOwner !== c)
@@ -1134,6 +1137,10 @@ export abstract class DomainChanges extends DomainIssues {
     }
     if (dry) return this.presentChange(repo, { ...c, state: next }, p)
     this.touchChange(repo, c, () => {
+      c.abandonedFrom =
+        next === 'abandoned' && (c.state === 'draft' || c.state === 'open')
+          ? c.state
+          : undefined
       c.state = next
     })
     this.changeEvent(
@@ -1229,15 +1236,27 @@ export abstract class DomainChanges extends DomainIssues {
         null,
       )
     }
+    const move = (to: OperationState) => {
+      if (!canMove(operationLifecycle, op.state, to)) return false
+      op.state = to
+      return true
+    }
+    const stepTo = (s: LandingStepRec, to: StepState) => {
+      if (!canMove(landingStepLifecycle, s.state, to))
+        throw new Error(`A landing step cannot go from ${s.state} to ${to}.`)
+      s.state = to
+    }
     const step = async (i: number) => {
-      op.state = 'running'
+      if (isTerminal(operationLifecycle, op.state)) return
+      if (op.state === 'queued') move('running')
       if (i >= steps.length) {
-        op.state = 'succeeded'
+        if (!move('succeeded')) return
         op.result = op.pending
         return end()
       }
       const s = steps[i]
-      s.state = 'running'
+      if (s.state !== 'pending') return
+      stepTo(s, 'running')
       try {
         if (s.kind === 'land') {
           const c = repo.changes.get(Number(s.target))!
@@ -1245,16 +1264,16 @@ export abstract class DomainChanges extends DomainIssues {
           this.doLand(repo, c, by)
           s.detail = `Landed as ${this.head(c).sha.slice(0, 7)}.`
         } else s.detail = await this.runLandingStep(repo, s, p)
-        s.state = 'succeeded'
+        stepTo(s, 'succeeded')
         s.finished = this.now()
         op.done = i + 1
         setTimeout(() => void step(i + 1), this.stepDelayMs)
       } catch (e) {
-        s.state = 'failed'
+        stepTo(s, 'failed')
         s.finished = this.now()
         s.detail = (e as { detail?: string }).detail ?? String(e)
         skipRest(steps, i + 1)
-        op.state = 'failed'
+        move('failed')
         op.error = this.problemOf(e)
         end()
       }
@@ -1315,7 +1334,7 @@ export abstract class DomainChanges extends DomainIssues {
           token_scopes: [...p.scopes],
         },
       })
-    if (c.state !== 'open')
+    if (!changeTarget('land', c))
       throw apiError(
         'invalid_state',
         c.state === 'draft'
@@ -1360,6 +1379,11 @@ export abstract class DomainChanges extends DomainIssues {
   }
 
   protected doLand(repo: RepoRec, c: ChangeRec, by: ActorRec) {
+    if (!changeTarget('land', c))
+      throw apiError(
+        'invalid_state',
+        `#${c.number} is ${c.state}; it cannot land.`,
+      )
     this.touchChange(repo, c, () => {
       c.state = 'landed'
       c.landed = this.now()

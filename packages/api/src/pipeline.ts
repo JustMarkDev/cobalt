@@ -14,6 +14,7 @@ import {
   heldKey,
   requestFingerprint,
 } from './idempotency'
+import type { HeldKey } from './idempotency'
 import { hashToken, internCapability, principalOf, tokenShape } from './auth'
 import { Moved } from './domain'
 import { ApiError, apiError, errorCatalog, toProblem } from './problem'
@@ -257,7 +258,7 @@ export function createApi(options: ApiOptions) {
    * holds: the scope is entered here, inside the promise, so it follows this
    * request's calls and no other's.
    */
-  const domainFor = (held: { scope: string; key: string } | null) =>
+  const domainFor = (held: HeldKey | null) =>
     Domain.of({
       run: <TValue>(f: (core: DomainPort) => PromiseLike<TValue> | TValue) =>
         Effect.tryPromise({
@@ -940,8 +941,7 @@ export function createApi(options: ApiOptions) {
     const key = req.headers.get('idempotency-key')
     let scope = ''
     // The key this request holds while it works, once it has begun.
-    let holding: { scope: string; key: string } | null = null
-    let wasReplay = false
+    let holding: HeldKey | null = null
     // `If-Match: *` accepts any version, so it is not a concrete precondition:
     // a retry must replay rather than run again and overwrite a newer edit.
     const wildcardIfMatch =
@@ -992,8 +992,7 @@ export function createApi(options: ApiOptions) {
           replayKey.stamp,
         ),
       )
-      wasReplay = begun.state === 'replay'
-      if (begun.state === 'new') holding = { scope, key }
+      if (begun.state === 'new') holding = { scope, key, lease: begun.lease }
       if (begun.state === 'conflict')
         return fail(
           apiError(
@@ -1262,12 +1261,13 @@ export function createApi(options: ApiOptions) {
         req.method === 'HEAD' || status === 204 ? null : json,
         { status, headers },
       )
-      if (!isRead && key) {
-        if (dryRun) await idem.abort(scope, key)
+      // Only the request that holds the key finishes it.
+      if (!isRead && holding) {
+        if (dryRun) await idem.abort(holding.scope, holding.key, holding.lease)
         else {
           applied = true
           try {
-            await idem.complete(scope, key, {
+            await idem.complete(holding.scope, holding.key, holding.lease, {
               status,
               headers,
               body: status === 204 ? '' : json,
@@ -1287,8 +1287,8 @@ export function createApi(options: ApiOptions) {
       res.headers.set('server-timing', t.join(', '))
       return res
     } catch (e) {
-      if (!isRead && key && !applied && !(wasReplay && checkIfMatch))
-        await idem.abort(scope, key)
+      if (!isRead && holding && !applied)
+        await idem.abort(holding.scope, holding.key, holding.lease)
       if (e instanceof ApiError && e.code === 'moved') {
         const to = (e.extra as { to: string }).to
         const from = (e.extra as { from: string }).from

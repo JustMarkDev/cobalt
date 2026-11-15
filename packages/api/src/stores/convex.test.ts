@@ -130,6 +130,12 @@ describe('rate limits on Convex', () => {
   })
 })
 
+/** The lease a `new` answer gives. */
+const leaseOf = (b: { state: string; lease?: string }) => {
+  if (b.state !== 'new' || !b.lease) throw new Error(`not held: ${b.state}`)
+  return b.lease
+}
+
 describe('idempotency on Convex', () => {
   const response = {
     status: 201,
@@ -140,11 +146,12 @@ describe('idempotency on Convex', () => {
   test('the first request runs, a repeat replays its answer, a different request with the same key is refused', async () => {
     const { call } = deployment()
     const store = new ConvexIdempotencyStore(call, SECRET)
-    expect(await store.begin('tok', 'k1', 'fp-a')).toEqual({ state: 'new' })
+    const first = await store.begin('tok', 'k1', 'fp-a')
+    expect(first).toEqual({ state: 'new', lease: expect.any(String) })
     expect(await store.begin('tok', 'k1', 'fp-a')).toEqual({
       state: 'in_progress',
     })
-    await store.complete('tok', 'k1', response)
+    await store.complete('tok', 'k1', leaseOf(first), response)
     expect(await store.begin('tok', 'k1', 'fp-a')).toEqual({
       state: 'replay',
       response,
@@ -153,7 +160,7 @@ describe('idempotency on Convex', () => {
       state: 'conflict',
     })
     // The same key under another scope is another key.
-    expect(await store.begin('other', 'k1', 'fp-a')).toEqual({ state: 'new' })
+    expect((await store.begin('other', 'k1', 'fp-a')).state).toBe('new')
   })
 
   test('two nodes starting the same request together: one runs, the other waits', async () => {
@@ -172,19 +179,19 @@ describe('idempotency on Convex', () => {
   test('an aborted request can be tried again, and a key expires', async () => {
     const { call } = deployment()
     const store = new ConvexIdempotencyStore(call, SECRET, 60_000)
-    await store.begin('tok', 'k', 'fp')
-    await store.abort('tok', 'k')
-    expect(await store.begin('tok', 'k', 'fp')).toEqual({ state: 'new' })
-    await store.complete('tok', 'k', response)
+    await store.abort('tok', 'k', leaseOf(await store.begin('tok', 'k', 'fp')))
+    const again = await store.begin('tok', 'k', 'fp')
+    expect(again.state).toBe('new')
+    await store.complete('tok', 'k', leaseOf(again), response)
     setSystemTime(new Date('2026-11-08T12:02:00Z'))
-    expect(await store.begin('tok', 'k', 'fp')).toEqual({ state: 'new' })
+    expect((await store.begin('tok', 'k', 'fp')).state).toBe('new')
   })
 
   test('a response too big for a document is replaced by a short one, so a retry still does not repeat the work', async () => {
     const { call } = deployment()
     const store = new ConvexIdempotencyStore(call, SECRET)
-    await store.begin('tok', 'big', 'fp')
-    await store.complete('tok', 'big', {
+    const held = await store.begin('tok', 'big', 'fp')
+    await store.complete('tok', 'big', leaseOf(held), {
       status: 200,
       headers: {},
       body: 'x'.repeat(950_000),

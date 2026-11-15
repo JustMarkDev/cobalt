@@ -402,6 +402,8 @@ export default defineSchema({
       v.literal('landed'),
       v.literal('abandoned'),
     ),
+    // While abandoned: the state it was abandoned from, which restoring returns to.
+    abandonedFrom: v.optional(v.union(v.literal('draft'), v.literal('open'))),
     author: actorRef,
     base: v.string(),
     branch: v.string(),
@@ -540,6 +542,8 @@ export default defineSchema({
       v.literal('succeeded'),
       v.literal('failed'),
       v.literal('cancelled'),
+      // Written when its token runs out without anyone finishing it.
+      v.literal('expired'),
     ),
     handle: v.string(),
     change: v.union(v.null(), v.number()),
@@ -574,7 +578,7 @@ export default defineSchema({
     ])
     .index('by_publicId', ['publicId'])
     .index('by_tokenId', ['tokenId'])
-    .index('by_handle_and_state', ['handle', 'state'])
+    .index('by_handle_and_state_and_expires', ['handle', 'state', 'expires'])
     .index('by_state_and_expires', ['state', 'expires'])
     .index('by_finished', ['finished']),
 
@@ -1043,6 +1047,8 @@ export default defineSchema({
     expires: v.number(),
     /** When the request that holds the key began. */
     started: v.optional(v.number()),
+    /** Which request holds it: a new one is drawn when another takes it over. */
+    lease: v.optional(v.string()),
     /**
      * When a write made under the key committed, set in that write's own
      * transaction. A key with an effect never runs again.
