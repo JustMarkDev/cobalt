@@ -141,11 +141,8 @@ function ConnectDialog({
 }) {
   const [secret, setSecret] = React.useState('')
   const [done, setDone] = React.useState(false)
+  // Each integration gets a fresh dialog: the callers key it by id.
   const [error, setError] = React.useState('')
-  React.useEffect(() => {
-    setSecret('')
-    setDone(false)
-  }, [item])
   if (!item) return null
   const needs = item.credential
   return (
@@ -395,6 +392,7 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
           </ul>
         </Modal>
         <ConnectDialog
+          key={connecting?.id}
           item={connecting}
           repo={repo}
           onClose={() => setConnecting(null)}
@@ -498,6 +496,7 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
         )
       })}
       <ConnectDialog
+        key={connecting?.id}
         item={connecting}
         onClose={() => setConnecting(null)}
         onConnect={connect}

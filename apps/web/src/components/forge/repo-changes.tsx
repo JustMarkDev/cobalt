@@ -20,7 +20,11 @@ import { EvidenceSection, TestReport } from './evidence'
 import { slugOf } from './repo-shell'
 import { StateIcon, StatusCard } from './status-card'
 import { WorkWithAgent } from './work-with-agent'
-import { LandingCard, rememberLanding } from './landing-card'
+import {
+  LandingCard,
+  rememberLanding,
+  useLandingOperation,
+} from './landing-card'
 import { FileViewers, Viewers, useFileInView, usePresence } from './presence'
 import type { Viewer } from './presence'
 import type { TimelineEvent } from './change-timeline'
@@ -557,11 +561,15 @@ function ChangeDetail({
     React.useState<Record<string, FindingState>>(initial)
   const [error, setError] = React.useState('')
   const ci = change.ci
-  const [landing, setLanding] = React.useState<'idle' | 'landing' | 'landed'>(
+  const [started, setLanding] = React.useState<'idle' | 'landing' | 'landed'>(
     change.state === 'landed' ? 'landed' : 'idle',
   )
   const [events, setEvents] = React.useState<Array<TimelineEvent>>([])
   const [operation, setOperation] = React.useState<string | null>(null)
+  // A landing with steps is an operation; once it ends, its end is the state.
+  const ended = useLandingOperation(operation)?.state
+  const landing =
+    ended === 'succeeded' ? 'landed' : ended === 'failed' ? 'idle' : started
   // Who else has this change open, and the file each is on.
   const inView = useFileInView(tab === 'code')
   const viewers = usePresence(
@@ -807,6 +815,7 @@ function ChangeDetail({
               onGoto={setTab}
               onLand={() => {
                 setLanding('landing')
+                setOperation(null)
                 void write('changes.land', {
                   ...at,
                   body: { expected_tree: api.head.tree },
@@ -860,7 +869,6 @@ function ChangeDetail({
               landed={landing === 'landed'}
               sha={api.head.sha}
               operation={operation}
-              onDone={(ok) => setLanding(ok ? 'landed' : 'idle')}
             />
             <h3 className="text-sm font-medium">On other hosts</h3>
             <MirrorCard repo={repo} change={change} />
@@ -995,11 +1003,11 @@ function CodeReview({
     guide ? guide.order.findIndex((o) => o.path === p) + 1 || 1e6 : 0
   const names = Object.keys(base).sort((x, y) => rank(x) - rank(y))
   const [editing, setEditing] = React.useState(false)
-  const factory = useEditorFactory(editing)
   const canEdit = editable && ps === latest && !compare
-  React.useEffect(() => {
-    if (!canEdit) setEditing(false)
-  }, [canEdit])
+  // Leaving the newest patch set (or comparing) ends editing. Set while
+  // rendering, so React redoes this render before anything is shown.
+  if (editing && !canEdit) setEditing(false)
+  const factory = useEditorFactory(editing)
   const { model } = useFileTree({
     paths: names,
     initialExpansion: 'open',

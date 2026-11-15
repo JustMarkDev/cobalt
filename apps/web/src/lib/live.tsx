@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
-import type { Query } from '@tanstack/react-query'
+import type { Query, QueryClient } from '@tanstack/react-query'
 
 /**
  * Keeps what is on screen current. The page's reads are named by their query
@@ -60,54 +60,79 @@ function scopeOf(all: ReadonlyArray<Pick<Query, 'queryKey'>>): Scope {
 const same = (a: Scope, b: Scope) =>
   a.repos.join() === b.repos.join() && a.accounts.join() === b.accounts.join()
 
+const nobody: Scope = { repos: [], accounts: [] }
+
+/**
+ * What the page reads, as a store over the query cache. It looks again a
+ * moment after reads come and go, and keeps the old scope when nothing that
+ * matters changed, so the live query is not re-subscribed for nothing.
+ */
+function scopeStore(queries: QueryClient) {
+  const cache = queries.getQueryCache()
+  let scope = scopeOf(cache.getAll())
+  return {
+    get: () => scope,
+    subscribe: (changed: () => void) => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const compute = () => {
+        const next = scopeOf(cache.getAll())
+        if (same(scope, next)) return
+        scope = next
+        changed()
+      }
+      compute()
+      const stop = cache.subscribe((e) => {
+        if (e.type !== 'added' && e.type !== 'removed') return
+        clearTimeout(timer)
+        timer = setTimeout(compute, 100)
+      })
+      return () => {
+        clearTimeout(timer)
+        stop()
+      }
+    },
+  }
+}
+
 export function LiveForge() {
   const queries = useQueryClient()
-  const [scope, setScope] = React.useState<Scope>({ repos: [], accounts: [] })
-  React.useEffect(() => {
-    const cache = queries.getQueryCache()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const compute = () => {
-      const next = scopeOf(cache.getAll())
-      setScope((prev) => (same(prev, next) ? prev : next))
-    }
-    compute()
-    const stop = cache.subscribe((e) => {
-      if (e.type !== 'added' && e.type !== 'removed') return
-      clearTimeout(timer)
-      timer = setTimeout(compute, 100)
-    })
-    return () => {
-      clearTimeout(timer)
-      stop()
-    }
-  }, [queries])
-
+  const store = React.useMemo(() => scopeStore(queries), [queries])
+  const scope = React.useSyncExternalStore(
+    store.subscribe,
+    store.get,
+    () => nobody,
+  )
   const live = useQuery(api.forge.live.watch, scope)
+  // The last answer, kept across scopes: a key in both is compared.
   const seen = React.useRef<Watched | undefined>(undefined)
   React.useEffect(() => {
     if (live === undefined) return
     const before = seen.current
     seen.current = live
-    if (!before) return
-    const moved = (was: Record<string, number>, now: Record<string, number>) =>
-      new Set(Object.keys(now).filter((k) => k in was && was[k] !== now[k]))
-    const repos = moved(before.repos, live.repos)
-    const accounts = moved(before.accounts, live.accounts)
-    const me = before.me !== live.me
-    if (!repos.size && !accounts.size && !me) return
-    void queries.invalidateQueries({
-      predicate: (q) => {
-        const input = inputOf(q)
-        if (!input) return false
-        const r = repoOf(input)
-        if (r) return repos.has(r)
-        const a = accountOf(input)
-        if (a && accounts.has(a)) return true
-        // A read about no one place (the dashboard, notifications) follows
-        // the viewer, and anything the page watches.
-        return me || (!a && (repos.size > 0 || accounts.size > 0))
-      },
-    })
+    if (before) invalidateMoved(queries, before, live)
   }, [live, queries])
   return null
+}
+
+/** Read again what is about a repository or account whose version moved. */
+function invalidateMoved(queries: QueryClient, before: Watched, live: Watched) {
+  const moved = (was: Record<string, number>, now: Record<string, number>) =>
+    new Set(Object.keys(now).filter((k) => k in was && was[k] !== now[k]))
+  const repos = moved(before.repos, live.repos)
+  const accounts = moved(before.accounts, live.accounts)
+  const me = before.me !== live.me
+  if (!repos.size && !accounts.size && !me) return
+  void queries.invalidateQueries({
+    predicate: (q) => {
+      const input = inputOf(q)
+      if (!input) return false
+      const r = repoOf(input)
+      if (r) return repos.has(r)
+      const a = accountOf(input)
+      if (a && accounts.has(a)) return true
+      // A read about no one place (the dashboard, notifications) follows
+      // the viewer, and anything the page watches.
+      return me || (!a && (repos.size > 0 || accounts.size > 0))
+    },
+  })
 }

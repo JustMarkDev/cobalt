@@ -66,7 +66,6 @@ Read the README of the area you touch first.
   comment; if a rule is wrong for a whole area, say why in `vite.config.ts`.
 - Type the honest case. If a lookup can miss, its type says so.
 - Do not silence a build warning without a comment that says why it is safe.
-- Vendored code (`apps/web/src/components/dither-kit/`) stays as shipped.
 - Add or update tests with the change.
 
 ## Pull requests

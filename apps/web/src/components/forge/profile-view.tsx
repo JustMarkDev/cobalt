@@ -19,8 +19,8 @@ import type { ProfileTab } from './profile-tabs'
 import { GitCommitIcon, GitMergeIcon } from '~/components/icons'
 import {
   GroupedBars,
-  ShapeRadar,
-  ShareDonut,
+  RankedBars,
+  ShareBar,
   TrendChart,
 } from '~/components/charts'
 import { Badge } from '~/components/ui/badge'
@@ -133,7 +133,7 @@ export function ProfileView({
       reviews: d.reviews,
     }))
     const shape = (profile?.work ?? []).map((w) => ({
-      axis: w.axis,
+      label: w.axis,
       value: w.value,
     }))
     const langs = (profile?.languages ?? []).slice(0, 4).map((l) => ({
@@ -270,22 +270,18 @@ export function ProfileView({
 
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <Block title="What they work on">
-                <div className="h-48">
-                  <ShapeRadar data={charts.shape} />
-                </div>
+                <RankedBars data={charts.shape} />
               </Block>
               <Block title="Languages">
-                <div className="h-48">
-                  <ShareDonut data={charts.langs} />
-                </div>
+                <ShareBar data={charts.langs} />
               </Block>
               <Block title="Week by week">
                 <div className="h-48">
                   <GroupedBars
                     data={charts.week}
                     series={[
-                      { key: 'commits', label: 'Commits', color: 'green' },
-                      { key: 'reviews', label: 'Reviews', color: 'blue' },
+                      { key: 'commits', label: 'Commits' },
+                      { key: 'reviews', label: 'Reviews' },
                     ]}
                   />
                 </div>

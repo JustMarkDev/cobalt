@@ -4,10 +4,9 @@ source.code includes or depends on the components below. Each keeps its own lice
 
 ## Vendored code
 
-| Component          | Where                                 | License                                    | Notes                                                                                                                                                                                                                                                                                                                   |
-| ------------------ | ------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dither Kit         | `apps/web/src/components/dither-kit/` | MIT (declared in its npm package metadata) | Copied from the Dither Kit shadcn registry (https://github.com/Boring-Software-Inc/dither-kit). The repository and the npm tarball contain no license file, only the `license: MIT` field and the author name (ripgrim). We have asked for a LICENSE file to be added. Heavily inspired by Evil Charts, per its README. |
-| shadcn/ui patterns | `apps/web/src/components/ui/`         | MIT                                        | Components were generated with the shadcn CLI and then restyled.                                                                                                                                                                                                                                                        |
+| Component          | Where                         | License | Notes                                                            |
+| ------------------ | ----------------------------- | ------- | ---------------------------------------------------------------- |
+| shadcn/ui patterns | `apps/web/src/components/ui/` | MIT     | Components were generated with the shadcn CLI and then restyled. |
 
 ## Notices carried by dependencies
 

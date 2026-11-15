@@ -69,7 +69,7 @@ export function Stagger({
 }) {
   const ref = useStaggerIn<HTMLElement>()
   return (
-    <Tag ref={ref as React.RefObject<never>} className={className}>
+    <Tag ref={ref} className={className}>
       {children}
     </Tag>
   )

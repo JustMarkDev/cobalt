@@ -164,35 +164,50 @@ export function FileViewers({
  * elements, for the heartbeat to name.
  */
 export function useFileInView(enabled: boolean): string | null {
-  const [file, setFile] = React.useState<string | null>(null)
-  React.useEffect(() => {
-    if (!enabled) {
-      setFile(null)
-      return
-    }
-    const seen = new Map<Element, IntersectionObserverEntry>()
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) seen.set(e.target, e)
-        const top = [...seen.values()]
-          .filter((e) => e.isIntersecting)
-          .sort((x, y) => x.boundingClientRect.top - y.boundingClientRect.top)
-          .at(0)
-        setFile(top?.target.getAttribute('data-presence-file') ?? null)
-      },
-      { rootMargin: '-80px 0px -40% 0px' },
-    )
-    const watch = () =>
-      document
-        .querySelectorAll('[data-presence-file]')
-        .forEach((el) => io.observe(el))
-    watch()
-    const mo = new MutationObserver(watch)
-    mo.observe(document.body, { childList: true, subtree: true })
-    return () => {
-      io.disconnect()
-      mo.disconnect()
-    }
-  }, [enabled])
-  return file
+  // One store per hook while it is on: the observers start with the first
+  // subscriber and stop with the last.
+  const store = React.useMemo(() => (enabled ? fileInView() : null), [enabled])
+  return React.useSyncExternalStore(
+    store?.subscribe ?? noSubscribe,
+    store?.get ?? noFile,
+    noFile,
+  )
+}
+
+const noSubscribe = () => () => {}
+const noFile = () => null
+
+function fileInView() {
+  let file: string | null = null
+  return {
+    get: () => file,
+    subscribe: (changed: () => void) => {
+      const seen = new Map<Element, IntersectionObserverEntry>()
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) seen.set(e.target, e)
+          const top = [...seen.values()]
+            .filter((e) => e.isIntersecting)
+            .sort((x, y) => x.boundingClientRect.top - y.boundingClientRect.top)
+            .at(0)
+          const next = top?.target.getAttribute('data-presence-file') ?? null
+          if (next === file) return
+          file = next
+          changed()
+        },
+        { rootMargin: '-80px 0px -40% 0px' },
+      )
+      const watch = () =>
+        document
+          .querySelectorAll('[data-presence-file]')
+          .forEach((el) => io.observe(el))
+      watch()
+      const mo = new MutationObserver(watch)
+      mo.observe(document.body, { childList: true, subtree: true })
+      return () => {
+        io.disconnect()
+        mo.disconnect()
+      }
+    },
+  }
 }

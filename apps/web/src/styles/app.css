@@ -146,11 +146,17 @@
   --border: oklch(0.9 0.006 255);
   --input: oklch(0.88 0.008 255);
   --ring: oklch(0.6 0.15 130);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /*
+   * Chart series, in this order and never cycled: lime (the brand's hue),
+   * blue, amber, magenta; --chart-5 is "Other". Checked for colour-blind
+   * separation against each theme's card. Amber is under 3:1 on light, so
+   * charts always print their values.
+   */
+  --chart-1: oklch(0.58 0.16 132);
+  --chart-2: oklch(0.52 0.15 255);
+  --chart-3: oklch(0.74 0.15 68);
+  --chart-4: oklch(0.6 0.18 320);
+  --chart-5: oklch(0.72 0.012 265);
   --radius: 0.7rem;
   --sidebar: oklch(0.985 0.002 250);
   --sidebar-foreground: oklch(0.17 0.015 265);
@@ -191,11 +197,11 @@
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 13%);
   --ring: oklch(0.8 0.17 125);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: oklch(0.66 0.17 130);
+  --chart-2: oklch(0.62 0.15 252);
+  --chart-3: oklch(0.66 0.13 62);
+  --chart-4: oklch(0.6 0.19 325);
+  --chart-5: oklch(0.45 0.012 265);
   --sidebar: oklch(0.195 0.013 265);
   --sidebar-foreground: oklch(0.96 0.004 250);
   --sidebar-primary: oklch(0.9 0.21 125);
