@@ -10,8 +10,8 @@ import { exportWorld } from '../seed-export'
 
 /**
  * The status page says the same thing whichever server answers: each sends
- * its minutes to Convex and reads everyone's. Counts come from a background
- * pass, so reading the page costs one document.
+ * its minutes to Convex and reads everyone's. Counts come from tallies kept
+ * as rows are written, so reading the page costs a few documents.
  */
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
@@ -87,24 +87,117 @@ test('a minute that could not be sent goes with the next one', () => {
   expect(both[0].requests).toBe(2)
 })
 
-test('the counting pass counts every table, a page at a time', async () => {
+test('the tally fill counts every table once, then writes keep it', async () => {
   const { t, asApi } = await setup()
-  const live = JSON.parse(
-    await asApi.query(forge.forge.insights.statusFacts, {}),
-  ) as { counts: Record<string, number> }
-  await t.mutation(internal.forge.health.startCount, {})
-  await t.finishAllScheduledFunctions(() => {})
-  const row = await t.run((ctx) => ctx.db.query('statusCounts').first())
-  expect(row?.pass).toBeUndefined()
-  expect(row?.at).toBeGreaterThan(0)
-  const counted = JSON.parse(
-    await asApi.query(forge.forge.insights.statusFacts, {}),
-  ) as { counts: Record<string, number> }
-  expect(counted.counts).toEqual(live.counts)
-  expect(counted.counts.repositories).toBeGreaterThan(0)
+  const facts = async () =>
+    (
+      JSON.parse(await asApi.query(forge.forge.insights.statusFacts, {})) as {
+        counts: Record<string, number>
+      }
+    ).counts
+  // Before the fill the page counts the tables directly.
+  const before = await facts()
+  expect(before.repositories).toBeGreaterThan(0)
+  await t.mutation(internal.forge.health.startSeed, {})
   // A second start while one runs does not start another.
-  await t.mutation(internal.forge.health.startCount, {})
-  await t.mutation(internal.forge.health.startCount, {})
-  const running = await t.run((ctx) => ctx.db.query('statusCounts').collect())
-  expect(running).toHaveLength(1)
+  await t.mutation(internal.forge.health.startSeed, {})
+  await t.finishAllScheduledFunctions(() => {})
+  const seed = await t.run((ctx) => ctx.db.query('tallySeed').collect())
+  expect(seed).toHaveLength(1)
+  expect(seed[0].pass).toBeUndefined()
+  const marks = await t.run((ctx) =>
+    ctx.db
+      .query('tallies')
+      .filter((q) => q.eq(q.field('period'), 'ready'))
+      .collect(),
+  )
+  expect(marks).toHaveLength(6)
+  expect(await facts()).toEqual(before)
+
+  // Writes now keep the tallies: a repository made and one deleted.
+  const dana = t.withIdentity({
+    subject: 'dana',
+    sx_tok: 'tok',
+    sx_cls: 'human',
+    sx_act: 'dana',
+    sx_scp: 'repo:read repo:write repo:admin',
+  })
+  await dana.mutation(forge.forge.repos.create, {
+    name: 'tallied',
+    visibility: 'private',
+  })
+  await dana
+    .mutation(forge.forge.repos.create, {
+      name: 'tallied-dry',
+      visibility: 'private',
+      dry: true,
+    })
+    .catch(() => {})
+  await dana.mutation(forge.forge.repos.remove, {
+    owner: 'dana',
+    name: 'tallied',
+    confirm: 'dana/tallied',
+  })
+  await dana.mutation(forge.forge.repos.create, {
+    name: 'kept',
+    visibility: 'public',
+  })
+  const after = await facts()
+  expect(after.repositories).toBe(before.repositories + 1)
+  const month = await t.query(internal.forge.health.tallies, {
+    period: '2026-11',
+  })
+  expect(month['repo.created']).toBeGreaterThanOrEqual(2)
+  expect(month['repo.deleted']).toBe(1)
+  // Once ready, starting again reads one document and does nothing.
+  await t.mutation(internal.forge.health.startSeed, {})
+  const again = await t.run((ctx) => ctx.db.query('tallySeed').first())
+  expect(again?.pass).toBeUndefined()
+  // Without POSTHOG_KEY nothing is queued for analytics.
+  const queued = await t.run((ctx) => ctx.db.query('analyticsOutbox').collect())
+  expect(queued).toHaveLength(0)
+})
+
+test('product events are queued with the write and sent in a batch', async () => {
+  process.env.POSTHOG_KEY = 'phc_test'
+  process.env.POSTHOG_HOST = 'https://posthog.test'
+  const sent: Array<{
+    api_key: string
+    batch: Array<Record<string, unknown>>
+  }> = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = ((url: string, init: { body: string }) => {
+    expect(url).toBe('https://posthog.test/batch/')
+    sent.push(JSON.parse(init.body))
+    return Promise.resolve(new Response('{}', { status: 200 }))
+  }) as unknown as typeof fetch
+  try {
+    const { t } = await setup()
+    const dana = t.withIdentity({
+      subject: 'dana',
+      sx_tok: 'tok',
+      sx_cls: 'human',
+      sx_act: 'dana',
+      sx_scp: 'repo:read repo:write repo:admin',
+    })
+    await dana.mutation(forge.forge.repos.create, {
+      name: 'tracked',
+      visibility: 'private',
+    })
+    await t.action(internal.analytics.send, {})
+    expect(sent).toHaveLength(1)
+    expect(sent[0].api_key).toBe('phc_test')
+    const event = sent[0].batch.find((e) => e.event === 'repo.created')
+    expect(event).toMatchObject({
+      distinct_id: 'dana',
+      properties: { visibility: 'private', $process_person_profile: false },
+    })
+    // Sent events leave the queue.
+    const left = await t.run((ctx) => ctx.db.query('analyticsOutbox').collect())
+    expect(left).toHaveLength(0)
+  } finally {
+    globalThis.fetch = realFetch
+    delete process.env.POSTHOG_KEY
+    delete process.env.POSTHOG_HOST
+  }
 })

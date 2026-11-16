@@ -24,13 +24,18 @@ crons.interval(
   {},
 )
 
-// The status page: health minutes and days past keeping, and the counts.
+// The status page: health minutes and days past keeping.
 crons.interval('sweep health', { minutes: 30 }, internal.forge.health.sweep, {})
+// Fills the tallies in once on a deployment that had rows before them; after
+// that, one document read each time.
 crons.interval(
-  'status counts',
-  { minutes: 1 },
-  internal.forge.health.startCount,
+  'seed tallies',
+  { minutes: 10 },
+  internal.forge.health.startSeed,
   {},
 )
+
+// Product events to PostHog, in batches. Does nothing without POSTHOG_KEY.
+crons.interval('send analytics', { minutes: 1 }, internal.analytics.send, {})
 
 export default crons

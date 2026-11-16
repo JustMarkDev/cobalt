@@ -1,5 +1,6 @@
 import { notFound } from '@tanstack/react-router'
 import { Effect, Layer, ManagedRuntime } from 'effect'
+import { TelemetryLive } from '@source-code/api/telemetry'
 import { ForgeLive } from './services/forge'
 import type { Forge } from './services/forge'
 import type { AppError } from './errors'
@@ -14,7 +15,9 @@ import type { AppError } from './errors'
  */
 export type AppServices = Forge
 
-const AppLayer = Layer.mergeAll(ForgeLive)
+// Telemetry exports the spans of `Effect.fn` services when
+// OTEL_EXPORTER_OTLP_ENDPOINT is set, and does nothing when it is not.
+const AppLayer = Layer.mergeAll(ForgeLive, TelemetryLive)
 
 // Built lazily and kept for the life of the process. Layers (and the Convex
 // client inside them) are constructed once, not per request.

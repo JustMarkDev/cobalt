@@ -5,6 +5,7 @@ import { out } from './lib/errors'
 import type { World } from '@source-code/api/world'
 import { seededId } from '@source-code/api/ids'
 import { insertChange } from './lib/changes'
+import { forgetTallies } from './lib/stats'
 import { insertRun } from './forge/pipelines'
 import { insertRelease } from './forge/releases'
 import type { Release } from './forge/releases'
@@ -19,8 +20,10 @@ import type { MutationCtx } from './_generated/server'
  * deployment loads the same world, so both start from the same place.
  */
 export async function load(ctx: MutationCtx, w: World) {
+  // The rows below are counted by the tally fill, not one by one.
+  await forgetTallies(ctx)
   const accountIds = new Map<string, Id<'accounts'>>()
-  for (const a of w.accounts)
+  for (const a of w.accounts) {
     accountIds.set(
       a.handle,
       await ctx.db.insert('accounts', {
@@ -35,6 +38,7 @@ export async function load(ctx: MutationCtx, w: World) {
         aclRev: 0,
       }),
     )
+  }
   for (const a of w.accounts) {
     const orgId = accountIds.get(a.handle)!
     for (const [handle, role] of a.members) {

@@ -1,4 +1,5 @@
 import { attachUpload } from '../lib/uploads'
+import { tally } from '../lib/stats'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { query } from '../_generated/server'
@@ -167,6 +168,7 @@ export const create = mutation({
     const c = await counters(ctx, repo)
     await ctx.db.patch('repoCounters', c._id, { nextNumber: c.nextNumber + 1 })
     const body = args.body ?? ''
+    await tally(ctx, 'issue.created')
     const id = await ctx.db.insert('issues', {
       repoId: repo._id,
       publicId: newId('issue', at),

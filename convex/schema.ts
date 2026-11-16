@@ -1017,6 +1017,35 @@ export default defineSchema({
   })
     .index('by_area_and_day', ['area', 'day'])
     .index('by_day', ['day']),
+  // What the forge adds up about itself (`lib/stats.ts`): one row per metric,
+  // period (`all` or `2026-11`) and shard, and a `ready` row per metric once
+  // it has been filled in.
+  tallies: defineTable({
+    metric: v.string(),
+    period: v.string(),
+    shard: v.number(),
+    value: v.number(),
+  }).index('by_metric_and_period_and_shard', ['metric', 'period', 'shard']),
+  // The one-time fill of tallies from rows written before they existed.
+  tallySeed: defineTable({
+    /** A fill under way: which step, where in its table, when it last moved. */
+    pass: v.optional(
+      v.object({
+        step: v.number(),
+        cursor: v.union(v.string(), v.null()),
+        moved: v.number(),
+      }),
+    ),
+  }),
+  // Product events waiting to go to PostHog (`analytics.ts`).
+  analyticsOutbox: defineTable({
+    event: v.string(),
+    who: v.string(),
+    at: v.number(),
+    /** JSON: a flat object of strings, numbers and booleans. */
+    props: v.string(),
+  }),
+  /** No longer written: counts are tallies now. Its one row is removed by the tally fill. */
   statusCounts: defineTable({
     accounts: v.number(),
     repositories: v.number(),

@@ -3,6 +3,7 @@ import type { EventRecord } from '@source-code/api/events'
 import { accountByHandle } from './access'
 import { now } from './time'
 import { internal } from '../_generated/api'
+import { track, tracked } from './stats'
 import type { ActorClass } from './actor'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
@@ -110,6 +111,12 @@ export async function emit(
       at,
       eventId: record.id,
       actor: by,
+    })
+  if (tracked(type))
+    await track(ctx, type, by.handle, {
+      repo_id: repo.publicId,
+      visibility: repo.visibility,
+      actor_class: by.class,
     })
   await ctx.db.insert('forgeEvents', {
     stream: repo.publicId,

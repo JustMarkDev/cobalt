@@ -9,6 +9,7 @@
  */
 
 import type * as accounts from "../accounts.js";
+import type * as analytics from "../analytics.js";
 import type * as apiStores from "../apiStores.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
@@ -60,6 +61,7 @@ import type * as lib_pierre from "../lib/pierre.js";
 import type * as lib_policyFile from "../lib/policyFile.js";
 import type * as lib_present from "../lib/present.js";
 import type * as lib_runs from "../lib/runs.js";
+import type * as lib_stats from "../lib/stats.js";
 import type * as lib_time from "../lib/time.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_uploads from "../lib/uploads.js";
@@ -75,6 +77,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
+  analytics: typeof analytics;
   apiStores: typeof apiStores;
   auth: typeof auth;
   crons: typeof crons;
@@ -126,6 +129,7 @@ declare const fullApi: ApiFromModules<{
   "lib/policyFile": typeof lib_policyFile;
   "lib/present": typeof lib_present;
   "lib/runs": typeof lib_runs;
+  "lib/stats": typeof lib_stats;
   "lib/time": typeof lib_time;
   "lib/tokens": typeof lib_tokens;
   "lib/uploads": typeof lib_uploads;

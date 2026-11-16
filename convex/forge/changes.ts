@@ -1,4 +1,5 @@
 import { attachUpload } from '../lib/uploads'
+import { tally } from '../lib/stats'
 import { changeTarget } from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
 import { sha1 } from '@noble/hashes/legacy.js'
@@ -122,9 +123,10 @@ async function commit(
     extra?: Record<string, unknown>
   } | null,
 ) {
-  if (wasState === null)
+  if (wasState === null) {
+    await tally(ctx, 'change.opened')
     l.doc = (await ctx.db.get('changes', await insertChange(ctx, repo, l.rec)))!
-  else await saveChange(ctx, l)
+  } else await saveChange(ctx, l)
   const head = l.rec.patchSets[l.rec.patchSets.length - 1]
   await recordRunPatchSet(ctx, l.doc._id, head.n, head.via?.run ?? null)
   await syncIssueRefs(ctx, repo, l.doc._id, l.rec)
