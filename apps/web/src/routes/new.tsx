@@ -11,6 +11,7 @@ import { Button } from '~/components/ui/button'
 import { manages, useAccounts, useMe } from '~/lib/auth/accounts'
 import { Segmented } from '~/components/ui/tabs'
 import { Select, SelectItem } from '~/components/ui/select'
+import { field } from '~/components/ui/input'
 
 export const Route = createFileRoute('/new')({
   head: () => ({ meta: [{ title: 'New repository · source.code' }] }),
@@ -42,7 +43,7 @@ function NewRepo() {
     creatable.find((a) => a.id === active?.id) ??
     creatable.at(0)
   const picker = owner && (
-    <label className="space-y-1.5 text-sm">
+    <label className="space-y-2 text-sm">
       <span className="font-medium">Owner</span>
       <Select value={owner.id} onValueChange={(v) => setPicked(v)}>
         {creatable.map((a) => (
@@ -98,7 +99,7 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
 
   if (created) {
     return (
-      <div className="space-y-4 rounded-xl border bg-card p-6">
+      <div className="surface space-y-4 rounded-2xl border bg-card p-6">
         <div className="flex items-center gap-3">
           <span className="flex size-8 items-center justify-center rounded-full bg-success/15">
             <CheckIcon className="size-4 text-success" />
@@ -137,7 +138,7 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
   }
   return (
     <form
-      className="space-y-6 rounded-xl border bg-card p-6"
+      className="surface space-y-6 rounded-2xl border bg-card p-6"
       onSubmit={(e) => {
         e.preventDefault()
         if (!valid) return
@@ -159,13 +160,13 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[180px_1fr]">
         {picker}
-        <label className="space-y-1.5 text-sm">
+        <label className="space-y-2 text-sm">
           <span className="font-medium">Repository name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             aria-invalid={name !== '' && !valid}
-            className="h-9 w-full rounded-lg border bg-background px-3 font-mono outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-danger"
+            className={cn(field, 'h-9 font-mono')}
           />
           <span
             className={cn(
@@ -179,13 +180,13 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
           </span>
         </label>
       </div>
-      <label className="block space-y-1.5 text-sm">
+      <label className="block space-y-2 text-sm">
         <span className="font-medium">Description</span>
         <input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           maxLength={500}
-          className="h-9 w-full rounded-lg border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(field, 'h-9')}
         />
       </label>
       <Toggle
@@ -272,8 +273,10 @@ function Import({ owner }: { owner: Owner }) {
                   setResults({})
                 }}
                 className={cn(
-                  'rounded-xl border bg-card px-3 py-3 text-left text-sm transition-colors hover:border-foreground/40',
-                  host === h && 'border-foreground/60 bg-muted',
+                  'rounded-lg border px-3 py-3 text-left text-sm',
+                  host === h
+                    ? 'raised border-foreground/60 bg-card'
+                    : 'hover:bg-muted',
                 )}
               >
                 <div className="font-medium">{hostLabel[h]}</div>
@@ -297,7 +300,7 @@ function Import({ owner }: { owner: Owner }) {
         </p>
       </div>
 
-      <label className="block space-y-1.5 text-sm">
+      <label className="block space-y-2 text-sm">
         <span className="font-medium">
           Repositories on {hostLabel[host]}, one per line
         </span>
@@ -309,7 +312,7 @@ function Import({ owner }: { owner: Owner }) {
           }}
           rows={4}
           placeholder={login ? `dotfiles\n${login}/blog` : 'owner/name'}
-          className="w-full rounded-lg border bg-background px-3 py-2 font-mono outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(field, 'py-2 font-mono')}
         />
         {!valid && (
           <span className="text-xs text-danger">
@@ -319,7 +322,7 @@ function Import({ owner }: { owner: Owner }) {
       </label>
 
       {Object.keys(results).length > 0 && (
-        <ul className="divide-y rounded-xl border bg-card text-sm">
+        <ul className="surface divide-y overflow-hidden rounded-2xl border bg-card text-sm">
           {slugs.map((t) => (
             <li key={t} className="flex items-center gap-3 px-4 py-3">
               <span className="flex-1 font-mono">{t}</span>

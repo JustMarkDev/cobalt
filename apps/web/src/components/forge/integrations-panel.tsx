@@ -166,7 +166,7 @@ function ConnectDialog({
         </div>
       ) : (
         <>
-          <div className="space-y-2 rounded-lg bg-muted/60 p-3 text-sm">
+          <div className="well space-y-2 rounded-xl border bg-muted/60 p-3 text-sm">
             <div className="font-medium">It will be able to</div>
             <ul className="space-y-1 text-muted-foreground">
               {item.access.map((a) => (
@@ -303,12 +303,12 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
     return (
       <div className="space-y-4">
         {used.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             Nothing is connected yet. Add a reviewer, a runner or an agent
             environment.
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border bg-card">
+          <ul className="divide-y surface overflow-hidden rounded-2xl border bg-card">
             {used.map((i) => (
               <li key={i.id} className="p-4">
                 <div className="flex items-center gap-3">
@@ -409,7 +409,6 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
           label="Kind"
           value={tab}
           onChange={setTab}
-          className="border-b-0"
           options={[
             { id: 'all', label: 'All' },
             ...(Object.keys(groups) as Array<IntegrationGroup>).map((g) => ({
@@ -419,7 +418,7 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
           ]}
         />
         <div className="relative w-full sm:w-56">
-          <MagnifyingGlassIcon className="pointer-events-none absolute top-2 left-2.5 size-4 text-muted-foreground" />
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -430,7 +429,7 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
         </div>
       </div>
       {visible.length === 0 && (
-        <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
           Nothing matches “{query}”.
         </p>
       )}
@@ -443,7 +442,7 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
               <h2 className="text-sm font-medium">{groups[g].title}</h2>
               <p className="text-sm text-muted-foreground">{groups[g].blurb}</p>
             </div>
-            <ul className="divide-y rounded-xl border bg-card">
+            <ul className="divide-y surface overflow-hidden rounded-2xl border bg-card">
               {rows.map((i) => {
                 const isOn = connected.has(i.id)
                 const planned = i.status === 'planned'

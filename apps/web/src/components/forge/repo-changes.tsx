@@ -93,7 +93,7 @@ function ReviewerMark({ r }: { r: ChangeItem['reviewers'][number] }) {
       )}
       <span
         className={cn(
-          'absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card',
+          'absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-[var(--row-bg,var(--card))]',
           dot,
         )}
       />
@@ -127,7 +127,7 @@ function Row({ c, repo }: { c: ChangeItem; repo: Repo }) {
         to="/$handle/$repo/$tab"
         params={{ handle: repo.owner, repo: repo.name, tab: 'changes' }}
         search={{ n: Number(c.id) }}
-        className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-muted/50"
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 focus-ring-inset [--row-bg:var(--card)] hover:bg-muted/50 hover:[--row-bg:color-mix(in_oklch,var(--muted)_50%,var(--card))]"
       >
         <StateIcon state={c.state === 'landed' ? 'pass' : c.ci} />
         <div className="min-w-0 flex-1">
@@ -253,7 +253,7 @@ function SuggestedChange({ f }: { f: Finding }) {
   const s = f.suggestion
   if (!s) return null
   return (
-    <div className="overflow-hidden rounded-lg border bg-background">
+    <div className="well overflow-hidden rounded-xl border bg-background">
       <div className="border-b bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
         Suggested change: {s.summary}
       </div>
@@ -281,7 +281,7 @@ function SuggestedChange({ f }: { f: Finding }) {
 function CopyPrompt({ prompt }: { prompt: string }) {
   const [copied, setCopied] = React.useState(false)
   return (
-    <details className="group rounded-lg border bg-background">
+    <details className="well group rounded-xl border bg-background">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground marker:hidden [&::-webkit-details-marker]:hidden">
         <CpuChipIcon className="size-3.5" />
         Prompt for an agent
@@ -336,7 +336,7 @@ function FindingCard({
   return (
     <div
       className={cn(
-        'm-2 space-y-2 rounded-lg border bg-card p-3 font-sans text-sm',
+        'm-2 space-y-2 rounded-xl border bg-card p-3 font-sans text-sm',
         closed && 'opacity-70',
       )}
     >
@@ -776,7 +776,7 @@ function ChangeDetail({
               </span>
               <span>{change.when}</span>
               <span className="font-mono text-xs">#{change.id}</span>
-              <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+              <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-xs">
                 {api.base} ← {api.branch}
               </span>
               {change.stack && (
@@ -865,7 +865,7 @@ function ChangeDetail({
                 <h3 className="text-sm font-medium">
                   What changed, to look at
                 </h3>
-                <p className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
+                <p className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
                   No images or recordings yet. An agent or a test can attach a
                   before and after, or add them to the description.
                 </p>
@@ -1114,7 +1114,6 @@ function CodeReview({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
-            size="sm"
             variant={editing ? 'brand' : 'outline'}
             disabled={!canEdit}
             title={canEdit ? undefined : 'Open the newest patch set to edit it'}
@@ -1135,7 +1134,7 @@ function CodeReview({
       </div>
 
       {editing && (
-        <p className="rounded-xl border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+        <p className="well rounded-xl border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
           Click into the new version and type. Undo with ⌘Z or Ctrl+Z. Nothing
           is shared until you save it as a patch set.
         </p>
@@ -1158,12 +1157,12 @@ function CodeReview({
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="pierre surface h-fit overflow-hidden rounded-2xl border bg-card p-1 md:sticky md:top-20">
+        <div className="pierre surface h-fit overflow-hidden rounded-2xl border bg-card p-3 md:sticky md:top-20">
           <FileTree model={model} className="block h-36" />
         </div>
         <div className="min-w-0 space-y-4">
           {guide && (
-            <div className="space-y-1 rounded-xl border bg-muted/40 px-4 py-3 text-sm">
+            <div className="well space-y-1 rounded-xl border bg-muted/40 px-4 py-3 text-sm">
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 Guide by {guide.by.handle}
                 {guide.current
@@ -1248,7 +1247,6 @@ function CodeReview({
                       type="checkbox"
                       checked={seenOf.get(name)?.seen ?? false}
                       onChange={() => toggleSeen(name)}
-                      className="size-3.5 accent-current"
                     />
                     Seen
                     <span className="ml-auto order-last">
@@ -1312,7 +1310,7 @@ function CodeReview({
               </div>
             ))}
             {sets.length === 0 && (
-              <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
                 Nothing changed between these two patch sets.
               </p>
             )}

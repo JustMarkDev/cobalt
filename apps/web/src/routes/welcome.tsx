@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { cn } from 'cn'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { CheckIcon } from '@heroicons/react/24/outline'
 import { AuthShell, RequireAuth } from '~/components/forge/auth'
@@ -6,6 +7,7 @@ import { BrandLogo } from '~/components/brand'
 import { Button } from '~/components/ui/button'
 import { authClient, safeRedirect } from '~/lib/auth/client'
 import { useOpMaybe, useWrite } from '~/lib/forge'
+import { field } from '~/components/ui/input'
 
 export const Route = createFileRoute('/welcome')({
   head: () => ({ meta: [{ title: 'Welcome · source.code' }] }),
@@ -87,7 +89,7 @@ function Welcome() {
         )
       }
     >
-      <ul className="divide-y rounded-xl border">
+      <ul className="divide-y overflow-hidden rounded-xl border">
         {hosts.map((p) => {
           const link = links.find((l) => l.host === p.id)
           return (
@@ -125,7 +127,7 @@ function Welcome() {
                     onChange={(e) => setLogin(e.target.value)}
                     placeholder={`Your ${p.name} username`}
                     aria-label={`Your ${p.name} username`}
-                    className="h-8 flex-1 rounded-lg border bg-background px-2.5 font-mono text-sm"
+                    className={cn(field, 'h-8 flex-1 px-2.5 font-mono')}
                   />
                   <Button size="sm" type="submit" disabled={!login.trim()}>
                     Save

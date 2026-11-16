@@ -112,7 +112,7 @@ export function HistoryView({ repo }: { repo: Repo }) {
           {first.data[0] ? 'main' : 'No commits yet'}
         </span>
         <div className="relative min-w-48 flex-1 sm:max-w-xs">
-          <MagnifyingGlassIcon className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -185,7 +185,7 @@ export function HistoryView({ repo }: { repo: Repo }) {
                     <Checks checks={c.checks} />
                     <Link
                       {...commitLink(repo, c.sha)}
-                      className="shrink-0 rounded-md bg-muted px-2 py-1 font-mono text-xs hover:bg-accent"
+                      className="shrink-0 rounded-sm bg-muted px-2 py-1 font-mono text-xs hover:bg-accent"
                     >
                       {c.sha.slice(0, 7)}
                     </Link>

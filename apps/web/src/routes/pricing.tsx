@@ -112,8 +112,13 @@ function Pricing() {
           <article
             key={p.id}
             className={cn(
-              'surface flex flex-col gap-6 rounded-3xl border bg-card p-7',
-              p.featured && 'ring-2 ring-brand',
+              'surface flex flex-col gap-6 rounded-2xl bg-card',
+              // The plan we suggest gets a brand border, not an outline
+              // (outlines mean keyboard focus) and not a ring (the elevation
+              // would erase it). The padding gives back the extra 1px.
+              p.featured
+                ? 'border-2 border-brand-ink p-[calc(1.75rem-1px)] dark:border-brand/45'
+                : 'border p-7',
             )}
           >
             <div className="space-y-1">
@@ -141,7 +146,7 @@ function Pricing() {
             >
               Start {trial.days}-day trial
             </Button>
-            <dl className="well space-y-2 rounded-xl bg-muted/60 p-4 text-sm">
+            <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
               {limitLines(p).map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">{k}</dt>
@@ -170,7 +175,7 @@ function Pricing() {
         transferred. Prices are in USD and exclude tax.
       </p>
 
-      <section className="surface rounded-3xl border bg-card p-8 md:p-10">
+      <section className="surface rounded-2xl border bg-card p-8 md:p-10">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2fr]">
           <div className="space-y-2">
             <h2 className="text-2xl font-semibold tracking-tight">
@@ -226,7 +231,7 @@ function Pricing() {
                 {o.names.map((id) => (
                   <li
                     key={id}
-                    className="well inline-flex items-center gap-1.5 rounded-lg bg-muted/70 px-2.5 py-1 text-sm"
+                    className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1 text-sm"
                   >
                     <BrandLogo id={id} className="size-4" />
                     {brandName(id)}
@@ -242,7 +247,7 @@ function Pricing() {
         <h2 className="text-center text-2xl font-semibold tracking-tight">
           Common questions
         </h2>
-        <div className="surface divide-y rounded-2xl border bg-card">
+        <div className="surface divide-y overflow-hidden rounded-2xl border bg-card">
           {questions.map(([q, a]) => (
             <details key={q} className="group p-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">

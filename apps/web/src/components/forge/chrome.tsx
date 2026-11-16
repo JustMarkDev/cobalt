@@ -56,7 +56,7 @@ function UserMenu() {
         <button
           type="button"
           aria-label="Account"
-          className="flex items-center gap-2 rounded-xl py-0.5 pr-1 pl-0.5 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring lg:pr-2"
+          className="flex items-center gap-2 rounded-lg py-0.5 pr-1 pl-0.5 focus-ring hover:bg-muted lg:pr-2"
         >
           <AccountTile account={active} className="size-8 text-xs" />
           <span className="hidden max-w-32 truncate text-sm font-medium lg:block">
@@ -378,7 +378,7 @@ function CommandPalette({
         <Dialog.Backdrop className="overlay-backdrop fixed inset-0 z-50 bg-foreground/25" />
         <Dialog.Popup
           aria-label="Search"
-          className="overlay-popup fixed top-[16vh] left-1/2 z-50 w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border bg-popover shadow-2xl outline-none"
+          className="overlay-popup fixed top-[16vh] left-1/2 z-50 w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border bg-popover floating outline-none"
         >
           <div className="flex items-center gap-3 border-b px-4">
             <MagnifyingGlassIcon className="size-4 text-muted-foreground" />
@@ -419,7 +419,8 @@ function CommandPalette({
                   onMouseMove={() => setActive(i)}
                   onClick={() => pick(c)}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm',
+                    // The popup's radius minus its p-1.5 and 1px border: exactly concentric.
+                    'flex w-full items-center gap-3 rounded-[calc(var(--radius-2xl)-0.375rem-1px)] px-3 py-2 text-left text-sm',
                     i === active && 'bg-muted',
                   )}
                 >
@@ -461,7 +462,7 @@ const navLinks = [
 ] as const
 
 const navItem =
-  'relative inline-flex items-center rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
+  'relative inline-flex items-center rounded-(--radius-thumb) px-3 text-sm text-muted-foreground focus-ring-inset transition-colors hover:text-foreground'
 const navActive = 'font-medium text-foreground'
 
 /** One entry of the main nav. The active one carries the sliding pill. */
@@ -545,7 +546,7 @@ export function SiteHeader() {
       type="button"
       onClick={() => setOpen(true)}
       aria-label="Search"
-      className="raised inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="raised focus-ring inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
     >
       <MagnifyingGlassIcon className="size-4" />
       <span className="hidden lg:inline">Search</span>
@@ -561,7 +562,7 @@ export function SiteHeader() {
         <Logo />
         <nav
           aria-label="Main"
-          className="well absolute left-1/2 hidden -translate-x-1/2 gap-0.5 rounded-xl bg-muted/70 p-1 md:flex"
+          className="trough absolute left-1/2 hidden h-9 -translate-x-1/2 md:flex"
         >
           {links.map((l) => (
             <NavItem key={l.to} pill={desktopPill} to={l.to} label={l.label} />
@@ -579,18 +580,18 @@ export function SiteHeader() {
             <Link
               to="/new"
               aria-label="New repository"
-              className="raised inline-flex size-9 items-center justify-center rounded-lg border bg-card text-foreground hover:bg-muted"
+              className="raised focus-ring inline-flex size-9 items-center justify-center rounded-lg border bg-card text-foreground hover:bg-muted"
             >
               <PlusIcon className="size-4" />
             </Link>
             <Link
               to="/inbox"
               aria-label={`Inbox, ${unread} unread`}
-              className="raised relative inline-flex size-9 items-center justify-center rounded-lg border bg-card text-foreground hover:bg-muted"
+              className="raised focus-ring relative inline-flex size-9 items-center justify-center rounded-lg border bg-(--key-bg) text-foreground [--key-bg:var(--card)] hover:[--key-bg:var(--muted)]"
             >
               <BellIcon className="size-4" />
               {unread > 0 && (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand ring-2 ring-card" />
+                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand ring-2 ring-(--key-bg)" />
               )}
             </Link>
             <span className="ml-1">
@@ -617,20 +618,22 @@ export function SiteHeader() {
           </div>
         )}
       </div>
-      <nav
-        aria-label="Main"
-        className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6 pb-2 md:hidden"
-      >
-        {links.map((l) => (
-          <NavItem key={l.to} pill={mobilePill} to={l.to} label={l.label} />
-        ))}
-        <NavItem
-          pill={mobilePill}
-          to="/docs/$"
-          params={{ _splat: '' }}
-          label="Docs"
-        />
-      </nav>
+      <div className="mx-auto max-w-6xl px-6 pb-2 md:hidden">
+        {/* h-10, not h-9: on a phone the tabs keep a 34px tap height. */}
+        <nav aria-label="Main" className="trough flex h-10 w-fit max-w-full">
+          <div className="trough-scroll">
+            {links.map((l) => (
+              <NavItem key={l.to} pill={mobilePill} to={l.to} label={l.label} />
+            ))}
+            <NavItem
+              pill={mobilePill}
+              to="/docs/$"
+              params={{ _splat: '' }}
+              label="Docs"
+            />
+          </div>
+        </nav>
+      </div>
       <CommandPalette open={open} onOpenChange={setOpen} signedIn={signedIn} />
     </header>
   )
@@ -703,7 +706,7 @@ export function SiteFooter() {
                     aria-label={`${s.label} (opens in a new tab)`}
                     target="_blank"
                     rel="noreferrer"
-                    className="raised flex size-9 items-center justify-center rounded-lg border bg-card text-muted-foreground hover:text-foreground"
+                    className="raised focus-ring flex size-9 items-center justify-center rounded-lg border bg-card text-muted-foreground hover:text-foreground"
                   >
                     <svg
                       viewBox="0 0 24 24"

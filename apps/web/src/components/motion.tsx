@@ -76,17 +76,35 @@ export function Stagger({
 }
 
 /**
+ * --radius-thumb from app.css, as a number: Motion only keeps corners round
+ * while the pill stretches between tabs when the radius is given in px. Read
+ * from the stylesheet when a pill mounts, so the CSS stays the one source of
+ * truth; 8 is what it resolves to, and covers the server render.
+ */
+function readThumbRadius(): number {
+  if (typeof document === 'undefined') return 8
+  // Only a resolved length counts: without @property support the value is the
+  // raw calc(), and parseFloat would read its first number.
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue('--radius-thumb')
+    .trim()
+  return /^\d+(\.\d+)?px$/.test(raw) ? parseFloat(raw) : 8
+}
+
+/**
  * The sliding highlight behind the active tab. Every tab list gives its pill a
  * distinct `id` so pills in different lists never fly across the page.
  */
-export function Pill({ id, className }: { id: string; className?: string }) {
+export function Pill({ id }: { id: string }) {
+  // Read once per mount, not per render: it only changes with the stylesheet.
+  const [radius] = React.useState(readThumbRadius)
   return (
     <m.span
       layoutId={id}
       aria-hidden
       transition={{ type: 'spring', stiffness: 600, damping: 42 }}
-      style={{ borderRadius: 8 }}
-      className={`surface absolute inset-0 bg-card ${className ?? ''}`}
+      style={{ borderRadius: radius }}
+      className="thumb absolute inset-0"
     />
   )
 }

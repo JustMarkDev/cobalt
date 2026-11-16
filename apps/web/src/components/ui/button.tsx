@@ -8,7 +8,7 @@ import type { VariantProps } from 'class-variance-authority'
  * deliberately quiet so the page has a clear next step.
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap focus-ring select-none disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -19,10 +19,10 @@ const buttonVariants = cva(
         outline:
           'raised border bg-card text-foreground hover:bg-muted aria-expanded:bg-muted',
         ghost:
-          'text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground',
+          'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground',
         danger:
-          'bg-danger/10 text-danger hover:bg-danger/15 focus-visible:ring-danger/30',
-        link: 'h-auto px-0 text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground',
+          'raised border border-danger/30 bg-danger/10 text-danger hover:bg-danger/15',
+        link: 'text-foreground transition-colors underline decoration-border underline-offset-4 hover:decoration-foreground',
       },
       size: {
         sm: 'h-8 px-3 text-[13px]',
@@ -32,6 +32,9 @@ const buttonVariants = cva(
         'icon-sm': 'size-8',
       },
     },
+    // A link sits in a sentence, so it drops the control height and padding.
+    // compoundVariants come after the size classes, so these win the merge.
+    compoundVariants: [{ variant: 'link', class: 'h-auto px-0' }],
     defaultVariants: { variant: 'outline', size: 'md' },
   },
 )

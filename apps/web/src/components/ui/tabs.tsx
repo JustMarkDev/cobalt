@@ -4,10 +4,9 @@ import { cn } from 'cn'
 import type { LinkProps } from '@tanstack/react-router'
 import { Pill } from '~/components/motion'
 
-const trough =
-  'well inline-flex max-w-full gap-0.5 overflow-x-auto rounded-xl bg-muted/70 p-1'
+const trough = 'trough inline-flex h-9 max-w-full shrink-0'
 const base =
-  'relative inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground'
+  'relative inline-flex items-center gap-2 rounded-(--radius-thumb) px-3 text-sm focus-ring-inset whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground'
 const on = 'font-medium text-foreground hover:text-foreground'
 
 /** Navigation tabs: every tab is a real link, so the URL says where you are. */
@@ -28,22 +27,24 @@ function LinkTabs({
   const pill = React.useId()
   return (
     <nav aria-label={label} className={cn(trough, className)}>
-      {tabs.map((t) => (
-        <Link
-          key={t.label}
-          {...t.link}
-          aria-current={t.active ? 'page' : undefined}
-          className={cn(base, t.active && on)}
-        >
-          {t.active && <Pill id={pill} />}
-          <span className="relative">{t.label}</span>
-          {t.count !== undefined && (
-            <span className="relative text-xs text-muted-foreground tabular-nums">
-              {t.count}
-            </span>
-          )}
-        </Link>
-      ))}
+      <div className="trough-scroll">
+        {tabs.map((t) => (
+          <Link
+            key={t.label}
+            {...t.link}
+            aria-current={t.active ? 'page' : undefined}
+            className={cn(base, t.active && on)}
+          >
+            {t.active && <Pill id={pill} />}
+            <span className="relative">{t.label}</span>
+            {t.count !== undefined && (
+              <span className="relative text-xs text-muted-foreground tabular-nums">
+                {t.count}
+              </span>
+            )}
+          </Link>
+        ))}
+      </div>
     </nav>
   )
 }
@@ -86,30 +87,32 @@ function StateTabs<T extends string>({
     go(target)
   }
   return (
-    <div role="tablist" aria-label={label} className={cn(trough, className)}>
-      {options.map((o, i) => (
-        <button
-          key={o.id}
-          ref={(el) => {
-            refs.current[i] = el
-          }}
-          type="button"
-          role="tab"
-          aria-selected={value === o.id}
-          tabIndex={value === o.id ? 0 : -1}
-          onClick={() => onChange(o.id)}
-          onKeyDown={(e) => keys(e, i)}
-          className={cn(base, value === o.id && on)}
-        >
-          {value === o.id && <Pill id={pill} />}
-          <span className="relative">{o.label}</span>
-          {o.count !== undefined && (
-            <span className="relative text-xs text-muted-foreground tabular-nums">
-              {o.count}
-            </span>
-          )}
-        </button>
-      ))}
+    <div className={cn(trough, className)}>
+      <div role="tablist" aria-label={label} className="trough-scroll">
+        {options.map((o, i) => (
+          <button
+            key={o.id}
+            ref={(el) => {
+              refs.current[i] = el
+            }}
+            type="button"
+            role="tab"
+            aria-selected={value === o.id}
+            tabIndex={value === o.id ? 0 : -1}
+            onClick={() => onChange(o.id)}
+            onKeyDown={(e) => keys(e, i)}
+            className={cn(base, value === o.id && on)}
+          >
+            {value === o.id && <Pill id={pill} />}
+            <span className="relative">{o.label}</span>
+            {o.count !== undefined && (
+              <span className="relative text-xs text-muted-foreground tabular-nums">
+                {o.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -120,34 +123,34 @@ function Segmented<T extends string>({
   onChange,
   options,
   label,
+  className,
 }: {
   value: T
   onChange: (v: T) => void
   options: Array<[T, React.ReactNode]>
   label?: string
+  className?: string
 }) {
   const pill = React.useId()
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className="well inline-flex rounded-xl bg-muted/70 p-1 text-sm"
-    >
-      {options.map(([id, text]) => (
-        <button
-          key={id}
-          type="button"
-          aria-pressed={value === id}
-          onClick={() => onChange(id)}
-          className={cn(
-            'relative rounded-lg px-3 py-1 text-muted-foreground transition-colors hover:text-foreground',
-            value === id && 'font-medium text-foreground',
-          )}
-        >
-          {value === id && <Pill id={pill} />}
-          <span className="relative">{text}</span>
-        </button>
-      ))}
+    <div className={cn('trough inline-flex h-9 max-w-full text-sm', className)}>
+      <div role="group" aria-label={label} className="trough-scroll">
+        {options.map(([id, text]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={value === id}
+            onClick={() => onChange(id)}
+            className={cn(
+              'relative inline-flex items-center justify-center rounded-(--radius-thumb) px-3 whitespace-nowrap focus-ring-inset text-muted-foreground transition-colors hover:text-foreground',
+              value === id && 'font-medium text-foreground',
+            )}
+          >
+            {value === id && <Pill id={pill} />}
+            <span className="relative">{text}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

@@ -124,7 +124,7 @@ export function BrandLogo({
         alt=""
         loading="lazy"
         className={cn(
-          'size-5 rounded-[5px] object-contain',
+          'size-5 rounded-xs object-contain',
           brand.invert && 'dark:hue-rotate-180 dark:invert',
           brand.edge && 'ring-1 ring-black/10 dark:ring-white/15',
           className,

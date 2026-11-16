@@ -247,7 +247,7 @@ export function CodeBrowser({
                         path:
                           dir.split('/').slice(0, -1).join('/') || undefined,
                       }}
-                      className="flex items-center gap-3 px-5 py-2.5 text-sm text-muted-foreground hover:bg-muted/50"
+                      className="flex items-center gap-3 px-5 py-2.5 text-sm text-muted-foreground focus-ring-inset hover:bg-muted/50"
                     >
                       <ArrowUpIcon className="size-4" /> Up one folder
                     </Link>
@@ -266,7 +266,7 @@ export function CodeBrowser({
                           tab: 'code',
                         }}
                         search={{ path: e.path }}
-                        className="flex h-full items-center gap-3 px-5 py-2.5 text-sm hover:bg-muted/50"
+                        className="flex h-full items-center gap-3 px-5 py-2.5 text-sm focus-ring-inset hover:bg-muted/50"
                       >
                         <Icon
                           className={

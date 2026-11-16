@@ -32,6 +32,7 @@ import { useIsDark } from '~/lib/theme'
 import { encryptedDiff, envNames } from '~/lib/model/platform'
 import { useOp, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
+import { field } from '~/components/ui/input'
 
 const kindIcon = {
   member: UserIcon,
@@ -189,7 +190,7 @@ function RotateDialog({
               onChange={(e) => setValue(e.target.value)}
               placeholder={`Value for ${env}`}
               aria-label={`Value of ${v.name} for ${env}`}
-              className="h-9 w-full rounded-lg border bg-background px-3 font-mono text-sm"
+              className={cn(field, 'h-9 font-mono')}
             />
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex justify-end">
@@ -343,7 +344,7 @@ function PushGuard({ vars }: { vars: Array<EnvVar> }) {
               setLine(e.target.value)
               setResult(null)
             }}
-            className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 font-mono text-xs outline-none focus:border-foreground/50"
+            className={cn(field, 'h-9 min-w-0 flex-1 font-mono text-xs')}
           />
           <Button variant="outline" onClick={run}>
             Push
@@ -353,7 +354,7 @@ function PushGuard({ vars }: { vars: Array<EnvVar> }) {
           <p
             role="status"
             className={cn(
-              'rounded-lg border p-3 text-sm',
+              'rounded-xl border p-3 text-sm',
               result.ok
                 ? 'border-success/40 bg-success/10'
                 : 'border-danger/40 bg-danger/10',
@@ -531,7 +532,7 @@ export function SecretsPage({ repo }: { repo: Repo }) {
               ]}
             />
           </div>
-          <div className="overflow-hidden rounded-xl border">
+          <div className="surface lit-edge overflow-hidden rounded-2xl border bg-card">
             {file === 'schema' ? (
               <File
                 file={{ name: '.env.schema', contents: envSchema }}
@@ -679,17 +680,17 @@ export function SecretsPage({ repo }: { repo: Repo }) {
               })
             }}
           >
-            <label className="block space-y-1">
+            <label className="block space-y-2">
               <span className="text-muted-foreground">Name</span>
               <input
                 value={newcomer.name}
                 onChange={(e) =>
                   setNewcomer({ ...newcomer, name: e.target.value })
                 }
-                className="h-9 w-full rounded-lg border bg-background px-3"
+                className={cn(field, 'h-9')}
               />
             </label>
-            <label className="block space-y-1">
+            <label className="block space-y-2">
               <span className="text-muted-foreground">Public key</span>
               <input
                 value={newcomer.key}
@@ -697,7 +698,7 @@ export function SecretsPage({ repo }: { repo: Repo }) {
                   setNewcomer({ ...newcomer, key: e.target.value })
                 }
                 placeholder="age1…"
-                className="h-9 w-full rounded-lg border bg-background px-3 font-mono"
+                className={cn(field, 'h-9 font-mono')}
               />
             </label>
             <p className="text-xs text-muted-foreground">
@@ -756,7 +757,7 @@ export function SecretsPage({ repo }: { repo: Repo }) {
                       key: '',
                     })
                   }
-                  className="flex items-center gap-3 rounded-lg border p-3 text-left text-sm hover:bg-muted"
+                  className="raised flex items-center gap-3 rounded-lg border bg-card p-3 text-left text-sm hover:bg-muted"
                 >
                   <I className="size-4" />
                   <span>

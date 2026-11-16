@@ -15,7 +15,7 @@ import type { AuthUser } from '~/lib/auth/client'
 import { RequireAuth } from '~/components/forge/auth'
 import { useOp, useOpMaybe, useWrite } from '~/lib/forge'
 import { useMe } from '~/lib/auth/accounts'
-import { Input } from '~/components/ui/input'
+import { Input, field } from '~/components/ui/input'
 import { Chip, SectionLabel, SourceBadge } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
 import { TargetPicker } from '~/components/forge/download-button'
@@ -63,7 +63,7 @@ function Settings() {
             to="/settings/$section"
             params={{ section: id }}
             className={cn(
-              'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors focus-ring-inset hover:bg-muted hover:text-foreground',
               id === current && 'bg-muted font-medium text-foreground',
             )}
           >
@@ -131,7 +131,10 @@ function Card({
 }) {
   return (
     <section
-      className={cn('space-y-4 rounded-xl border bg-card p-5', className)}
+      className={cn(
+        'space-y-4 surface rounded-2xl border bg-card p-5',
+        className,
+      )}
     >
       {children}
     </section>
@@ -150,7 +153,7 @@ function Field({
   children: React.ReactNode
 }) {
   return (
-    <label className="block space-y-1.5 text-sm">
+    <label className="block space-y-2 text-sm">
       <span className="font-medium">{label}</span>
       {children}
       {error ? (
@@ -166,8 +169,7 @@ function Field({
   )
 }
 
-const input =
-  'h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60'
+const input = cn(field, 'h-9 disabled:opacity-60')
 
 // ---------------------------------------------------------------------------
 function ProfileSettings() {
@@ -301,7 +303,7 @@ function ProfileForm({ user }: { user: AuthUser }) {
               defaultValue="Building small, fast dev tools. Rust and TypeScript."
               rows={2}
               onChange={touch}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(field, 'py-2')}
             />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -322,7 +324,7 @@ function ProfileForm({ user }: { user: AuthUser }) {
           <p className="text-sm text-muted-foreground">
             Shown first on your profile. Pick up to six.
           </p>
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y overflow-hidden rounded-xl border">
             {mine.map((r) => (
               <li key={r.name}>
                 <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/40">
@@ -336,7 +338,7 @@ function ProfileForm({ user }: { user: AuthUser }) {
                       setPinned(next)
                       touch()
                     }}
-                    className="size-4 accent-[var(--brand-ink)]"
+                    className="size-4"
                   />
                   <span className="font-mono">{r.name}</span>
                   <span className="truncate text-muted-foreground">
@@ -437,7 +439,7 @@ function Accounts() {
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-card">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-card">
                     <BrandLogo id={p.id} />
                   </span>
                   <div>
@@ -537,7 +539,7 @@ function Accounts() {
           <SectionLabel>Imported projects</SectionLabel>
           <Chip>Only visible to you</Chip>
         </div>
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y overflow-hidden rounded-xl border">
           {imports.map((i) => (
             <li
               key={i.repo}
@@ -568,7 +570,7 @@ function Accounts() {
       <Dialog.Root open={dialog !== null} onOpenChange={(o) => !o && close()}>
         <Dialog.Portal>
           <Dialog.Backdrop className="overlay-backdrop fixed inset-0 z-50 bg-background/80" />
-          <Dialog.Popup className="overlay-popup fixed top-[18vh] left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 space-y-4 rounded-xl border bg-popover p-6 shadow-2xl outline-none">
+          <Dialog.Popup className="overlay-popup fixed top-[18vh] left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 space-y-4 rounded-2xl border bg-popover p-6 floating outline-none">
             {dialog && (
               <>
                 <Dialog.Title className="text-lg font-semibold tracking-tight">
@@ -643,7 +645,7 @@ function Privacy() {
     activity: prefs.show_activity,
     agents: prefs.show_agents,
   }
-  const field = {
+  const column = {
     combined: 'combined_total',
     privateTotals: 'private_totals',
     searchable: 'searchable',
@@ -651,7 +653,7 @@ function Privacy() {
     agents: 'show_agents',
   } as const
   const set = (k: keyof typeof state) => (v: boolean) =>
-    void write('preferences.update', { body: { [field[k]]: v } }).then((r) =>
+    void write('preferences.update', { body: { [column[k]]: v } }).then((r) =>
       setError(r.error?.message ?? ''),
     )
   return (
@@ -724,7 +726,6 @@ function Privacy() {
                   checked={on}
                   disabled={!on}
                   readOnly
-                  className="accent-[var(--brand-ink)]"
                 />
                 {label}
               </label>

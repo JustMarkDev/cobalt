@@ -116,7 +116,7 @@ function Select({
           alignItemWithTrigger={false}
           className="z-50 outline-none"
         >
-          <SelectPrimitive.Popup className="overlay-popup max-h-[min(20rem,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto rounded-xl border bg-popover p-1 text-sm shadow-lg outline-none">
+          <SelectPrimitive.Popup className="overlay-popup max-h-[min(20rem,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto rounded-xl border bg-popover p-1 text-sm floating outline-none">
             <SelectPrimitive.List>
               {items.map((item) => (
                 <SelectPrimitive.Item

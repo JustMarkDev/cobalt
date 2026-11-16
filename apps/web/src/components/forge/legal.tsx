@@ -32,7 +32,10 @@ export function LegalPage({
           finished before launch.
         </Callout>
       </header>
-      <nav aria-label="On this page" className="rounded-xl border bg-card p-4">
+      <nav
+        aria-label="On this page"
+        className="surface rounded-2xl border bg-card p-4"
+      >
         <ol className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
           {sections.map(([id, label], i) => (
             <li key={id}>

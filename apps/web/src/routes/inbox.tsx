@@ -111,11 +111,11 @@ function Inbox() {
                 <button
                   type="button"
                   onClick={() => open(n)}
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/40"
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left focus-ring-inset hover:bg-muted/40"
                 >
                   <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
                     {n.unread && (
-                      <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-brand ring-2 ring-card" />
+                      <span className="absolute top-1/2 -left-3 size-2 -translate-y-1/2 rounded-full bg-brand" />
                     )}
                     <Icon className="size-4 text-muted-foreground" />
                   </span>

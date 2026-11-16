@@ -116,7 +116,7 @@ function ClonePopover({ repo }: { repo: Repo }) {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner align="end" sideOffset={6} className="z-50">
-          <Popover.Popup className="overlay-popup w-96 space-y-3 rounded-xl border bg-popover p-3 shadow-xl outline-none">
+          <Popover.Popup className="overlay-popup w-96 space-y-3 rounded-xl border bg-popover p-3 floating outline-none">
             {(
               [
                 ['HTTPS', `https://source.code/${path}.git`],

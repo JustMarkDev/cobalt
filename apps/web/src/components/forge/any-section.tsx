@@ -14,7 +14,7 @@ const labelOf = (i: Integration) =>
       : brandName(i.id)
 
 const chipClass =
-  'surface inline-flex items-center gap-2 rounded-xl border bg-card px-3 py-1.5 text-sm'
+  'inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm'
 
 /** A plain word, for things that are not a product we connect to. */
 function Word({ children, mono }: { children: string; mono?: boolean }) {

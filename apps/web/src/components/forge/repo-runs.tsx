@@ -34,6 +34,7 @@ import { Select, SelectItem } from '~/components/ui/select'
 import { failureOf } from '~/lib/model/pipelines'
 import { opQuery, useOp, useWrite } from '~/lib/forge'
 import { toRun, toRunDetail } from '~/lib/pipeline'
+import { field } from '~/components/ui/input'
 
 // ---------------------------------------------------------------------------
 // Pieces
@@ -296,7 +297,7 @@ function StepBlock({
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40"
+        className="flex w-full items-center gap-3 px-4 py-2.5 text-left focus-ring-inset hover:bg-muted/40"
       >
         <ChevronRightIcon
           className={cn(
@@ -507,7 +508,7 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
                 <button
                   type="button"
                   onClick={() => goTo(a)}
-                  className="flex w-full items-start gap-3 px-4 py-2 text-left hover:bg-muted/40"
+                  className="flex w-full items-start gap-3 px-4 py-2 text-left focus-ring-inset hover:bg-muted/40"
                 >
                   <span
                     className={cn(
@@ -580,12 +581,11 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search the log"
                 aria-label="Search the log"
-                className="h-9 w-full rounded-lg border bg-background pr-3 pl-8 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(field, 'h-9 pr-3 pl-8')}
               />
             </label>
             <Button
               variant="outline"
-              size="sm"
               onClick={() => {
                 void navigator.clipboard.writeText(
                   allLines.map((l) => l.t).join('\n'),

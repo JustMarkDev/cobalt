@@ -186,7 +186,7 @@ export function StackCard({
                 search={{ n: Number(m.id) }}
                 aria-current={here ? 'true' : undefined}
                 className={cn(
-                  'flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50',
+                  'flex items-center gap-3 px-4 py-2.5 focus-ring-inset hover:bg-muted/50',
                   here && 'bg-muted/60',
                 )}
               >

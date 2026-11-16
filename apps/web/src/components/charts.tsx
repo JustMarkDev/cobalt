@@ -118,7 +118,7 @@ function Tip({
   return (
     <div
       role="status"
-      className="pointer-events-none absolute top-0 z-10 mx-2 min-w-24 rounded-lg border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm"
+      className="pointer-events-none absolute top-0 z-10 mx-2 min-w-24 rounded-sm border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground tip"
       style={side}
     >
       {children}
@@ -241,7 +241,7 @@ export function TrendChart({
           {...bind}
           role="img"
           aria-label={`${unit || 'Values'}, ${data[0].label} to ${last.label}. Latest ${full.format(last.value)}. Use the arrow keys to read each point.`}
-          className="absolute inset-0 touch-pan-y rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute inset-0 touch-pan-y rounded-(--radius-thumb) focus-ring-inset"
         >
           <svg
             aria-hidden
@@ -269,7 +269,7 @@ export function TrendChart({
               />
               <div
                 aria-hidden
-                className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-ink ring-2 ring-card"
+                className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-ink ring-2 ring-[var(--plot-bg,var(--card))]"
                 style={{ left: `${x(index)}%`, top: `${y(at.value)}%` }}
               />
               <Tip at={x(index)}>
@@ -351,7 +351,7 @@ export function GroupedBars({
           {...bind}
           role="img"
           aria-label={`${series.map((s) => s.label).join(' and ')} by ${String(data[0].label)} to ${String(data[n - 1].label)}. Use the arrow keys to read each group.`}
-          className="absolute inset-0 grid touch-pan-y rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute inset-0 grid touch-pan-y rounded-(--radius-thumb) focus-ring-inset"
           style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}
         >
           {data.map((row, i) => (
@@ -579,7 +579,7 @@ export function Sparkline({
       </svg>
       <span
         aria-hidden
-        className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-ink ring-2 ring-card"
+        className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-ink ring-2 ring-[var(--plot-bg,var(--card))]"
         style={{ left: `${x(n - 1)}%`, top: `${y(data[n - 1])}%` }}
       />
     </div>

@@ -158,6 +158,7 @@ export function AboutPanel({
       <Section title="Install">
         <Segmented
           label="Install with"
+          className="w-full [&>*>*]:min-w-0 [&>*>*]:flex-1 [&>*>*]:px-1.5"
           value={which}
           onChange={setWhich}
           options={installs.map(([k]): [string, string] => [k, k])}

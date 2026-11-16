@@ -12,6 +12,7 @@ import { Select, SelectItem } from '~/components/ui/select'
 import { useIsDark } from '~/lib/theme'
 import { useOp, useWrite } from '~/lib/forge'
 import { dayOf } from '~/lib/repo'
+import { field } from '~/components/ui/input'
 
 type Mode = Rule['mode']
 const modeTone = {
@@ -111,7 +112,7 @@ function RuleCard({
           <button
             type="button"
             onClick={onDelete}
-            className="ml-auto rounded-md px-2 py-1 hover:bg-danger/10 hover:text-danger"
+            className="ml-auto rounded-sm px-2 py-1 hover:bg-danger/10 hover:text-danger"
           >
             Delete rule
           </button>
@@ -168,7 +169,7 @@ function Tester({ rules }: { rules: Array<Rule> }) {
                 type="checkbox"
                 checked={paths.has(id)}
                 onChange={() => toggle(id)}
-                className="size-4 accent-[var(--brand-ink)]"
+                className="size-4"
               />
               <span className="font-mono text-xs">{label}</span>
             </label>
@@ -184,7 +185,12 @@ function Tester({ rules }: { rules: Array<Rule> }) {
             value={size}
             onChange={(e) => setSize(Number(e.target.value))}
             aria-label="Lines changed"
-            className="h-6 w-48 accent-[var(--brand-ink)]"
+            style={
+              {
+                '--range-fill': `${((size - 10) / 890) * 100}%`,
+              } as React.CSSProperties
+            }
+            className="h-6 w-48"
           />
           <span className="font-mono text-xs tabular-nums">{size} lines</span>
         </div>
@@ -424,7 +430,7 @@ export function PoliciesPage({ repo }: { repo: Repo }) {
 
         <section className="space-y-3">
           <SectionLabel>As code, .source/policy/main.yml</SectionLabel>
-          <div className="overflow-hidden rounded-xl border">
+          <div className="surface lit-edge overflow-hidden rounded-2xl border bg-card">
             <File
               file={{ name: 'main.yml', contents: set.yaml }}
               options={{ theme: codeTheme(dark), overflow }}
@@ -469,7 +475,7 @@ export function PoliciesPage({ repo }: { repo: Repo }) {
         description="Exceptions are named, owned, and end on a date. They show up in the audit trail."
       >
         <div className="space-y-3 text-sm">
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Rule</span>
             <Select
               value={draft.rule}
@@ -482,24 +488,24 @@ export function PoliciesPage({ repo }: { repo: Repo }) {
               ))}
             </Select>
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Who</span>
             <input
               value={draft.who}
               onChange={(e) => setDraft({ ...draft, who: e.target.value })}
               placeholder="A person's handle"
-              className="h-9 w-full rounded-lg border bg-background px-3"
+              className={cn(field, 'h-9')}
             />
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Reason</span>
             <input
               value={draft.reason}
               onChange={(e) => setDraft({ ...draft, reason: e.target.value })}
-              className="h-9 w-full rounded-lg border bg-background px-3"
+              className={cn(field, 'h-9')}
             />
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Ends after</span>
             <Select
               value={draft.days}
@@ -610,7 +616,7 @@ function PolicySource({
         </p>
       )}
       {source.state === 'errors' && (
-        <div className="space-y-1 rounded-lg bg-danger/8 px-3 py-2 text-danger">
+        <div className="space-y-1 rounded-xl bg-danger/8 px-3 py-2 text-danger">
           <p className="font-medium">Policy file has errors</p>
           <p className="text-xs">The last valid rules stay in force.</p>
           <ul className="list-disc pl-5 text-xs">
@@ -697,7 +703,7 @@ function LandingSettings({
           checked={landing.fresh_approvals}
           disabled={!editable}
           onChange={(e) => onChange({ fresh_approvals: e.target.checked })}
-          className="size-4 accent-current"
+          className="size-4"
         />
       </label>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -787,7 +793,7 @@ function WriteRule({
       .split(/[\s,]+/)
       .map((x) => x.trim())
       .filter(Boolean)
-  const input = 'h-9 w-full rounded-lg border bg-background px-3'
+  const input = cn(field, 'h-9')
   return (
     <Modal
       open={open}
@@ -796,7 +802,7 @@ function WriteRule({
       description="It is added to the policy file and checked on every open change."
     >
       <div className="space-y-3 text-sm">
-        <label className="block space-y-1">
+        <label className="block space-y-2">
           <span className="text-muted-foreground">Name</span>
           <input
             value={name}
@@ -805,7 +811,7 @@ function WriteRule({
             className={input}
           />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-2">
           <span className="text-muted-foreground">Kind</span>
           <Select
             value={kind}
@@ -820,7 +826,7 @@ function WriteRule({
         </label>
         {kind === 'path_approval' && (
           <>
-            <label className="block space-y-1">
+            <label className="block space-y-2">
               <span className="text-muted-foreground">
                 Paths, separated by commas
               </span>
@@ -831,7 +837,7 @@ function WriteRule({
               />
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="block space-y-1">
+              <label className="block space-y-2">
                 <span className="text-muted-foreground">Approvals</span>
                 <Select
                   value={approvals}
@@ -844,7 +850,7 @@ function WriteRule({
                   ))}
                 </Select>
               </label>
-              <label className="block space-y-1">
+              <label className="block space-y-2">
                 <span className="text-muted-foreground">From (optional)</span>
                 <input
                   value={from}
@@ -857,7 +863,7 @@ function WriteRule({
           </>
         )}
         {kind === 'required_check' && (
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Check</span>
             <input
               value={check}
@@ -867,7 +873,7 @@ function WriteRule({
           </label>
         )}
         {kind === 'max_lines' && (
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">
               Most lines added and removed
             </span>

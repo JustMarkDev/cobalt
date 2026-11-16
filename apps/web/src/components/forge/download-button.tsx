@@ -36,7 +36,7 @@ export function DownloadButton({
   const { target, isOverridden, setTarget } = useTarget()
   const { asset: best, fit } = matchAsset(release, target)
   const oses = availableOses(release)
-  const height = { sm: 'h-7 text-xs', md: 'h-8 text-sm', lg: 'h-11 text-base' }[
+  const height = { sm: 'h-7 text-xs', md: 'h-9 text-sm', lg: 'h-11 text-base' }[
     size
   ]
   const none = fit === 'none' && target
@@ -65,7 +65,15 @@ export function DownloadButton({
       : best?.file
 
   return (
-    <div className={cn('inline-flex', className)}>
+    <div
+      className={cn(
+        'inline-flex rounded-lg',
+        // One keycap: the face and its shadow belong to the whole button, so
+        // pressing either half presses both.
+        !none && 'raised bg-brand text-brand-foreground',
+        className,
+      )}
+    >
       {none ? (
         <span
           title={why}
@@ -97,7 +105,8 @@ export function DownloadButton({
           }}
           title={why}
           className={cn(
-            'inline-flex items-center gap-2 rounded-l-lg bg-brand px-3 font-semibold whitespace-nowrap text-brand-foreground',
+            // Focus is drawn inside each half, so it never crosses the divider.
+            'inline-flex items-center gap-2 rounded-l-lg px-3 font-semibold whitespace-nowrap transition-colors hover:bg-white/15 focus-ring-inset [--focus-color:var(--brand-foreground)]',
             height,
           )}
         >
@@ -117,10 +126,12 @@ export function DownloadButton({
         <Menu.Trigger
           aria-label="Other downloads"
           className={cn(
-            'inline-flex items-center rounded-r-lg border-l px-1.5 transition-colors',
+            'inline-flex items-center rounded-r-lg px-1.5 transition-colors',
+            // One divider between the halves: the left half draws it when it
+            // has a border of its own, the trigger draws it otherwise.
             none
-              ? 'border bg-muted text-muted-foreground hover:bg-accent'
-              : 'border-brand-foreground/20 bg-brand text-brand-foreground hover:brightness-95',
+              ? 'border-y border-r bg-muted text-muted-foreground focus-ring-inset hover:bg-foreground/5 active:bg-foreground/10'
+              : 'border-l border-brand-foreground/20 hover:bg-white/15 focus-ring-inset [--focus-color:var(--brand-foreground)]',
             height,
           )}
         >
@@ -128,7 +139,7 @@ export function DownloadButton({
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner align="end" sideOffset={6} className="z-50">
-            <Menu.Popup className="overlay-popup w-80 rounded-xl border bg-popover p-1 text-sm shadow-xl outline-none">
+            <Menu.Popup className="overlay-popup w-80 rounded-xl border bg-popover p-1 text-sm floating outline-none">
               <div className="px-2 pt-2 pb-1.5 text-xs text-muted-foreground">
                 {target ? (
                   <>
@@ -157,7 +168,7 @@ export function DownloadButton({
                               arch: first?.arch === 'arm64' ? 'arm64' : 'x64',
                             })
                           }
-                          className="cursor-default rounded px-1.5 normal-case outline-none data-[highlighted]:bg-muted"
+                          className="cursor-default rounded-lg px-1.5 normal-case outline-none data-[highlighted]:bg-muted"
                         >
                           use for me
                         </Menu.Item>
@@ -201,13 +212,23 @@ export function DownloadButton({
 /** Shows what we detected and lets the visitor correct it. */
 export function TargetPicker({ className }: { className?: string }) {
   const { target, isOverridden, setTarget } = useTarget()
-  if (!target) return <div className={cn('h-8', className)} />
+  if (!target)
+    return (
+      <div
+        aria-hidden
+        className={cn('flex flex-wrap items-center gap-2 text-xs', className)}
+      >
+        <span className="text-muted-foreground">We detected</span>
+        <div className="trough h-8 w-48" />
+        <div className="raised h-8 w-24 rounded-lg border bg-card" />
+      </div>
+    )
   return (
     <div className={cn('flex flex-wrap items-center gap-2 text-xs', className)}>
       <span className="text-muted-foreground">
         {isOverridden ? 'Showing builds for' : 'We detected'}
       </span>
-      <div className="well flex rounded-xl bg-muted/70 p-1">
+      <div className="trough flex h-8">
         {OSES.map((os) => (
           <button
             key={os}
@@ -217,8 +238,8 @@ export function TargetPicker({ className }: { className?: string }) {
               setTarget({ os, arch: os === 'macos' ? 'arm64' : 'x64' })
             }
             className={cn(
-              'rounded-lg px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-              target.os === os && 'raised bg-card font-medium text-foreground',
+              'inline-flex items-center justify-center rounded-(--radius-thumb) px-2.5 whitespace-nowrap focus-ring-inset text-muted-foreground transition-colors hover:text-foreground',
+              target.os === os && 'thumb font-medium text-foreground',
             )}
           >
             {osLabel[os]}
@@ -233,7 +254,7 @@ export function TargetPicker({ className }: { className?: string }) {
             arch: target.arch === 'arm64' ? 'x64' : 'arm64',
           })
         }
-        className="rounded-lg border px-2.5 py-1 text-muted-foreground hover:text-foreground"
+        className="raised inline-flex h-8 min-w-24 items-center justify-center rounded-lg border bg-card px-2.5 text-muted-foreground hover:text-foreground"
         title="Switch CPU architecture"
       >
         {archLabel(target)}

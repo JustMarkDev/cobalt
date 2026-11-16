@@ -24,6 +24,7 @@ import type { Repo } from '~/lib/model/data'
 import { useOp, useOpMaybe, useWrite } from '~/lib/forge'
 import { useMe } from '~/lib/auth/accounts'
 import { timeAgo } from '~/lib/repo'
+import { field } from '~/components/ui/input'
 
 const targetIcon = {
   'T3 Code': ComputerDesktopIcon,
@@ -73,16 +74,16 @@ function NewAutomation({
       description="Runs as a bot, with only the scopes that bot has. The bot's scopes cap what the automation can do."
     >
       <div className="space-y-4 text-sm">
-        <label className="block space-y-1">
+        <label className="block space-y-2">
           <span className="text-muted-foreground">Name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="h-9 w-full rounded-lg border bg-background px-3"
+            className={cn(field, 'h-9')}
           />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Runs as</span>
             <Select value={bot} onValueChange={(v) => setBot(v)}>
               {bots.map((b) => (
@@ -92,7 +93,7 @@ function NewAutomation({
               ))}
             </Select>
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Runs on</span>
             <Select
               value={target}
@@ -125,7 +126,7 @@ function NewAutomation({
           </div>
         </div>
         {picked.includes('schedule') && (
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">On a schedule, every</span>
             <Select
               value={every}
@@ -137,13 +138,13 @@ function NewAutomation({
             </Select>
           </label>
         )}
-        <label className="block space-y-1">
+        <label className="block space-y-2">
           <span className="text-muted-foreground">Instructions</span>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border bg-background px-3 py-2"
+            className={cn(field, 'py-2')}
           />
         </label>
       </div>
@@ -334,8 +335,8 @@ function BotCard({
   const installed = bot.installs.length > 0
   return (
     <Panel className="space-y-4 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-lg bg-muted">
               <CpuChipIcon className="size-4" />
@@ -347,9 +348,6 @@ function BotCard({
               </div>
             </div>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {bot.description}
-          </p>
         </div>
         <Button
           size="sm"
@@ -363,6 +361,7 @@ function BotCard({
           Mint token
         </Button>
       </div>
+      <p className="-mt-2 text-sm text-muted-foreground">{bot.description}</p>
 
       <div className="space-y-2">
         <SectionLabel>Scopes</SectionLabel>
