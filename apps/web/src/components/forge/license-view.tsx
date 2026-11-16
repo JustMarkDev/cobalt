@@ -213,7 +213,7 @@ export function LicenseView({ id, text }: { id: string; text: string }) {
       {(f.permissions.length > 0 ||
         f.conditions.length > 0 ||
         f.limitations.length > 0) && (
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 rounded-xl border bg-muted/30 p-5 sm:grid-cols-3">
+        <div className="well grid grid-cols-1 gap-x-8 gap-y-6 rounded-xl border bg-muted/30 p-5 sm:grid-cols-3">
           <Column
             title="Permissions"
             hint="What you can do"

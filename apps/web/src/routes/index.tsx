@@ -84,8 +84,8 @@ function Landing() {
       </section>
 
       <section className="mx-auto max-w-4xl space-y-6">
-        <div className="surface rounded-[28px] border bg-muted/40 p-3 md:p-5">
-          <div className="grid grid-cols-1 gap-5 rounded-2xl bg-background p-5 md:grid-cols-[1fr_1.1fr] md:p-8">
+        <div className="surface rounded-[calc(var(--radius-2xl)+0.75rem+1px)] border bg-muted/40 p-3 md:rounded-[calc(var(--radius-2xl)+1.25rem+1px)] md:p-5">
+          <div className="well grid grid-cols-1 gap-5 rounded-2xl border bg-background p-5 md:grid-cols-[1fr_1.1fr] md:p-8">
             <div className="space-y-4 self-center">
               <p className="font-mono text-xs text-muted-foreground">#216</p>
               <h2 className="text-2xl font-semibold tracking-tight">
@@ -149,9 +149,9 @@ function Landing() {
         ].map((f) => (
           <article
             key={f.title}
-            className="surface flex flex-col gap-5 rounded-3xl border bg-card p-7"
+            className="surface flex flex-col gap-5 rounded-2xl border bg-card p-7"
           >
-            <div className="well flex h-24 items-center rounded-2xl bg-muted/60 p-4 [&>*]:w-full">
+            <div className="well flex h-24 items-center rounded-xl border bg-muted/60 p-4 [--plot-bg:color-mix(in_oklch,var(--muted)_60%,var(--card))] [&>*]:w-full">
               {f.visual}
             </div>
             <div className="space-y-2">
@@ -268,7 +268,7 @@ function Landing() {
               key={title as string}
               className="surface flex gap-4 rounded-2xl border bg-card p-5"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <Icon className="size-5" />
               </span>
               <div className="space-y-1">

@@ -28,7 +28,7 @@ export function SoftwareCard({ repo }: { repo: Repo }) {
                 repo: repo.name,
                 tab: 'releases',
               }}
-              className="before:absolute before:inset-0"
+              className="outline-none before:absolute before:-inset-px before:rounded-2xl focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-ring focus-visible:before:outline-solid"
             >
               {repo.name}
             </Link>

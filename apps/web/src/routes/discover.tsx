@@ -120,13 +120,13 @@ function Discover() {
       <header className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Discover</h1>
         <div className="relative max-w-xl">
-          <MagnifyingGlassIcon className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => set({ q: e.target.value || undefined })}
             placeholder="Search projects and people"
             aria-label="Search projects and people"
-            className="h-10 pl-9"
+            className="pl-9"
           />
         </div>
       </header>
@@ -234,7 +234,7 @@ function Discover() {
           <h2 className="sr-only">
             {view === 'projects' ? 'Projects' : 'People'}
           </h2>
-          <Stagger className="divide-y overflow-hidden rounded-xl border bg-card">
+          <Stagger className="divide-y overflow-hidden surface rounded-2xl border bg-card">
             {view === 'projects' &&
               projects.map((r) => (
                 <RepoRow

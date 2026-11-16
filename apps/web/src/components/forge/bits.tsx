@@ -92,7 +92,7 @@ export function Avatar({
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded-md border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+    <kbd className="rounded-xs border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
       {children}
     </kbd>
   )
@@ -155,7 +155,7 @@ export function EmptyState({
   children?: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-dashed p-10 text-center">
+    <div className="rounded-2xl border border-dashed p-10 text-center">
       <p className="font-medium">{title}</p>
       {children && (
         <div className="mt-1 text-sm text-muted-foreground">{children}</div>
@@ -208,7 +208,7 @@ export function CopyAddress({ handle }: { handle: string }) {
           setTimeout(() => setCopied(false), 1500)
         })
       }}
-      className="group -my-1 mt-0.5 inline-flex items-center gap-1.5 rounded-md py-1 font-mono text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="group -my-1 mt-0.5 inline-flex items-center gap-1.5 rounded-sm py-1 font-mono text-xs text-muted-foreground focus-ring hover:text-foreground"
     >
       @{handle}
       {copied ? (

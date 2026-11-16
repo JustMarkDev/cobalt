@@ -77,7 +77,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
           }}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-[calc(var(--radius-xl)-0.375rem-1px)] px-2 py-1 focus-ring-inset hover:bg-muted hover:text-foreground"
         >
           {copied ? (
             <CheckIcon className="size-3.5 text-success" />
@@ -89,7 +89,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
       </div>
       <pre
         tabIndex={0}
-        className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed"
+        className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed focus-ring-inset"
       >
         {code}
       </pre>
@@ -137,7 +137,7 @@ const components: Components = {
       readOnly
       tabIndex={-1}
       aria-label={checked ? 'Done' : 'Not done'}
-      className="mr-2 size-4 translate-y-0.5 accent-[var(--brand-ink)]"
+      className="pointer-events-none mr-2 size-4 translate-y-0.5"
     />
   ),
   blockquote: ({ children }) => (
@@ -152,7 +152,7 @@ const components: Components = {
   table: ({ children }) => (
     <div
       tabIndex={0}
-      className="surface my-5 overflow-x-auto rounded-xl border bg-card"
+      className="my-5 overflow-x-auto rounded-xl border bg-card"
     >
       <table className="w-full border-collapse text-left text-[14px]">
         {children}
@@ -178,7 +178,7 @@ const components: Components = {
     if (lang || textOf(children).endsWith('\n'))
       return <CodeBlock lang={lang ?? ''} code={code} />
     return (
-      <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.88em]">
+      <code className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[0.88em]">
         {children}
       </code>
     )
@@ -257,7 +257,7 @@ export function ReadmeCard({
         {outline.length > 0 && (
           <Dropdown
             trigger={
-              <Button size="sm" variant="ghost">
+              <Button variant="ghost">
                 <ListBulletIcon /> Outline
               </Button>
             }

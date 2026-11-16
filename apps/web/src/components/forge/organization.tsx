@@ -121,7 +121,7 @@ export function OrgPage({
             </span>
           </h2>
           {owned.length > 0 ? (
-            <div className="divide-y rounded-xl border bg-card">
+            <div className="surface divide-y overflow-hidden rounded-2xl border bg-card">
               {owned.map((r) => (
                 <RepoRow key={r.name} repo={r} />
               ))}
@@ -152,7 +152,7 @@ export function OrgPage({
                 <Link
                   to="/$handle"
                   params={{ handle: person.handle }}
-                  className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:bg-muted/50"
+                  className="surface flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 hover:bg-muted/50"
                 >
                   <AccountTile
                     account={{ kind: 'person', ...person }}
@@ -248,7 +248,7 @@ export function OrgSettings({
   )
 }
 
-const card = 'space-y-4 rounded-xl border bg-card p-5'
+const card = 'space-y-4 surface rounded-2xl border bg-card p-5'
 
 type Context = {
   me: Person
@@ -481,7 +481,7 @@ function Members({ me, org, role, members, invites, owners }: Context) {
         </p>
       )}
 
-      <section className="rounded-xl border bg-card">
+      <section className="surface overflow-hidden rounded-2xl border bg-card">
         <ul className="divide-y">
           {members.map(({ person, role: r }) => {
             const self = person.handle === me.handle
@@ -530,7 +530,7 @@ function Members({ me, org, role, members, invites, owners }: Context) {
                         body: { role: v as Role },
                       }).then(report)
                     }
-                    className="h-8 w-28 text-[13px]"
+                    className="h-9 w-28 text-[13px]"
                   >
                     <SelectItem value="owner">Owner</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
@@ -541,7 +541,6 @@ function Members({ me, org, role, members, invites, owners }: Context) {
                 )}
                 {mayRemove ? (
                   <Button
-                    size="sm"
                     variant="ghost"
                     onClick={() => setRemoving(person.handle)}
                     className="w-16"
@@ -603,7 +602,7 @@ function Members({ me, org, role, members, invites, owners }: Context) {
             </Button>
           </form>
           {invites.length > 0 && (
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y overflow-hidden rounded-xl border">
               {invites.map((i) => (
                 <li
                   key={i.id}
@@ -759,6 +758,7 @@ export function NewOrganizationForm() {
         <Button
           type="button"
           variant="ghost"
+          size="lg"
           render={<Link to="/dashboard" />}
           nativeButton={false}
         >

@@ -66,7 +66,7 @@ function CompareImage({
               <img
                 src={src}
                 alt={`${title}: ${label}`}
-                className="w-full rounded-lg border"
+                className="w-full rounded-xl border"
               />
             </figure>
           ))}
@@ -74,7 +74,7 @@ function CompareImage({
       )}
       {mode === 'slider' && (
         <div className="space-y-2">
-          <div className="relative overflow-hidden rounded-lg border">
+          <div className="relative overflow-hidden rounded-xl border">
             <img
               src={after}
               alt={`${title}: ${afterLabel}`}
@@ -101,7 +101,8 @@ function CompareImage({
               value={split}
               onChange={(e) => setSplit(Number(e.target.value))}
               aria-label={`Show ${beforeLabel} on the left and ${afterLabel} on the right`}
-              className="flex-1 accent-[var(--brand-ink)]"
+              style={{ '--range-fill': `${split}%` } as React.CSSProperties}
+              className="flex-1"
             />
             <span>{afterLabel}</span>
           </div>
@@ -121,7 +122,7 @@ function CompareImage({
           <img
             src={showAfter ? after : before}
             alt={`${title}: ${showAfter ? afterLabel : beforeLabel}`}
-            className="w-full rounded-lg border"
+            className="w-full rounded-xl border"
           />
         </button>
       )}
@@ -171,7 +172,7 @@ function PagePreview({ title, src }: { title: string; src: string }) {
       title={title}
       srcDoc={html ?? ''}
       sandbox="allow-scripts"
-      className="h-64 w-full rounded-lg border bg-white"
+      className="h-64 w-full rounded-xl border bg-white"
     />
   )
 }
@@ -207,7 +208,7 @@ export function MediaCard({ m }: { m: Media }) {
         />
       )}
       {m.kind === 'image' && (
-        <img src={m.src} alt={m.title} className="w-full rounded-lg border" />
+        <img src={m.src} alt={m.title} className="w-full rounded-xl border" />
       )}
       {m.kind === 'video' && (
         <video
@@ -215,7 +216,7 @@ export function MediaCard({ m }: { m: Media }) {
           controls
           preload="metadata"
           aria-label={m.title}
-          className="w-full rounded-lg border bg-black"
+          className="w-full rounded-xl border bg-black"
         />
       )}
       {m.kind === 'page' && <PagePreview title={m.title} src={m.src} />}
@@ -225,7 +226,7 @@ export function MediaCard({ m }: { m: Media }) {
           title={m.title}
           srcDoc={m.html}
           sandbox="allow-scripts"
-          className="h-64 w-full rounded-lg border bg-[#0b0d10]"
+          className="h-64 w-full rounded-xl border bg-[#0b0d10]"
         />
       )}
     </Panel>
@@ -349,7 +350,7 @@ export function TestReport({ run }: { run: TestRun }) {
                   aria-expanded={c.shot ? expanded : undefined}
                   onClick={() => setOpen(expanded ? null : c.name)}
                   className={cn(
-                    'grid w-full grid-cols-[minmax(0,1fr)_4rem_4rem_3.5rem] items-center gap-x-2 px-4 py-2 text-left',
+                    'grid w-full grid-cols-[minmax(0,1fr)_4rem_4rem_3.5rem] items-center gap-x-2 px-4 py-2 text-left focus-ring-inset',
                     c.shot && 'hover:bg-muted/50',
                   )}
                 >

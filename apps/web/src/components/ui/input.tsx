@@ -1,8 +1,11 @@
 import * as React from 'react'
 import { cn } from 'cn'
 
-export const field =
-  'well w-full rounded-lg border bg-background px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/80 hover:border-foreground/25 focus-visible:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-50 aria-invalid:border-danger'
+/** The pressed-in box every field shares, for a label that wraps an input. */
+export const fieldShell =
+  'well rounded-lg border bg-background transition-colors hover:border-(--control-border)'
+
+export const field = `${fieldShell} w-full px-3 text-sm focus-ring placeholder:text-muted-foreground/80 focus-visible:border-foreground/40 disabled:opacity-50 aria-invalid:border-danger`
 
 function Input({ className, ...props }: React.ComponentProps<'input'>) {
   return (
@@ -37,7 +40,7 @@ function Field({
   className?: string
 }) {
   return (
-    <label className={cn('block space-y-1.5', className)}>
+    <label className={cn('block space-y-2', className)}>
       <span className="text-sm font-medium">{label}</span>
       {children}
       {hint && (

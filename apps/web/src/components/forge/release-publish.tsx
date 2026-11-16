@@ -1,10 +1,11 @@
 import * as React from 'react'
+import { cn } from 'cn'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { Modal } from './bits'
 import type { Repo } from '~/lib/model/data'
 import { Button } from '~/components/ui/button'
 import { Select, SelectItem } from '~/components/ui/select'
-import { Textarea } from '~/components/ui/input'
+import { Textarea, field } from '~/components/ui/input'
 import { useWrite } from '~/lib/forge'
 
 type Platform = 'macos' | 'windows' | 'linux'
@@ -111,7 +112,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
     setBusy('')
     setError(message)
   }
-  const input = 'h-9 w-full rounded-lg border bg-background px-3'
+  const input = cn(field, 'h-9')
 
   return (
     <>
@@ -126,7 +127,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
       >
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
+            <label className="block space-y-2">
               <span className="text-muted-foreground">Tag</span>
               <input
                 value={tag}
@@ -135,7 +136,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
                 className={`${input} font-mono`}
               />
             </label>
-            <label className="block space-y-1">
+            <label className="block space-y-2">
               <span className="text-muted-foreground">Channel</span>
               <Select
                 value={channel}
@@ -147,7 +148,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
               </Select>
             </label>
           </div>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Title</span>
             <input
               value={title}
@@ -155,7 +156,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
               className={input}
             />
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Added, one per line</span>
             <Textarea
               value={added}
@@ -163,7 +164,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
               onChange={(e) => setAdded(e.target.value)}
             />
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Fixed, one per line</span>
             <Textarea
               value={fixed}
@@ -171,7 +172,7 @@ export function PublishRelease({ repo }: { repo: Repo }) {
               onChange={(e) => setFixed(e.target.value)}
             />
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-2">
             <span className="text-muted-foreground">Files</span>
             <input
               type="file"

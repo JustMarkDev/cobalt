@@ -67,7 +67,7 @@ export function CopyField({
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-lg border bg-background py-1 pr-1 pl-3 font-mono text-xs',
+        'well flex items-center gap-2 rounded-lg border bg-background py-1 pr-1 pl-3 font-mono text-xs',
         className,
       )}
     >
@@ -83,7 +83,7 @@ export function CopyField({
           setCopied(true)
           setTimeout(() => setCopied(false), 1500)
         }}
-        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="rounded-[calc(var(--radius)-0.25rem-1px)] p-1.5 text-muted-foreground transition-colors focus-ring-inset hover:bg-muted hover:text-foreground"
       >
         {copied ? (
           <CheckIcon className="size-3.5 text-success" />
@@ -173,14 +173,13 @@ export function RepoHeader({
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => gate()}>
+          <Button onClick={() => gate()}>
             <GitForkIcon /> Fork
             <span className="text-muted-foreground tabular-nums">
               {compact(repo.forks)}
             </span>
           </Button>
           <Button
-            size="sm"
             aria-pressed={starred}
             disabled={star === undefined}
             onClick={() =>
@@ -207,7 +206,7 @@ export function RepoHeader({
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
         <LinkTabs
-          className="max-sm:order-2 max-sm:[mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)]"
+          className="max-sm:order-2"
           label="Repository"
           tabs={tabs
             .filter(([id]) => id !== 'settings' || mine)

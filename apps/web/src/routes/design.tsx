@@ -85,7 +85,9 @@ function Section({
       <div className="space-y-1 border-b pb-3">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {note && (
-          <p className="max-w-[65ch] text-sm text-muted-foreground">{note}</p>
+          <div className="max-w-[65ch] text-sm text-muted-foreground">
+            {typeof note === 'string' ? <p>{note}</p> : note}
+          </div>
         )}
       </div>
       {children}
@@ -116,7 +118,7 @@ function Specimen({
       <div
         className={
           className ??
-          'flex flex-wrap items-center gap-3 rounded-xl border bg-card p-5'
+          'flex flex-wrap items-center gap-3 surface rounded-2xl border bg-card p-5'
         }
       >
         {children}
@@ -218,10 +220,13 @@ function Design() {
               ],
               [
                 'Reachable any way',
-                'Every control works with a keyboard, shows one focus ring and sits in a target of at least 24px. A page never scrolls sideways on a phone.',
+                'Every control works with a keyboard, shows one focus outline (the command palette field, focused as it opens, is marked by its caret and highlighted row) and sits in a target of at least 24px. A page never scrolls sideways on a phone.',
               ],
             ].map(([t, d], i) => (
-              <li key={t} className="space-y-1 rounded-xl border bg-card p-4">
+              <li
+                key={t}
+                className="space-y-1 surface rounded-2xl border bg-card p-4"
+              >
                 <div className="font-mono text-xs text-muted-foreground">
                   0{i + 1}
                 </div>
@@ -259,9 +264,50 @@ function Design() {
         <Section
           id="type"
           title="Type and shape"
-          note="Geist for text, Geist Mono for code, names and ids. Nothing is set below 12px. Panels round to 12px, controls to 8px, badges to 6px."
+          note={
+            <ul className="list-disc space-y-1.5 pl-4 marker:text-muted-foreground/50">
+              <li>
+                Geist for text, Geist Mono for code, names and ids. Nothing is
+                set below 12px.
+              </li>
+              <li>
+                Radius by role: controls 12px (rounded-lg), menus 17.2px
+                (rounded-xl), panels 21.6px (rounded-2xl). Blocks inside a panel
+                (lists, callouts, code) are rounded-xl. Tags and labels are
+                pills; badges, small chips and tooltips are rounded-sm; keyboard
+                keys (kbd), checkboxes and the logo mark are rounded-xs (5px);
+                radios and range thumbs are round. The base radius is in px, so
+                corners stay put when text is zoomed.
+              </li>
+              <li>
+                Anything nested close is concentric: inner = outer minus the
+                gap, so a tab thumb is 8px. The first and last rows of a clipped
+                list follow the panel&apos;s corners.
+              </li>
+              <li>
+                Depth has five steps: well (recessed: fields, tracks, code and
+                hints in a panel), surface (panels), raised (keys you press),
+                thumb (the selected segment) and floating (menus, dialogs; tip
+                for tooltips). Content on a panel is flat. Where opaque cells
+                cover a panel&apos;s top edge, lit-edge draws it again.
+              </li>
+              <li>
+                Never put a ring-* on an elevated control: rings are box-shadows
+                and replace the elevation. Focus is an outline (focus-ring;
+                focus-ring-inset for flush rows; row-link when the whole row is
+                one link). The command palette&apos;s field is the one
+                exception: it is focused as the palette opens, and its caret and
+                highlighted row mark the place.
+              </li>
+              <li>
+                A tab strip that overflows shades the inside of its rim at the
+                side with more to scroll, as if the tabs slid under it; the
+                track itself stays whole.
+              </li>
+            </ul>
+          }
         >
-          <div className="space-y-4 rounded-xl border bg-card p-5">
+          <div className="space-y-4 surface rounded-2xl border bg-card p-5">
             <div className="text-2xl font-semibold tracking-tight">
               Page title, 24 semibold
             </div>
@@ -280,6 +326,48 @@ function Design() {
             </p>
             <p className="font-mono text-xs">dana/gitfs · #216 · v1.4.0</p>
           </div>
+          <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-5">
+            {(
+              [
+                [
+                  'well',
+                  'Pressed in: troughs, inputs',
+                  'well h-9 rounded-lg bg-muted/70',
+                ],
+                [
+                  'surface',
+                  'A panel at rest',
+                  'surface h-16 rounded-2xl border bg-card',
+                ],
+                [
+                  'raised',
+                  'A key you press',
+                  'raised h-9 rounded-lg border bg-card',
+                ],
+                ['thumb', 'The selected segment', ''],
+                [
+                  'floating',
+                  'Menus and dialogs',
+                  'floating h-16 rounded-xl border bg-popover',
+                ],
+              ] as const
+            ).map(([name, note, cls]) => (
+              <li key={name} className="space-y-2 text-xs">
+                <div className="flex h-16 flex-col justify-end">
+                  {name === 'thumb' ? (
+                    <div className="trough flex h-9">
+                      <div className="thumb flex-1" />
+                      <div className="flex-1" />
+                    </div>
+                  ) : (
+                    <div className={cls} />
+                  )}
+                </div>
+                <div className="font-medium">{name}</div>
+                <div className="text-muted-foreground">{note}</div>
+              </li>
+            ))}
+          </ul>
         </Section>
 
         <Section
@@ -289,34 +377,35 @@ function Design() {
         >
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Specimen
-              label="Focus ring"
-              source="app.css, @layer base"
-              className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-5"
+              label="Focus outline"
+              source="app.css, focus-ring"
+              className="flex flex-wrap items-center gap-3 surface rounded-2xl border bg-card p-5"
             >
-              <Button className="ring-2 ring-ring ring-offset-2 ring-offset-background">
+              <Button className="outline-2 outline-offset-2 outline-ring outline-solid">
                 Focused
               </Button>
               <span className="max-w-[28ch] text-sm text-muted-foreground">
-                2px, offset 2px, the same on every control. A component that
-                draws its own ring turns this one off.
+                2px, offset 2px on every control. A control that fills its
+                container draws it 2px inside (focus-ring-inset). A component
+                that sets outline-none adds focus-ring to get it back.
               </span>
             </Specimen>
             <Specimen
               label="Target size"
               source="Button sizes"
-              className="flex flex-wrap items-end gap-4 rounded-xl border bg-card p-5"
+              className="flex flex-wrap items-end gap-4 surface rounded-2xl border bg-card p-5"
             >
               {(
                 [
-                  ['24', 'size-6', 'minimum'],
-                  ['32', 'h-8 w-12', 'sm'],
-                  ['36', 'h-9 w-12', 'md'],
-                  ['44', 'h-11 w-12', 'lg'],
+                  ['25', 'size-6', 'minimum'],
+                  ['34', 'h-8 w-12', 'sm'],
+                  ['38', 'h-9 w-12', 'md'],
+                  ['46', 'h-11 w-12', 'lg'],
                 ] as const
               ).map(([px, box, name]) => (
                 <div key={px} className="space-y-1.5 text-center">
                   <div
-                    className={`${box} rounded-lg border border-dashed border-foreground/40 bg-muted`}
+                    className={`${box} ${px === '25' ? 'rounded-sm' : 'rounded-lg'} border border-dashed border-foreground/40 bg-muted`}
                   />
                   <div className="font-mono text-xs text-muted-foreground">
                     {px}px {name}
@@ -327,7 +416,7 @@ function Design() {
             <Specimen
               label="Contrast"
               source="Badge tones"
-              className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-5"
+              className="flex flex-wrap items-center gap-2 surface rounded-2xl border bg-card p-5"
             >
               {tones.map(([name]) => (
                 <Badge key={name} tone={name}>
@@ -342,7 +431,7 @@ function Design() {
             <Specimen
               label="Keyboard"
               source="Base UI and our tabs"
-              className="space-y-2 rounded-xl border bg-card p-5 text-sm"
+              className="space-y-2 surface rounded-2xl border bg-card p-5 text-sm"
             >
               {(
                 [
@@ -402,7 +491,7 @@ function Design() {
             {logoIds.map((id) => (
               <li
                 key={id}
-                className="flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-sm"
+                className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-sm"
               >
                 <BrandLogo id={id} />
                 <span className="truncate">{brandName(id)}</span>
@@ -515,7 +604,7 @@ function Design() {
           title="Forms"
           note="A label, a control, one line of help. That is every form. Menus are ours, never the browser's."
         >
-          <div className="grid grid-cols-1 gap-5 rounded-xl border bg-card p-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 surface rounded-2xl border bg-card p-5 sm:grid-cols-2">
             <Field label="Name" hint="Letters, numbers and dashes.">
               <Input defaultValue="gitfs" />
             </Field>
@@ -558,7 +647,7 @@ function Design() {
           <Specimen
             label="State tabs"
             source="~/components/ui/tabs"
-            className="rounded-xl border bg-card p-5"
+            className="surface rounded-2xl border bg-card p-5"
           >
             <div className="w-full space-y-5">
               <StateTabs
@@ -637,7 +726,7 @@ function Design() {
             <Specimen
               label="Trend"
               source="TrendChart"
-              className="h-56 rounded-xl border bg-card p-3"
+              className="h-56 surface rounded-2xl border bg-card p-3"
             >
               <TrendChart
                 data={sampleSeries}
@@ -648,7 +737,7 @@ function Design() {
             <Specimen
               label="Grouped bars"
               source="GroupedBars"
-              className="h-56 rounded-xl border bg-card p-3"
+              className="h-56 surface rounded-2xl border bg-card p-3"
             >
               <GroupedBars
                 data={['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((label, i) => ({
@@ -665,7 +754,7 @@ function Design() {
             <Specimen
               label="Share"
               source="ShareBar"
-              className="rounded-xl border bg-card p-4"
+              className="surface rounded-2xl border bg-card p-4"
             >
               <ShareBar
                 data={[
@@ -678,7 +767,7 @@ function Design() {
             <Specimen
               label="Ranked"
               source="RankedBars"
-              className="rounded-xl border bg-card p-4"
+              className="surface rounded-2xl border bg-card p-4"
             >
               <RankedBars
                 data={[
@@ -715,7 +804,7 @@ function Design() {
           <Specimen
             label="Software card"
             source="SoftwareCard"
-            className="grid grid-cols-1 gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-4 rounded-2xl border bg-card p-5 sm:grid-cols-2"
           >
             {sampleRepos
               .filter((r) => r.releases.length > 0)
@@ -727,7 +816,7 @@ function Design() {
           <Specimen
             label="Project row"
             source="RepoRow"
-            className="overflow-hidden rounded-xl border bg-card"
+            className="overflow-hidden surface rounded-2xl border bg-card"
           >
             <div className="w-full divide-y">
               <RepoRow repo={sampleRepos[0]} showToday />
@@ -741,7 +830,7 @@ function Design() {
             <Specimen
               label="Person row"
               source="DeveloperRow"
-              className="overflow-hidden rounded-xl border bg-card"
+              className="overflow-hidden surface rounded-2xl border bg-card"
             >
               <div className="w-full">
                 <DeveloperRow
@@ -763,7 +852,7 @@ function Design() {
           </div>
           <Specimen
             label="Row with a status and one action"
-            className="overflow-hidden rounded-xl border bg-card"
+            className="overflow-hidden surface rounded-2xl border bg-card"
           >
             <ul className="w-full divide-y">
               {[

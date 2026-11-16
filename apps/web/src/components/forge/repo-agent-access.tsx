@@ -244,7 +244,7 @@ export function AgentAccess({
           <CopyField value="sx env run --env development -- bun test" />
           <pre
             tabIndex={0}
-            className="well overflow-x-auto rounded-xl bg-muted/60 p-3 font-mono text-xs leading-relaxed"
+            className="well overflow-x-auto rounded-xl border bg-muted/60 p-3 font-mono text-xs leading-relaxed"
           >
             {`connecting to «DATABASE_URL»
 18 passed

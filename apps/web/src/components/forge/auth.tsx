@@ -91,7 +91,7 @@ export function PasswordInput({
         aria-label={shown ? 'Hide password' : 'Show password'}
         aria-pressed={shown}
         onClick={() => setShown((s) => !s)}
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-muted-foreground focus-ring-inset hover:text-foreground"
       >
         <Icon className="size-4" />
       </button>

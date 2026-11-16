@@ -56,7 +56,7 @@ export function StatusCard({
               type="button"
               disabled={!i.goto || !onGoto}
               onClick={() => i.goto && onGoto?.(i.goto)}
-              className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left enabled:hover:bg-muted/60"
+              className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left enabled:hover:bg-muted/60"
             >
               <span className="mt-0.5">
                 <StateIcon state={i.state} />
@@ -71,9 +71,9 @@ export function StatusCard({
           </li>
         ))}
       </ul>
-      <div className="space-y-2 p-2 pt-3">
+      <div className="space-y-2 pt-3">
         {landing === 'landed' ? (
-          <div className="flex items-center gap-2 rounded-xl bg-merged/10 px-4 py-3 font-medium text-merged">
+          <div className="flex items-center gap-2 rounded-lg bg-merged/10 px-4 py-3 font-medium text-merged">
             <GitMergeIcon className="size-4" />
             Landed. Children were rebased.
           </div>

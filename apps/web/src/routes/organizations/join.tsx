@@ -83,7 +83,7 @@ function Join() {
 
   const name = org?.name ?? offer.account
   return (
-    <section className="space-y-5 rounded-xl border bg-card p-5">
+    <section className="space-y-5 surface rounded-2xl border bg-card p-5">
       <div className="flex items-center gap-4">
         <AccountTile
           account={{ kind: 'organization', name, handle: offer.account }}

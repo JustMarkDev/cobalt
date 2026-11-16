@@ -1,11 +1,12 @@
 import * as React from 'react'
+import { cn } from 'cn'
 import { MultiFileDiff } from '@pierre/diffs/react'
 import { ChatBubbleLeftIcon, WrenchIcon } from '@heroicons/react/24/outline'
 import { Chip, EmptyState, Panel } from './bits'
 import type { ChangeComment } from '@source-code/sdk'
 import { Button } from '~/components/ui/button'
 import { Select, SelectItem } from '~/components/ui/select'
-import { Textarea } from '~/components/ui/input'
+import { Textarea, field } from '~/components/ui/input'
 import { useOp, useOpMaybe, useWrite } from '~/lib/forge'
 import { codeTheme } from '~/lib/highlight'
 import { useIsDark } from '~/lib/theme'
@@ -47,7 +48,7 @@ function ThreadCode({
   if (start.file === null || start.line === null) return null
   const now = (files[start.file] ?? '').split('\n')
   const pre = (lines: Array<string>, mark?: number) => (
-    <pre className="overflow-x-auto rounded-md bg-muted px-3 py-1.5 font-mono text-xs">
+    <pre className="well overflow-x-auto rounded-xl border bg-muted/60 px-3 py-1.5 font-mono text-xs">
       {lines.map((l, i) => (
         <div
           key={i}
@@ -76,7 +77,7 @@ function ThreadCode({
         <Button
           size="sm"
           variant="ghost"
-          className="ml-auto h-7"
+          className="-my-1 ml-auto"
           onClick={() => setShowLatest((v) => !v)}
         >
           {showLatest ? 'View as written' : 'View latest'}
@@ -124,7 +125,7 @@ function FixDiff({
       </p>
     )
   return (
-    <div className="pierre overflow-hidden rounded-md border">
+    <div className="pierre well overflow-hidden rounded-xl border">
       <MultiFileDiff
         oldFile={{ name: file, contents: a ?? '' }}
         newFile={{ name: file, contents: b ?? '' }}
@@ -167,7 +168,7 @@ function Thread({
             type="button"
             onClick={() => setFix((v) => !v)}
             aria-expanded={fix}
-            className="inline-flex items-center gap-1 rounded-md bg-info/12 px-1.5 py-0.5 font-medium text-info hover:bg-info/20"
+            className="inline-flex items-center gap-1 rounded-full bg-info/12 px-2 py-0.5 font-medium text-info hover:bg-info/20"
           >
             <WrenchIcon className="size-3" />
             Addressed in patch set {addressed.patch_set}
@@ -245,7 +246,7 @@ function Thread({
           aria-label={`Reply to ${whereOf(start)}`}
           className="min-h-9"
         />
-        <Button type="submit" size="sm" disabled={!reply.trim()}>
+        <Button type="submit" disabled={!reply.trim()}>
           Reply
         </Button>
       </form>
@@ -306,7 +307,7 @@ export function ChangeDiscussion({
         <h3 className="flex items-center gap-2 text-sm font-medium">
           <ChatBubbleLeftIcon className="size-4" /> Start a thread
         </h3>
-        <label className="block space-y-1 text-sm">
+        <label className="block space-y-2 text-sm">
           <span className="text-muted-foreground">On</span>
           <Select
             value={file || '*'}
@@ -321,7 +322,7 @@ export function ChangeDiscussion({
           </Select>
         </label>
         {file && (
-          <label className="block space-y-1 text-sm">
+          <label className="block space-y-2 text-sm">
             <span className="text-muted-foreground">
               Line (empty for the whole file)
             </span>
@@ -329,12 +330,12 @@ export function ChangeDiscussion({
               value={line}
               inputMode="numeric"
               onChange={(e) => setLine(e.target.value.replace(/\D/g, ''))}
-              className="h-9 w-full rounded-lg border bg-background px-3"
+              className={cn(field, 'h-9')}
             />
           </label>
         )}
         {file && line && (
-          <pre className="overflow-x-auto rounded-md bg-muted px-3 py-1.5 font-mono text-xs">
+          <pre className="well overflow-x-auto rounded-xl border bg-muted/60 px-3 py-1.5 font-mono text-xs">
             {(files[file] ?? '').split('\n')[Number(line) - 1] ?? ' '}
           </pre>
         )}

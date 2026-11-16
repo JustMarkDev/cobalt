@@ -13,6 +13,7 @@ import { CopyField } from './repo-shell'
 import { Modal } from './bits'
 import type { Target } from '~/lib/model/platform'
 import { Button } from '~/components/ui/button'
+import { Segmented } from '~/components/ui/tabs'
 
 type Subject = {
   kind: 'issue' | 'change' | 'run'
@@ -119,7 +120,7 @@ export function WorkWithAgent({
       >
         {phase === 'started' ? (
           <div className="space-y-4">
-            <div className="flex items-start gap-3 rounded-lg border bg-background p-4">
+            <div className="well flex items-start gap-3 rounded-xl border bg-background p-4">
               <CheckIcon className="mt-0.5 size-5 text-success" />
               <div className="text-sm">
                 <p className="font-medium">
@@ -152,8 +153,10 @@ export function WorkWithAgent({
                   aria-pressed={target === t.id}
                   onClick={() => setTarget(t.id)}
                   className={cn(
-                    'space-y-1 rounded-lg border p-3 text-left text-sm transition-colors hover:bg-muted',
-                    target === t.id && 'border-foreground bg-muted',
+                    'space-y-1 rounded-lg border p-3 text-left text-sm focus-ring',
+                    target === t.id
+                      ? 'raised border-foreground/60 bg-card'
+                      : 'hover:bg-muted',
                   )}
                 >
                   <t.icon className="size-4" />
@@ -163,22 +166,14 @@ export function WorkWithAgent({
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
               <span className="text-muted-foreground">Agent</span>
-              {runtimes.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  aria-pressed={runtime === r}
-                  onClick={() => setRuntime(r)}
-                  className={cn(
-                    'rounded-full border px-2.5 py-0.5 text-xs transition-colors hover:bg-muted',
-                    runtime === r && 'border-foreground bg-muted font-medium',
-                  )}
-                >
-                  {r}
-                </button>
-              ))}
+              <Segmented
+                label="Agent"
+                value={runtime}
+                onChange={setRuntime}
+                options={runtimes.map((r) => [r, r])}
+              />
             </div>
 
             <fieldset className="space-y-2">
@@ -193,7 +188,7 @@ export function WorkWithAgent({
                       type="checkbox"
                       checked={picked.has(id)}
                       onChange={() => toggle(id)}
-                      className="size-4 accent-[var(--brand-ink)]"
+                      className="size-4"
                     />
                     {text}
                   </label>

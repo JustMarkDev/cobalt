@@ -132,7 +132,7 @@ function Status() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Services</h2>
-        <ul className="surface divide-y rounded-2xl border bg-card">
+        <ul className="surface divide-y overflow-hidden rounded-2xl border bg-card">
           {s.services.map((x) => (
             <li
               key={x.id}

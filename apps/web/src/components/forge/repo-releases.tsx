@@ -274,41 +274,45 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
           <section id="download" className="scroll-mt-20">
             <Panel className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
-                <div
-                  role="group"
-                  aria-label="Release channel"
-                  className="well flex rounded-xl bg-muted/70 p-1 text-sm"
-                >
-                  {(['stable', 'beta', 'nightly'] as const).map((c) => {
-                    const n = count(c)
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        disabled={n === 0}
-                        aria-pressed={release.channel === c}
-                        title={n === 0 ? `No ${c} builds yet` : channelBlurb[c]}
-                        onClick={() =>
-                          setVersion(
-                            repo.releases.find((r) => r.channel === c)
-                              ?.version ?? null,
-                          )
-                        }
-                        className={cn(
-                          'inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-muted-foreground capitalize transition-colors hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground',
-                          release.channel === c &&
-                            'raised bg-card font-medium text-foreground',
-                        )}
-                      >
-                        {c}
-                        {n > 0 && (
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {n}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
+                <div className="trough flex h-9 max-w-full text-sm">
+                  <div
+                    role="group"
+                    aria-label="Release channel"
+                    className="trough-scroll"
+                  >
+                    {(['stable', 'beta', 'nightly'] as const).map((c) => {
+                      const n = count(c)
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          disabled={n === 0}
+                          aria-pressed={release.channel === c}
+                          title={
+                            n === 0 ? `No ${c} builds yet` : channelBlurb[c]
+                          }
+                          onClick={() =>
+                            setVersion(
+                              repo.releases.find((r) => r.channel === c)
+                                ?.version ?? null,
+                            )
+                          }
+                          className={cn(
+                            'inline-flex items-center justify-center gap-1.5 rounded-(--radius-thumb) px-3 whitespace-nowrap focus-ring-inset text-muted-foreground capitalize transition-colors hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground',
+                            release.channel === c &&
+                              'thumb font-medium text-foreground',
+                          )}
+                        >
+                          {c}
+                          {n > 0 && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {n}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
                 {release.signed ? (
                   <span className="inline-flex items-center gap-1.5 text-xs text-success">
@@ -377,21 +381,16 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
                 exactly, not the latest.
               </p>
             )}
-            <div className="flex gap-1">
-              {installs.map(([label], i) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setInstall(i)}
-                  className={cn(
-                    'rounded-lg px-3 py-1 font-mono text-xs text-muted-foreground hover:bg-muted',
-                    install === i && 'bg-muted text-foreground',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              label="Install with"
+              className="w-full [&>*>*]:flex-1"
+              value={String(install)}
+              onChange={(i) => setInstall(Number(i))}
+              options={installs.map(([label], i): [string, string] => [
+                String(i),
+                label,
+              ])}
+            />
             <CopyField value={installs[install][1]} />
           </section>
           <section id="changelog" className="scroll-mt-20 space-y-3">
@@ -461,7 +460,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
                               e.preventDefault()
                               download(release, a.file)
                             }}
-                            className="inline-flex size-8 items-center justify-center rounded-lg border hover:bg-muted"
+                            className="raised inline-flex size-8 items-center justify-center rounded-lg border bg-card hover:bg-muted"
                             aria-label={`Download ${a.file}`}
                           >
                             <ArrowDownTrayIcon className="size-4" />
@@ -550,7 +549,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
           </section>
           <details
             id="verify"
-            className="group scroll-mt-20 rounded-2xl border bg-card px-5 py-4"
+            className="surface group scroll-mt-20 rounded-2xl border bg-card px-5 py-4"
           >
             <summary className="flex cursor-pointer list-none items-center justify-between text-sm text-muted-foreground hover:text-foreground">
               Verify your download

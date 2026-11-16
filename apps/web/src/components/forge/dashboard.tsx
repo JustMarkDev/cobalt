@@ -32,7 +32,7 @@ function Heading({
   children?: React.ReactNode
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="mb-3 flex min-h-8 flex-wrap items-center justify-between gap-3">
       <h2 id={id} className="flex items-baseline gap-2 text-sm font-medium">
         {title}
         {count !== undefined && (
@@ -96,7 +96,7 @@ export function SummaryStrip({ data }: { data: DashboardData }) {
     (n) => n.severity === 'review',
   ).length
   return (
-    <div className="surface grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4">
+    <div className="surface lit-edge grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border lg:grid-cols-4">
       <Stat
         label="Open changes"
         value={changes}
@@ -140,14 +140,14 @@ export function NeedsYou({ data }: { data: DashboardData }) {
     <section aria-labelledby="needs">
       <Heading id="needs" title="Needs you" count={items.length} />
       {items.length === 0 && (
-        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
           Nothing needs a decision. New reviews, failures and assignments appear
           here first.
         </p>
       )}
       <Stagger
         as="ul"
-        className="divide-y rounded-xl border bg-card empty:hidden"
+        className="divide-y surface overflow-hidden rounded-2xl border bg-card empty:hidden"
       >
         {items.map((q, i) => (
           <li key={q.title} className="flex items-start gap-4 px-4 py-4">
@@ -189,12 +189,12 @@ export function InProgress({ data }: { data: DashboardData }) {
           Nothing here needs you yet
         </span>
       </Heading>
-      <ul className="divide-y rounded-xl border bg-card">
+      <ul className="surface divide-y overflow-hidden rounded-2xl border bg-card">
         {data.inProgress.map((p) => (
           <li key={p.title}>
             <Link
               {...p.link}
-              className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50"
+              className="flex items-center gap-4 px-4 py-3.5 transition-colors focus-ring-inset hover:bg-muted/50"
             >
               <div className="min-w-0 flex-1 space-y-0.5">
                 <div className="truncate text-sm font-medium">{p.title}</div>
@@ -238,7 +238,7 @@ export function ActivityFeed({ data }: { data: DashboardData }) {
         />
       </Heading>
       {shown.length === 0 ? (
-        <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
           Nothing of this kind yet.
         </p>
       ) : (
@@ -300,7 +300,7 @@ export function Repositories({ data }: { data: DashboardData }) {
               <Link
                 to="/$handle/$repo/$tab"
                 params={{ handle: r.owner, repo: r.name, tab: 'code' }}
-                className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted"
+                className="flex items-center gap-3 rounded-[calc(var(--radius)+0.5rem)] px-2 py-2.5 hover:bg-muted"
               >
                 <Tile name={r.name} className="size-9 text-xs" />
                 <span className="min-w-0 flex-1">
@@ -360,7 +360,7 @@ export function History({
           </Link>
         )}
       </Heading>
-      <div className="space-y-4 rounded-xl border bg-card p-4 text-sm">
+      <div className="space-y-4 surface rounded-2xl border bg-card p-4 text-sm">
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between text-xs">
             <span className="font-medium">Stored here</span>
@@ -438,7 +438,10 @@ export function History({
             <b className="font-medium text-foreground tabular-nums">
               {data.imported.toLocaleString('en-US')}
             </b>{' '}
-            past contributions from other hosts are on your profile.
+            {data.imported === 1
+              ? 'past contribution from another host is'
+              : 'past contributions from other hosts are'}{' '}
+            on your profile.
           </p>
         )}
       </div>
@@ -564,7 +567,7 @@ export function GettingStarted({
   return (
     <section aria-labelledby="start">
       <Heading id="start" title="Get started" />
-      <ol className="divide-y rounded-xl border bg-card">
+      <ol className="divide-y surface overflow-hidden rounded-2xl border bg-card">
         {steps.map((step, i) => (
           <li
             key={step.title}

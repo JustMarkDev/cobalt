@@ -45,13 +45,13 @@ function Counts({ repo, showToday }: { repo: Repo; showToday?: boolean }) {
 /** A compact tile for grids. */
 export function RepoCard({ repo }: { repo: Repo }) {
   return (
-    <article className="pop relative flex flex-col gap-2.5 rounded-xl border bg-card p-4">
+    <article className="pop surface relative flex flex-col gap-2.5 rounded-2xl border bg-card p-4">
       <div className="flex items-center gap-2.5">
         <Tile name={repo.name} className="size-8 text-xs" />
         <h3 className="min-w-0 truncate font-mono text-sm font-semibold">
           <Link
             {...repoLink(repo)}
-            className="outline-none before:absolute before:inset-0 before:rounded-xl focus-visible:before:ring-2 focus-visible:before:ring-ring"
+            className="outline-none before:absolute before:-inset-px before:rounded-2xl focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-ring focus-visible:before:outline-solid"
           >
             <span className="font-normal text-muted-foreground">
               {repo.owner}/
@@ -79,14 +79,14 @@ export function RepoRow({
   const release = latestStable(repo)
   return (
     <article className="relative flex items-center gap-4 px-4 py-3.5 hover:bg-muted/50">
-      <Tile name={repo.name} className="size-9" />
+      <Tile
+        name={repo.name}
+        className="size-9 max-sm:mt-0.5 max-sm:self-start"
+      />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-mono text-sm font-semibold">
-            <Link
-              {...repoLink(repo)}
-              className="before:absolute before:inset-0"
-            >
+            <Link {...repoLink(repo)} className="row-link">
               <span className="font-normal text-muted-foreground">
                 {repo.owner}/
               </span>
@@ -143,7 +143,7 @@ export function DeveloperRow({ dev }: { dev: Person }) {
           <Link
             to="/$handle"
             params={{ handle: dev.handle }}
-            className="before:absolute before:inset-0"
+            className="row-link"
           >
             {dev.name}
           </Link>

@@ -49,6 +49,7 @@ export const plans: Array<Plan> = [
     blurb: 'For your own projects and your own history.',
     monthly: 15,
     perSeat: false,
+    lead: 'Includes',
     limits: { storageGb: 4, transferGb: 20, pushGb: 4, mirrors: 3 },
     features: [
       'Public and private repositories',

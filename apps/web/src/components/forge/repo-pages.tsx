@@ -23,6 +23,7 @@ import { manages, useAccount, useMe } from '~/lib/auth/accounts'
 import { timeAgo } from '~/lib/repo'
 import { ShareBar, TrendChart } from '~/components/charts'
 import { Button } from '~/components/ui/button'
+import { field, fieldShell } from '~/components/ui/input'
 
 type LabelColor = Label['color']
 
@@ -134,14 +135,19 @@ function IssueList({ repo }: { repo: Repo }) {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <label className="flex h-9 min-w-64 flex-1 items-center gap-2 rounded-lg border bg-card px-3 text-sm focus-within:border-foreground/40">
+        <label
+          className={cn(
+            fieldShell,
+            'flex h-9 min-w-64 flex-1 items-center gap-2 px-3 text-sm has-[:focus-visible]:border-foreground/40 has-[:focus-visible]:[outline:2px_solid_var(--ring)] has-[:focus-visible]:[outline-offset:var(--focus-offset,2px)]',
+          )}
+        >
           <MagnifyingGlassIcon className="size-4 text-muted-foreground" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Filter issues"
             aria-label="Filter issues"
-            className="h-7 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+            className="h-7 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/80"
           />
         </label>
         <Seg
@@ -153,11 +159,7 @@ function IssueList({ repo }: { repo: Repo }) {
           ]}
         />
         {me && (
-          <Button
-            variant="brand"
-            size="lg"
-            onClick={() => setComposing((c) => !c)}
-          >
+          <Button variant="brand" onClick={() => setComposing((c) => !c)}>
             New issue
           </Button>
         )}
@@ -165,21 +167,21 @@ function IssueList({ repo }: { repo: Repo }) {
 
       {composing && (
         <Panel className="mb-4 space-y-3 p-4">
-          <label className="block space-y-1.5 text-sm">
+          <label className="block space-y-2 text-sm">
             <span className="font-medium">Title</span>
             <input
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              className="h-9 w-full rounded-lg border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(field, 'h-9')}
             />
           </label>
-          <label className="block space-y-1.5 text-sm">
+          <label className="block space-y-2 text-sm">
             <span className="font-medium">Description</span>
             <textarea
               value={draft.body}
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               rows={4}
-              className="w-full rounded-lg border bg-background px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(field, 'py-2')}
             />
           </label>
           {error && <p className="text-sm text-danger">{error}</p>}
@@ -226,7 +228,7 @@ function IssueList({ repo }: { repo: Repo }) {
                       tab: 'issues',
                     }}
                     search={{ n: i.number }}
-                    className="font-medium before:absolute before:inset-0 hover:underline"
+                    className="row-link font-medium hover:underline"
                   >
                     {i.title}
                   </Link>
@@ -385,7 +387,7 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
               rows={3}
               placeholder="Leave a comment"
               aria-label="Comment"
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(field, 'py-2')}
             />
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex flex-wrap items-center justify-end gap-2">

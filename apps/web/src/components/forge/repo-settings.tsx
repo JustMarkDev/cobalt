@@ -17,7 +17,7 @@ import type { Repo } from '~/lib/model/data'
 import { BrandLogo } from '~/components/brand'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
-import { Field, Input, Textarea } from '~/components/ui/input'
+import { Field, Input, Textarea, field } from '~/components/ui/input'
 import { Modal } from '~/components/ui/dialog'
 import { SwitchRow } from '~/components/ui/switch'
 import { Select, SelectItem } from '~/components/ui/select'
@@ -152,7 +152,7 @@ function General({ repo }: { repo: Repo }) {
           />
         )}
         {deleting && (
-          <div className="space-y-2 rounded-lg border border-danger/40 p-3 text-sm">
+          <div className="space-y-2 rounded-xl border border-danger/40 p-3 text-sm">
             <p>
               Type <span className="font-mono">{full}</span> to delete it, its
               issues, changes and releases.
@@ -161,7 +161,7 @@ function General({ repo }: { repo: Repo }) {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               aria-label="Repository name"
-              className="h-9 w-full rounded-lg border bg-background px-3 font-mono"
+              className={cn(field, 'h-9 font-mono')}
             />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setDeleting(false)}>
@@ -210,13 +210,13 @@ function Transfer({
   const [confirm, setConfirm] = React.useState('')
   if (!places.length)
     return (
-      <p className="rounded-lg border p-3 text-sm text-muted-foreground">
+      <p className="rounded-xl border p-3 text-sm text-muted-foreground">
         You do not own or administer another account to move it to. Create an
         organization first.
       </p>
     )
   return (
-    <div className="space-y-3 rounded-lg border p-3 text-sm">
+    <div className="space-y-3 rounded-xl border p-3 text-sm">
       <Field label="Move it to">
         <Select value={to} onValueChange={(v) => setTo(String(v))}>
           {places.map((a) => (
@@ -238,7 +238,7 @@ function Transfer({
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
         aria-label="Repository name to transfer"
-        className="h-9 w-full rounded-lg border bg-background px-3 font-mono"
+        className={cn(field, 'h-9 font-mono')}
       />
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
@@ -354,7 +354,7 @@ function MirrorRow({
         </Button>
       </div>
       {m.detail && (
-        <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
           {m.detail}
         </p>
       )}
@@ -368,7 +368,7 @@ function MirrorRow({
         </span>
         <button
           type="button"
-          className="-my-1 rounded-md px-2 py-1.5 hover:bg-danger/10 hover:text-danger"
+          className="-my-1 rounded-sm px-2 py-1.5 hover:bg-danger/10 hover:text-danger"
           onClick={onRemove}
         >
           Remove
@@ -484,7 +484,7 @@ function Mirrors({ repo }: { repo: Repo }) {
   const [primary, setPrimary] = React.useState(false)
   return (
     <div className="max-w-3xl space-y-8">
-      <div className="rounded-xl border bg-card p-4 text-sm">
+      <div className="surface rounded-2xl border bg-card p-4 text-sm">
         <div className="flex items-start gap-3">
           <CheckCircleIcon className="mt-0.5 size-5 shrink-0 text-success" />
           <div className="space-y-1">
@@ -509,11 +509,11 @@ function Mirrors({ repo }: { repo: Repo }) {
           </Button>
         </div>
         {list.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             No mirrors. This repository only exists here.
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border bg-card">
+          <ul className="divide-y surface overflow-hidden rounded-2xl border bg-card">
             {list.map((m) => (
               <MirrorRow
                 key={m.id}
@@ -659,7 +659,7 @@ export function RepoSettings({
               params={{ handle: repo.owner, repo: repo.name, tab: 'settings' }}
               search={{ section: id }}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                'rounded-lg px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors focus-ring-inset hover:bg-muted hover:text-foreground',
                 id === current && 'bg-muted font-medium text-foreground',
               )}
             >

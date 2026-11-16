@@ -174,7 +174,7 @@ export function RunView({ repo, id }: { repo: Repo; id: string }) {
                   </p>
                 )}
                 {transcript && (
-                  <pre className="max-h-[32rem] overflow-auto rounded-lg bg-muted/50 p-3 text-xs whitespace-pre-wrap">
+                  <pre className="well max-h-[32rem] overflow-auto rounded-xl border bg-muted/60 p-3 text-xs whitespace-pre-wrap">
                     {transcript.content}
                   </pre>
                 )}

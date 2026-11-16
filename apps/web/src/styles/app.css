@@ -33,13 +33,19 @@
     color: var(--brand-foreground);
   }
   /*
-   * One focus ring for everything that takes focus, so a keyboard user never
-   * loses their place. :where keeps it at zero specificity: a component that
-   * draws its own ring sets outline-none and wins.
+   * One focus mark for everything that takes focus, so a keyboard user never
+   * loses their place: an outline, never a box-shadow ring, so it can't erase
+   * a control's elevation. :where keeps it at zero specificity; components
+   * that set outline-none use the focus-ring utility, which wins over it.
+   * The one exception is the command palette's field: it is focused as the
+   * palette opens, and its caret and highlighted row mark the place.
    */
   :where(
     a,
     button,
+    input,
+    textarea,
+    select,
     summary,
     [role='tab'],
     [role='combobox'],
@@ -47,7 +53,199 @@
     [tabindex]:not([tabindex='-1'])
   ):focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 2px;
+    outline-offset: var(--focus-offset, 2px);
+  }
+  /*
+   * A control that is a direct child of an overflow-hidden container is flush
+   * with its clip, so its outward outline would be cut off: draw it inside.
+   * Rows nested deeper say so themselves with focus-ring-inset or row-link;
+   * padded controls keep the normal outline.
+   * It sets the offset variable rather than the offset, so focus-ring (which
+   * reads the same variable) can't win it back.
+   */
+  :where(
+    .overflow-hidden > :where(a, button, summary, input, textarea, select)
+  ) {
+    --focus-offset: -2px;
+  }
+  /*
+   * The first and last rows of a clipped list follow its corners (the
+   * panel's radius minus its border), so a hover tint or an inset focus
+   * outline bends with the panel instead of being cut off mid-curve.
+   */
+  .overflow-hidden.rounded-2xl {
+    --flush-r: calc(var(--radius-2xl) - 1px);
+  }
+  .overflow-hidden.rounded-xl {
+    --flush-r: calc(var(--radius-xl) - 1px);
+  }
+  /* A clip without a radius stops an outer panel's radius from leaking in. */
+  .overflow-hidden:not(.rounded-2xl, .rounded-xl) {
+    --flush-r: 0px;
+  }
+  /* Only a list that meets the clip's edge: the clip itself, or its first or
+     last child. A list under a header keeps square top corners. */
+  :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:first-child)
+    > :first-child,
+  :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:first-child)
+    > :first-child
+    > :where(a, button),
+  :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:first-child)
+    > :first-child
+    .row-link::before {
+    border-top-left-radius: var(--flush-r, 0);
+    border-top-right-radius: var(--flush-r, 0);
+  }
+  :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:last-child)
+    > :last-child,
+  :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:last-child)
+    > :last-child
+    > :where(a, button),
+  :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:last-child)
+    > :last-child
+    .row-link::before {
+    border-bottom-left-radius: var(--flush-r, 0);
+    border-bottom-right-radius: var(--flush-r, 0);
+  }
+  /*
+   * Checkboxes are drawn by the system too: a small recessed box on the xs
+   * radius that fills with the brand key and a check when on. The check is
+   * an SVG, so it can't read a variable: %23141e09 is --brand-foreground
+   * (oklch 0.22 0.04 130) in sRGB, the same in both themes. Change both
+   * together.
+   */
+  input[type='checkbox'] {
+    appearance: none;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid var(--control-border);
+    border-radius: var(--radius-xs);
+    background: var(--background) center / 75% no-repeat;
+    box-shadow: var(--well);
+    cursor: pointer;
+    transition:
+      background-color 120ms,
+      border-color 120ms;
+  }
+  input[type='checkbox']:checked {
+    border-color: var(--brand);
+    background-color: var(--brand);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23141e09' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    box-shadow:
+      inset 0 1px 0 var(--edge),
+      inset 0 -1px 0 var(--bevel);
+  }
+  input[type='checkbox']:not(:checked, :indeterminate, :disabled):hover {
+    border-color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  }
+  input[type='checkbox']:indeterminate {
+    border-color: var(--brand);
+    background-color: var(--brand);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23141e09' stroke-width='2.25' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+    box-shadow:
+      inset 0 1px 0 var(--edge),
+      inset 0 -1px 0 var(--bevel);
+  }
+  input[type='checkbox']:disabled,
+  input[type='radio']:disabled,
+  input[type='range']:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  /* A radio is the round sibling: a recessed well that holds a brand key. */
+  input[type='radio'] {
+    appearance: none;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid var(--control-border);
+    border-radius: 9999px;
+    background: var(--background);
+    box-shadow: var(--well);
+    cursor: pointer;
+    transition:
+      background-color 120ms,
+      border-color 120ms;
+  }
+  input[type='radio']:not(:checked, :disabled):hover {
+    border-color: color-mix(in oklch, var(--foreground) 70%, transparent);
+  }
+  input[type='radio']:checked {
+    border-color: var(--brand);
+    background: radial-gradient(
+      circle,
+      var(--brand-foreground) 0 3.5px,
+      var(--brand) 3.5px
+    );
+    box-shadow:
+      inset 0 1px 0 var(--edge),
+      inset 0 -1px 0 var(--bevel);
+  }
+  /* A range is a recessed track with a raised thumb, like a trough. */
+  input[type='range'] {
+    appearance: none;
+    height: 1.25rem;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 9999px;
+    /* --range-fill is the value as a percentage, set where the range is used. */
+    background: linear-gradient(
+      to right,
+      var(--brand) var(--range-fill, 0%),
+      var(--muted) 0
+    );
+    box-shadow: var(--well);
+  }
+  input[type='range']::-moz-range-track {
+    height: 6px;
+    border-radius: 9999px;
+    /* --range-fill is the value as a percentage, set where the range is used. */
+    background: linear-gradient(
+      to right,
+      var(--brand) var(--range-fill, 0%),
+      var(--muted) 0
+    );
+    box-shadow: var(--well);
+  }
+  input[type='range']::-webkit-slider-thumb {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin-top: -5px;
+    border: 1px solid var(--control-border);
+    border-radius: 9999px;
+    background: var(--thumb-bg);
+    box-shadow:
+      inset 0 1px 0 var(--edge),
+      var(--thumb);
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid var(--control-border);
+    border-radius: 9999px;
+    background: var(--thumb-bg);
+    box-shadow:
+      inset 0 1px 0 var(--edge),
+      var(--thumb);
+  }
+  /* Forced colours drop our fills and keep the hard-coded check: hand the
+     controls back to the system so checked stays visible. */
+  @media (forced-colors: active) {
+    input[type='checkbox'],
+    input[type='radio'],
+    input[type='range'] {
+      /* Important: the :checked and :hover rules are more specific. */
+      appearance: auto !important;
+      border: revert !important;
+      border-radius: revert !important;
+      background: revert !important;
+      box-shadow: none !important;
+    }
   }
 }
 
@@ -58,7 +256,7 @@
   left: 0.75rem;
   z-index: 100;
   padding: 0.5rem 0.875rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   background: var(--foreground);
   color: var(--background);
   font-size: 0.875rem;
@@ -70,12 +268,30 @@
 }
 
 /*
- * Shape rule used everywhere: panels 12px, controls 8px, badges 6px.
+ * Shape rule used everywhere: controls 12px (rounded-lg), menus and popovers
+ * 17.2px (rounded-xl) and blocks inside a panel too, panels rounded-2xl, badges,
+ * small chips and tips rounded-sm. Anything nested is
+ * concentric when it sits close: inner radius = outer radius - the gap. With a
+ * wide gap (a p-6 dialog around inputs) the inner shape keeps its own radius.
+ * A trough is a control, so it shares the 12px of the buttons beside it, and
+ * the thumb inside it is 12px - 4px = 8px. Never put a plain ring-* on an
+ * elevated surface: rings are box-shadows and the elevation erases them. Use
+ * an outline.
  * One accent (brand, an acid lime) used sparingly: the primary action, the
  * current item and the charts. Everything else is ink on paper.
  * Semantic colours (success, warning, info, danger, merged) flip per theme so
  * components never need dark: variants.
  */
+/*
+ * Registered so it computes to a px length: the sliding pill reads it from
+ * JavaScript (see Pill in components/motion.tsx).
+ */
+@property --radius-thumb {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 8px;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
@@ -121,7 +337,11 @@
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  /* The steps by role: xs keys and logos, lg controls, xl menus (radius plus
+     the p-1 gap and the popup's 1px border around their rounded-lg items, so
+     the two stay concentric at any root size), 2xl panels. */
+  --radius-xs: calc(var(--radius) - 7px);
+  --radius-xl: calc(var(--radius) + 0.25rem + 1px);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
@@ -145,6 +365,9 @@
   --destructive: oklch(0.55 0.2 25);
   --border: oklch(0.9 0.006 255);
   --input: oklch(0.88 0.008 255);
+  /* The edge of a small control that is nothing but its edge (checkbox,
+     radio, range thumb): 3:1 against the card, as WCAG 1.4.11 asks. */
+  --control-border: oklch(0.64 0.012 255);
   --ring: oklch(0.6 0.15 130);
   /*
    * Chart series, in this order and never cycled: lime (the brand's hue),
@@ -157,7 +380,12 @@
   --chart-3: oklch(0.74 0.15 68);
   --chart-4: oklch(0.6 0.18 320);
   --chart-5: oklch(0.72 0.012 265);
-  --radius: 0.7rem;
+  /* px, not rem: nested radii subtract px insets, and the sliding thumb needs a
+     number for Motion to keep its corners round while it moves. So radii
+     don't grow with a text-only zoom; browser zoom scales them as usual. */
+  --radius: 12px;
+  --trough-inset: 4px;
+  --radius-thumb: calc(var(--radius) - var(--trough-inset));
   --sidebar: oklch(0.985 0.002 250);
   --sidebar-foreground: oklch(0.17 0.015 265);
   --sidebar-primary: oklch(0.2 0.015 265);
@@ -196,6 +424,7 @@
   --destructive: oklch(0.72 0.19 25);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 13%);
+  --control-border: oklch(0.52 0.012 265);
   --ring: oklch(0.8 0.17 125);
   --chart-1: oklch(0.66 0.17 130);
   --chart-2: oklch(0.62 0.15 252);
@@ -223,35 +452,104 @@
 }
 
 /*
- * Tactile surfaces. Controls look raised, wells look pressed in, and a raised
- * control gives a little when you press it. The highlight is a 1px inner edge on
- * top and a soft shadow underneath, so it reads in both themes.
+ * Tactile surfaces: one elevation scale, lit from above.
+ *
+ *   well     pressed into the page: troughs, inputs, switches, and recessed
+ *            content blocks inside a panel (code, hints, readouts), rounded-xl
+ *   surface  a panel resting on the page: a contact shadow and a soft spread
+ *   raised   a control you press, like a key: top highlight, bottom bevel,
+ *            a tight shadow; it sinks into a well when pressed
+ *   thumb    the selected segment sitting in a trough, crisper than a panel
+ *   floating menus, popovers and dialogs that hover above everything;
+ *            tooltips use the small step, `tip`
+ *
+ * Height sets the blur: a surface casts a soft shadow and a floating layer a
+ * longer one, while raised and thumb stay tight because they sit on a panel,
+ * not above the page. So depth says what you can press and what is on top. Dark mode keeps the same steps but
+ * leans on the top edge, since shadows read less on a dark page.
  */
 :root {
   --edge: oklch(1 0 0 / 80%);
+  /* A thumb is a key sitting in a trough, so it is lighter than the trough in
+     both themes: the card in light, a raised grey in dark. */
+  --thumb-bg: var(--card);
+  /* The inverted tooltip's edge: dim white on its near-black chip. */
+  --tip-edge: oklch(1 0 0 / 12%);
+  --bevel: oklch(0.2 0.02 265 / 5%);
+  --well:
+    inset 0 1px 2px oklch(0.2 0.02 265 / 10%),
+    inset 0 0 0 1px oklch(0.2 0.02 265 / 4%);
+  --rest:
+    0 1px 2px oklch(0.2 0.02 265 / 4%),
+    0 8px 20px -12px oklch(0.2 0.02 265 / 14%);
   --lift:
-    0 1px 2px oklch(0.2 0.02 265 / 10%), 0 0 0 1px oklch(0.2 0.02 265 / 6%);
-  --well: inset 0 1px 2px oklch(0.2 0.02 265 / 10%);
+    0 0 0 1px oklch(0.2 0.02 265 / 6%), 0 1px 2px oklch(0.2 0.02 265 / 10%),
+    0 2px 4px -2px oklch(0.2 0.02 265 / 8%);
+  --press:
+    inset 0 1px 2px oklch(0.2 0.02 265 / 12%),
+    0 0 0 1px oklch(0.2 0.02 265 / 8%);
+  --thumb:
+    0 0 0 1px oklch(0.2 0.02 265 / 7%), 0 1px 2px oklch(0.2 0.02 265 / 12%),
+    0 2px 4px -2px oklch(0.2 0.02 265 / 16%);
+  --float-sm:
+    0 1px 2px oklch(0.2 0.02 265 / 10%),
+    0 3px 8px -2px oklch(0.2 0.02 265 / 16%);
+  --float:
+    0 0 0 1px oklch(0.2 0.02 265 / 5%),
+    0 6px 12px -4px oklch(0.2 0.02 265 / 10%),
+    0 20px 40px -12px oklch(0.2 0.02 265 / 22%);
 }
 .dark {
   --edge: oklch(1 0 0 / 7%);
+  --thumb-bg: var(--accent);
+  /* In dark the tooltip chip is near-white: a soft dark edge instead. */
+  --tip-edge: oklch(0 0 0 / 8%);
+  --bevel: oklch(0 0 0 / 25%);
+  --well:
+    inset 0 1px 3px oklch(0 0 0 / 50%), inset 0 0 0 1px oklch(0 0 0 / 15%);
+  --rest: 0 1px 2px oklch(0 0 0 / 30%), 0 10px 24px -14px oklch(0 0 0 / 60%);
   --lift: 0 1px 2px oklch(0 0 0 / 45%), 0 0 0 1px oklch(1 0 0 / 6%);
-  --well: inset 0 1px 3px oklch(0 0 0 / 50%);
+  --press: inset 0 1px 3px oklch(0 0 0 / 50%), 0 0 0 1px oklch(1 0 0 / 5%);
+  --thumb:
+    0 0 0 1px oklch(1 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 50%),
+    0 2px 4px -2px oklch(0 0 0 / 55%);
+  --float-sm: 0 1px 2px oklch(0 0 0 / 40%), 0 3px 8px -2px oklch(0 0 0 / 50%);
+  --float:
+    0 0 0 1px oklch(1 0 0 / 8%), 0 8px 16px -4px oklch(0 0 0 / 40%),
+    0 24px 48px -12px oklch(0 0 0 / 65%);
 }
 
 @utility raised {
   box-shadow:
     inset 0 1px 0 var(--edge),
+    inset 0 -1px 0 var(--bevel),
     var(--lift);
-  transition:
-    box-shadow 120ms,
-    transform 120ms,
-    background-color 120ms;
-  &:active:not(:disabled) {
+  /* The whole press eases: colour, shadow, the 1px sink and the brand
+     hover's brightness. Owns the transition, so don't add transition-*. */
+  transition-property:
+    color, background-color, border-color, box-shadow, transform, filter;
+  transition-duration: 120ms;
+  &:active:not(:disabled, [aria-disabled='true']) {
     transform: translateY(1px);
-    box-shadow:
-      inset 0 1px 0 transparent,
-      0 0 0 1px oklch(0.2 0.02 265 / 8%);
+    box-shadow: var(--press);
+  }
+}
+
+/*
+ * For a surface whose children are opaque and flush with its top (a grid of
+ * cells, a sticky table column, a code viewer): the inset top edge is painted
+ * under them, so draw it again above. The ::after is out of flow, so it never
+ * takes a grid cell, and it does not take clicks.
+ */
+@utility lit-edge {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 var(--edge);
+    pointer-events: none;
   }
 }
 
@@ -262,7 +560,171 @@
 @utility surface {
   box-shadow:
     inset 0 1px 0 var(--edge),
-    var(--lift);
+    var(--rest);
+}
+
+/* Owns its radius and fill: pair it with no bg-* and no rounded-* other than
+   rounded-(--radius-thumb), or the dark-mode fill and the concentric 8px are
+   silently lost. Its shadow reaches 4px down, the trough's inset, so a
+   trough that scrolls (and clips) never cuts it. */
+@utility thumb {
+  border-radius: var(--radius-thumb);
+  background-color: var(--thumb-bg);
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    var(--thumb);
+}
+
+/*
+ * Keyboard focus as an outline, never a ring: a ring is a box-shadow and would
+ * replace the elevation of the control it marks. Beats outline-none.
+ */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: var(--focus-offset, 2px);
+  }
+}
+
+/* The same outline drawn inside: for a control that fills its container (a
+   chart plot, an input's trailing button, the palette's input), where an
+   outward outline would cross the container's edge. */
+@utility focus-ring-inset {
+  &:focus-visible {
+    /* --focus-color lets a control on a brand fill keep it visible. */
+    outline: 2px solid var(--focus-color, var(--ring));
+    outline-offset: -2px;
+  }
+}
+
+/* Small overlays (chart tips): the small floating step with the usual top
+   edge. */
+@utility tip {
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    var(--float-sm);
+}
+
+/* The inverted tooltip (bg-foreground) gets a dim edge of its own: --edge is
+   80% white in light mode and would glare on a near-black chip. */
+@utility tip-inverse {
+  box-shadow:
+    inset 0 1px 0 var(--tip-edge),
+    var(--float-sm);
+}
+
+@utility floating {
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    var(--float);
+}
+
+/*
+ * A link that makes its whole row clickable (a list row in a clipped panel).
+ * Its ::before covers the row, so focus is drawn there, inset, instead of
+ * around the title alone. The row needs `relative`.
+ */
+@utility row-link {
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  &:focus-visible {
+    outline: none;
+  }
+  &:focus-visible::before {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+}
+
+/*
+ * Its padding, gap and radius are the concentric maths: don't add p-*, gap-*
+ * or rounded-* next to it (custom utilities come before core ones, so those
+ * would silently win).
+ * A recessed track for tabs and segmented controls; the selected child is a
+ * thumb. Give it h-9 so it lines up with the h-9 buttons beside it, or h-8
+ * in a compact text-xs row next to h-8 controls.
+ */
+@utility trough {
+  gap: 2px;
+  /* A tab strip that scrolls keeps its height: a classic scrollbar would eat
+     into the h-9 and clip the thumb. It still scrolls by touch, wheel and keys. */
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  padding: var(--trough-inset);
+  border-radius: var(--radius);
+  background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  box-shadow: var(--well);
+}
+
+/*
+ * The scrolling part of a trough that can overflow: it sits inside the
+ * trough's padding, so the trough keeps drawing the whole track (fill, well,
+ * rounded ends) while only the tabs move. With the scrollbar gone, the tabs
+ * fade out at the side that has more, so the strip reads as cut off rather
+ * than finished. The scroll timeline is inactive while nothing overflows,
+ * which leaves no fade. Only where scroll timelines exist: elsewhere the
+ * zero-length animation would finish at once and pin its last keyframe, so
+ * those browsers get no mask at all.
+ */
+@utility trough-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  /* Its clip edge is concentric with the track, like the thumb. */
+  border-radius: var(--radius-thumb);
+  /* A tab focused from the keyboard scrolls clear of the fade, so its
+     outline is never dimmed and the far side keeps its cue. */
+  scroll-padding-inline: 2.5rem;
+  @supports (animation-timeline: scroll()) {
+    --fade-l: 0px;
+    --fade-r: 0px;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--fade-l),
+      #000 calc(100% - var(--fade-r)),
+      transparent
+    );
+    animation: trough-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@property --fade-l {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes trough-fade {
+  0% {
+    --fade-l: 0px;
+    --fade-r: 2.5rem;
+  }
+  8%,
+  92% {
+    --fade-l: 2.5rem;
+    --fade-r: 2.5rem;
+  }
+  100% {
+    --fade-l: 2.5rem;
+    --fade-r: 0px;
+  }
 }
 
 /*
@@ -319,7 +781,7 @@
   --trees-fg-muted-override: var(--muted-foreground);
   --trees-bg-muted-override: var(--muted);
   --trees-border-color-override: var(--border);
-  --trees-border-radius-override: 8px;
+  --trees-border-radius-override: var(--radius-thumb);
   --trees-accent-override: var(--foreground);
   --diffs-font-family: var(--font-mono);
   --diffs-font-size: 12.5px;
@@ -417,7 +879,7 @@
 }
 #nd-sidebar button[data-search-full] {
   height: 2.5rem;
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
   background: var(--background);
   box-shadow: var(--well);
 }
@@ -427,37 +889,37 @@
   font-weight: 500;
   box-shadow:
     inset 0 1px 0 var(--edge),
-    var(--lift);
+    var(--thumb);
 }
 #nd-sidebar a,
 #nd-sidebar button {
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
 }
 .nd-page h1 {
   letter-spacing: -0.02em;
 }
 .nd-page div:has(> table) {
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: var(--card);
   box-shadow:
     inset 0 1px 0 var(--edge),
-    var(--lift);
+    var(--rest);
 }
 .nd-page div:has(> table) table {
   border: 0;
 }
 .nd-page figure {
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
   background: var(--card);
   box-shadow:
     inset 0 1px 0 var(--edge),
-    var(--lift);
+    var(--rest);
 }
 .nd-page main a[href^='/docs'][class*='bg-fd-card'],
 .nd-page a[class*='bg-fd-card'] {
-  border-radius: 1rem;
+  border-radius: var(--radius-xl);
   box-shadow:
     inset 0 1px 0 var(--edge),
-    var(--lift);
+    var(--rest);
 }
