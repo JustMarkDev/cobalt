@@ -35,10 +35,10 @@
     "@types/bun": "^1.4.4",
     "@typescript/native": "npm:typescript@^7.0.2",
     "convex-test": "^0.0.67",
-    "oxfmt": "0.76.0",
+    "oxfmt": "0.78.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
-    "vite-plus": "1.5.0"
+    "vite-plus": "1.5.1"
   },
   "overrides": {
     "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
