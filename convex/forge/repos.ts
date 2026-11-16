@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { tally, track } from '../lib/stats'
 import { newId, seededId } from '@source-code/api/ids'
 import { seedLabels } from '../lib/issues'
 import { query } from '../_generated/server'
@@ -135,6 +136,11 @@ export const create = mutation({
       return out({ repo: await presentRepo(ctx, existing, at), created: false })
     const publicId = newId('repo', at)
     const list = [...maintainers]
+    await tally(ctx, 'repo.created')
+    await track(ctx, 'repo.created', p.handle, {
+      visibility: args.visibility,
+      actor_class: p.class,
+    })
     const id = await ctx.db.insert('repos', {
       publicId,
       storeId: publicId,
@@ -554,6 +560,7 @@ export const remove = mutation({
       if (r.state === 'running') await revokeToken(ctx, r.tokenId)
       await ctx.db.delete('runs', r._id)
     }
+    await tally(ctx, 'repo.deleted')
     await ctx.db.insert('deletedRepos', {
       publicId: repo.publicId,
       full,

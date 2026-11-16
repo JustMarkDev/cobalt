@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { tally, track } from '../lib/stats'
 import { newId, randomSource, seededId } from '@source-code/api/ids'
 import { RESERVED_HANDLES, isValidHandle } from '@source-code/api/handles'
 import { base64url, hashToken } from '@source-code/api/auth'
@@ -186,7 +187,9 @@ export const knowPerson = mutation({
     await system(ctx)
     const known = await accountByHandle(ctx, handle)
     const at = Date.now()
-    if (!known)
+    if (!known) {
+      await tally(ctx, 'account.created')
+      await track(ctx, 'account.created', handle, { via: 'api' })
       await ctx.db.insert('accounts', {
         kind: 'person',
         handle,
@@ -198,7 +201,7 @@ export const knowPerson = mutation({
         version: 1,
         aclRev: 0,
       })
-    else if (known.kind === 'person' && known.name !== name)
+    } else if (known.kind === 'person' && known.name !== name)
       await ctx.db.patch('accounts', known._id, {
         name,
         updated: at,
@@ -275,6 +278,8 @@ export const createOrganization = mutation({
     const person = await accountByHandle(ctx, p.handle)
     if (!person) fail('not_found', `No account ${p.handle}.`)
     const at = Date.now()
+    await tally(ctx, 'account.created')
+    await track(ctx, 'account.created', p.handle, { kind: 'organization' })
     const id = await ctx.db.insert('accounts', {
       kind: 'organization',
       handle: args.handle,

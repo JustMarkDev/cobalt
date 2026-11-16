@@ -1,8 +1,10 @@
 import { Health, areaOf } from './health'
+import { TelemetryLive } from './telemetry'
 import { createHash } from 'node:crypto'
 import { extrasScope } from './stores/convex-extras'
 import { uploadScope } from './stores/convex-uploads'
 import { Duration, Effect, Layer, ManagedRuntime } from 'effect'
+import type { Tracer } from 'effect'
 import {
   Concurrency,
   Limiter,
@@ -291,7 +293,11 @@ export function createApi(options: ApiOptions) {
           },
         }),
     })
-  const runtime = ManagedRuntime.make(Layer.succeed(Domain)(domainFor(null)))
+  const runtime = ManagedRuntime.make(
+    Layer.merge(Layer.succeed(Domain)(domainFor(null)), TelemetryLive),
+  )
+  /** Each request's span, so the operation it runs is traced under it. */
+  const spans = new WeakMap<Request, Tracer.Span>()
 
   const problemResponse = (
     error: ApiError,
@@ -463,6 +469,7 @@ export function createApi(options: ApiOptions) {
         { allow: match.allow.join(', ') },
       )
     const { op, params } = match
+    spans.get(req)?.attribute('api.operation', op.id)
     if (
       depth > 0 &&
       (op.streaming ||
@@ -887,6 +894,7 @@ export function createApi(options: ApiOptions) {
       program: Effect.Effect<TValue, ApiError, Domain>,
     ) => {
       const t0 = performance.now()
+      const parent = spans.get(req)
       const settled = await runtime.runPromise(
         program.pipe(
           holding
@@ -904,6 +912,10 @@ export function createApi(options: ApiOptions) {
             onSuccess: (value) => ({ ok: true as const, value }),
             onFailure: (error) => ({ ok: false as const, error }),
           }),
+          Effect.withSpan(`api.${op.id}`, {
+            attributes: { 'api.operation': op.id, 'api.batch_depth': depth },
+          }),
+          parent ? Effect.withParentSpan(parent) : (p) => p,
         ),
       )
       timing.handler =
@@ -1362,15 +1374,42 @@ export function createApi(options: ApiOptions) {
   const health = options.domain.svc.health ?? new Health(now)
   options.domain.svc.health = health
 
-  /** Every answer is measured by area, for the status page. */
+  /**
+   * Every answer is measured by area, for the status page, and traced as one
+   * span (`telemetry.ts`). The span carries the route, not the query string,
+   * which can hold tokens.
+   */
   async function fetchAll(req: Request): Promise<Response> {
     const started = performance.now()
-    const res = await answer(req)
-    health.record(
-      areaOf(new URL(req.url).pathname),
-      performance.now() - started,
-      res.status,
+    const pathname = new URL(req.url).pathname
+    const settled = await runtime.runPromise(
+      Effect.gen(function* () {
+        const span = yield* Effect.currentSpan.pipe(Effect.orDie)
+        spans.set(req, span)
+        const r = yield* Effect.promise(() =>
+          answer(req).then(
+            (res) => ({ ok: true as const, res }),
+            (error: unknown) => ({ ok: false as const, error }),
+          ),
+        )
+        span.attribute('http.response.status_code', r.ok ? r.res.status : 500)
+        if (!r.ok || r.res.status >= 500)
+          span.attribute('error.type', r.ok ? String(r.res.status) : 'thrown')
+        return r
+      }).pipe(
+        Effect.withSpan('http.server', {
+          kind: 'server',
+          attributes: {
+            'http.request.method': req.method,
+            'url.path': pathname,
+            'api.area': areaOf(pathname),
+          },
+        }),
+      ),
     )
+    if (!settled.ok) throw settled.error
+    const res = settled.res
+    health.record(areaOf(pathname), performance.now() - started, res.status)
     return res
   }
 

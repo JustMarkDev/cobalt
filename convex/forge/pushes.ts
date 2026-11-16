@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { tally } from '../lib/stats'
 import { internalMutation } from '../_generated/server'
 import { emit } from '../lib/events'
 import { branchOwner, hydrate, saveChange } from '../lib/changes'
@@ -36,6 +37,7 @@ export const recordPush = internalMutation({
       )
       .first()
     if (seen) return 'duplicate'
+    await tally(ctx, 'repository.pushed')
     await ctx.db.insert('pushes', a)
     const repo = await ctx.db
       .query('repos')

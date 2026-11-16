@@ -31,6 +31,12 @@ const app = defineApp({
     // code.storage shows for the webhook. Without it every webhook is refused.
     CODE_STORAGE_WEBHOOK_SECRET: v.optional(v.string()),
     MAIL_FROM: v.optional(v.string()),
+    // Product analytics (`analytics.ts`): events go to PostHog when the
+    // project key is set, and are not even queued when it is not.
+    // `npx convex env set POSTHOG_KEY phc_...`; POSTHOG_HOST defaults to
+    // https://us.i.posthog.com (use https://eu.i.posthog.com for the EU).
+    POSTHOG_KEY: v.optional(v.string()),
+    POSTHOG_HOST: v.optional(v.string()),
   },
 })
 

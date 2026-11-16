@@ -5,6 +5,7 @@ import { betterAuth } from 'better-auth/minimal'
 import { username } from 'better-auth/plugins/username'
 import { components, internal } from './_generated/api'
 import { sendMail } from './lib/mail'
+import { tally, track } from './lib/stats'
 import { env, query } from './_generated/server'
 import authConfig from './auth.config'
 import { RESERVED_HANDLES, isValidHandle } from '@source-code/api/handles'
@@ -43,6 +44,8 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
           return
         }
         const at = Date.now()
+        await tally(ctx, 'account.created')
+        await track(ctx, 'account.created', user.username, { via: 'sign_up' })
         await ctx.db.insert('accounts', {
           kind: 'person',
           handle: user.username,

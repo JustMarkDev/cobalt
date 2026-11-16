@@ -30,6 +30,19 @@ Until they are set, sign-in answers that it is not configured. Accounts use emai
 
 Open http://localhost:3000/dana.
 
+## Observability
+
+Three things, each off until configured, each free at small scale:
+
+- **Traces and logs** go over OpenTelemetry from the app server to any OTLP receiver (we use [Axiom](https://axiom.co)). Every API request is a span, and each operation a child span named after it (`api.issues.list`), so latency per operation is a query on span durations. Set, on the app server:
+  ```sh
+  OTEL_EXPORTER_OTLP_ENDPOINT=https://api.axiom.co
+  OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer xaat-...,X-Axiom-Dataset=source-code"
+  ```
+  See `packages/api/src/telemetry.ts`.
+- **Totals** (accounts, repositories, changes, issues, pushes, in all and per month) are tallies kept in Convex as rows are written (`convex/lib/stats.ts`). Read a month with `bunx convex run forge/health:tallies '{"period":"2026-11"}'`.
+- **Product events** (repository created, change opened and landed, push, release, run) are queued in the same transaction as the write and sent to PostHog once a minute, as anonymous events (`convex/analytics.ts`). Set on the deployment: `bunx convex env set POSTHOG_KEY phc_...` (and `POSTHOG_HOST=https://eu.i.posthog.com` for the EU region).
+
 ## Layout
 
 A Bun workspace. Lint, format and type checking run from the root over everything (`bun run check`); each package only declares what it depends on.
