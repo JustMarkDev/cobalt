@@ -22,17 +22,25 @@ export type ApiSigner = {
 const TTL = 60
 type Key = Awaited<ReturnType<typeof importJWK>>
 
-export function convexHttpCall(url: string, signer: ApiSigner): ConvexCall {
+/** A `ConvexCall` that can also hand out its JWT, for a subscription that must sign in the same way. */
+export type ConvexHttpCall = ConvexCall & {
+  token: (
+    who: Parameters<ConvexCall>[3],
+    fresh?: boolean,
+  ) => Promise<string | null>
+}
+
+export function convexHttpCall(url: string, signer: ApiSigner): ConvexHttpCall {
   let key: Promise<Key> | undefined
   // A token is reused while it has 15 seconds left, per caller.
   const minted = new Map<string, { jwt: string; until: number }>()
-  const sign = async (who: Parameters<ConvexCall>[3]) => {
+  const sign = async (who: Parameters<ConvexCall>[3], fresh = false) => {
     if (who === null) return null
     const claims = claimsOf(who)
     const cacheKey = JSON.stringify(claims)
     const at = Math.floor(Date.now() / 1000)
     const have = minted.get(cacheKey)
-    if (have && have.until - 15 > at) return have.jwt
+    if (!fresh && have && have.until - 15 > at) return have.jwt
     key ??= importJWK(signer.privateJwk, 'ES256')
     const { subject, ...rest } = claims
     const jwt = await new SignJWT(rest)
@@ -47,7 +55,7 @@ export function convexHttpCall(url: string, signer: ApiSigner): ConvexCall {
     minted.set(cacheKey, { jwt, until: at + TTL })
     return jwt
   }
-  return async (kind, name, args, who) => {
+  const call: ConvexCall = async (kind, name, args, who) => {
     const client = new ConvexHttpClient(url)
     const jwt = await sign(who)
     if (jwt) client.setAuth(jwt)
@@ -56,4 +64,5 @@ export function convexHttpCall(url: string, signer: ApiSigner): ConvexCall {
     if (kind === 'mutation') return await client.mutation(ref, args as never)
     return await client.action(ref, args as never)
   }
+  return Object.assign(call, { token: sign })
 }

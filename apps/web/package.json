@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "vp build && bun precompress.ts",
     "start": "bun server.ts"
   },
   "dependencies": {

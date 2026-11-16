@@ -41,8 +41,9 @@ export async function findAccount(
 
 /** The person the token belongs to. Always one of the accounts. */
 export async function personal(ctx: Ctx): Promise<Account> {
-  const login = (await whoami(ctx)).login
-  const own = await findAccount(ctx, login)
+  // Both at once: over a network each is a round trip.
+  const [{ login }, all] = await Promise.all([whoami(ctx), accounts(ctx)])
+  const own = all.find((a) => a.handle === login)
   if (!own) throw new Error('The login has no account of its own.')
   return own
 }

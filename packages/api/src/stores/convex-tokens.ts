@@ -11,6 +11,8 @@ import type {
 } from '../auth'
 import type { OAuthKind, OAuthState } from '../oauth-state'
 
+type Expiring = { ok: false; reason: 'audience'; expiresAt: number }
+
 /**
  * Tokens in Convex (`convex/forge/tokens.ts`). Every lookup asks the
  * database, so a revoked token stops working on the very next request.
@@ -26,8 +28,24 @@ export class ConvexTokens implements TokenService {
     return run<T>(this.call, 'mutation', `forge/tokens:${name}`, args, 'system')
   }
 
-  find(hash: string, audience: Audience, now: number) {
-    return this.q<FindResult>('find', { hash, audience, at: now })
+  /**
+   * Leaves the time out of the arguments, so Convex can answer from its query
+   * cache, and checks expiry here, in the order the function would.
+   */
+  async find(hash: string, audience: Audience, now: number) {
+    const found = await this.q<FindResult | Expiring>('find', {
+      hash,
+      audience,
+    })
+    const expiresAt = found.ok
+      ? found.record.expiresAt
+      : found.reason === 'audience'
+        ? (found as Expiring).expiresAt
+        : undefined
+    if (expiresAt !== undefined && expiresAt <= now)
+      return { ok: false, reason: 'expired' } as const
+    if (!found.ok) return { ok: false, reason: found.reason } as const
+    return found
   }
 
   touch(record: TokenRecord, now: number) {

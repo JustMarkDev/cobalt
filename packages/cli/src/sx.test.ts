@@ -215,6 +215,36 @@ describe('mcp', () => {
     expect(p.viewers.length).toBe(1)
   })
 
+  test('tool schemas are compact and a timeline comes a page at a time', async () => {
+    const c = await client()
+    const listed = JSON.stringify((await c.listTools()).tools)
+    expect(listed).not.toContain('$schema')
+    expect(listed).not.toContain('9007199254740991')
+    const page = (args: Record<string, unknown>) =>
+      c
+        .callTool({
+          name: 'get_timeline',
+          arguments: { repo: 'dana/gitfs', kind: 'change', id: '216', ...args },
+        })
+        .then(
+          (r) =>
+            JSON.parse(text(r)) as {
+              total: number
+              from: number
+              entries: Array<unknown>
+              earlier: { count: number } | null
+            },
+        )
+    const newest = await page({ limit: 4 })
+    expect(newest.entries).toHaveLength(4)
+    expect(newest.from).toBe(newest.total - 4)
+    expect(newest.earlier?.count).toBe(newest.from)
+    const older = await page({ limit: 4, before: newest.from })
+    expect(older.from).toBe(newest.from - 4)
+    const all = await page({})
+    expect(all.entries).toHaveLength(all.total)
+  })
+
   test('serves the skill as a resource', async () => {
     const c = await client()
     const r = await c.readResource({ uri: 'sx://skill' })

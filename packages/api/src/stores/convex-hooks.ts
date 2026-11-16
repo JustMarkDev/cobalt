@@ -324,3 +324,123 @@ export class ConvexHooks implements HookPort {
     for (const set of this.timers.values()) for (const c of set) c()
   }
 }
+
+/** Longest wait between looks, so a missed update is caught within the hour. */
+export const DUE_CHECK_MAX_MS = 60 * 60_000
+/**
+ * A look that found nothing claimable yet (the clocks differ) is tried again
+ * after this, then twice as long each time it finds nothing, up to
+ * `DUE_RECHECK_MAX_MS`: a failing send does not become a call a second.
+ */
+export const DUE_RECHECK_MS = 1_000
+export const DUE_RECHECK_MAX_MS = 60_000
+
+/**
+ * Sends when the next delivery comes due, as `forge/webhooks:nextDue` says,
+ * instead of asking Convex every few seconds whether anything is due. Each
+ * new answer replaces the timer. A look that finds the same time still due
+ * (this clock ran ahead of Convex's, or the send failed) looks again a
+ * second later, backing off while it keeps finding nothing.
+ */
+export function dueTimer(
+  send: () => Promise<void>,
+  o: {
+    now?: () => number
+    setTimer?: (fn: () => void, ms: number) => () => void
+  } = {},
+) {
+  const now = o.now ?? Date.now
+  const setTimer =
+    o.setTimer ??
+    ((fn: () => void, ms: number) => {
+      const t = setTimeout(fn, ms)
+      t.unref()
+      return () => clearTimeout(t)
+    })
+  let due: number | null = null
+  let cancel: (() => void) | undefined
+  let recheck = DUE_RECHECK_MS
+  const arm = (ms: number) => {
+    cancel?.()
+    cancel = setTimer(fire, Math.min(Math.max(ms, 0), DUE_CHECK_MAX_MS))
+  }
+  const fire = () => {
+    const was = due
+    void send()
+      .catch(() => {})
+      .then(() => {
+        // Nothing changed the answer: either it is not due yet on Convex's
+        // clock, or nothing is pending and this was the hourly look.
+        if (due === was && was !== null && was <= now()) {
+          arm(recheck)
+          recheck = Math.min(recheck * 2, DUE_RECHECK_MAX_MS)
+        } else if (due === was)
+          arm(due === null ? DUE_CHECK_MAX_MS : due - now())
+      })
+  }
+  return {
+    /** A new answer from the subscription. */
+    update(at: number | null) {
+      due = at
+      recheck = DUE_RECHECK_MS
+      arm(at === null ? DUE_CHECK_MAX_MS : at - now())
+    },
+    stop() {
+      cancel?.()
+      cancel = undefined
+    },
+  }
+}
+
+/** How often a server asks whether anything is due when it cannot follow. */
+export const DUE_POLL_MS = 5_000
+
+/**
+ * Sends webhook deliveries as `nextDue` answers come in. Until the first
+ * answer, and while the subscription is failing, it asks every few seconds
+ * instead, as servers did before: a subscription that never connects (and so
+ * never errors either) cannot stop deliveries. An answer stops the asking.
+ */
+export function followDeliveries(
+  subscribe: (
+    onAnswer: (at: number | null) => void,
+    onError: () => void,
+  ) => unknown,
+  send: () => Promise<void>,
+  o: Parameters<typeof dueTimer>[1] & {
+    every?: (fn: () => void, ms: number) => () => void
+  } = {},
+) {
+  const every =
+    o.every ??
+    ((fn: () => void, ms: number) => {
+      const t = setInterval(fn, ms)
+      t.unref()
+      return () => clearInterval(t)
+    })
+  const due = dueTimer(send, o)
+  const poll = () => every(() => void send().catch(() => {}), DUE_POLL_MS)
+  let polling: (() => void) | undefined = poll()
+  subscribe(
+    (at) => {
+      polling?.()
+      polling = undefined
+      due.update(at)
+    },
+    () => {
+      due.stop()
+      polling ??= poll()
+    },
+  )
+  return {
+    /** Polling instead of following. */
+    get polling() {
+      return polling !== undefined
+    },
+    stop() {
+      polling?.()
+      polling = undefined
+      due.stop()
+    },
+  }
+}

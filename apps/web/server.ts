@@ -5,17 +5,39 @@
  * to `dist/server/server.js`. This puts the two behind one port: a request for
  * a built file gets the file, everything else goes to the handler.
  */
+import { existsSync, readdirSync } from 'node:fs'
 import { join, sep } from 'node:path'
+import { carriesSecrets, compressDynamic, serveBuilt } from './compress'
 
 type Handler = { fetch: (request: Request) => Response | Promise<Response> }
 
+// React and the other packages the server build leaves external pick their
+// development or production code from NODE_ENV when they load. A host that
+// runs `bun server.ts` without setting it would get development React: slower,
+// and about 20 MB more memory once the pages are warm.
+process.env.NODE_ENV ??= 'production'
+
 const client = join(import.meta.dir, 'dist', 'client')
+if (
+  !existsSync(client) ||
+  !existsSync(join(import.meta.dir, 'dist', 'server', 'server.js'))
+)
+  throw new Error('There is no build to serve. Run `bun run build` first.')
 // Resolved at run time, so type checking does not need a build to exist.
 const entry = new URL('./dist/server/server.js', import.meta.url).href
 const app = ((await import(entry)) as { default: Handler }).default
 
+// The build does not change while the server runs, so it is listed once
+// rather than looked up on disk for every request.
+const built = new Set(
+  readdirSync(client, { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => join(d.parentPath, d.name)),
+)
+const has = (path: string) => built.has(path)
+
 /** The built file a path names, or null. Never a path outside `dist/client`. */
-async function builtFile(pathname: string) {
+function builtFile(pathname: string) {
   let decoded: string
   try {
     decoded = decodeURIComponent(pathname)
@@ -25,8 +47,7 @@ async function builtFile(pathname: string) {
   if (decoded.endsWith('/') || decoded.includes('\0')) return null
   const path = join(client, decoded)
   if (!path.startsWith(client + sep)) return null
-  const file = Bun.file(path)
-  return (await file.exists()) ? file : null
+  return built.has(path) ? path : null
 }
 
 const server = Bun.serve({
@@ -34,18 +55,18 @@ const server = Bun.serve({
   async fetch(request) {
     if (request.method === 'GET' || request.method === 'HEAD') {
       const { pathname } = new URL(request.url)
-      const file = await builtFile(pathname)
+      const file = builtFile(pathname)
       if (file)
-        return new Response(file, {
-          headers: {
-            // Files under /assets carry a content hash in their name.
-            'cache-control': pathname.startsWith('/assets/')
-              ? 'public, max-age=31536000, immutable'
-              : 'public, max-age=3600',
-          },
+        return serveBuilt(request, file, has, {
+          // Files under /assets carry a content hash in their name.
+          'cache-control': pathname.startsWith('/assets/')
+            ? 'public, max-age=31536000, immutable'
+            : 'public, max-age=3600',
         })
     }
-    return app.fetch(request)
+    const res = await app.fetch(request)
+    if (carriesSecrets(new URL(request.url).pathname)) return res
+    return await compressDynamic(request, res)
   },
 })
 
