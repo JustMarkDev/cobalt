@@ -156,6 +156,20 @@ function RepoTab() {
   const active = activeOf[tab]
   if (!active) throw notFound()
 
+  // The page below the header reads data the loader does not fetch, such as
+  // the issue list, so the first visit to a tab suspends. A move between tabs
+  // reaches React as a router store update, not a transition, and a suspend
+  // there hides the whole frame behind the router's empty fallback: the
+  // screen goes black. The page renders from a deferred copy of where we are
+  // instead, so the tab on screen stays until the next one is ready, while the
+  // tab bar shows the new tab at once.
+  const shown = React.useDeferredValue(
+    React.useMemo(
+      () => ({ tab, n, section, path, view }),
+      [tab, n, section, path, view],
+    ),
+  )
+
   return (
     // The frame is keyed by repository only, so switching tabs keeps the
     // header mounted and swaps just the page below it.
@@ -168,18 +182,18 @@ function RepoTab() {
         pulls: found.open_changes,
       }}
       actions={
-        tab === 'code' && view !== 'history' ? (
+        shown.tab === 'code' && shown.view !== 'history' ? (
           <CodeActions repo={repo} onFind={() => setFinding(true)} />
         ) : undefined
       }
     >
       <RepoTabPage
-        tab={tab}
+        tab={shown.tab}
         repo={repo}
-        n={n}
-        section={section}
-        path={path}
-        view={view}
+        n={shown.n}
+        section={shown.section}
+        path={shown.path}
+        view={shown.view}
         finding={finding}
         onFinding={setFinding}
       />

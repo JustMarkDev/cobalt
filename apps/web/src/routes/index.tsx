@@ -13,7 +13,6 @@ import { CompareTable, Legend } from '~/components/forge/compare-table'
 import { StatusCard } from '~/components/forge/status-card'
 import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth/client'
-import { behind, checkedOn, leftOut } from '~/lib/compare'
 
 export const Route = createFileRoute('/')({
   head: () => ({
@@ -178,57 +177,12 @@ function Landing() {
             How it compares
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground text-balance">
-            The established hosts and the new ones built around agents, on the
-            questions that matter once agents write most of the code. Including
-            the rows where they are ahead. Open a row for notes and sources.
+            source.code next to the hosts teams use today and the new ones built
+            for agents, as they ship now.
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Legend />
-          <p className="text-xs text-muted-foreground">Checked {checkedOn}</p>
-        </div>
+        <Legend />
         <CompareTable />
-        <div className="grid grid-cols-1 gap-8 pt-2 md:grid-cols-2">
-          <div className="space-y-3">
-            <h3 className="font-semibold tracking-tight">
-              Where the others are ahead
-            </h3>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-              {behind.map((b) => (
-                <li key={b}>{b}</li>
-              ))}
-            </ul>
-            <p className="text-sm text-muted-foreground">
-              If those matter more to you than the rest, one of them is the
-              better choice, and your repositories are plain git either way.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <h3 className="font-semibold tracking-tight">How we checked</h3>
-            <p className="text-sm text-muted-foreground">
-              From public documentation, changelogs and announcements, linked in
-              each row. “Not confirmed” means we could not confirm it, which is
-              not the same as no. Several of these are betas and change weekly.
-              If something is out of date, tell us and we will fix it.
-            </p>
-            <p className="text-sm text-muted-foreground">Also looked at:</p>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-              {leftOut.map((o) => (
-                <li key={o.name}>
-                  <a
-                    href={o.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
-                  >
-                    {o.name}
-                  </a>
-                  : {o.why}.
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
       </section>
 
       <section aria-labelledby="teams" className="mx-auto max-w-4xl space-y-8">
