@@ -265,15 +265,47 @@ export function Languages({ repo }: { repo: Repo }) {
   )
 }
 
+/**
+ * Shades mixed from the brand into the card, so the steps stay even in both
+ * themes instead of turning muddy the way a translucent brand does on dark.
+ */
 const LEVELS = [
-  'bg-muted',
-  'bg-brand/25',
-  'bg-brand/50',
-  'bg-brand/80',
-  'bg-brand',
+  'var(--heat-0)',
+  'color-mix(in oklab, var(--brand) 28%, var(--card))',
+  'color-mix(in oklab, var(--brand) 50%, var(--card))',
+  'color-mix(in oklab, var(--brand) 74%, var(--card))',
+  'var(--brand)',
 ]
 
-/** Contribution heatmap. Totals are merged across everything linked to the account. */
+const DAY_MS = 86_400_000
+const dayFmt = new Intl.DateTimeFormat('en', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+})
+const monthFmt = new Intl.DateTimeFormat('en', {
+  month: 'short',
+  timeZone: 'UTC',
+})
+
+/**
+ * Levels by quartile of the busy days, not by share of the busiest one, so a
+ * single big day does not wash every other day out to the faintest shade.
+ */
+function levelsFor(counts: Array<number>) {
+  const busy = counts.filter((n) => n > 0).sort((a, b) => a - b)
+  const q = (p: number) => busy[Math.floor((busy.length - 1) * p)] ?? 0
+  const cuts = [q(0.25), q(0.5), q(0.75)]
+  return counts.map((n) =>
+    n === 0 ? 0 : n <= cuts[0] ? 1 : n <= cuts[1] ? 2 : n <= cuts[2] ? 3 : 4,
+  )
+}
+
+/**
+ * Contribution heatmap: one column per week, Sunday on top, today last.
+ * Totals are merged across everything linked to the account.
+ */
 export function ContributionGraph({
   seed,
   counts,
@@ -281,49 +313,171 @@ export function ContributionGraph({
   className,
 }: {
   seed: number
-  /** Real counts per day, oldest first; drawn instead of the seeded pattern. */
+  /** Real counts per day, oldest first, ending today; drawn instead of the seeded pattern. */
   counts?: Array<number>
   weeks?: number
   className?: string
 }) {
-  const cells = React.useMemo(() => {
+  const data = React.useMemo(() => {
+    const days = weeks * 7
+    const today = Math.floor(Date.now() / DAY_MS)
+    let values: Array<number>
     if (counts) {
-      const top = Math.max(1, ...counts)
-      return Array.from({ length: weeks * 7 }, (_, i) => {
-        const n = counts[counts.length - weeks * 7 + i] ?? 0
-        return n === 0 ? 0 : Math.min(4, Math.ceil((n / top) * 4))
+      values = Array.from(
+        { length: days },
+        (_, i) => counts[counts.length - days + i] ?? 0,
+      )
+    } else {
+      const rand = seeded(seed)
+      values = Array.from({ length: days }, (_, i) => {
+        const burst = Math.sin(i / 23) + Math.sin(i / 7) * 0.5
+        return rand() + burst * 0.18 > 0.55 ? Math.ceil(rand() * 6) : 0
       })
     }
-    const rand = seeded(seed)
-    return Array.from({ length: weeks * 7 }, (_, i) => {
-      const burst = Math.sin(i / 23) + Math.sin(i / 7) * 0.5
-      return rand() + burst * 0.18 > 0.55
-        ? Math.min(4, Math.ceil(rand() * 4))
-        : 0
+    const levels = levelsFor(values)
+    // Pad the front so every column starts on a Sunday; the last column ends
+    // today and may be short.
+    const first = today - days + 1
+    const lead = new Date(first * DAY_MS).getUTCDay()
+    const cells: Array<{ day: number; n: number; level: number } | null> = [
+      ...Array.from({ length: lead }, () => null),
+      ...values.map((n, i) => ({ day: first + i, n, level: levels[i] })),
+    ]
+    const columns: Array<typeof cells> = []
+    for (let i = 0; i < cells.length; i += 7)
+      columns.push(cells.slice(i, i + 7))
+    // A month is labelled over the first column that holds its 1st.
+    let last = -1
+    const months = columns.map((col) => {
+      const firstDay = col.find((c) => c)
+      if (!firstDay) return ''
+      const month = new Date(firstDay.day * DAY_MS).getUTCMonth()
+      if (month === last) return ''
+      const isFirst = last === -1
+      last = month
+      // Skip a label squeezed into a partial first month.
+      return isFirst && new Date(firstDay.day * DAY_MS).getUTCDate() > 14
+        ? ''
+        : monthFmt.format(firstDay.day * DAY_MS)
     })
+    let streak = 0
+    let best = 0
+    for (const n of values) {
+      streak = n > 0 ? streak + 1 : 0
+      best = Math.max(best, streak)
+    }
+    let current = 0
+    for (let i = values.length - 1; i >= 0 && values[i] > 0; i--) current++
+    const top = values.reduce((b, n, i) => (n > values[b] ? i : b), 0)
+    return {
+      columns,
+      months,
+      total: values.reduce((a, b) => a + b, 0),
+      active: values.filter((n) => n > 0).length,
+      best,
+      current,
+      busiest: values[top] > 0 ? { day: first + top, n: values[top] } : null,
+    }
   }, [seed, counts, weeks])
+
+  const grid = {
+    gridTemplateColumns: `repeat(${data.columns.length}, minmax(0, 1fr))`,
+  }
   return (
-    <div className={className}>
-      <div
-        className="grid grid-flow-col grid-rows-7 gap-[3px]"
-        style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}
-        role="img"
-        aria-label="Contribution activity"
-      >
-        {cells.map((level, i) => (
-          <span
-            key={i}
-            className={cn('aspect-square rounded-[2px]', LEVELS[level])}
-          />
-        ))}
+    <div
+      className={cn(
+        'flex flex-col gap-6 md:flex-row md:items-center md:justify-between',
+        className,
+      )}
+    >
+      <div className="min-w-0 flex-1 md:max-w-120">
+        <div className="flex gap-2">
+          <div className="grid shrink-0 grid-rows-[auto_repeat(7,minmax(0,1fr))] gap-[3px] text-[10px] leading-none text-muted-foreground">
+            <span className="h-3" />
+            {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((d, i) => (
+              <span key={i} className="flex items-center">
+                {d}
+              </span>
+            ))}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-[3px] grid h-3 gap-[3px]" style={grid}>
+              {data.months.map((label, i) => (
+                <span
+                  key={i}
+                  className="overflow-visible text-[10px] leading-none whitespace-nowrap text-muted-foreground"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div
+              className="grid grid-flow-col grid-rows-7 gap-[3px]"
+              style={grid}
+              role="img"
+              aria-label={`${data.total} contributions on ${data.active} days in the past ${weeks} weeks`}
+            >
+              {data.columns
+                .flat()
+                .map((c, i) =>
+                  c ? (
+                    <span
+                      key={i}
+                      title={`${c.n === 0 ? 'No' : c.n} contribution${c.n === 1 ? '' : 's'} on ${dayFmt.format(c.day * DAY_MS)}`}
+                      className="aspect-square rounded-[3px] [--heat-0:color-mix(in_oklab,var(--foreground)_7%,var(--card))]"
+                      style={{ background: LEVELS[c.level] }}
+                    />
+                  ) : (
+                    <span key={i} />
+                  ),
+                )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-muted-foreground [--heat-0:color-mix(in_oklab,var(--foreground)_7%,var(--card))]">
+          <span className="mr-1">Less</span>
+          {LEVELS.map((l) => (
+            <span
+              key={l}
+              className="size-2.5 rounded-[2px]"
+              style={{ background: l }}
+            />
+          ))}
+          <span className="ml-1">More</span>
+        </div>
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
-        Less
-        {LEVELS.map((l) => (
-          <span key={l} className={cn('size-2.5 rounded-[2px]', l)} />
+      <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-4 text-sm md:w-64">
+        {(
+          [
+            ['Contributions', data.total.toLocaleString()],
+            ['Active days', `${data.active}`],
+            [
+              'Longest streak',
+              `${data.best} ${data.best === 1 ? 'day' : 'days'}`,
+            ],
+            [
+              'Current streak',
+              `${data.current} ${data.current === 1 ? 'day' : 'days'}`,
+            ],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-xs text-muted-foreground">{k}</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">{v}</dd>
+          </div>
         ))}
-        More
-      </div>
+        {data.busiest && (
+          <div className="col-span-2">
+            <dt className="text-xs text-muted-foreground">Busiest day</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">
+              {dayFmt.format(data.busiest.day * DAY_MS)}
+              <span className="ml-1.5 font-normal text-muted-foreground">
+                {data.busiest.n} contributions
+              </span>
+            </dd>
+          </div>
+        )}
+      </dl>
     </div>
   )
 }

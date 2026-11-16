@@ -266,11 +266,6 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
         </nav>
 
         <div className="min-w-0 space-y-12">
-          {canPublish && (
-            <div className="-mb-8 flex justify-end">
-              <PublishRelease repo={repo} />
-            </div>
-          )}
           <section id="download" className="scroll-mt-20">
             <Panel className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
@@ -314,14 +309,17 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
                     })}
                   </div>
                 </div>
-                {release.signed ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-success">
-                    <ShieldCheckIcon className="size-4" /> Signed and
-                    checksummed
-                  </span>
-                ) : (
-                  <Chip tone="warning">Unsigned build</Chip>
-                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  {release.signed ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-success">
+                      <ShieldCheckIcon className="size-4" /> Signed and
+                      checksummed
+                    </span>
+                  ) : (
+                    <Chip tone="warning">Unsigned build</Chip>
+                  )}
+                  {canPublish && <PublishRelease repo={repo} />}
+                </div>
               </div>
               <ReleaseNotice
                 release={release}

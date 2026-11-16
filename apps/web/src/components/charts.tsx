@@ -135,28 +135,32 @@ function Table({
   head: Array<string>
   rows: Array<Array<string | number>>
 }) {
+  // Hidden by a wrapper, not on the table: a caption sits outside the table's
+  // own box, so `sr-only` on the table leaves it on screen in some browsers.
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          {head.map((h) => (
-            <th key={h} scope="col">
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={i}>
-            {r.map((c, j) =>
-              j === 0 ? <th key={j}>{c}</th> : <td key={j}>{c}</td>,
-            )}
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {head.map((h) => (
+              <th key={h} scope="col">
+                {h}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              {r.map((c, j) =>
+                j === 0 ? <th key={j}>{c}</th> : <td key={j}>{c}</td>,
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

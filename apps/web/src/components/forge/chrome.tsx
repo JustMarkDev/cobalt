@@ -5,7 +5,6 @@ import {
   ArrowTurnDownLeftIcon,
   BellIcon,
   CheckIcon,
-  ChevronUpDownIcon,
   MagnifyingGlassIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
@@ -44,7 +43,7 @@ export function Logo({ className }: { className?: string }) {
  * accounts it can act as listed first, so changing who you are acting as is
  * one click from anywhere.
  */
-function UserMenu() {
+function UserMenu({ unread }: { unread: number }) {
   const navigate = useNavigate()
   const { me, accounts, active } = useAccounts()
   if (!me || !active) return null
@@ -55,20 +54,24 @@ function UserMenu() {
       trigger={
         <button
           type="button"
-          aria-label="Account"
-          className="flex items-center gap-2 rounded-lg py-0.5 pr-1 pl-0.5 focus-ring hover:bg-muted lg:pr-2"
+          aria-label={
+            unread > 0
+              ? `${active.name}, ${unread} unread notifications`
+              : active.name
+          }
+          title={active.name}
+          className={cn(
+            'relative flex focus-ring',
+            active.kind === 'person' ? 'rounded-full' : 'rounded-lg',
+          )}
         >
-          <AccountTile account={active} className="size-8 text-xs" />
-          <span className="hidden max-w-32 truncate text-sm font-medium lg:block">
-            {active.name}
-          </span>
-          <ChevronUpDownIcon className="hidden size-4 text-muted-foreground lg:block" />
+          <AccountTile account={active} className="size-9 text-xs" />
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-brand ring-2 ring-background" />
+          )}
         </button>
       }
     >
-      <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">
-        Acting as
-      </div>
       {accounts.map((a) => (
         <MenuItem
           key={a.id}
@@ -93,6 +96,15 @@ function UserMenu() {
         <PlusIcon /> New organization
       </MenuItem>
       <MenuSeparator />
+      <MenuItem render={<Link to="/inbox" />}>
+        <BellIcon />
+        <span className="flex-1">Inbox</span>
+        {unread > 0 && (
+          <span className="rounded-full bg-brand px-1.5 font-mono text-xs text-brand-foreground tabular-nums">
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </MenuItem>
       <MenuItem render={<Link to="/dashboard" />}>Dashboard</MenuItem>
       {org ? (
         <MenuItem
@@ -584,18 +596,8 @@ export function SiteHeader() {
             >
               <PlusIcon className="size-4" />
             </Link>
-            <Link
-              to="/inbox"
-              aria-label={`Inbox, ${unread} unread`}
-              className="raised focus-ring relative inline-flex size-9 items-center justify-center rounded-lg border bg-(--key-bg) text-foreground [--key-bg:var(--card)] hover:[--key-bg:var(--muted)]"
-            >
-              <BellIcon className="size-4" />
-              {unread > 0 && (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand ring-2 ring-(--key-bg)" />
-              )}
-            </Link>
             <span className="ml-1">
-              <UserMenu />
+              <UserMenu unread={unread} />
             </span>
           </div>
         ) : (
