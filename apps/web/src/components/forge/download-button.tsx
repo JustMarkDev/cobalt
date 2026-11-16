@@ -33,7 +33,7 @@ export function DownloadButton({
   /** Called with the file when someone downloads it, to count it. */
   onDownload?: (file: string) => void
 }) {
-  const { target, isOverridden, setTarget } = useTarget()
+  const { target, isOverridden } = useTarget()
   const { asset: best, fit } = matchAsset(release, target)
   const oses = availableOses(release)
   const height = { sm: 'h-7 text-xs', md: 'h-9 text-sm', lg: 'h-11 text-base' }[
@@ -155,24 +155,10 @@ export function DownloadButton({
               {OSES.map((os) => {
                 const list = release.assets.filter((a) => a.platform === os)
                 if (!list.length) return null
-                const first = list.at(0)
                 return (
                   <div key={os}>
-                    <div className="flex items-center justify-between px-2 pt-2 pb-1 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+                    <div className="px-2 pt-2 pb-1 font-mono text-xs tracking-wider text-muted-foreground uppercase">
                       {osLabel[os]}
-                      {target?.os !== os && (
-                        <Menu.Item
-                          onClick={() =>
-                            setTarget({
-                              os,
-                              arch: first?.arch === 'arm64' ? 'arm64' : 'x64',
-                            })
-                          }
-                          className="cursor-default rounded-lg px-1.5 normal-case outline-none data-[highlighted]:bg-muted"
-                        >
-                          use for me
-                        </Menu.Item>
-                      )}
                     </div>
                     {list.map((a) => (
                       <Menu.Item
