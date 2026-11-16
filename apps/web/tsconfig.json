@@ -1,6 +1,13 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src", "vite.config.ts", "server.ts"],
+  "include": [
+    "src",
+    "vite.config.ts",
+    "server.ts",
+    "compress.ts",
+    "compress.test.ts",
+    "precompress.ts"
+  ],
   "compilerOptions": {
     "paths": {
       "~/*": ["./src/*"]

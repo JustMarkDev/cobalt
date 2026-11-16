@@ -334,6 +334,35 @@ export const enqueueOne = mutation({
 })
 
 /**
+ * When the next pending delivery can be claimed (ms), or null when nothing is
+ * pending. API servers subscribe to it and claim only then, rather than ask
+ * on a timer: it does not read the clock, so Convex keeps the answer cached
+ * and sends a new one only when a delivery is added, claimed or settled.
+ */
+export const nextDue = query({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    await system(ctx)
+    // In order of nextAt. A row is due at max(nextAt, claimedUntil), never
+    // before its nextAt, so once a row's nextAt is no earlier than the best
+    // found, no later row can be earlier: stop there. Rows being sent (claimed)
+    // are passed over, however many there are. The cap only bounds the read.
+    let at: number | null = null
+    let read = 0
+    for await (const d of ctx.db
+      .query('webhookDeliveries')
+      .withIndex('by_state_and_nextAt', (q) => q.eq('state', 'pending'))) {
+      const nextAt = d.nextAt ?? 0
+      if ((at !== null && nextAt >= at) || ++read > 4096) break
+      const due = Math.max(nextAt, d.claimedUntil)
+      if (at === null || due < at) at = due
+    }
+    return out(at)
+  },
+})
+
+/**
  * Due deliveries, now this server's to send for a minute. A delivery for an
  * endpoint that was turned off fails here, without a send.
  */

@@ -254,8 +254,13 @@ export class ConvexDomain implements DomainPort {
 
   // ---- repositories ------------------------------------------------------------
 
-  listRepos: Port['listRepos'] = (p, q) =>
-    this.q('repos:list', { ...q, at: this.now() }, p)
+  // `at` only sets where "stars today" starts counting. To the minute, the
+  // arguments repeat and Convex answers a repeated list from its cache (a new
+  // star still drops the cached answer at once).
+  listRepos: Port['listRepos'] = (p, q) => {
+    const at = this.now()
+    return this.q('repos:list', { ...q, at: at - (at % 60_000) }, p)
+  }
   getRepo: Port['getRepo'] = (owner, name, p) =>
     this.q('repos:get', { owner, name, at: this.now() }, p)
   repoVersion: Port['repoVersion'] = (owner, name, p) =>

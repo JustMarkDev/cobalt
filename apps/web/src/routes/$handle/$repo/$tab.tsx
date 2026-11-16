@@ -2,16 +2,7 @@ import * as React from 'react'
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import type { RepoPage } from '~/components/forge/repo-shell'
 import { RequireAuth } from '~/components/forge/auth'
-import { InsightsPage, IssuesPage } from '~/components/forge/repo-pages'
-import { ChangesPage } from '~/components/forge/repo-changes'
-import { PipelinesPage } from '~/components/forge/repo-runs'
-import {
-  CodeActions,
-  CodePage,
-  ReleasesPage,
-} from '~/components/forge/repo-variants'
 import { RepoFrame } from '~/components/forge/repo-shell'
-import { RepoSettings } from '~/components/forge/repo-settings'
 import type { Repo } from '~/lib/model/data'
 import { ForgeRefused, loadOp, useOp } from '~/lib/forge'
 import { toRelease, toRepo } from '~/lib/repo'
@@ -25,6 +16,63 @@ const activeOf: Partial<Record<string, RepoPage>> = {
   releases: 'release',
   insights: 'insights',
   settings: 'settings',
+}
+
+/**
+ * A module loaded once, that React's `use` reads at once when it is ready:
+ * React looks at `status` and `value` before it waits on a promise.
+ */
+function once<T>(load: () => Promise<T>): () => Promise<T> {
+  let loading: Promise<T> | undefined
+  return () => {
+    if (!loading) {
+      const p: Promise<T> = load().then((value) => {
+        const tracked = p as Promise<T> & { status?: string; value?: T }
+        tracked.status = 'fulfilled'
+        tracked.value = value
+        return value
+      })
+      // A chunk that failed to arrive is asked for again next time.
+      void p.catch(() => {
+        if (loading === p) loading = undefined
+      })
+      loading = p
+    }
+    return loading
+  }
+}
+
+/**
+ * Each tab's code, loaded only when that tab is shown. They differ a lot in
+ * size: the code and changes tabs carry the file tree and the diff viewer,
+ * which the others do not need, and only one tab needs settings, runs or
+ * reviews. The loader waits for the tab's module with its data, so a server
+ * render and a move between tabs render it at once. When the browser first
+ * takes over a page, React waits for it with the server's HTML still on
+ * screen.
+ */
+const modules = {
+  variants: once(() => import('~/components/forge/repo-variants')),
+  releases: once(() => import('~/components/forge/repo-releases')),
+  pages: once(() => import('~/components/forge/repo-pages')),
+  changes: once(() => import('~/components/forge/repo-changes')),
+  runs: once(() => import('~/components/forge/repo-runs')),
+  settings: once(() => import('~/components/forge/repo-settings')),
+}
+const moduleOf: Partial<Record<string, keyof typeof modules>> = {
+  code: 'variants',
+  releases: 'releases',
+  issues: 'pages',
+  insights: 'pages',
+  changes: 'changes',
+  pipelines: 'runs',
+  settings: 'settings',
+}
+
+/** The tab's module; an unknown tab has none, and is the router's 404. */
+function loadTab(tab: string) {
+  const name = moduleOf[tab]
+  return name ? modules[name]() : null
 }
 
 type TabSearch = {
@@ -73,17 +121,21 @@ export const Route = createFileRoute('/$handle/$repo/$tab')({
         repo: params.repo,
         limit: 50,
       }),
-    ]).catch((e: unknown) => {
-      const to =
-        e instanceof ForgeRefused && e.code === 'moved' ? e.moved_to : null
-      if (!to) throw e
-      const [handle, repo] = to.split('/')
-      throw redirect({
-        to: '/$handle/$repo/$tab',
-        params: { handle, repo, tab: params.tab },
-        statusCode: 308,
-      })
-    }),
+      loadTab(params.tab),
+    ])
+      // The module is code, not data: it stays out of what goes to the browser.
+      .then(([repo, releases]) => [repo, releases] as const)
+      .catch((e: unknown) => {
+        const to =
+          e instanceof ForgeRefused && e.code === 'moved' ? e.moved_to : null
+        if (!to) throw e
+        const [handle, repo] = to.split('/')
+        throw redirect({
+          to: '/$handle/$repo/$tab',
+          params: { handle, repo, tab: params.tab },
+          statusCode: 308,
+        })
+      }),
   component: RepoTab,
 })
 
@@ -155,7 +207,8 @@ function RepoTabPage({
   onFinding: (open: boolean) => void
 }) {
   switch (tab) {
-    case 'code':
+    case 'code': {
+      const { CodePage } = React.use(modules.variants())
       return (
         <CodePage
           repo={repo}
@@ -165,23 +218,45 @@ function RepoTabPage({
           onFinding={onFinding}
         />
       )
-    case 'issues':
+    }
+    case 'issues': {
+      const { IssuesPage } = React.use(modules.pages())
       return <IssuesPage key={repo.name} repo={repo} n={n} />
-    case 'changes':
+    }
+    case 'changes': {
+      const { ChangesPage } = React.use(modules.changes())
       return <ChangesPage key={repo.name} repo={repo} n={n} />
-    case 'pipelines':
+    }
+    case 'pipelines': {
+      const { PipelinesPage } = React.use(modules.runs())
       return <PipelinesPage key={repo.name} repo={repo} n={n} />
-    case 'releases':
+    }
+    case 'releases': {
+      const { ReleasesPage } = React.use(modules.releases())
       return <ReleasesPage repo={repo} />
-    case 'insights':
+    }
+    case 'insights': {
+      const { InsightsPage } = React.use(modules.pages())
       return <InsightsPage repo={repo} />
-    case 'settings':
+    }
+    case 'settings': {
+      const { RepoSettings } = React.use(modules.settings())
       return (
         <RequireAuth>
           <RepoSettings repo={repo} section={section} />
         </RequireAuth>
       )
+    }
     default:
       throw notFound()
   }
+}
+
+function CodeActions(
+  props: React.ComponentProps<
+    Awaited<ReturnType<typeof modules.variants>>['CodeActions']
+  >,
+) {
+  const { CodeActions: Actions } = React.use(modules.variants())
+  return <Actions {...props} />
 }

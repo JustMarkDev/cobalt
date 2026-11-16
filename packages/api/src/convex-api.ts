@@ -16,7 +16,7 @@ import { ConvexEventFeed } from './stores/convex-events'
 import { ConvexOAuthState, ConvexTokens } from './stores/convex-tokens'
 import { ConvexExtras } from './stores/convex-extras'
 import { ConvexUploads } from './stores/convex-uploads'
-import { ConvexHooks } from './stores/convex-hooks'
+import { ConvexHooks, followDeliveries } from './stores/convex-hooks'
 import {
   ConvexIdempotencyStore,
   ConvexLimitStore,
@@ -107,20 +107,34 @@ export function createConvexApi(o: ConvexApiOptions) {
     await feed.start()
     await d.refreshSearch()
     svc.search.ensure()
+    const hooks = svc.hooks as ConvexHooks
     const client = new ConvexClient(o.convexUrl)
+    // Signed in as this server, for `nextDue` (the feed's head is public).
+    client.setAuth(({ forceRefreshToken }) =>
+      call.token('system', forceRefreshToken),
+    )
     client.onUpdate(
       makeFunctionReference<'query'>('forge/events:head'),
       {},
       () => {
-        void feed.pull().then(() => (svc.hooks as ConvexHooks).send())
+        void feed.pull().then(() => hooks.send())
       },
     )
-    // Retries come due on this server's clock; a lost one is picked up here.
-    const timer = setInterval(
-      () => void (svc.hooks as ConvexHooks).send().catch(() => {}),
-      5_000,
+    // Deliveries go out when they come due, which Convex tells this server,
+    // rather than by asking it every few seconds whether anything is due.
+    followDeliveries(
+      (onAnswer, onError) =>
+        client.onUpdate(
+          makeFunctionReference<'query'>('forge/webhooks:nextDue'),
+          {},
+          (text: string) => onAnswer(JSON.parse(text) as number | null),
+          (e) => {
+            console.error('[api] cannot follow webhook deliveries; polling', e)
+            onError()
+          },
+        ),
+      () => hooks.send(),
     )
-    timer.unref()
     // This server's request counts, for every server's status page.
     const health = setInterval(
       () =>

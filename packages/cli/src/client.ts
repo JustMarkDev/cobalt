@@ -158,47 +158,60 @@ export const SAMPLE_BASE = 'https://api.source.code/v1'
 const SAMPLE_PERSON = 'sxp_dana_full_access_0001'
 const SAMPLE_AGENT = 'sxb_fix_agent_scoped_03'
 
-/** A stored access token, refreshed shortly before it expires. */
+/**
+ * A stored access token, refreshed shortly before it expires. Requests made
+ * at the same time share one refresh: the refresh token rotates, so a second
+ * refresh with the same one would be refused and sign the person out.
+ */
 function storedToken(api: string): (() => Promise<string | null>) | null {
   if (!readCredentials(api)) return null
+  let refreshing: Promise<string> | undefined
   return async () => {
     const c = readCredentials(api)
     if (!c) return null
     if (c.expires_at - Date.now() > 60_000) return c.access_token
-    const res = await fetch(`${api}/oauth/token`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: c.refresh_token,
-        client_id: c.client_id,
-      }),
-    })
-    if (!res.ok) {
-      clearCredentials()
-      throw new SxError(
-        'unauthenticated',
-        'Your sign-in expired.',
-        'Run sx auth login.',
-        exit.auth,
-      )
-    }
-    const t = (await res.json()) as {
-      access_token: string
-      refresh_token: string
-      expires_in: number
-      scope: string
-    }
-    // The refresh token rotates: save the new one at once.
-    writeCredentials({
-      ...c,
-      access_token: t.access_token,
-      refresh_token: t.refresh_token,
-      expires_at: Date.now() + t.expires_in * 1000,
-      scope: t.scope,
-    })
-    return t.access_token
+    refreshing ??= refresh(api, c).finally(() => (refreshing = undefined))
+    return await refreshing
   }
+}
+
+async function refresh(
+  api: string,
+  c: NonNullable<ReturnType<typeof readCredentials>>,
+): Promise<string> {
+  const res = await fetch(`${api}/oauth/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: c.refresh_token,
+      client_id: c.client_id,
+    }),
+  })
+  if (!res.ok) {
+    clearCredentials()
+    throw new SxError(
+      'unauthenticated',
+      'Your sign-in expired.',
+      'Run sx auth login.',
+      exit.auth,
+    )
+  }
+  const t = (await res.json()) as {
+    access_token: string
+    refresh_token: string
+    expires_in: number
+    scope: string
+  }
+  // The refresh token rotates: save the new one at once.
+  writeCredentials({
+    ...c,
+    access_token: t.access_token,
+    refresh_token: t.refresh_token,
+    expires_at: Date.now() + t.expires_in * 1000,
+    scope: t.scope,
+  })
+  return t.access_token
 }
 
 export function makeClient(): ApiClient {

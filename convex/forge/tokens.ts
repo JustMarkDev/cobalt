@@ -34,12 +34,18 @@ const byPublicId = (ctx: QueryCtx, id: string) =>
     .withIndex('by_publicId', (q) => q.eq('publicId', id))
     .unique()
 
-/** Looks a token up by its hash and checks it may be used now, here. */
+/**
+ * Looks a token up by its hash and checks it may be used here. Without `at`
+ * the caller checks expiry against `expiresAt`, which every answer carries:
+ * the arguments then stay the same from one request to the next, so Convex
+ * answers from its query cache until the token changes. Revoking it is a
+ * write to the row, which drops the cached answer at once.
+ */
 export const find = query({
   args: {
     hash: v.string(),
     audience: v.union(v.literal('api'), v.literal('mcp')),
-    at: v.number(),
+    at: v.optional(v.number()),
   },
   returns: v.string(),
   handler: async (ctx, args) => {
@@ -50,9 +56,10 @@ export const find = query({
       .unique()
     if (!t) return out({ ok: false, reason: 'unknown' })
     if (t.revokedAt !== null) return out({ ok: false, reason: 'revoked' })
-    if (t.expiresAt <= args.at) return out({ ok: false, reason: 'expired' })
+    if (args.at !== undefined && t.expiresAt <= args.at)
+      return out({ ok: false, reason: 'expired' })
     if (!t.audience.includes(args.audience))
-      return out({ ok: false, reason: 'audience' })
+      return out({ ok: false, reason: 'audience', expiresAt: t.expiresAt })
     return out({ ok: true, record: await record(ctx, t) })
   },
 })

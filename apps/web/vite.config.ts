@@ -34,6 +34,15 @@ export default defineConfig({
           return
         defaultHandler(level, log)
       },
+      output: {
+        // Every Heroicon would otherwise be its own file: a page asked for 20
+        // of them, each under 2 kB, and each a request with its own
+        // compression overhead. In one file a page loads 25-29% fewer files
+        // and 2-3% fewer bytes.
+        codeSplitting: {
+          groups: [{ name: 'heroicons', test: /[\\/]@heroicons[\\/]/ }],
+        },
+      },
     },
   },
   plugins: lazyPlugins(() => [

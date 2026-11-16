@@ -12,6 +12,13 @@ import { version } from './help'
 import { makeClient } from './client'
 import type { Catalogue } from './operations'
 import { callOperation, catalogue } from './operations'
+import {
+  TIMELINE_LIMIT,
+  advertiseCompact,
+  fitText,
+  noteContextLimits,
+  pageTimeline,
+} from './mcp-fit'
 import type { ApiClient } from './client'
 import type { CallToolResult } from '@modelcontextprotocol/server'
 
@@ -89,6 +96,10 @@ export function createSxMcpServer(
     shape: TShape,
     argv: (a: z.infer<z.ZodObject<TShape>>) => Array<string>,
     hint: Hint = {},
+    // What the agent gets: by default the CLI's JSON, kept within budget.
+    shapeAnswer: (out: string, a: z.infer<z.ZodObject<TShape>>) => string = (
+      out,
+    ) => fitText(out),
   ) => {
     // The SDK's generic handler types do not survive a shared helper, so the
     // schema is the contract and the handler is checked by the tests.
@@ -96,7 +107,7 @@ export function createSxMcpServer(
       name,
       {
         description,
-        inputSchema: shape,
+        inputSchema: advertiseCompact(z.object(shape)),
         annotations: {
           readOnlyHint: hint.readOnly ?? false,
           idempotentHint: hint.idempotent ?? hint.readOnly ?? false,
@@ -105,17 +116,25 @@ export function createSxMcpServer(
         },
       },
       async (a: unknown): Promise<CallToolResult> => {
-        const args = argv(a as z.infer<z.ZodObject<TShape>>)
+        const input = a as z.infer<z.ZodObject<TShape>>
+        const args = argv(input)
         await lookingAt(args)
         const r = await sx(args, options.client)
         if (
           r.code === 0 ||
           (hint.allowExit?.includes(r.code) && r.out.trim() !== '')
         )
-          return { content: [{ type: 'text' as const, text: r.out || r.err }] }
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: shapeAnswer(r.out || r.err, input),
+              },
+            ],
+          }
         return {
           isError: true,
-          content: [{ type: 'text' as const, text: r.err || r.out }],
+          content: [{ type: 'text' as const, text: fitText(r.err || r.out) }],
         }
       },
     )
@@ -141,6 +160,7 @@ export function createSxMcpServer(
     { repo: repoArg },
     (a) => ['context', ...repo(a)],
     { readOnly: true },
+    (out) => noteContextLimits(out),
   )
   tool(
     'list_changes',
@@ -188,14 +208,32 @@ export function createSxMcpServer(
   )
   tool(
     'get_timeline',
-    'The whole story of a change or an issue in one call, oldest first: patch sets, review comments, reviews, findings, checks, evidence, the notes of the agent runs that worked on it, state changes and, for an issue, the changes that fix it. Each entry names the run that made it.',
+    `The story of a change or an issue, oldest first: patch sets, review comments, reviews, findings, checks, evidence, the notes of the agent runs that worked on it, state changes and, for an issue, the changes that fix it. Each entry names the run that made it. Answers the newest ${TIMELINE_LIMIT} entries; when there are more, earlier says how to read them.`,
     {
       repo: repoArg,
       kind: z.enum(['change', 'issue']),
       id: z.string().describe('The change or issue number, like 216.'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
+        .optional()
+        .describe(
+          `How many entries, counted from the newest. Default ${TIMELINE_LIMIT}.`,
+        ),
+      before: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe(
+          'From earlier in an answer: the entries before this position.',
+        ),
     },
     (a) => [a.kind, 'timeline', a.id, ...repo(a)],
     { readOnly: true },
+    (out, a) => pageTimeline(out, { limit: a.limit, before: a.before }),
   )
   tool(
     'get_presence',
@@ -372,7 +410,9 @@ export function createSxMcpServer(
   ): Promise<CallToolResult> => {
     try {
       const value = await work()
-      return { content: [{ type: 'text', text: JSON.stringify(value) }] }
+      return {
+        content: [{ type: 'text', text: fitText(JSON.stringify(value)) }],
+      }
     } catch (e) {
       const err = e as {
         code?: string
@@ -403,20 +443,22 @@ export function createSxMcpServer(
     {
       description:
         'Find an API operation by what it does, such as "label delete" or "webhook deliveries". Give id to get one operation in full: its parameters, body schema, safety and scopes. Then run it with call_operation.',
-      inputSchema: {
-        query: z
-          .string()
-          .optional()
-          .describe('Words to match. Every word must match.'),
-        id: z
-          .string()
-          .optional()
-          .describe(
-            'An operation id, like issues.create, for its full description.',
-          ),
-        safety: z.enum(['read', 'write', 'destructive']).optional(),
-        limit: z.number().int().min(1).max(100).optional(),
-      },
+      inputSchema: advertiseCompact(
+        z.object({
+          query: z
+            .string()
+            .optional()
+            .describe('Words to match. Every word must match.'),
+          id: z
+            .string()
+            .optional()
+            .describe(
+              'An operation id, like issues.create, for its full description.',
+            ),
+          safety: z.enum(['read', 'write', 'destructive']).optional(),
+          limit: z.number().int().min(1).max(100).optional(),
+        }),
+      ),
       annotations: {
         readOnlyHint: true,
         idempotentHint: true,
@@ -451,21 +493,23 @@ export function createSxMcpServer(
     {
       description:
         'Run any API operation by id, as the token this server holds. Path and query parameters go in params, the request in body. A destructive operation needs confirm: true unless dry_run is set. Answers {status, data}; a refusal carries the API error code and hint. A policy write (policy.*) in a repository whose rules live in .source/policy/ answers status 202 with a policy_proposal: a change waiting for review, not applied. Report its change number; do not retry.',
-      inputSchema: {
-        id: z.string().describe('The operation id from search_operations.'),
-        params: z
-          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
-          .optional()
-          .describe('Path and query parameters, by name.'),
-        body: z.unknown().optional().describe('The JSON request body.'),
-        dry_run: dryArg,
-        confirm: z
-          .boolean()
-          .optional()
-          .describe(
-            'Required for a destructive operation that is not a dry run.',
-          ),
-      },
+      inputSchema: advertiseCompact(
+        z.object({
+          id: z.string().describe('The operation id from search_operations.'),
+          params: z
+            .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+            .optional()
+            .describe('Path and query parameters, by name.'),
+          body: z.unknown().optional().describe('The JSON request body.'),
+          dry_run: dryArg,
+          confirm: z
+            .boolean()
+            .optional()
+            .describe(
+              'Required for a destructive operation that is not a dry run.',
+            ),
+        }),
+      ),
       annotations: {
         readOnlyHint: false,
         idempotentHint: false,
