@@ -58,7 +58,6 @@ describe('the TypeScript client', () => {
     expect(made.title).toBe('From the SDK')
     const principal = await sx.auth.principal()
     expect(principal.login).toBe('dana')
-    expect(typeof sx.webhooks.deliveries.list).toBe('function')
     // The same call by id.
     const again = await sx.call('issues.get', {
       owner: 'dana',

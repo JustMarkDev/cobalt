@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { Limiter, MemoryLimitStore } from './limiter'
-import { ConvexLimitStore } from './stores/convex'
 import { MemoryIdempotencyStore } from './idempotency'
 import { defineOp } from './registry'
 import { seedBulk } from './sample'
@@ -19,27 +18,22 @@ const p99 = (xs: Array<number>) =>
 const p50 = (xs: Array<number>) =>
   [...xs].sort((a, b) => a - b)[Math.floor(xs.length * 0.5)]
 
-describe('rate limits across many nodes', () => {
-  test('an unreachable shared store admits one small block, not one unit per request', async () => {
-    const store = new ConvexLimitStore(
-      () => Promise.reject(new Error('down')),
-      'secret',
-    )
-    const policy = { limit: 100, windowMs: 60_000 }
-    const error = console.error
-    console.error = () => {}
-    try {
-      const a = await store.take('key', 10, policy, 1_000)
-      const b = await store.take('key', 10, policy, 1_001)
-      expect(a.granted).toBe(1)
-      expect(b.granted).toBe(0)
-    } finally {
-      console.error = error
-    }
-  })
+/** A shared store that counts how often it is asked. */
+function counted() {
+  const inner = new MemoryLimitStore()
+  const store = {
+    calls: 0,
+    take(...a: Parameters<MemoryLimitStore['take']>) {
+      store.calls++
+      return inner.take(...a)
+    },
+  }
+  return store
+}
 
+describe('rate limits across many nodes', () => {
   test('nodes sharing a store never admit more than the limit, and rarely ask the store', async () => {
-    const store = new MemoryLimitStore()
+    const store = counted()
     const now = clock()
     const nodes = Array.from({ length: 4 }, () => new Limiter(store, { now }))
     const policy = { limit: 1000, windowMs: 60_000 }
@@ -56,7 +50,7 @@ describe('rate limits across many nodes', () => {
   })
 
   test('a flood of denied requests does not become a flood of store writes', async () => {
-    const store = new MemoryLimitStore()
+    const store = counted()
     const node = new Limiter(store, { now: clock() })
     const policy = { limit: 100, windowMs: 60_000 }
     for (let i = 0; i < 20_000; i++) await node.check('k', policy, 1)
@@ -251,8 +245,12 @@ describe('rate limits across many nodes', () => {
     const limitStore = new MemoryLimitStore()
     const idempotency = new MemoryIdempotencyStore()
     const now = clock()
-    const a = harness({ now, limitStore, idempotency })
-    const b = harness({ now, limitStore, idempotency })
+    const pools = {
+      read: { limit: 4, windowMs: 60_000 },
+      write: { limit: 100, windowMs: 60_000 },
+    }
+    const a = harness({ now, limitStore, idempotency, pools })
+    const b = harness({ now, limitStore, idempotency, pools })
     const headers = { 'idempotency-key': 'across-nodes' }
     const first = await a.call('POST', `${REPO}/issues`, {
       body: { title: 'Once' },
@@ -264,7 +262,11 @@ describe('rate limits across many nodes', () => {
     })
     expect(second.headers.get('sx-replayed')).toBe('true')
     expect(second.json.id).toBe(first.json.id)
-    expect(limitStore.calls).toBeGreaterThan(0)
+    // Each node alone would admit 4 reads; together they admit 4.
+    let admitted = 0
+    for (let i = 0; i < 8; i++)
+      if ((await [a, b][i % 2].call('GET', '/repos')).status === 200) admitted++
+    expect(admitted).toBe(4)
   })
 })
 

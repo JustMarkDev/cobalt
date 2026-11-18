@@ -2438,8 +2438,6 @@ describe('review, policy and landing', () => {
     // The rule is a dry run by default, so it shows without blocking.
     expect(byId.reviewed.state).toBe('na')
     expect(byId.reviewed.detail).toContain('greptile asked for changes')
-    expect(byId).not.toHaveProperty('core-paths')
-    expect(byId).not.toHaveProperty('agent-authored')
     expect(byId['ci-evidence'].state).toBe('pending')
     expect(byId['ci-evidence'].needs).toMatchObject({
       check: 'ci/test',

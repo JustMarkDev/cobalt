@@ -17,12 +17,12 @@ export type GitRepo = Pick<
 export const readCache = createReadCache()
 
 /**
- * The repository's git store, through `guarded` (rate limits, timing) and
+ * The repository's git store, through `guarded` (rate limits) and
  * the read cache.
  *
  * shortcut: in-memory fixtures until code.storage is provisioned; then
  * `fakeRepo(id)` becomes `new GitStorage({ name, key }).findOne({ id })`.
  */
 export function getGitRepo(id: string): GitRepo {
-  return readCache.wrap(id, guarded(id, fakeRepo(id)))
+  return readCache.wrap(id, guarded(fakeRepo(id)))
 }

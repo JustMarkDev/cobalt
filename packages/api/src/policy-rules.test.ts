@@ -134,23 +134,27 @@ describe("a repository's policy", () => {
 describe('rules a repository writes', () => {
   test('a path rule holds a change until the named person approves', async () => {
     const h = harness()
-    const made = await h.call('POST', '/repos/dana/gitfs/policy/rules', {
-      body: {
-        id: 'refs-owner',
-        name: 'Refs need hollis',
-        kind: 'path_approval',
-        paths: ['src/refs.*'],
-        from: ['hollis'],
-      },
-    })
+    const rule = (id: string, from: string) =>
+      h.call('POST', '/repos/dana/gitfs/policy/rules', {
+        body: {
+          id,
+          name: `Refs need ${from}`,
+          kind: 'path_approval',
+          paths: ['src/refs.*'],
+          from: [from],
+        },
+      })
+    const made = await rule('refs-owner', 'ines')
     expect(made.status).toBe(201)
     expect(made.json).toMatchObject({ custom: true, mode: 'enforce' })
+    // hollis has approved #216; ines has not.
+    await rule('refs-reviewer', 'hollis')
     const policy = (await h.call('GET', '/repos/dana/gitfs/changes/216/policy'))
       .json
-    const req = (policy.requirements ?? policy.data ?? []).find?.(
-      (r: { id: string }) => r.id === 'refs-owner',
-    )
-    if (req) expect(['pass', 'pending']).toContain(req.state)
+    const state = (id: string) =>
+      policy.requirements.find((r: { id: string }) => r.id === id).state
+    expect(state('refs-owner')).toBe('pending')
+    expect(state('refs-reviewer')).toBe('pass')
     const set = (await h.call('GET', '/repos/dana/gitfs/policy')).json
     expect(set.yaml).toContain('id: refs-owner')
     expect(

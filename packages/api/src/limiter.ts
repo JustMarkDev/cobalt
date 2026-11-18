@@ -34,11 +34,8 @@ export interface LimitStore {
 
 export class MemoryLimitStore implements LimitStore {
   private readonly windows = new Map<string, { start: number; used: number }>()
-  /** How many times the store was asked. Tests use this to prove leasing works. */
-  calls = 0
 
   take(key: string, want: number, policy: Policy, now: number) {
-    this.calls++
     const start = now - (now % policy.windowMs)
     let w = this.windows.get(key)
     if (!w || w.start !== start) {

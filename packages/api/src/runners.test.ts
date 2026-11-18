@@ -76,7 +76,7 @@ describe('runners', () => {
     )
     const j = out.json.jobs[job.job - 1]
     expect(j.status).toBe('failure')
-    if (j.steps.length > 1) expect(j.steps[1].status).toBe('skipped')
+    expect(j.steps[1].status).toBe('skipped')
     expect(out.json.annotations.at(-1).text).toBe('error: it broke')
   })
 

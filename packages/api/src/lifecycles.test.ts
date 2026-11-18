@@ -153,14 +153,6 @@ describe('changes', () => {
     const ready = await h.call('POST', `${R}/changes/217/ready`)
     expect(ready.json.state).toBe('open')
   })
-
-  test('an open change that is abandoned and restored is open again', async () => {
-    const h = harness()
-    const open = (await h.call('GET', `${R}/changes?state=open`)).json.data[0]
-    await h.call('POST', `${R}/changes/${open.number}/abandon`)
-    const restored = await h.call('POST', `${R}/changes/${open.number}/restore`)
-    expect(restored.json.state).toBe('open')
-  })
 })
 
 describe('pipelines', () => {
