@@ -1,3 +1,4 @@
+import { SecretBox } from './secret-box'
 import { mailerFromEnv } from './mail'
 import type { Mailer } from './mail'
 import { buildOpenApi } from './openapi'
@@ -12,7 +13,6 @@ import { uploadOps } from './ops/uploads'
 import { extrasOps } from './ops/extras'
 import { gitOps } from './ops/git'
 import { teamOps } from './ops/teams'
-import { runOps } from './ops/runs'
 import { timelineOps } from './ops/timelines'
 import { presenceOps } from './ops/presence'
 import { StoreGit } from './git'
@@ -29,7 +29,6 @@ import { releaseOps } from './ops/releases'
 import { pipelineOps } from './ops/pipelines'
 import { policyRuleOps } from './ops/policy-rules'
 import { integrationOps } from './ops/integrations'
-import { automationOps } from './ops/automations'
 import { importOps } from './ops/imports'
 import { insightOps } from './ops/insights'
 import { peopleOps } from './ops/people'
@@ -74,7 +73,6 @@ export const operations: ReadonlyArray<Op> = [
   ...extrasOps,
   ...gitOps,
   ...teamOps,
-  ...runOps,
   ...timelineOps,
   ...presenceOps,
   ...accountOps,
@@ -83,7 +81,6 @@ export const operations: ReadonlyArray<Op> = [
   ...pipelineOps,
   ...policyRuleOps,
   ...integrationOps,
-  ...automationOps,
   ...importOps,
   ...insightOps,
   ...peopleOps,
@@ -122,10 +119,20 @@ export function createSampleApi(
     sessions?: SessionResolver
     /** The most a signed-in person may delegate to a client. */
     userScopes?: (handle: string) => ReadonlyArray<Scope>
+    /** Whether a machine sign-in may read secret values. Default: `SX_DEVICE_DECRYPT` is not `0`. */
+    deviceDecrypt?: (handle: string) => boolean
     /** How email is sent. Default: written to the server log. */
     mail?: Mailer
     /** Where git data comes from. Default: the git store in `packages/git`. */
     git?: GitData
+    /** The master key for secret values, base64. Default: `SX_SECRETS_KEY`. Without one the server keeps no values. */
+    secretsKey?: string
+    /**
+     * Keep values under a key that dies with this process, when there is no
+     * master key: tests, and the CLI's in-process preview on sample data.
+     * Never a server: a restart would lose every value.
+     */
+    ephemeralSecrets?: boolean
   } = {},
 ) {
   const now = overrides.now ?? Date.now
@@ -153,11 +160,23 @@ export function createSampleApi(
   domain.svc.search = new SearchIndex(() => domain.searchDocs(), events)
   domain.svc.uploads = new UploadService(new MemoryBlobStore(), now)
   domain.svc.extras = new ExtrasStore(now)
+  // Without a master key the server keeps no values at all (fails closed),
+  // unless it is a test or the in-process preview, which ask for a key that
+  // lives as long as the process.
+  domain.svc.secrets = SecretBox.fromBase64(
+    overrides.secretsKey ?? process.env.SX_SECRETS_KEY,
+  ).then(
+    (box) => box ?? (overrides.ephemeralSecrets ? SecretBox.ephemeral() : null),
+  )
   domain.svc.git = overrides.git ?? new StoreGit()
   domain.svc.mail = overrides.mail ?? mailerFromEnv()
   seedSample(domain)
   overrides.seed?.(domain)
   seedExtras(domain)
+  domain.svc.secrets = domain.svc.secrets.then(async (box) => {
+    if (box) await sealSampleValues(domain, box)
+    return box
+  })
   const port =
     overrides.domainFactory?.({
       memory: domain,
@@ -194,6 +213,8 @@ export function createSampleApi(
         issuer.startsWith('https:'),
         now,
       ),
+    deviceDecrypt:
+      overrides.deviceDecrypt ?? (() => process.env.SX_DEVICE_DECRYPT !== '0'),
     userScopes:
       overrides.userScopes ??
       ((handle) =>
@@ -214,6 +235,31 @@ export function createSampleApi(
     domain: port,
   })
   return { ...api, domain, port }
+}
+
+/**
+ * Stand-in values for the sample's variables, sealed the way real ones are,
+ * so reading them goes through every check a real read does.
+ */
+const SAMPLE_VALUES: Partial<Record<string, string>> = {
+  DATABASE_URL: 'postgres://dev:hunter2-dev-only@localhost:5432/gitfs',
+  STRIPE_KEY: 'sk_test_51MockMockMockMock9x',
+  API_PORT: '8080',
+}
+
+async function sealSampleValues(d: MemoryDomain, box: SecretBox) {
+  for (const r of d.repos.values()) {
+    const x = (d.svc.extras as ExtrasStore).for(`${r.owner}/${r.name}`)
+    for (const v of x.env)
+      for (const environment of v.set) {
+        const value = SAMPLE_VALUES[v.name]
+        if (value === undefined) continue
+        ;(x.sealed[v.name] ??= {})[environment] = await box.seal(
+          { repoId: r.id, environment, name: v.name },
+          value,
+        )
+      }
+  }
 }
 
 /** Mirrors and environment schema for the sample repositories. */
@@ -262,54 +308,6 @@ function seedExtras(d: MemoryDomain) {
     v.required = required
     v.rotated = { at: T0 - ago * day, by }
   }
-  x.recipients.splice(
-    0,
-    x.recipients.length,
-    {
-      id: 'owner',
-      kind: 'member',
-      name: 'dana',
-      fingerprint: 'age1q8xk…m4rz',
-      environments: ['development', 'preview', 'production'],
-      added: T0 - 400 * day,
-      lastUsed: T0 - 0.1 * day,
-    },
-    {
-      id: 'hollis',
-      kind: 'member',
-      name: 'hollis',
-      fingerprint: 'age1h3pd…2kvn',
-      environments: ['development', 'preview'],
-      added: T0 - 200 * day,
-      lastUsed: T0 - day,
-    },
-    {
-      id: 'deploy',
-      kind: 'deploy',
-      name: 'production deploy',
-      fingerprint: 'age1d7ws…9qte',
-      environments: ['production'],
-      added: T0 - 120 * day,
-      lastUsed: T0 - 0.12 * day,
-    },
-    {
-      id: 'ci',
-      kind: 'ci',
-      name: 'ci/test',
-      fingerprint: 'age1c2mx…7fua',
-      environments: ['development'],
-      added: T0 - 90 * day,
-      lastUsed: T0 - 0.5 * day,
-    },
-    {
-      id: 'recovery',
-      kind: 'escrow',
-      name: 'recovery key',
-      fingerprint: 'age1r0zl…5pse',
-      environments: ['development', 'preview', 'production'],
-      added: T0 - 400 * day,
-    },
-  )
   x.audit.push(
     {
       at: T0 - 0.12 * day,

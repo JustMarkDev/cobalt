@@ -7,7 +7,6 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
-import { Automations } from './agents-panels'
 import { IntegrationsPanel } from './integrations-panel'
 import { PoliciesPage } from './repo-policies'
 import { SecretsPage } from './repo-secrets'
@@ -30,9 +29,8 @@ const sections = [
   ['mirrors', 'Mirrors and sync'],
   ['secrets', 'Secrets'],
   ['policies', 'Policies'],
-  ['agents', 'Agent history'],
+  ['contributions', 'Contributions'],
   ['integrations', 'Integrations'],
-  ['automations', 'Automations'],
 ] as const
 
 type Section = (typeof sections)[number][0]
@@ -582,56 +580,201 @@ function Mirrors({ repo }: { repo: Repo }) {
   )
 }
 
-/** What this repository keeps about the agent runs that work in it. */
-function AgentHistory({ repo }: { repo: Repo }) {
+/**
+ * Who and what this repository takes, and whether a change lands by itself.
+ * The same checks hold for everyone: vouching changes order, never the rules.
+ */
+function Contributions({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const shown = useOp('repos.get', at)
   const write = useWrite()
   const [error, setError] = React.useState('')
   const save = (body: {
-    transcripts?: 'off' | 'on'
-    run_trailer?: 'auto' | 'on' | 'off'
+    auto_land?: boolean
+    declined_models?: Array<string>
+    vouched?: Array<string>
+    denounced?: Array<{ handle: string; reason: string }>
   }) =>
     void write('repos.update', { ...at, body }).then((r) =>
       setError(r.error?.message ?? ''),
     )
-  const trailerNow =
-    shown.run_trailer === 'auto'
-      ? shown.visibility === 'private'
-        ? 'kept, because this repository is private'
-        : 'removed, because this repository is public'
-      : shown.run_trailer === 'on'
-        ? 'kept'
-        : 'removed'
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-2xl space-y-10">
       <SwitchRow
-        checked={shown.transcripts === 'on'}
-        onChange={(on) => save({ transcripts: on ? 'on' : 'off' })}
-        label="Keep agent transcripts"
-        hint="A run can attach what its agent saw and said. Every transcript is checked for secrets first, and anything that looks like a token or key is masked. Reading one needs the runs:transcripts scope."
+        checked={shown.auto_land}
+        onChange={(on) => save({ auto_land: on })}
+        label="Land changes when everything is green"
+        hint="Checks pass, no open high finding, the policy is met: it lands under your account, with no button to press. Never a draft, a stacked change, or one that touches CI, policies or the env schema."
       />
-      <Field label="Run-Id commit trailer">
-        <Select
-          value={shown.run_trailer}
-          onValueChange={(v) =>
-            save({ run_trailer: v === 'on' || v === 'off' ? v : 'auto' })
-          }
-        >
-          <SelectItem value="auto">
-            Automatic: keep it in private repositories, remove it in public ones
-          </SelectItem>
-          <SelectItem value="on">Always keep it</SelectItem>
-          <SelectItem value="off">Always remove it</SelectItem>
-        </Select>
-      </Field>
-      <p className="-mt-5 text-sm text-muted-foreground">
-        Commits an agent run makes say which run made them. Here the trailer is{' '}
-        {trailerNow}. Commits that landed here can be traced to their run either
-        way.
-      </p>
+
+      <ListEditor
+        label="Declined models"
+        hint="Changes declared with one of these models are turned away. The model is what the tool says it used; this stops tools that report honestly."
+        placeholder="Claude Haiku 5.5"
+        items={shown.declined_models}
+        onChange={(declined_models) => save({ declined_models })}
+      />
+
+      <ListEditor
+        label="Vouched"
+        hint="People you trust. Their changes are listed first. They go through the same checks as everyone."
+        placeholder="handle"
+        items={shown.vouched}
+        onChange={(vouched) => save({ vouched })}
+      />
+
+      <Denounced
+        items={shown.denounced}
+        onChange={(denounced) => save({ denounced })}
+      />
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
+  )
+}
+
+function ListEditor({
+  label,
+  hint,
+  placeholder,
+  items,
+  onChange,
+}: {
+  label: string
+  hint: string
+  placeholder: string
+  items: Array<string>
+  onChange: (next: Array<string>) => void
+}) {
+  const [draft, setDraft] = React.useState('')
+  const add = () => {
+    const v = draft.trim()
+    if (!v || items.includes(v)) return
+    onChange([...items, v])
+    setDraft('')
+  }
+  return (
+    <section className="space-y-3">
+      <div className="text-sm">
+        <h3 className="font-medium">{label}</h3>
+        <p className="text-muted-foreground">{hint}</p>
+      </div>
+      {items.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {items.map((x) => (
+            <li
+              key={x}
+              className="inline-flex items-center gap-1 rounded-full border py-0.5 pr-1 pl-3 text-sm"
+            >
+              {x}
+              <button
+                type="button"
+                aria-label={`Remove ${x}`}
+                onClick={() => onChange(items.filter((y) => y !== x))}
+                className="rounded-full px-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-ring"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          add()
+        }}
+      >
+        <Input
+          aria-label={`Add to ${label.toLowerCase()}`}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={placeholder}
+          className="max-w-xs"
+        />
+        <Button type="submit" variant="outline" disabled={!draft.trim()}>
+          Add
+        </Button>
+      </form>
+    </section>
+  )
+}
+
+function Denounced({
+  items,
+  onChange,
+}: {
+  items: Array<{ handle: string; reason: string }>
+  onChange: (next: Array<{ handle: string; reason: string }>) => void
+}) {
+  const [handle, setHandle] = React.useState('')
+  const [reason, setReason] = React.useState('')
+  return (
+    <section className="space-y-3">
+      <div className="text-sm">
+        <h3 className="font-medium">Denounced</h3>
+        <p className="text-muted-foreground">
+          Accounts that may not open changes or issues here. They are told why,
+          so say it plainly.
+        </p>
+      </div>
+      {items.length > 0 && (
+        <ul className="divide-y rounded-xl border text-sm">
+          {items.map((d) => (
+            <li key={d.handle} className="flex items-center gap-3 px-3 py-2">
+              <span className="font-medium">{d.handle}</span>
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                {d.reason}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  onChange(items.filter((x) => x.handle !== d.handle))
+                }
+              >
+                Lift
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form
+        className="flex flex-wrap gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!handle.trim() || !reason.trim()) return
+          onChange([
+            ...items.filter((x) => x.handle !== handle.trim()),
+            { handle: handle.trim(), reason: reason.trim() },
+          ])
+          setHandle('')
+          setReason('')
+        }}
+      >
+        <Input
+          aria-label="Account to denounce"
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          placeholder="handle"
+          className="w-40"
+        />
+        <Input
+          aria-label="Reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Why"
+          className="min-w-48 flex-1"
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={!handle.trim() || !reason.trim()}
+        >
+          Denounce
+        </Button>
+      </form>
+    </section>
   )
 }
 
@@ -685,14 +828,14 @@ export function RepoSettings({
           )}
           {current === 'secrets' && <SecretsPage repo={repo} />}
           {current === 'policies' && <PoliciesPage repo={repo} />}
-          {current === 'agents' && (
+          {current === 'contributions' && (
             <>
-              <Title title="Agent history">
-                What this repository keeps about the agent runs that work in it,
-                so any line of code leads back to the conversation that wrote
-                it.
+              <Title title="Contributions">
+                What this repository takes, whose changes come first, and
+                whether a change can land by itself. The same checks hold for
+                every account.
               </Title>
-              <AgentHistory repo={repo} />
+              <Contributions repo={repo} />
             </>
           )}
           {current === 'integrations' && (
@@ -709,14 +852,6 @@ export function RepoSettings({
                 </Link>
               </Title>
               <IntegrationsPanel repo={slug} />
-            </>
-          )}
-          {current === 'automations' && (
-            <>
-              <Title title="Automations">
-                Start an agent when something happens in this repository.
-              </Title>
-              <Automations repo={repo} />
             </>
           )}
         </div>

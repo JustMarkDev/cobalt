@@ -3,26 +3,20 @@ import type { Suggestion } from '~/lib/suggestions'
 // How the screens see changes, policy rules, secrets, bots and runs. The
 // adapters in `lib/` build these from the API's objects.
 
-/** Builds a git patch from prefixed lines (' ', '+', '-') and counts hunks. */
-function patch(path: string, oldStart: number, lines: Array<string>) {
-  const oldCount = lines.filter((l) => l[0] !== '+').length
-  const newCount = lines.filter((l) => l[0] !== '-').length
-  return [
-    `diff --git a/${path} b/${path}`,
-    'index 3b1f2a0..9c4d7e1 100644',
-    `--- a/${path}`,
-    `+++ b/${path}`,
-    `@@ -${oldStart},${oldCount} +${oldStart},${newCount} @@`,
-    ...lines,
-    '',
-  ].join('\n')
-}
-
 // ---------------------------------------------------------------------------
 // Changes (review model)
 // ---------------------------------------------------------------------------
 
-export type Author = { name: string; kind: 'human' | 'agent' | 'bot' }
+export type Author = {
+  name: string
+  kind: 'human' | 'agent' | 'bot'
+  /** How the newest write got here: machine, tool and declared model. */
+  via?: {
+    machine: string | null
+    tool: string | null
+    model: string | null
+  } | null
+}
 
 export type PatchSet = { n: number; when: string; note: string; tree: string }
 
@@ -116,17 +110,6 @@ export type EnvVar = {
   by: string
 }
 
-export type Recipient = {
-  id: string
-  name: string
-  kind: 'member' | 'deploy' | 'ci' | 'agent' | 'escrow'
-  fingerprint: string
-  envs: Array<EnvName>
-  added: string
-  lastUsed: string
-  note?: string
-}
-
 export type AuditEvent = {
   when: string
   who: string
@@ -134,20 +117,6 @@ export type AuditEvent = {
   target: string
   kind: 'rotate' | 'grant' | 'revoke' | 'read' | 'reject'
 }
-
-export const encryptedDiff = patch('.source/secrets/production.env', 12, [
-  ' DATABASE_URL=enc:age:AGE-1q8xk…:Zmx1c2gtc2VjcmV0LXZhbHVl',
-  ' S3_ACCESS_KEY=enc:age:AGE-1q8xk…:YXdzLWtleS1pZC12YWx1ZQ==',
-  ' S3_SECRET_KEY=enc:age:AGE-1q8xk…:c2VjcmV0LWtleS12YWx1ZQ==',
-  '-STRIPE_KEY=enc:age:AGE-1q8xk…:b2xkLXN0cmlwZS1rZXktYmxvYg==',
-  '+STRIPE_KEY=enc:age:AGE-1q8xk…:bmV3LXN0cmlwZS1rZXktYmxvYg==',
-  ' S3_BUCKET=gitfs-prod',
-  ' LOG_LEVEL=info',
-])
-
-// ---------------------------------------------------------------------------
-// Agents
-// ---------------------------------------------------------------------------
 
 export const allScopes = [
   'repo:read',

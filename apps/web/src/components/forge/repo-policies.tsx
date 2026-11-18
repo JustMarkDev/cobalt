@@ -26,21 +26,16 @@ const modeLabel = {
   off: 'Off',
 } as const
 
+/** A change described by what it touches: every account gets the same rules. */
 type Probe = {
-  author: 'human' | 'agent' | 'bot'
   paths: Set<string>
   size: number
 }
 
 const matches: Record<string, (p: Probe) => boolean> = {
-  'core-paths': (p) => p.paths.has('src'),
   'ci-evidence': () => true,
-  'agent-authored': (p) => p.author === 'agent',
-  'docs-agent': (p) => p.paths.has('docs'),
   findings: () => true,
-  'policy-self': (p) => p.paths.has('policy'),
-  'secret-recipients': (p) => p.paths.has('secrets'),
-  'big-change': (p) => p.size > 400,
+  reviewed: () => true,
 }
 
 /**
@@ -123,10 +118,9 @@ function RuleCard({
 }
 
 function Tester({ rules }: { rules: Array<Rule> }) {
-  const [author, setAuthor] = React.useState<Probe['author']>('agent')
   const [paths, setPaths] = React.useState<Set<string>>(new Set(['src']))
   const [size, setSize] = React.useState(120)
-  const probe: Probe = { author, paths, size }
+  const probe: Probe = { paths, size }
   const hit = rules.filter(
     (r) => r.mode !== 'off' && (matches[r.id] ?? fromWhen(r.when))(probe),
   )
@@ -145,24 +139,12 @@ function Tester({ rules }: { rules: Array<Rule> }) {
       </p>
       <div className="space-y-3 text-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="w-16 text-muted-foreground">Author</span>
-          <Seg
-            value={author}
-            onChange={setAuthor}
-            options={[
-              ['human', 'Person'],
-              ['agent', 'Agent'],
-              ['bot', 'Bot'],
-            ]}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
           <span className="w-16 text-muted-foreground">Touches</span>
           {[
             ['src', 'src/'],
             ['docs', 'docs/'],
             ['policy', '.source/policy/'],
-            ['secrets', '.source/secrets/'],
+            ['ci', '.github/'],
           ].map(([id, label]) => (
             <label key={id} className="inline-flex items-center gap-1.5">
               <input

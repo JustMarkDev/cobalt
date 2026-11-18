@@ -39,6 +39,8 @@ export type Activity = {
   when: string
   day: 'Today' | 'Yesterday' | 'Earlier this week'
   kind: ActivityKind
+  /** The model the write declared, when it declared one. */
+  model?: string
 }
 
 export type Health = {

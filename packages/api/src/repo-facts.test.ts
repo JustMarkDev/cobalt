@@ -109,10 +109,11 @@ describe('stars', () => {
     expect(after.json.updated_at).toBe(before.json.updated_at)
   })
 
-  test('agents and bots cannot star, and a visitor must sign in', async () => {
+  test('any of your logins stars as you, and a visitor must sign in', async () => {
     const h = harness()
-    for (const token of [h.tokens.fixAgent, h.tokens.triage])
-      expect((await h.call('PUT', `${R}/star`, { token })).status).toBe(403)
+    const starred = await h.call('PUT', `${R}/star`, { token: h.tokens.scoped })
+    expect(starred.json.starred).toBe(true)
+    expect((await h.call('GET', `${R}/star`)).json.starred).toBe(true)
     expect((await h.call('PUT', `${R}/star`, { token: null })).status).toBe(401)
     const visitor = await h.call('GET', `${R}/star`, { token: null })
     expect(visitor.status).toBe(200)

@@ -81,12 +81,12 @@ Creating an issue with the same title as an open one returns the open one.
 ```bash
 sx env list --env production
 echo "$VALUE" | sx env set STRIPE_KEY - --env production
-sx env pull --env development
-sx env rotate --env production
-sx env recipients
+sx env run --env development -- bun test
+sx env pull --env development --plaintext
+sx env confirmations
 ```
 
-`env list` shows names, kinds and whether each environment has a value. It never prints a value. See [Secrets in git](/docs/concepts/secrets).
+`env list` shows names, kinds and whether each environment has a value. It never prints a value. `env run` puts values into one process and scrubs its output; `env pull` writes a plaintext file only with `--plaintext`. Production waits until you confirm the login on a signed-in page; `env confirmations` lists what is waiting. See [Secrets](/docs/concepts/secrets).
 
 ## policy
 
@@ -106,11 +106,11 @@ sx mirror sync mir_01m6dqs9m0g7q74420
 sx mirror remove mir_01m6dqs9m0g7q74420
 ```
 
-## agent
+## handoff
 
 ```bash
-sx agent start #4 --target t3 --runtime claude
-sx agent start 216 --target boat
+sx handoff 4
+sx handoff 216 --to boat
 ```
 
 See [Agents and the CLI](/docs/cli/agents).

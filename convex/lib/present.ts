@@ -21,7 +21,6 @@ export const actorOut = (a: ActorRef) => ({
   object: 'actor' as const,
   id: a.id,
   handle: a.handle,
-  class: a.class,
 })
 
 export const repoUrl = (r: { owner: string; name: string }) =>
@@ -106,8 +105,13 @@ export async function presentRepo(
     website: x.website,
     docs_url: x.docsUrl,
     maintainers: [...x.maintainers].sort(),
-    transcripts: x.transcripts ?? 'off',
-    run_trailer: x.runTrailer ?? 'auto',
+    declined_models: [...(x.declinedModels ?? [])],
+    auto_land: !!x.autoLand,
+    vouched: [...(x.vouched ?? [])].sort(),
+    denounced: (x.denounced ?? []).map((d) => ({
+      handle: d.handle,
+      reason: d.reason,
+    })),
     open_changes: c.openChanges,
     open_issues: c.openIssues,
     url: repoUrl(x),

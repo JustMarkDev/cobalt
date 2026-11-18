@@ -52,7 +52,7 @@ export const createAccount = defineOp({
   }),
   response: S.Account,
   status: 201,
-  errors: ['forbidden', 'human_required', 'invalid_state'],
+  errors: ['forbidden', 'invalid_state'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
@@ -295,7 +295,7 @@ export const acceptInvitation = defineOp({
   idempotent: false,
   body: z.strictObject({ token: z.string().min(8).max(200) }),
   response: S.Member,
-  errors: ['not_found', 'forbidden', 'human_required', 'limit_reached'],
+  errors: ['not_found', 'forbidden', 'limit_reached'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain

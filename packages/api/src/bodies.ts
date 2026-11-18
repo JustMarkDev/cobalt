@@ -1,6 +1,4 @@
 import { z } from 'zod'
-import { allScopes } from './auth'
-import { automationTriggers } from './schemas'
 
 /**
  * What a write may carry, for the writes a page makes straight to Convex.
@@ -10,18 +8,6 @@ import { automationTriggers } from './schemas'
  */
 
 const mode = z.enum(['enforce', 'dry-run', 'off'])
-
-const automation = {
-  name: z.string().min(1).max(100),
-  triggers: z.array(z.enum(automationTriggers)).min(1).max(8),
-  runtime: z.string().min(1).max(50),
-  target: z.string().min(1).max(50),
-  instructions: z.string().min(1).max(4000),
-  enabled: z.boolean(),
-  every: z
-    .enum(['hour', 'day', 'week'])
-    .describe('How often the `schedule` trigger fires; weekly if left out'),
-}
 
 export const bodies = {
   'issues.create': z.strictObject({
@@ -228,43 +214,6 @@ export const bodies = {
   'invitations.create': z.strictObject({
     email: z.email().max(254),
     role: z.enum(['owner', 'admin', 'member']),
-  }),
-  'bots.update': z.strictObject({
-    name: z.string().min(1).max(100).optional(),
-    description: z.string().max(300).optional(),
-    scopes: z
-      .array(z.enum(allScopes))
-      .min(1)
-      .refine((s) => !s.includes('tokens:manage'), 'A bot never mints tokens')
-      .optional(),
-  }),
-  'automations.create': z.strictObject({
-    ...automation,
-    bot: z.string().describe('The bot slug'),
-    enabled: automation.enabled.optional(),
-    every: automation.every.optional(),
-  }),
-  'automations.update': z.strictObject(automation).partial(),
-  'runs.start': z.strictObject({
-    task: z
-      .string()
-      .min(1)
-      .max(500)
-      .describe('What the run is for, in a sentence'),
-    change: z
-      .number()
-      .int()
-      .min(1)
-      .optional()
-      .describe('The change it works on'),
-    scopes: z
-      .array(z.enum(allScopes))
-      .max(allScopes.length)
-      .optional()
-      .describe(
-        'Default: read, comment on issues and changes, read the env schema',
-      ),
-    ttl_minutes: z.number().int().min(1).max(240).default(60),
   }),
 }
 

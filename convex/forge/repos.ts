@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { normalizeModels } from '@source-code/api/via'
 import { tally, track } from '../lib/stats'
 import { newId, seededId } from '@source-code/api/ids'
 import { seedLabels } from '../lib/issues'
@@ -28,7 +29,6 @@ import { hydrate, viewFor } from '../lib/changes'
 import { knownActor } from '../lib/issues'
 import { bumpAcl } from './accounts'
 import { bumpAccess } from '../lib/acl'
-import { revokeToken } from '../lib/tokens'
 import { syncGrants } from '../lib/grants'
 import { dropRepoHooks } from './webhooks'
 import type { Actor } from '../lib/actor'
@@ -139,7 +139,6 @@ export const create = mutation({
     await tally(ctx, 'repo.created')
     await track(ctx, 'repo.created', p.handle, {
       visibility: args.visibility,
-      actor_class: p.class,
     })
     const id = await ctx.db.insert('repos', {
       publicId,
@@ -162,7 +161,6 @@ export const create = mutation({
       website: null,
       docsUrl: null,
       collaborators: list,
-      installs: [],
       maintainers: list,
       maintainerGrants: list,
       env: [],
@@ -256,9 +254,11 @@ export const update = mutation({
       website: nullable(v.string()),
       docs_url: nullable(v.string()),
       install: nullable(v.string()),
-      transcripts: v.optional(v.union(v.literal('off'), v.literal('on'))),
-      run_trailer: v.optional(
-        v.union(v.literal('auto'), v.literal('on'), v.literal('off')),
+      declined_models: v.optional(v.array(v.string())),
+      auto_land: v.optional(v.boolean()),
+      vouched: v.optional(v.array(v.string())),
+      denounced: v.optional(
+        v.array(v.object({ handle: v.string(), reason: v.string() })),
       ),
     }),
     ifMatch: v.optional(v.union(v.null(), v.string())),
@@ -321,19 +321,25 @@ export const update = mutation({
     set('website', body.website, 'website')
     set('docsUrl', body.docs_url, 'docs_url')
     set('install', body.install, 'install')
-    if (
-      body.transcripts !== undefined &&
-      body.transcripts !== (repo.transcripts ?? 'off')
-    ) {
-      patch.transcripts = body.transcripts
-      changed.push('transcripts')
+    if (body.declined_models !== undefined) {
+      patch.declinedModels = normalizeModels(body.declined_models)
+      changed.push('declined_models')
     }
-    if (
-      body.run_trailer !== undefined &&
-      body.run_trailer !== (repo.runTrailer ?? 'auto')
-    ) {
-      patch.runTrailer = body.run_trailer
-      changed.push('run_trailer')
+    if (body.auto_land !== undefined && body.auto_land !== !!repo.autoLand) {
+      // Whoever turns it on answers for what lands by itself.
+      patch.autoLand = body.auto_land ? { by: p.handle } : null
+      changed.push('auto_land')
+    }
+    if (body.vouched !== undefined) {
+      patch.vouched = [...new Set(body.vouched.map((h) => h.toLowerCase()))]
+      changed.push('vouched')
+    }
+    if (body.denounced !== undefined) {
+      patch.denounced = body.denounced.map((d) => ({
+        handle: d.handle.toLowerCase(),
+        reason: d.reason,
+      }))
+      changed.push('denounced')
     }
     if (maintainersChanged) {
       const grants = new Set(repo.maintainerGrants)
@@ -383,7 +389,7 @@ export const update = mutation({
         ctx,
         after,
         'repo.updated',
-        await actorFor(ctx, p.handle, p.class),
+        await actorFor(ctx, p.handle),
         { object: 'repo', id: repo.publicId, number: null },
         changed,
         await presentRepo(ctx, after, at),
@@ -464,8 +470,38 @@ export const transfer = mutation({
       const old = await ctx.db.get('accounts', repo.ownerId)
       if (old) await bumpAcl(ctx, old)
       await bumpAcl(ctx, acct)
+      // So does everything the old owner granted: people, maintainers,
+      // landing by itself, and tokens limited to it (`ownerSince`). Secret
+      // values belonged to the old team: none crosses, in this same step.
+      await ctx.db.patch('repos', repo._id, {
+        collaborators: [],
+        maintainerGrants: [],
+        maintainers: [],
+        autoLand: null,
+        // The old owner's judgments too.
+        declinedModels: [],
+        vouched: [],
+        denounced: [],
+        ownerSince: at,
+      })
+      await syncGrants(ctx, repo._id)
+      // And its endpoints: webhooks and integrations it turned on.
+      await dropRepoHooks(ctx, repo._id)
+      for (const i of await ctx.db
+        .query('repoIntegrations')
+        .withIndex('by_repoId_and_integration', (q) => q.eq('repoId', repo._id))
+        .take(100))
+        await ctx.db.delete('repoIntegrations', i._id)
+      await clearExtrasValues(
+        ctx,
+        repo._id,
+        `${p.handle} on ${p.via.machine ?? 'an unnamed machine'}${p.via.tool ? ` via ${p.via.tool}` : ''}`,
+        from,
+        acct.handle,
+        at,
+      )
     }
-    await moveRepo(ctx, repo, acct, toName)
+    await moveRepo(ctx, (await ctx.db.get('repos', repo._id))!, acct, toName)
     await bumpAccess(ctx)
     const moved = (await ctx.db.get('repos', repo._id))!
     await ctx.db.patch('repos', repo._id, {
@@ -477,7 +513,7 @@ export const transfer = mutation({
       ctx,
       after,
       'repo.updated',
-      await actorFor(ctx, p.handle, p.class),
+      await actorFor(ctx, p.handle),
       { object: 'repo', id: repo.publicId, number: null },
       changed,
       await presentRepo(ctx, after, at),
@@ -523,7 +559,7 @@ export const remove = mutation({
       ctx,
       repo,
       'repo.deleted',
-      await actorFor(ctx, p.handle, p.class),
+      await actorFor(ctx, p.handle),
       { object: 'repo', id: repo.publicId, number: null },
       ['deleted'],
       null,
@@ -550,16 +586,6 @@ export const remove = mutation({
           version: t.version + 1,
         })
     }
-    // Its runs end with it, and their tokens stop working.
-    for (const r of await ctx.db
-      .query('runs')
-      .withIndex('by_repoId_and_started_and_publicId', (q) =>
-        q.eq('repoId', repo._id),
-      )
-      .take(5000)) {
-      if (r.state === 'running') await revokeToken(ctx, r.tokenId)
-      await ctx.db.delete('runs', r._id)
-    }
     await tally(ctx, 'repo.deleted')
     await ctx.db.insert('deletedRepos', {
       publicId: repo.publicId,
@@ -571,6 +597,12 @@ export const remove = mutation({
     const acct = await ctx.db.get('accounts', repo.ownerId)
     if (acct) await bumpAcl(ctx, acct)
     await dropRepoHooks(ctx, repo._id)
+    // Its sealed values, confirmations and audit go with it.
+    for (const x of await ctx.db
+      .query('repoExtras')
+      .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+      .take(10))
+      await ctx.db.delete('repoExtras', x._id)
     await ctx.db.delete('repos', repo._id)
     await syncGrants(ctx, repo._id)
     return out({ deleted: true, full, id: repo.publicId })
@@ -877,10 +909,6 @@ export const setStar = mutation({
   handler: async (ctx, args) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, args.owner, args.name, p)
-    if (p.class !== 'human')
-      fail('forbidden', 'Only people can star a repository.', {
-        hint: 'Agents and bots do not have stars to give.',
-      })
     const mine = await starOf(ctx, repo, p)
     const had = !!mine
     const star = (starred: boolean, stars: number) => ({
@@ -1066,3 +1094,54 @@ export const commitFacts = query({
     return out(facts)
   },
 })
+
+/**
+ * Forgets a repository's secret values, confirmations and audit log, keeping
+ * the names: what a transfer does, in the transfer's own transaction.
+ */
+async function clearExtrasValues(
+  ctx: MutationCtx,
+  repoId: Doc<'repos'>['_id'],
+  who: string,
+  from: string,
+  to: string,
+  at: number,
+) {
+  const doc = await ctx.db
+    .query('repoExtras')
+    .withIndex('by_repoId', (q) => q.eq('repoId', repoId))
+    .unique()
+  if (!doc) return
+  const x = JSON.parse(doc.json) as {
+    env?: Array<{ set?: Array<string> }>
+    sealed?: Record<string, unknown>
+    confirmations?: Array<unknown>
+    audit?: Array<unknown>
+    mirrors?: Array<unknown>
+  }
+  // The same rule as `RepoExtras.clearValues`: an entry only when there was
+  // something to forget.
+  const had =
+    Object.keys(x.sealed ?? {}).length > 0 ||
+    (x.confirmations ?? []).length > 0 ||
+    (x.audit ?? []).length > 0 ||
+    (x.mirrors ?? []).length > 0
+  for (const e of x.env ?? []) e.set = []
+  x.sealed = {}
+  x.confirmations = []
+  x.mirrors = []
+  x.audit = had
+    ? [
+        {
+          at,
+          who,
+          action: `cleared every value and mirror: ${from} moved to ${to}`,
+          kind: 'revoke',
+        },
+      ]
+    : []
+  await ctx.db.patch('repoExtras', doc._id, {
+    json: JSON.stringify(x),
+    version: doc.version + 1,
+  })
+}

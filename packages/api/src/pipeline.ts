@@ -18,6 +18,7 @@ import {
 } from './idempotency'
 import type { HeldKey } from './idempotency'
 import { hashToken, internCapability, principalOf, tokenShape } from './auth'
+import { declaredFrom, declaredScope, noteCaller } from './receipt'
 import { Moved } from './domain'
 import { ApiError, apiError, errorCatalog, toProblem } from './problem'
 import { newId } from './ids'
@@ -79,7 +80,7 @@ export type ApiOptions = {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers':
-    'authorization, content-type, idempotency-key, if-match, if-none-match, sx-version, sx-account, sx-agent',
+    'authorization, content-type, idempotency-key, if-match, if-none-match, sx-version, sx-account, sx-tool, sx-model',
   'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   'access-control-expose-headers':
     'etag, location, link, retry-after, ratelimit, ratelimit-policy, allow, sx-request-id, sx-version, sx-outcome, sx-replayed, sx-limit-applied, sx-dry-run, sx-renamed-from, www-authenticate, server-timing',
@@ -236,7 +237,7 @@ export function createApi(options: ApiOptions) {
     options.tokens.sweep?.(now())
     void Promise.resolve(options.oauth?.sweepNow()).catch(() => {})
     void Promise.resolve(domain.svc.uploads.sweepNow()).catch(() => {})
-    void Promise.resolve(domain.sweepRunsOperations()).catch(() => {})
+    void Promise.resolve(domain.sweepOperations()).catch(() => {})
   }, 5 * 60_000)
   sweeper.unref()
   const domain = options.domain
@@ -490,6 +491,7 @@ export function createApi(options: ApiOptions) {
       return finish(auth.error)
     }
     const principal = auth.principal
+    if (principal) noteCaller(principal)
     if (op.auth === 'required' && !principal)
       return fail(apiError('unauthenticated', 'This needs a token.'), {
         'www-authenticate': authChallenge(),
@@ -970,6 +972,16 @@ export function createApi(options: ApiOptions) {
           'This operation cannot use Idempotency-Key because its response contains a secret.',
         ),
       )
+    if (!isRead && key && op.secretRequest)
+      return fail(
+        apiError(
+          'invalid_request',
+          'This operation cannot use Idempotency-Key because its body contains a secret.',
+          {
+            hint: 'Send it without the key. Setting a value twice is harmless.',
+          },
+        ),
+      )
     if (!isRead && key) {
       if (key.length > 64)
         return fail(
@@ -1426,7 +1438,8 @@ export function createApi(options: ApiOptions) {
         }
       }
     }
-    return handle(req)
+    // What the client declared (tool, model) rides along to every receipt.
+    return declaredScope.run(declaredFrom(req.headers), () => handle(req))
   }
 
   return {

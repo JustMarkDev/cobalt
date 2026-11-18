@@ -61,17 +61,24 @@ async function handle({ request }: { request: Request }) {
       kind: 'oauth',
       handle: found.record.handle,
       actingAs: found.record.actingAs,
-      class: found.record.class,
+      // Receipts name the MCP client the person approved, as its machine.
+      device: found.record.device ?? found.record.name,
       scopes: [...found.record.scopes],
       repos: found.record.repos ? [...found.record.repos] : null,
       audience: ['api'],
       limitKey: found.record.id,
+      // A production confirmation belongs to the login behind the bridge,
+      // not to this minute-long token.
+      loginId: found.record.authorizationId ?? found.record.id,
       ttlMs: 60_000,
     })
     client = clientFor(`${origin}${API_MOUNT}`, created.secret, (req) =>
       api.fetch(req),
     )
     revoke = () => void api.port.svc.auth.revoke(created.record.id)
+    // Requests here are stateless, so the client's own name is not kept from
+    // the handshake: the receipt says MCP, and the machine names the client.
+    client.tool = 'MCP'
   }
   // One handler per request: it serves the 2026-07-28 revision (no session,
   // the version in each request's _meta, the method in Mcp-Method) and answers

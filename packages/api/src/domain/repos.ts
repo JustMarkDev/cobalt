@@ -1,3 +1,5 @@
+import { normalizeModels } from '../via'
+import { receiptFor } from '../receipt'
 import { newId } from '../ids'
 import { pageSorted } from '../cursor'
 import { apiError } from '../problem'
@@ -161,8 +163,10 @@ export abstract class DomainRepos extends DomainAccounts {
       website?: string | null
       docs_url?: string | null
       install?: string | null
-      transcripts?: 'off' | 'on'
-      run_trailer?: 'auto' | 'on' | 'off'
+      declined_models?: Array<string>
+      auto_land?: boolean
+      vouched?: Array<string>
+      denounced?: Array<{ handle: string; reason: string }>
     },
     ifMatch: string | null,
     dry: boolean,
@@ -243,8 +247,15 @@ export abstract class DomainRepos extends DomainAccounts {
         website: body.website === undefined ? repo.website : body.website,
         docsUrl: body.docs_url === undefined ? repo.docsUrl : body.docs_url,
         install: body.install === undefined ? repo.install : body.install,
-        transcripts: body.transcripts ?? repo.transcripts,
-        runTrailer: body.run_trailer ?? repo.runTrailer,
+        declinedModels: body.declined_models ?? repo.declinedModels,
+        autoLand:
+          body.auto_land === undefined
+            ? repo.autoLand
+            : body.auto_land
+              ? { by: p.handle }
+              : null,
+        vouched: body.vouched ?? repo.vouched,
+        denounced: body.denounced ?? repo.denounced,
         maintainers: nextMaintainers
           ? new Set(nextMaintainers)
           : repo.maintainers,
@@ -284,19 +295,25 @@ export abstract class DomainRepos extends DomainAccounts {
       repo.install = body.install
       changed.push('install')
     }
-    if (
-      body.transcripts !== undefined &&
-      body.transcripts !== (repo.transcripts ?? 'off')
-    ) {
-      repo.transcripts = body.transcripts
-      changed.push('transcripts')
+    if (body.declined_models !== undefined) {
+      repo.declinedModels = normalizeModels(body.declined_models)
+      changed.push('declined_models')
     }
-    if (
-      body.run_trailer !== undefined &&
-      body.run_trailer !== (repo.runTrailer ?? 'auto')
-    ) {
-      repo.runTrailer = body.run_trailer
-      changed.push('run_trailer')
+    if (body.auto_land !== undefined && body.auto_land !== !!repo.autoLand) {
+      // Whoever turns it on answers for what lands by itself.
+      repo.autoLand = body.auto_land ? { by: p.handle } : null
+      changed.push('auto_land')
+    }
+    if (body.vouched !== undefined) {
+      repo.vouched = [...new Set(body.vouched.map((h) => h.toLowerCase()))]
+      changed.push('vouched')
+    }
+    if (body.denounced !== undefined) {
+      repo.denounced = body.denounced.map((d) => ({
+        handle: d.handle.toLowerCase(),
+        reason: d.reason,
+      }))
+      changed.push('denounced')
     }
     if (maintainersChanged) {
       const removed = [...repo.maintainers].filter(
@@ -395,7 +412,8 @@ export abstract class DomainRepos extends DomainAccounts {
     if (dry)
       return this.presentRepo({ ...repo, owner: acct.handle, name: toName })
     const changed = repo.owner === acct.handle ? ['name'] : ['owner']
-    if (repo.owner !== acct.handle) {
+    const newOwner = repo.owner !== acct.handle
+    if (newOwner) {
       // Teams belong to the account it leaves, so their access ends here.
       for (const t of this.teams.values())
         if (t.repos.delete(from)) {
@@ -403,8 +421,35 @@ export abstract class DomainRepos extends DomainAccounts {
           t.version++
         }
       if (toName !== repo.name) changed.push('name')
+      // So does everything the old owner granted: people, maintainers,
+      // landing by itself, and tokens limited to this repository. The new
+      // owner grants their own.
+      repo.collaborators.clear()
+      repo.maintainerGrants.clear()
+      repo.maintainers.clear()
+      repo.autoLand = null
+      // The old owner's judgments and endpoints too: whom it declined,
+      // vouched for or denounced, and where its webhooks sent events.
+      repo.declinedModels = []
+      repo.vouched = []
+      repo.denounced = []
+      this.svc.hooks.dropRepo(from)
+      this.memAuth.dropRepo(from)
     }
     this.moveRepo(repo, acct.handle, toName)
+    // Secret values belonged to the old team: none crosses to another
+    // account, in the same step as the move.
+    if (newOwner) {
+      const x = await this.svc.extras.open(to)
+      if (x.clearValues()) {
+        const r = receiptFor(p)
+        x.note(
+          `${p.handle} on ${r.machine ?? 'an unnamed machine'}${r.tool ? ` via ${r.tool}` : ''}`,
+          `cleared every value and mirror: ${from} moved to ${acct.handle}`,
+          { kind: 'revoke' },
+        )
+      }
+    }
     repo.version++
     this.accessRevision++
     this.svc.search.reset()
@@ -443,12 +488,6 @@ export abstract class DomainRepos extends DomainAccounts {
     this.aliases.delete(to.toLowerCase())
     this.svc.hooks.rename(from, to)
     this.svc.extras.rename(from, to)
-    const runs = this.runsByRepo.get(from)
-    if (runs) {
-      this.runsByRepo.delete(from)
-      this.runsByRepo.set(to, runs)
-      for (const r of runs) r.repo = to
-    }
     for (const t of this.teams.values())
       if (t.repos.has(from)) {
         t.repos.set(to, t.repos.get(from)!)
@@ -521,12 +560,6 @@ export abstract class DomainRepos extends DomainAccounts {
         t.updated = this.now()
         t.version++
       }
-    // Its runs end with it, and their tokens stop working.
-    for (const r of this.runsByRepo.get(full) ?? []) {
-      if (r.state === 'running') this.memAuth.revoke(r.tokenId)
-      this.runs.delete(r.id)
-    }
-    this.runsByRepo.delete(full)
     this.svc.search.reset()
     return { deleted: true, full }
   }
@@ -628,10 +661,6 @@ export abstract class DomainRepos extends DomainAccounts {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p)
-    if (p.class !== 'human')
-      throw apiError('forbidden', 'Only people can star a repository.', {
-        hint: 'Agents and bots do not have stars to give.',
-      })
     const had = repo.starredBy.has(p.handle)
     if (had === on || dry)
       return {
@@ -776,3 +805,5 @@ export abstract class DomainRepos extends DomainAccounts {
     }
   }
 }
+
+/** Declared model names as a repository keeps them: trimmed, distinct, case-insensitive. */

@@ -1,7 +1,7 @@
 import { apiError } from '../problem'
 import type { Principal } from '../auth'
 import type { Viewer } from './records'
-import { DomainAutomations } from './automations'
+import { DomainIntegrations } from './integrations'
 
 type Host = 'github' | 'gitlab' | 'codeberg' | 'gitea'
 
@@ -19,7 +19,7 @@ export type LinkRec = {
  * account says who someone is on another host; it is recorded as they say
  * it and marked unverified until signing in with that host is built.
  */
-export abstract class DomainImports extends DomainAutomations {
+export abstract class DomainImports extends DomainIntegrations {
   readonly links = new Map<string, Array<LinkRec>>()
   linkRev = 0
 

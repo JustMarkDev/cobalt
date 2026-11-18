@@ -10,18 +10,16 @@ describe("a repository's policy", () => {
     const set = (await h.call('GET', `${R}/policy`)).json
     expect(set.object).toBe('policy_set')
     expect(set.rules.map((r: { id: string }) => r.id)).toEqual([
-      'core-paths',
-      'agent-authored',
       'ci-evidence',
       'findings',
-      'big-change',
+      'reviewed',
     ])
     const findings = set.rules.find((r: { id: string }) => r.id === 'findings')
     expect(findings.mode).toBe('enforce')
     expect(findings.evaluated).toBeGreaterThan(0)
     expect(findings.blocked).toBeGreaterThan(0)
-    expect(set.exceptions[0]).toMatchObject({ rule: 'core-paths', who: 'ines' })
-    expect(set.yaml).toContain('- id: big-change\n    mode: dry-run')
+    expect(set.exceptions[0]).toMatchObject({ rule: 'reviewed', who: 'ines' })
+    expect(set.yaml).toContain('- id: reviewed\n    mode: dry-run')
   })
 
   test('turning a rule off lets a change through; enforcing it blocks again', async () => {
@@ -64,7 +62,7 @@ describe("a repository's policy", () => {
   test('a change version moves when policy does', async () => {
     const h = harness()
     const v = (await h.call('GET', `${R}/changes/216`)).json.version
-    await h.call('PATCH', `${R}/policy/rules/big-change`, {
+    await h.call('PATCH', `${R}/policy/rules/reviewed`, {
       body: { mode: 'enforce' },
     })
     expect((await h.call('GET', `${R}/changes/216`)).json.version).toBe(v + 1)

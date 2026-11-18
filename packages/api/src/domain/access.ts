@@ -38,9 +38,7 @@ export abstract class DomainAccess extends DomainState {
 
   protected hasAccess(repo: RepoRec, p: Principal) {
     return (
-      this.isMember(repo.owner, p.handle) ||
-      repo.collaborators.has(p.handle) ||
-      repo.installs.has(p.handle)
+      this.isMember(repo.owner, p.handle) || repo.collaborators.has(p.handle)
     )
   }
 
@@ -212,6 +210,23 @@ export abstract class DomainAccess extends DomainState {
         hint: 'Check the path. Private things answer 404 to everyone who cannot see them.',
       })
     return `${r.owner}/${r.name}`
+  }
+
+  /**
+   * Whether the caller is in a repository's secrets team: the account that
+   * owns it (the person, or the organization's members) and teams given
+   * write access. Collaborators, read-only teams and readers of a public
+   * repository see variable names only. Refuses like any read.
+   */
+  async secretsAccess(owner: string, name: string, p: Viewer) {
+    const r = this.resolve(owner, name, p, 'read')
+    const full = `${r.owner}/${r.name}`
+    const team =
+      !!p &&
+      !(p.repos && !p.repos.includes(full.toLowerCase())) &&
+      (this.isMember(r.owner, p.handle) ||
+        this.teamLevel(r, p.handle) === 'write')
+    return { full, repoId: r.id, team }
   }
 
   /** Checks the caller may read or write a repository, and names it `owner/name`. */

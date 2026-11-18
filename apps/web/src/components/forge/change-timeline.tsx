@@ -11,8 +11,8 @@ import {
   RocketLaunchIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
-import { Tile } from './bits'
-import { Badge } from '~/components/ui/badge'
+import { ReceiptNote, Tile } from './bits'
+import type { Via } from './bits'
 
 export type TimelineKind =
   | 'opened'
@@ -28,7 +28,10 @@ export type TimelineKind =
 export type TimelineEvent = {
   kind: TimelineKind
   who: string
+  /** An account, or a service reporting (CI, a reviewer's findings). */
   actor: 'human' | 'agent' | 'bot'
+  /** The receipt of the write, when it has one. */
+  via?: Via | null
   what: string
   detail?: string
   /** How long ago, so events sort and group. Zero is just now. */
@@ -128,9 +131,7 @@ export function Timeline({
                         )}
                         <b className="font-medium">{e.who}</b>
                         <span className="text-muted-foreground">{e.what}</span>
-                        {e.actor !== 'human' && (
-                          <Badge>{e.actor === 'agent' ? 'agent' : 'bot'}</Badge>
-                        )}
+                        <ReceiptNote via={e.via} />
                       </div>
                       {e.detail && (
                         <p className="mt-0.5 text-muted-foreground">

@@ -10,8 +10,7 @@ export const defaults = {
   api: '',
   account: '',
   output: 'auto',
-  'agent.target': 't3',
-  'agent.runtime': 'claude',
+  'handoff.to': 't3',
   'change.base': 'main',
   'change.draft': 'false',
   'clone.protocol': 'ssh',
@@ -52,7 +51,7 @@ export function writeConfig(next: Partial<Record<Key, string>>) {
   writeFileSync(p, JSON.stringify(next, null, 2) + '\n')
 }
 
-/** Environment beats the file, the file beats the default. `SX_HOST`, `SX_AGENT_TARGET`, … */
+/** Environment beats the file, the file beats the default. `SX_HOST`, `SX_HANDOFF_TO`, … */
 export function resolve(key: Key): { value: string; from: string } {
   const env = process.env[`SX_${key.toUpperCase().replace('.', '_')}`]
   if (env) return { value: env, from: 'env' }

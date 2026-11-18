@@ -4,8 +4,7 @@
  * into the rest of the API.
  */
 type Role = 'owner' | 'admin' | 'member'
-type Class = 'human' | 'agent' | 'bot'
-type Actor = { id: string; handle: string; class: Class }
+type Actor = { id: string; handle: string }
 
 export type WorldIssue = {
   publicId: string
@@ -51,7 +50,7 @@ export type World = {
       expires: number
     }>
   }>
-  actors: Array<{ key: string; publicId: string; handle: string; class: Class }>
+  actors: Array<{ key: string; publicId: string; handle: string }>
   repos: Array<{
     publicId: string
     storeId: string
@@ -74,7 +73,7 @@ export type World = {
     website: string | null
     docsUrl: string | null
     collaborators: Array<string>
-    installs: Array<string>
+    vouched: Array<string>
     maintainers: Array<string>
     maintainerGrants: Array<string>
     env: Array<{ name: string; kind: string; set: Array<string> }>
@@ -144,17 +143,6 @@ export type World = {
     instance: string | null
     linked: number
   }>
-  bots: Array<{
-    slug: string
-    name: string
-    description: string
-    owner: string
-    class: 'bot' | 'agent'
-    scopes: Array<string>
-    created: number
-  }>
-  /** By repository, as `AutomationRec` JSON text. */
-  automations: Array<[string, Array<string>]>
   notifications: Array<{
     handle: string
     id: string
@@ -182,10 +170,10 @@ export type World = {
     publicId: string
     hash: string
     name: string
-    kind: 'personal' | 'bot' | 'run' | 'oauth'
+    kind: 'personal' | 'oauth'
     handle: string
     actingAs: string
-    class: Class
+    device: string | null
     scopes: Array<string>
     repos: Array<string> | null
     audience: Array<'api' | 'mcp'>

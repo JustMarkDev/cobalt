@@ -15,10 +15,9 @@ describe('transferring a repository', () => {
     const old = await h.call('GET', R)
     expect(old.status).toBe(308)
     expect(old.headers.get('location')).toContain('/repos/northwind/gitfs')
-    // Automations and releases went with it.
+    // Its changes and releases went with it.
     expect(
-      (await h.call('GET', '/repos/northwind/gitfs/automations')).json.data
-        .length,
+      (await h.call('GET', '/repos/northwind/gitfs/changes')).json.data.length,
     ).toBeGreaterThan(0)
     expect(
       (await h.call('GET', '/repos/northwind/gitfs/releases')).status,

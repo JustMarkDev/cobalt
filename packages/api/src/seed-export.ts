@@ -26,12 +26,11 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
   }))
   const accountHandles = new Set(d.accounts.keys())
   const actors = [...d.actors.entries()]
-    .filter(([key, a]) => !(accountHandles.has(key) && a.class === 'human'))
+    .filter(([key]) => !accountHandles.has(key))
     .map(([key, a]) => ({
       key,
       publicId: a.id,
       handle: a.handle,
-      class: a.class,
     }))
   const repos = [...d.repos.values()].map((r) => {
     let openChanges = 0
@@ -58,7 +57,7 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
       website: r.website,
       docsUrl: r.docsUrl,
       collaborators: [...r.collaborators],
-      installs: [...r.installs],
+      vouched: r.vouched ?? [],
       maintainers: [...r.maintainers],
       maintainerGrants: [...r.maintainerGrants],
       env: r.env,
@@ -144,7 +143,7 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
     kind: t.kind,
     handle: t.handle,
     actingAs: t.actingAs,
-    class: t.class,
+    device: t.device ?? null,
     scopes: [...t.scopes],
     repos: t.repos ? [...t.repos] : null,
     audience: [...t.audience],
@@ -211,7 +210,7 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
             at: v.created,
             title: `Reviewed #${c.number} ${c.title}`,
             repo,
-            agent: c.author.class !== 'human' && v.state === 'approved',
+            agent: !!c.patchSets.at(-1)?.via?.model && v.state === 'approved',
           })
       }
       for (const i of r.issues.values())
@@ -251,11 +250,6 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
     links: [...d.links].flatMap(([handle, list]) =>
       list.map((l) => ({ handle, ...l })),
     ),
-    bots: [...d.bots.values()].map((b) => ({ ...b, scopes: [...b.scopes] })),
-    automations: [...d.automations].map(([full, list]) => [
-      full,
-      list.map((a) => JSON.stringify(a)),
-    ]),
     notifications: [...d.inboxes].flatMap(([handle, list]) =>
       // Oldest first, as they arrived.
       [...list].reverse().map((n) => ({ handle, ...n })),

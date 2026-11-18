@@ -70,12 +70,6 @@ export abstract class DomainInsights extends DomainImports {
     }
   }
 
-  /** Who wrote a commit, as a class, from its `<login>@users.source.code` address. */
-  private classOf(c: GitCommit): 'human' | 'agent' | 'bot' {
-    const m = /^([^@]+)@users\.source\.code$/i.exec(c.author.email)
-    return (m && this.actors.get(m[1].toLowerCase())?.class) ?? 'human'
-  }
-
   private downloadsOf(repos: Array<RepoRec>, now: number) {
     const total = repos.reduce(
       (n, r) =>
@@ -104,23 +98,35 @@ export abstract class DomainInsights extends DomainImports {
     const now = this.now()
     const commits = await this.history(r, 1000)
     const weeks = Array.from({ length: WEEKS }, () => 0)
-    const by = { human: 0, agent: 0, bot: 0 }
     const people = new Set<string>()
     for (const c of commits) {
       const w = Math.floor((now - Date.parse(c.date)) / (7 * DAY))
       if (w >= 0 && w < WEEKS) weeks[WEEKS - 1 - w]++
-      by[this.classOf(c)]++
       people.add(c.author.email.toLowerCase())
     }
     const changes = [...r.changes.values()]
     const issues = [...r.issues.values()]
+    // Patch sets by the model their tool declared: a repository's own record
+    // of which models' work it took.
+    const models = new Map<string | null, number>()
+    for (const c of changes)
+      for (const ps of c.patchSets) {
+        const m = ps.via?.model ?? null
+        models.set(m, (models.get(m) ?? 0) + 1)
+      }
+    const byModel = [...models]
+      .map(([model, count]) => ({ model, count }))
+      .sort(
+        (a, b) =>
+          b.count - a.count || String(a.model).localeCompare(String(b.model)),
+      )
     return {
       object: 'repo_insights' as const,
       repo: `${r.owner}/${r.name}`,
       commits: {
         total: commits.length,
         by_week: weeks,
-        by_class: by,
+        by_model: byModel,
       },
       contributors: people.size,
       downloads: this.downloadsOf([r], now),
@@ -243,14 +249,14 @@ export abstract class DomainInsights extends DomainImports {
       for (const c of r.changes.values())
         if (
           (c.state === 'open' || c.state === 'draft') &&
-          c.author.class !== 'human'
+          c.patchSets.at(-1)?.via?.model
         )
           progress.push({
             kind: 'agent',
             title: c.title,
             repo: `${full(r)} · #${c.number}`,
-            status: c.state === 'draft' ? 'Agent working' : 'Waiting on review',
-            detail: `${c.author.handle}, patch set ${c.patchSets.length}`,
+            status: c.state === 'draft' ? 'Draft' : 'Waiting on review',
+            detail: `${c.author.handle} via ${c.patchSets.at(-1)!.via!.tool ?? 'a tool'} · ${c.patchSets.at(-1)!.via!.model}, patch set ${c.patchSets.length}`,
             path: path(r, `/changes?n=${c.number}`),
           })
       for (const x of r.pipelines ?? [])
@@ -274,7 +280,7 @@ export abstract class DomainInsights extends DomainImports {
       .slice(0, 30)
       .map((e) => ({
         who: e.actor.handle,
-        class: e.actor.class,
+        via: e.via ?? null,
         type: e.type,
         repo: e.repo,
         subject: e.subject.number,

@@ -1,3 +1,4 @@
+import { tryAutoLand } from '../auto-land'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { bodies } from '../bodies'
@@ -248,8 +249,8 @@ export const updateChange = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      return yield* run((d) =>
-        d.updateChange(
+      return yield* run(async (d) => {
+        const out = await d.updateChange(
           ctx.params.owner,
           ctx.params.repo,
           ctx.params.number,
@@ -257,8 +258,17 @@ export const updateChange = defineOp({
           ctx.body,
           ctx.ifMatch,
           ctx.dryRun,
-        ),
-      )
+        )
+        // A repository that lands by itself looks again after this write.
+        if (!ctx.dryRun)
+          await tryAutoLand(
+            d,
+            ctx.params.owner,
+            ctx.params.repo,
+            ctx.params.number,
+          )
+        return out
+      })
     }),
 })
 
@@ -369,16 +379,25 @@ export const createPatchSet = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      const ps = yield* run((d) =>
-        d.addPatchSet(
+      const ps = yield* run(async (d) => {
+        const out = await d.addPatchSet(
           ctx.params.owner,
           ctx.params.repo,
           ctx.params.number,
           ctx.principal,
           ctx.body,
           ctx.dryRun,
-        ),
-      )
+        )
+        // A repository that lands by itself looks again after this write.
+        if (!ctx.dryRun)
+          await tryAutoLand(
+            d,
+            ctx.params.owner,
+            ctx.params.repo,
+            ctx.params.number,
+          )
+        return out
+      })
       return reply(ps, { status: 201, headers: { location: ps.url } })
     }),
 })
@@ -460,7 +479,7 @@ export const createReview = defineOp({
   id: 'reviews.create',
   summary: 'Approve, comment or ask for changes',
   description:
-    'An approval is tied to a patch set and says whether it still holds for the head. Approving your own change is refused: with human_required for an agent, forbidden for a person.',
+    'An approval is tied to a patch set and says whether it still holds for the head. Approving your own change is refused with forbidden, whatever tool sends it.',
   tags: ['changes'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/changes/{number}/reviews',
@@ -473,26 +492,29 @@ export const createReview = defineOp({
   }),
   response: S.Review,
   status: 201,
-  errors: [
-    'not_found',
-    'forbidden',
-    'human_required',
-    'invalid_state',
-    'moved',
-  ],
+  errors: ['not_found', 'forbidden', 'invalid_state', 'moved'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      const r = yield* run((d) =>
-        d.review(
+      const r = yield* run(async (d) => {
+        const out = await d.review(
           ctx.params.owner,
           ctx.params.repo,
           ctx.params.number,
           ctx.principal,
           ctx.body,
           ctx.dryRun,
-        ),
-      )
+        )
+        // A repository that lands by itself looks again after this write.
+        if (!ctx.dryRun)
+          await tryAutoLand(
+            d,
+            ctx.params.owner,
+            ctx.params.repo,
+            ctx.params.number,
+          )
+        return out
+      })
       return reply(r, { status: 201 })
     }),
 })
@@ -600,8 +622,8 @@ export const resolveFinding = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      return yield* run((d) =>
-        d.setFinding(
+      return yield* run(async (d) => {
+        const out = await d.setFinding(
           ctx.params.owner,
           ctx.params.repo,
           ctx.params.number,
@@ -610,8 +632,17 @@ export const resolveFinding = defineOp({
           'resolved',
           null,
           ctx.dryRun,
-        ),
-      )
+        )
+        // A repository that lands by itself looks again after this write.
+        if (!ctx.dryRun)
+          await tryAutoLand(
+            d,
+            ctx.params.owner,
+            ctx.params.repo,
+            ctx.params.number,
+          )
+        return out
+      })
     }),
 })
 
@@ -631,8 +662,8 @@ export const dismissFinding = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      return yield* run((d) =>
-        d.setFinding(
+      return yield* run(async (d) => {
+        const out = await d.setFinding(
           ctx.params.owner,
           ctx.params.repo,
           ctx.params.number,
@@ -641,8 +672,17 @@ export const dismissFinding = defineOp({
           'dismissed',
           ctx.body.reason,
           ctx.dryRun,
-        ),
-      )
+        )
+        // A repository that lands by itself looks again after this write.
+        if (!ctx.dryRun)
+          await tryAutoLand(
+            d,
+            ctx.params.owner,
+            ctx.params.repo,
+            ctx.params.number,
+          )
+        return out
+      })
     }),
 })
 
@@ -711,16 +751,25 @@ export const reportCheck = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      const r = yield* run((d) =>
-        d.reportCheck(
+      const r = yield* run(async (d) => {
+        const out = await d.reportCheck(
           ctx.params.owner,
           ctx.params.repo,
           ctx.params.number,
           ctx.principal,
           ctx.body,
           ctx.dryRun,
-        ),
-      )
+        )
+        // A repository that lands by itself looks again after this write.
+        if (!ctx.dryRun)
+          await tryAutoLand(
+            d,
+            ctx.params.owner,
+            ctx.params.repo,
+            ctx.params.number,
+          )
+        return out
+      })
       return reply(r.check, {
         status: r.outcome === 'created' ? 201 : 200,
         headers: { 'sx-outcome': r.outcome },
@@ -869,16 +918,25 @@ const transitionOp = (
     handler: (ctx) =>
       Effect.gen(function* () {
         const { run } = yield* Domain
-        return yield* run((d) =>
-          d.transition(
+        return yield* run(async (d) => {
+          const out = await d.transition(
             ctx.params.owner,
             ctx.params.repo,
             ctx.params.number,
             ctx.principal,
             action,
             ctx.dryRun,
-          ),
-        )
+          )
+          // A repository that lands by itself looks again after this write.
+          if (!ctx.dryRun)
+            await tryAutoLand(
+              d,
+              ctx.params.owner,
+              ctx.params.repo,
+              ctx.params.number,
+            )
+          return out
+        })
       }),
   })
 

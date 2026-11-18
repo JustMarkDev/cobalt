@@ -39,7 +39,7 @@ export const errorCatalog = {
     title: 'The token is not valid',
     retryable: false,
     exit: 4,
-    hint: 'Check the token was copied whole. Tokens start with sxp_, sxb_, sxr_ or sxo_.',
+    hint: 'Check the token was copied whole. Tokens start with sxp_ or sxo_.',
   },
   token_expired: {
     status: 401,
@@ -53,7 +53,7 @@ export const errorCatalog = {
     title: 'The token lacks a scope this needs',
     retryable: false,
     exit: 5,
-    hint: 'Create a token with the scopes in required_scopes. Scopes on an installed bot can shrink but never grow.',
+    hint: 'Create a token with the scopes in required_scopes, or sign in again with them (sx auth login --scope).',
   },
   forbidden: {
     status: 403,
@@ -61,13 +61,6 @@ export const errorCatalog = {
     retryable: false,
     exit: 5,
     hint: 'You can see this, but your role here does not allow the action.',
-  },
-  human_required: {
-    status: 403,
-    title: 'A person has to do this',
-    retryable: false,
-    exit: 6,
-    hint: 'Stop and ask a person. An agent cannot approve its own work.',
   },
   token_revoked: {
     status: 401,
@@ -83,12 +76,40 @@ export const errorCatalog = {
     exit: 5,
     hint: 'Ask for a new upload link. They expire after an hour and work for one file.',
   },
-  grant_required: {
+  confirmation_required: {
     status: 403,
-    title: 'This needs a grant from a person',
+    title: 'Production values need you to confirm first',
     retryable: false,
     exit: 6,
-    hint: 'Request a grant, ask a person to approve it, then retry. Grants are short and cover one environment.',
+    hint: 'Open confirm_url on a device where you are signed in, confirm, then retry. A confirmation covers this one login for a while.',
+  },
+  session_required: {
+    status: 403,
+    title: 'Confirm this from a signed-in page',
+    retryable: false,
+    exit: 6,
+    hint: 'A token cannot confirm production access, not even its own. Open the page in a browser where you are signed in.',
+  },
+  secrets_unavailable: {
+    status: 503,
+    title: 'This server keeps no secret values',
+    retryable: false,
+    exit: 1,
+    hint: 'The server has no SX_SECRETS_KEY, so it seals and opens nothing. Names and kinds still work.',
+  },
+  model_declined: {
+    status: 403,
+    title: 'This repository takes no changes from that model',
+    retryable: false,
+    exit: 5,
+    hint: 'The tool declared a model the repository declines (declined_models). Use another model, or ask an owner.',
+  },
+  denounced: {
+    status: 403,
+    title: 'This account may not contribute here',
+    retryable: false,
+    exit: 5,
+    hint: 'The owners denounced this account. The reason is in detail.',
   },
   limit_reached: {
     status: 409,
@@ -124,20 +145,6 @@ export const errorCatalog = {
     retryable: false,
     exit: 2,
     hint: 'The Allow header lists the methods this path accepts.',
-  },
-  transcripts_disabled: {
-    status: 409,
-    title: 'This repository does not keep agent transcripts',
-    retryable: false,
-    exit: 2,
-    hint: 'An owner can turn transcripts on in the repository settings (transcripts: on).',
-  },
-  transcript_has_secrets: {
-    status: 422,
-    title: 'The transcript has secrets in it',
-    retryable: false,
-    exit: 2,
-    hint: 'The upload was deleted. Remove the secrets, or attach it with mode=mask to have them masked.',
   },
   invalid_state: {
     status: 409,

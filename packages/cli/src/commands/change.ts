@@ -1,7 +1,6 @@
 import { showTimeline } from '../timeline'
 import { showPresence } from '../presence'
-import { amendHead, gitContext, headCommit, resolveRepo } from '../repo'
-import { runTrailerOn, withRunTrailer } from '../trailer'
+import { gitContext, resolveRepo } from '../repo'
 import { SxError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import { resolve } from '../config'
@@ -93,28 +92,6 @@ export const change: Command = async (
     const base = str(flags, 'base') ?? resolve('change.base').value
     const draft =
       has(flags, 'draft') || resolve('change.draft').value === 'true'
-    // Inside an agent run (SX_RUN), the commit says which run made it: a
-    // `Run-Id:` trailer, when the repository keeps one. The server reads it.
-    const run = process.env.SX_RUN
-    let head: { sha: string; message: string } | undefined
-    if (run && /^run_[A-Za-z0-9]+$/.test(run) && !str(flags, 'branch')) {
-      head = headCommit()
-      const shown = head && (await api.get(repo.path)).json
-      if (head && shown && runTrailerOn(shown)) {
-        const message = withRunTrailer(head.message, run)
-        if (message.trim() !== head.message.trim() && !dry) {
-          const sha = amendHead(message)
-          if (!sha)
-            throw new SxError(
-              'git_failed',
-              'Could not add the Run-Id trailer to HEAD.',
-              'Commit your work, then run sx change create again.',
-              exit.usage,
-            )
-          head = { sha, message }
-        } else head = { ...head, message }
-      }
-    }
     // The review threads this patch set fixes: `--addresses cmt_1,cmt_2`.
     const addresses = (str(flags, 'addresses') ?? '')
       .split(',')
@@ -127,7 +104,6 @@ export const change: Command = async (
         title,
         base,
         draft,
-        ...(head ? { sha: head.sha, message: head.message } : {}),
         ...(addresses.length ? { addresses } : {}),
       },
       dryRun: dry,

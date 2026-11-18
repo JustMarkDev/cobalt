@@ -3,15 +3,23 @@ import { sampleTokens } from './sample'
 import { harness } from './testing'
 
 describe('repository insights', () => {
-  test('history by week and by who wrote it, downloads, counts', async () => {
+  test('history by week, patch sets by declared model, downloads, counts', async () => {
     const h = harness()
     const r = (await h.call('GET', '/repos/dana/gitfs/insights')).json
     expect(r.object).toBe('repo_insights')
     expect(r.commits.total).toBeGreaterThan(0)
     expect(r.commits.by_week).toHaveLength(26)
-    const { human, agent, bot } = r.commits.by_class
-    expect(human + agent + bot).toBe(r.commits.total)
-    expect(bot).toBeGreaterThan(0)
+    // The sample's patch sets declared no model; a new one from an agent does.
+    expect(r.commits.by_model[0].model).toBeNull()
+    await h.call('POST', '/repos/dana/gitfs/changes', {
+      body: { branch: 'by-model' },
+      headers: { 'sx-model': 'Claude Opus 5.5' },
+    })
+    const after = (await h.call('GET', '/repos/dana/gitfs/insights')).json
+    expect(after.commits.by_model).toContainEqual({
+      model: 'Claude Opus 5.5',
+      count: 1,
+    })
     expect(r.contributors).toBeGreaterThan(1)
     expect(r.downloads.daily).toHaveLength(30)
     expect(r.issues.open).toBe(2)

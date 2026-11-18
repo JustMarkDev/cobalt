@@ -141,7 +141,7 @@ describe('creating an organization', () => {
   test('only a person creates one, with a token that is not limited to repositories', async () => {
     const h = harness()
     const agent = await h.call('POST', '/accounts', {
-      token: h.tokens.fixAgent,
+      token: h.tokens.scoped,
       body: { handle: 'agents-inc' },
     })
     expect([403]).toContain(agent.status)
@@ -488,7 +488,7 @@ describe('invitations by email', () => {
       body: { email: 'bot@example.com', role: 'member' },
     })
     const agent = await h.call('POST', '/invitations/accept', {
-      token: h.tokens.fixAgent,
+      token: h.tokens.scoped,
       body: { token: tokenIn() },
     })
     expect(agent.status).toBe(403)

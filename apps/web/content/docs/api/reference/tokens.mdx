@@ -39,7 +39,7 @@ curl "https://api.source.code/v1/authorizations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"1Om69CPfcA3S0AEE"
+etag: W/"uy9vKaEsenC9vQng"
 ratelimit: "read";r=1170;t=60
 ```
 
@@ -49,14 +49,15 @@ ratelimit: "read";r=1170;t=60
   "data": [
     {
       "object": "authorization",
-      "id": "atz_01m6tq6r80qqddy0yk",
+      "id": "atz_01m6tq6r808bzk8j8h",
       "client": {
-        "id": "cl_PDvHTAqUoEuJ5STNFkqC",
+        "id": "cl_7u65Xb4tXklYXrCKdI8O",
         "name": "My agent"
       },
+      "device": null,
       "scopes": ["repo:read", "pulls:read"],
       "audience": ["api", "mcp"],
-      "url": "https://api.source.code/v1/authorizations/atz_01m6tq6r80qqddy0yk",
+      "url": "https://api.source.code/v1/authorizations/atz_01m6tq6r808bzk8j8h",
       "created_at": "2026-11-07T10:00:00.000Z",
       "last_used_at": null
     }
@@ -102,13 +103,13 @@ Every access and refresh token the application holds stops working at once.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/authorizations/atz_01m6tq6r80qqddy0yk" \
+curl -X DELETE "https://api.source.code/v1/authorizations/atz_01m6tq6r808bzk8j8h" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=93;t=60
+ratelimit: "write";r=92;t=60
 ```
 
 ### `tokens.list`
@@ -140,7 +141,7 @@ curl "https://api.source.code/v1/tokens" \
 
 ```http
 HTTP/1.1 200
-etag: W/"NWzR9In8d9-xVrn1"
+etag: W/"FRVv2HDZXtXfwsFX"
 ratelimit: "read";r=1172;t=60
 ```
 
@@ -153,8 +154,8 @@ ratelimit: "read";r=1172;t=60
       "id": "tok_01m6tkrwm0bw4d69nd",
       "name": "dana",
       "kind": "personal",
-      "class": "human",
-      "scopes": ["repo:read", "repo:write", "…and 14 more"],
+      "device": "Laptop",
+      "scopes": ["repo:read", "repo:write", "…and 13 more"],
       "repos": null,
       "prefix": "sxp_dana",
       "secret": null,
@@ -165,20 +166,20 @@ ratelimit: "read";r=1172;t=60
     },
     {
       "object": "token",
-      "id": "tok_01m6tkrwm05vjqm28a",
-      "name": "limited",
+      "id": "tok_01m6tkrwm03xzhzwj8",
+      "name": "Claude Code on Laptop",
       "kind": "personal",
-      "class": "human",
-      "scopes": ["repo:read", "repo:write", "…and 14 more"],
-      "repos": ["dana/tinyqueue"],
+      "device": "Laptop",
+      "scopes": ["repo:read", "repo:write", "…and 5 more"],
+      "repos": ["dana/gitfs"],
       "prefix": "sxp_dana",
       "secret": null,
-      "url": "https://api.source.code/v1/tokens/tok_01m6tkrwm05vjqm28a",
+      "url": "https://api.source.code/v1/tokens/tok_01m6tkrwm03xzhzwj8",
       "expires_at": "2027-11-07T10:00:00.000Z",
       "created_at": "2026-11-07T10:00:00.000Z",
-      "last_used_at": null
+      "last_used_at": "2026-11-07T10:00:00.000Z"
     },
-    "…and 2 more"
+    "…and 4 more"
   ],
   "has_more": false,
   "next_cursor": null
@@ -210,12 +211,13 @@ The response is the only time the secret is shown. A token can never have a scop
 
 **Request body**
 
-| Member            | Type                                                                                                                                                                                                                                                                                                         | Notes                                                |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| `name`            | string (up to 100 characters, at least 1)                                                                                                                                                                                                                                                                    | Required.                                            |
-| `scopes`          | array of `repo:read` or `repo:write` or `issues:read` or `issues:comment` or `issues:write` or `pulls:read` or `pulls:comment` or `pulls:write` or `pulls:merge` or `secrets:schema` or `secrets:write` or `secrets:decrypt` or `webhooks:read` or `webhooks:write` or `tokens:manage` or `runs:transcripts` | Required.                                            |
-| `expires_in_days` | `30` or `60` or `90` or `365`                                                                                                                                                                                                                                                                                | Default `90`.                                        |
-| `repos`           | array of string (pattern)                                                                                                                                                                                                                                                                                    | `owner/name`. Limits the token to these repositories |
+| Member            | Type                                                                                                                                                                                                                                                                                   | Notes                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `name`            | string (up to 100 characters, at least 1)                                                                                                                                                                                                                                              | Required.                                                                                                            |
+| `scopes`          | array of `repo:read` or `repo:write` or `issues:read` or `issues:comment` or `issues:write` or `pulls:read` or `pulls:comment` or `pulls:write` or `pulls:merge` or `secrets:schema` or `secrets:write` or `secrets:decrypt` or `webhooks:read` or `webhooks:write` or `tokens:manage` | Required.                                                                                                            |
+| `expires_in_days` | `30` or `60` or `90` or `365`                                                                                                                                                                                                                                                          | Default `90`.                                                                                                        |
+| `repos`           | array of string (pattern)                                                                                                                                                                                                                                                              | `owner/name`. Limits the token to these repositories                                                                 |
+| `device`          | string (up to 80 characters, at least 1)                                                                                                                                                                                                                                               | The machine it is for, as you name it. Receipts and production confirmations show it; it is your label, not verified |
 
 **Errors**
 
@@ -232,22 +234,22 @@ curl -X POST "https://api.source.code/v1/tokens" \
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/tokens/tok_01m6tq6r80dwrqtxs1
-ratelimit: "write";r=95;t=60
+location: https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8
+ratelimit: "write";r=94;t=60
 ```
 
 ```json
 {
   "object": "token",
-  "id": "tok_01m6tq6r80dwrqtxs1",
+  "id": "tok_01m6tq6r80e5jvv8p8",
   "name": "ci",
   "kind": "personal",
-  "class": "human",
+  "device": null,
   "scopes": ["repo:read", "pulls:read"],
   "repos": ["dana/gitfs"],
-  "prefix": "sxp_nqfn",
+  "prefix": "sxp_dn2i",
   "secret": "sxp_…",
-  "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80dwrqtxs1",
+  "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8",
   "expires_at": "2026-12-07T10:00:00.000Z",
   "created_at": "2026-11-07T10:00:00.000Z",
   "last_used_at": null
@@ -290,13 +292,13 @@ It stops working at once. Revoking a token that is already revoked answers 404.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/tokens/tok_01m6tq6r80dwrqtxs1" \
+curl -X DELETE "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=94;t=60
+ratelimit: "write";r=93;t=60
 ```
 
 ### `tokens.get`
@@ -326,28 +328,28 @@ ratelimit: "write";r=94;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/tokens/tok_01m6tq6r80dwrqtxs1" \
+curl "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"dIFTJ4_uKCwkUO-n"
+etag: W/"RmCcG4YUBoKtJF97"
 ratelimit: "read";r=1171;t=60
 ```
 
 ```json
 {
   "object": "token",
-  "id": "tok_01m6tq6r80dwrqtxs1",
+  "id": "tok_01m6tq6r80e5jvv8p8",
   "name": "ci",
   "kind": "personal",
-  "class": "human",
+  "device": null,
   "scopes": ["repo:read", "pulls:read"],
   "repos": ["dana/gitfs"],
-  "prefix": "sxp_nqfn",
+  "prefix": "sxp_dn2i",
   "secret": null,
-  "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80dwrqtxs1",
+  "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8",
   "expires_at": "2026-12-07T10:00:00.000Z",
   "created_at": "2026-11-07T10:00:00.000Z",
   "last_used_at": null

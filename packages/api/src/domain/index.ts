@@ -25,7 +25,6 @@ export type { DomainPort } from './port'
  *   accounts editing an account, organizations and their members
  *   repos    accounts and repositories
  *   teams    teams and their access to repositories
- *   runs     agent runs and long operations
  *   issues   issues
  *   changes  patch sets, reviews, checks, policy, landing, stacks
  *   sync     the event feed and the sync snapshot
@@ -34,7 +33,6 @@ export type { DomainPort } from './port'
  *   pipelines pipeline runs, their jobs, steps and logs
  *   policy   a repository's rules, their modes and exceptions
  *   integrations  services connected to accounts, used by repositories
- *   automations   bots, where they are installed, and what wakes them
  *   imports  repositories brought from another host, linked accounts
  *   insights what a repository and an account add up to
  *   people   preferences, follows, profiles and the directory of people

@@ -1,3 +1,4 @@
+import { SecretBox } from './secret-box'
 import { ConvexClient } from 'convex/browser'
 import { makeFunctionReference } from 'convex/server'
 import { allOperations } from './index'
@@ -49,6 +50,8 @@ export type ConvexApiOptions = {
   htmlBase: string
   sessions: SessionResolver
   userScopes?: (handle: string) => ReadonlyArray<Scope>
+  /** Whether a machine sign-in may read secret values. Default: `SX_DEVICE_DECRYPT` is not `0`. */
+  deviceDecrypt?: (handle: string) => boolean
   /** Seed an empty deployment with the sample, for development. */
   seedSample?: () => string
   /** Where uploaded files go when no bucket is configured. */
@@ -66,6 +69,8 @@ export function createConvexApi(o: ConvexApiOptions) {
   const svc = {
     auth: new ConvexTokens(call),
     extras: new ConvexExtras(call, now),
+    // Without SX_SECRETS_KEY no value is kept or given out (fail closed).
+    secrets: SecretBox.fromBase64(env.SX_SECRETS_KEY),
     uploads: new ConvexUploads(
       call,
       blobStoreFromEnv(env, o.blobFolder),
@@ -156,6 +161,7 @@ export function createConvexApi(o: ConvexApiOptions) {
     resources: { api: o.base, mcp: `${o.htmlBase}/mcp` },
     sessions: o.sessions,
     userScopes: o.userScopes ?? (() => oauthScopes),
+    deviceDecrypt: o.deviceDecrypt ?? (() => env.SX_DEVICE_DECRYPT !== '0'),
     now,
   })
   const shared = o.storeSecret ? convexCaller(o.convexUrl) : null

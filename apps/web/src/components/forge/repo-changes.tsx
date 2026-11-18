@@ -11,7 +11,7 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
-import { Chip, EmptyState, Panel, Seg, Tile } from './bits'
+import { Chip, EmptyState, Panel, ReceiptNote, Seg, Tile } from './bits'
 import { MirrorCard, StackCard } from './change-mirror'
 import { EditingProvider, useEditorFactory } from './diff-editing'
 import { Timeline } from './change-timeline'
@@ -19,7 +19,7 @@ import { ChangeDiscussion } from './change-comments'
 import { EvidenceSection, TestReport } from './evidence'
 import { slugOf } from './repo-shell'
 import { StateIcon, StatusCard } from './status-card'
-import { WorkWithAgent } from './work-with-agent'
+import { HandOff } from './hand-off'
 import { idleLanding, landingReducer, landingView } from '~/lib/landing-state'
 import {
   LandingCard,
@@ -59,13 +59,7 @@ import {
 import { applySuggestion, canApply, lineOf } from '~/lib/suggestions'
 
 function AuthorMark({ author }: { author: Author }) {
-  if (author.kind === 'human')
-    return <Tile name={author.name} round className="size-6 text-xs" />
-  return (
-    <span className="flex size-5 items-center justify-center rounded-full bg-muted">
-      <CpuChipIcon className="size-3" />
-    </span>
-  )
+  return <Tile name={author.name} round className="size-6 text-xs" />
 }
 
 function ReviewerMark({ r }: { r: ChangeItem['reviewers'][number] }) {
@@ -118,7 +112,15 @@ function standing(c: ChangeItem) {
   return { tone: 'success', text: 'Ready to land' } as const
 }
 
-function Row({ c, repo }: { c: ChangeItem; repo: Repo }) {
+function Row({
+  c,
+  repo,
+  vouched,
+}: {
+  c: ChangeItem
+  repo: Repo
+  vouched: boolean
+}) {
   const s = standing(c)
   const latest = c.patchSets.at(-1)
   return (
@@ -151,6 +153,8 @@ function Row({ c, repo }: { c: ChangeItem; repo: Repo }) {
             <span className="inline-flex items-center gap-1">
               <AuthorMark author={c.author} />
               {c.author.name}
+              {vouched && <Chip tone="info">vouched</Chip>}
+              <ReceiptNote via={c.author.via} className="hidden sm:inline" />
             </span>
             <span>{c.when}</span>
           </div>
@@ -185,7 +189,20 @@ function ChangeList({ repo }: { repo: Repo }) {
     state: 'all',
     limit: 100,
   }).data.map((c) => toChangeItem(c))
-  const rows = all.filter(show)
+  // Vouched people go first; nothing else about them is different. A stack
+  // moves as one, so it stays in order.
+  const vouched = new Set(
+    useOp('repos.get', { owner: repo.owner, repo: repo.name }).vouched,
+  )
+  const shown = all.filter(show)
+  const groupOf = (c: ChangeItem) => c.stackId ?? c.id
+  const firstGroups = new Set(
+    shown.filter((c) => vouched.has(c.author.name)).map(groupOf),
+  )
+  const rows = [
+    ...shown.filter((c) => firstGroups.has(groupOf(c))),
+    ...shown.filter((c) => !firstGroups.has(groupOf(c))),
+  ]
   if (all.length === 0)
     return (
       <EmptyState title="No changes yet">
@@ -223,7 +240,7 @@ function ChangeList({ repo }: { repo: Repo }) {
                   · lands in order, bottom first
                 </li>
               )}
-              <Row c={c} repo={repo} />
+              <Row c={c} repo={repo} vouched={vouched.has(c.author.name)} />
             </React.Fragment>
           ))}
           {rows.length === 0 && (
@@ -402,7 +419,7 @@ function FindingCard({
               onClick={onSend}
             >
               <CpuChipIcon className="size-3.5" />
-              Send to agent
+              Copy fix for an agent
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={onResolve}>
@@ -480,10 +497,10 @@ function ChangeLoader({ repo, n }: { repo: Repo; n: number }) {
     state: 'all',
     limit: 100,
   }).data
+  // A finding written with a declared model is the AI review; the rest are
+  // a person's notes. Both come from accounts, under the same rules.
   const humans = new Set(
-    api.reviewers
-      .filter((r) => r.actor.class === 'human')
-      .map((r) => r.actor.handle),
+    (api.findings ?? []).filter((f) => !f.via?.model).map((f) => f.by),
   )
   const findingsApi = api.findings ?? []
   return (
@@ -679,27 +696,23 @@ function ChangeDetail({
         body: { reason: next.reason },
       }).then(undo)
   }
+  // source.code starts no agent: the finding's fix goes to the clipboard as
+  // a prompt, for whichever agent you hand it to.
   const send = (id: string) => {
     const f = list.find((x) => x.id === id)
-    set(id, { s: 'sending' })
-    void write('runs.start', {
-      owner: repo.owner,
-      repo: repo.name,
-      body: {
-        task: (f?.prompt ?? `Address ${id}: ${f?.title ?? ''}`).slice(0, 500),
-        change: api.number,
-      },
-    }).then((r) => {
-      if (!fail(r)) return set(id, { s: 'open' })
-      log({
-        kind: 'agent',
-        who: 'you',
-        actor: 'human',
-        what: `sent ${id} to an agent`,
-        detail: 'A run started with this finding as its task.',
-        hoursAgo: 0,
-      })
-    })
+    const prompt = `${f?.prompt ?? `Address ${id}: ${f?.title ?? ''}`}\n\nIn ${repo.owner}/${repo.name} change #${api.number}. Add a patch set with sx change create.`
+    void navigator.clipboard.writeText(prompt).then(
+      () =>
+        log({
+          kind: 'agent',
+          who: 'you',
+          actor: 'human',
+          what: `copied the fix for ${id}`,
+          detail: 'Paste it into your agent; its patch set comes back here.',
+          hoursAgo: 0,
+        }),
+      () => setError('Could not copy to the clipboard.'),
+    )
   }
 
   const apply = (id: string) => {
@@ -773,6 +786,7 @@ function ChangeDetail({
               <span className="inline-flex items-center gap-1.5">
                 <AuthorMark author={change.author} />
                 <span className="text-foreground">{change.author.name}</span>
+                <ReceiptNote via={change.author.via} />
               </span>
               <span>{change.when}</span>
               <span className="font-mono text-xs">#{change.id}</span>
@@ -787,10 +801,10 @@ function ChangeDetail({
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <WorkWithAgent
+            <HandOff
               repo={slugOf(repo)}
               subject={{ kind: 'change', ref: change.id, title: change.title }}
-              label="Continue with an agent"
+              label="Hand off"
             />
             <Viewers viewers={viewers} />
           </div>

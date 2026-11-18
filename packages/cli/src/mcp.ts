@@ -9,7 +9,7 @@ import { run } from './main'
 import { skillFile } from './skill'
 import { schema } from './schema'
 import { version } from './help'
-import { makeClient } from './client'
+import { declared, makeClient } from './client'
 import type { Catalogue } from './operations'
 import { callOperation, catalogue } from './operations'
 import {
@@ -58,6 +58,12 @@ type Hint = {
  * `client` is the caller's own: over HTTP it carries the token the request
  * arrived with, so every tool is checked against that token's scopes.
  */
+/** A client's name as a receipt label: plain, printable, short. */
+const cleanName = (raw: string | undefined) => {
+  const t = raw?.trim().slice(0, 80)
+  return t && /^[\p{L}\p{N} ._:+/()@-]+$/u.test(t) ? t : null
+}
+
 export function createSxMcpServer(
   options: { client?: ApiClient } = {},
 ): McpServer {
@@ -65,6 +71,16 @@ export function createSxMcpServer(
     { name: 'source.code', version },
     { instructions },
   )
+
+  // The connecting client names the tool on every receipt (an orchestrator's
+  // SX_TOOL wins). A hosted server labels only its own client; over stdio the
+  // process serves one client, so the label is the process's.
+  server.server.oninitialized = () => {
+    const name = cleanName(server.server.getClientVersion()?.name)
+    if (!name || process.env.SX_TOOL) return
+    if (options.client) options.client.tool = name
+    else declared.tool = name
+  }
 
   const register = server.registerTool.bind(server) as unknown as (
     name: string,
@@ -208,7 +224,7 @@ export function createSxMcpServer(
   )
   tool(
     'get_timeline',
-    `The story of a change or an issue, oldest first: patch sets, review comments, reviews, findings, checks, evidence, the notes of the agent runs that worked on it, state changes and, for an issue, the changes that fix it. Each entry names the run that made it. Answers the newest ${TIMELINE_LIMIT} entries; when there are more, earlier says how to read them.`,
+    `The story of a change or an issue, oldest first: patch sets, review comments, reviews, findings, checks, evidence, state changes and, for an issue, the changes that fix it. Each entry has its receipt: the machine, tool and model that wrote it. Answers the newest ${TIMELINE_LIMIT} entries; when there are more, earlier says how to read them.`,
     {
       repo: repoArg,
       kind: z.enum(['change', 'issue']),
@@ -237,7 +253,7 @@ export function createSxMcpServer(
   )
   tool(
     'get_presence',
-    'Who else has a change or an issue open right now, people and agents, and the file each is on. Working on a change through these tools puts you in its room too.',
+    'Who else has a change or an issue open right now, and the file each is on. Working on a change through these tools puts you in its room too.',
     {
       repo: repoArg,
       kind: z.enum(['change', 'issue']),
@@ -341,32 +357,11 @@ export function createSxMcpServer(
     { readOnly: true },
   )
   tool(
-    'list_env_grants',
-    'Time-limited grants that let an agent run commands with development values. Shows state and expiry.',
+    'list_env_confirmations',
+    'Your production confirmations on this repository: pending ones with the link where the person confirms, and live ones with their expiry. Development and preview values need none: on the repository team, run commands with `sx env run --env development -- <command>`; values reach that process, never you.',
     { repo: repoArg },
-    (a) => ['env', 'grant', 'list', ...repo(a)],
+    (a) => ['env', 'confirmations', ...repo(a)],
     { readOnly: true },
-  )
-  tool(
-    'request_env_grant',
-    'Ask a person for development values. This never grants access by itself: it always returns needs_human until someone approves. After approval, run commands locally with `sx env run --env development -- <command>`; values reach the process, never you.',
-    {
-      repo: repoArg,
-      reason: z
-        .string()
-        .describe('Why you need the values. Shown to the approver.'),
-      max_runs: z.number().int().optional(),
-    },
-    (a) => [
-      'env',
-      'grant',
-      'request',
-      '--reason',
-      a.reason,
-      ...(a.max_runs ? ['--max-runs', String(a.max_runs)] : []),
-      ...repo(a),
-    ],
-    { idempotent: true },
   )
   tool(
     'list_mirrors',
@@ -383,22 +378,18 @@ export function createSxMcpServer(
     { idempotent: true },
   )
   tool(
-    'start_agent',
-    'Build the prompt for an issue or change and the command that starts an agent on it.',
+    'hand_off',
+    'Build the prompt for an issue, a change or a failing pipeline run and the command that hands it to an orchestrator (T3 Code, or boat). source.code starts no agent itself.',
     {
       repo: repoArg,
-      subject: z.string().describe('An issue or change number, like 4 or 216.'),
-      target: z.enum(['t3', 'boat', 'e2b']).optional(),
-      runtime: z.string().optional(),
+      subject: z
+        .string()
+        .describe(
+          'An issue or change number, like 4 or 216, or a pipeline run as run:1839.',
+        ),
+      to: z.enum(['t3', 'boat']).optional(),
     },
-    (a) => [
-      'agent',
-      'start',
-      a.subject,
-      ...repo(a),
-      ...(a.target ? ['--target', a.target] : []),
-      ...(a.runtime ? ['--runtime', a.runtime] : []),
-    ],
+    (a) => ['handoff', a.subject, ...repo(a), ...(a.to ? ['--to', a.to] : [])],
     { readOnly: true },
   )
 

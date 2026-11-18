@@ -104,8 +104,6 @@ export abstract class DomainPeople extends DomainInsights {
     const a = this.person(handle)
     if (a.handle === me)
       throw apiError('invalid_request', 'You cannot follow yourself.')
-    if (p!.class !== 'human')
-      throw apiError('forbidden', 'Only people follow accounts.')
     const set = this.following.get(me) ?? new Set()
     if (on) set.add(a.handle)
     else set.delete(a.handle)
@@ -199,7 +197,7 @@ export abstract class DomainPeople extends DomainInsights {
               at: v.created,
               title: `Reviewed #${c.number} ${c.title}`,
               repo: r,
-              agent: c.author.class !== 'human' && v.state === 'approved',
+              agent: !!c.patchSets.at(-1)?.via?.model && v.state === 'approved',
             })
       }
       for (const i of r.issues.values())

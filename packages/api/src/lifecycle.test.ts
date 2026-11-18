@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { clock, harness } from './testing'
+import { harness } from './testing'
 import type { Transport } from './webhooks'
 
 /** A receiver that accepts everything, so creating a webhook never reaches the network. */
@@ -568,268 +568,6 @@ describe('teams', () => {
   })
 })
 
-describe('runs', () => {
-  test('what an agent does is recorded as an agent, even when it acts for a person', async () => {
-    const h = harness()
-    const r = await h.call('POST', `${REPO}/runs`, {
-      body: {
-        task: 'Review',
-        scopes: ['repo:read', 'pulls:read', 'pulls:comment'],
-      },
-    })
-    const token = r.json.token as string
-    const review = await h.call('POST', `${REPO}/changes/217/reviews`, {
-      token,
-      body: { state: 'approved' },
-    })
-    expect(review.status).toBe(201)
-    expect(review.json.actor).toMatchObject({ handle: 'dana', class: 'agent' })
-    // The person is still the person.
-    const mine = await h.call('POST', `${REPO}/changes/217/reviews`, {
-      body: { state: 'commented' },
-    })
-    expect(mine.json.actor.class).toBe('human')
-    expect(review.json.actor.id).not.toBe(mine.json.actor.id)
-  })
-
-  const start = (
-    h: ReturnType<typeof harness>,
-    body: Record<string, unknown> = {},
-  ) =>
-    h.call('POST', `${REPO}/runs`, {
-      body: { task: 'Fix the flaky cache test', ...body },
-    })
-
-  test('a run mints a token that is limited to the repository and to what was asked for', async () => {
-    const h = harness()
-    const r = await start(h, { change: 216 })
-    expect(r.status).toBe(201)
-    expect(r.json.token).toMatch(/^sxr_/)
-    expect(r.json.state).toBe('running')
-    expect(r.json.actor.class).toBe('agent')
-    expect(r.json.scopes).toContain('issues:comment')
-    expect(r.json.scopes).not.toContain('repo:write')
-    expect(r.headers.get('cache-control')).toBe('no-store')
-
-    const token = r.json.token as string
-    const who = (await h.call('GET', '/auth/principal', { token })).json
-    expect(who).toMatchObject({
-      login: 'dana',
-      class: 'agent',
-      repos: ['dana/gitfs'],
-    })
-    expect((await h.call('GET', `${REPO}/changes/216`, { token })).status).toBe(
-      200,
-    )
-    // It reads and comments; it does not write, and it cannot leave the repository.
-    const denied = await h.call('POST', `${REPO}/issues`, {
-      token,
-      body: { title: 'x' },
-    })
-    expect(denied.status).toBe(403)
-    expect(denied.json.code).toBe('insufficient_scope')
-    expect(
-      (await h.call('GET', '/repos/dana/tinyqueue/issues', { token })).status,
-    ).toBe(200) // public: anyone can read
-    expect(
-      (await h.call('GET', '/repos/dana/notes/issues', { token })).status,
-    ).toBe(404) // private, outside the token
-    // The secret is shown once.
-    expect(
-      (await h.call('GET', `${REPO}/runs/${r.json.id}`)).json.token,
-    ).toBeNull()
-  })
-
-  test('a run cannot be given more than its starter has, or the power to make tokens', async () => {
-    const h = harness()
-    const noManage = await h.call('POST', `${REPO}/runs`, {
-      token: h.tokens.fixAgent,
-      body: { task: 't' },
-    })
-    expect(noManage.status).toBe(403)
-    expect(noManage.json.code).toBe('insufficient_scope')
-    const tooMuch = await start(h, { scopes: ['tokens:manage'] })
-    expect(tooMuch.status).toBe(403)
-    expect(tooMuch.json.code).toBe('forbidden')
-    expect((await start(h, { change: 99999 })).status).toBe(404)
-    expect(
-      (
-        await h.call('POST', `${REPO}/runs`, {
-          body: { task: 't', ttl_minutes: 999 },
-        })
-      ).status,
-    ).toBe(400)
-    // A dry run mints nothing.
-    const dry = await h.call('POST', `${REPO}/runs?dry_run=true`, {
-      body: { task: 't' },
-    })
-    expect(dry.status).toBe(200)
-    expect((await h.call('GET', `${REPO}/runs`)).json.data).toEqual([])
-  })
-
-  test('the run reports on itself, finishes, and its token stops working', async () => {
-    const h = harness()
-    const r = await start(h)
-    const token = r.json.token as string
-    const id = r.json.id as string
-    const note = await h.call('POST', `${REPO}/runs/${id}/notes`, {
-      token,
-      body: { text: 'Reproduced the failure' },
-    })
-    expect(note.json.notes.map((n: { text: string }) => n.text)).toEqual([
-      'Reproduced the failure',
-    ])
-    const done = await h.call('POST', `${REPO}/runs/${id}/finish`, {
-      token,
-      body: { state: 'succeeded', summary: 'Fixed in #217' },
-    })
-    expect(done.json).toMatchObject({
-      state: 'succeeded',
-      summary: 'Fixed in #217',
-    })
-    expect(done.json.finished_at).not.toBeNull()
-    // The same outcome again is a no-op; a different one is refused.
-    expect(
-      (
-        await h.call('POST', `${REPO}/runs/${id}/finish`, {
-          body: { state: 'succeeded' },
-        })
-      ).status,
-    ).toBe(200)
-    const other = await h.call('POST', `${REPO}/runs/${id}/finish`, {
-      body: { state: 'failed' },
-    })
-    expect(other.status).toBe(409)
-    expect(other.json.code).toBe('invalid_state')
-    const dead = await h.call('GET', `${REPO}/changes/216`, { token })
-    expect(dead.status).toBe(401)
-    expect(dead.json.code).toBe('token_revoked')
-    expect(
-      (
-        await h.call('POST', `${REPO}/runs/${id}/notes`, {
-          body: { text: 'late' },
-        })
-      ).status,
-    ).toBe(409)
-    const types = (await h.call('GET', '/events?type=run.*')).json.data.map(
-      (e: { type: string }) => e.type,
-    )
-    expect(types).toEqual(['run.started', 'run.finished'])
-  })
-
-  test('a run token cannot control another run of the same person', async () => {
-    const h = harness()
-    const a = await h.call('POST', `${REPO}/runs`, { body: { task: 'a' } })
-    const b = await h.call('POST', `${REPO}/runs`, { body: { task: 'b' } })
-    const denied = await h.call('POST', `${REPO}/runs/${a.json.id}/cancel`, {
-      token: b.json.token,
-    })
-    expect(denied.status).toBe(403)
-  })
-
-  test('runs started in the same millisecond page without loss', async () => {
-    const h = harness()
-    for (let i = 0; i < 4; i++)
-      await h.call('POST', `${REPO}/runs`, { body: { task: `run ${i}` } })
-    const seen: Array<string> = []
-    let cursor: string | null = null
-    do {
-      const r = await h.call(
-        'GET',
-        `${REPO}/runs?limit=2${cursor ? `&cursor=${cursor}` : ''}`,
-      )
-      for (const x of r.json.data) seen.push(x.id)
-      cursor = r.json.next_cursor
-    } while (cursor)
-    expect(new Set(seen).size).toBe(4)
-  })
-
-  test('a run cannot be given secrets:write', async () => {
-    const h = harness()
-    const r = await h.call('POST', `${REPO}/runs`, {
-      body: { task: 'secret', scopes: ['secrets:write'] },
-    })
-    expect(r.status).toBe(403)
-  })
-
-  test('a repository-limited token cannot note a run outside its grant', async () => {
-    const h = harness()
-    const a = await h.call('POST', `${REPO}/runs`, { body: { task: 'a' } })
-    expect(
-      (
-        await h.call('POST', `${REPO}/runs/${a.json.id}/notes`, {
-          token: h.tokens.limited,
-          body: { text: 'nope' },
-        })
-      ).status,
-    ).toBe(403)
-  })
-
-  test('cancelling stops the token at once; only the starter or an admin may', async () => {
-    const h = harness()
-    const r = await start(h)
-    const id = r.json.id as string
-    // hollis can write to the repository but did not start the run and does not administer it.
-    expect(
-      (
-        await h.call('POST', `${REPO}/runs/${id}/cancel`, {
-          token: h.tokens.hollis,
-        })
-      ).status,
-    ).toBe(403)
-    expect(
-      (
-        await h.call('POST', `${REPO}/runs/${id}/cancel`, {
-          token: h.tokens.stranger,
-        })
-      ).status,
-    ).toBe(403)
-    const c = await h.call('POST', `${REPO}/runs/${id}/cancel`)
-    expect(c.json.state).toBe('cancelled')
-    expect(
-      (await h.call('GET', '/auth/principal', { token: r.json.token })).status,
-    ).toBe(401)
-    expect(
-      (await h.call('GET', `${REPO}/runs?state=cancelled`)).json.data,
-    ).toHaveLength(1)
-    expect(
-      (await h.call('GET', `${REPO}/runs?state=running`)).json.data,
-    ).toHaveLength(0)
-  })
-
-  test('a run that runs out of time is expired, and only twenty can be going at once', async () => {
-    const now = clock()
-    const h = harness({ now })
-    const r = await start(h, { ttl_minutes: 5 })
-    now.advance(6 * 60_000)
-    expect((await h.call('GET', `${REPO}/runs/${r.json.id}`)).json.state).toBe(
-      'expired',
-    )
-    expect(
-      (await h.call('GET', '/auth/principal', { token: r.json.token })).json
-        .code,
-    ).toBe('token_expired')
-    for (let i = 0; i < 20; i++) expect((await start(h)).status).toBe(201)
-    const over = await start(h)
-    expect(over.status).toBe(409)
-    expect(over.json.code).toBe('limit_reached')
-  })
-
-  test('runs follow a rename and end with a deletion', async () => {
-    const h = harness()
-    const r = await start(h)
-    await h.call('PATCH', REPO, { body: { name: 'gitfs2' } })
-    expect(
-      (await h.call('GET', `/repos/dana/gitfs2/runs/${r.json.id}`)).json.repo
-        .full_name,
-    ).toBe('dana/gitfs2')
-    await h.call('DELETE', '/repos/dana/gitfs2?confirm=dana/gitfs2')
-    expect(
-      (await h.call('GET', '/auth/principal', { token: r.json.token })).status,
-    ).toBe(401)
-  })
-})
-
 describe('the sample API clock', () => {
   test('a token minted long after start is not born expired', async () => {
     const { createSampleApi } = await import('./index')
@@ -840,10 +578,24 @@ describe('the sample API clock', () => {
       name: 'later',
       kind: 'personal',
       handle: 'dana',
-      class: 'human',
       scopes: ['repo:read'],
       ttlMs: 10 * 60_000,
     })
     expect(record.expiresAt).toBe(t + 10 * 60_000)
+  })
+})
+
+describe('a transfer to another account', () => {
+  test("the old owner's webhooks do not follow the repository", async () => {
+    const h = harness({ transport: new OkTransport() })
+    const hook = await h.call('POST', `${REPO}/webhooks`, {
+      body: { endpoint: 'https://hooks.example.com/sx', events: ['*'] },
+    })
+    expect(hook.status).toBe(201)
+    await h.call('POST', `${REPO}/transfer`, {
+      body: { owner: 'northwind', confirm: 'dana/gitfs' },
+    })
+    const list = await h.call('GET', '/repos/northwind/gitfs/webhooks')
+    expect(list.json.data).toEqual([])
   })
 })

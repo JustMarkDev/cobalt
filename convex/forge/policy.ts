@@ -241,7 +241,7 @@ export const propose = mutation({
     })
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const at = Date.now()
     const people = new Map<string, boolean>()
     for (const e of edits)
@@ -390,7 +390,7 @@ export const moveToFile = internalMutation({
         a.after ? q.gt('publicId', a.after) : q,
       )
       .take(a.limit ?? 50)
-    const by = await actorFor(ctx, 'source-code', 'bot')
+    const by = await actorFor(ctx, 'source-code')
     let opened = 0
     for (const repo of repos) {
       if ((await loadPolicy(ctx, repo)).file) continue
@@ -450,7 +450,7 @@ async function policyChanged(
     ctx,
     repo,
     'repo.policy_changed',
-    await actorFor(ctx, p.handle, p.class),
+    await actorFor(ctx, p.handle),
     { object: 'repo', id: repo.publicId, number: null },
     [what],
     null,

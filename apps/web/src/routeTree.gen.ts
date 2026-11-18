@@ -43,7 +43,6 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as OrganizationsHandleSectionRouteImport } from './routes/organizations/$handle.$section'
 import { Route as HandleRepoCommitShaRouteImport } from './routes/$handle/$repo/commit/$sha'
-import { Route as HandleRepoRunIdRouteImport } from './routes/$handle/$repo/run/$id'
 import { Route as HandleRepoReleasesDownloadTagAssetRouteImport } from './routes/$handle/$repo/releases.download.$tag.$asset'
 
 const IndexRoute = IndexRouteImport.update({
@@ -220,11 +219,6 @@ const HandleRepoCommitShaRoute = HandleRepoCommitShaRouteImport.update({
   path: '/$handle/$repo/commit/$sha',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HandleRepoRunIdRoute = HandleRepoRunIdRouteImport.update({
-  id: '/$handle/$repo/run/$id',
-  path: '/$handle/$repo/run/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const HandleRepoReleasesDownloadTagAssetRoute =
   HandleRepoReleasesDownloadTagAssetRouteImport.update({
     id: '/$handle/$repo/releases/download/$tag/$asset',
@@ -267,7 +261,6 @@ export interface FileRoutesByFullPath {
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo/': typeof HandleRepoIndexRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
-  '/$handle/$repo/run/$id': typeof HandleRepoRunIdRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRoutesByTo {
@@ -305,7 +298,6 @@ export interface FileRoutesByTo {
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo': typeof HandleRepoIndexRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
-  '/$handle/$repo/run/$id': typeof HandleRepoRunIdRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRoutesById {
@@ -344,7 +336,6 @@ export interface FileRoutesById {
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo/': typeof HandleRepoIndexRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
-  '/$handle/$repo/run/$id': typeof HandleRepoRunIdRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRouteTypes {
@@ -384,7 +375,6 @@ export interface FileRouteTypes {
     | '/organizations/$handle/$section'
     | '/$handle/$repo/'
     | '/$handle/$repo/commit/$sha'
-    | '/$handle/$repo/run/$id'
     | '/$handle/$repo/releases/download/$tag/$asset'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -422,7 +412,6 @@ export interface FileRouteTypes {
     | '/organizations/$handle/$section'
     | '/$handle/$repo'
     | '/$handle/$repo/commit/$sha'
-    | '/$handle/$repo/run/$id'
     | '/$handle/$repo/releases/download/$tag/$asset'
   id:
     | '__root__'
@@ -460,7 +449,6 @@ export interface FileRouteTypes {
     | '/organizations/$handle/$section'
     | '/$handle/$repo/'
     | '/$handle/$repo/commit/$sha'
-    | '/$handle/$repo/run/$id'
     | '/$handle/$repo/releases/download/$tag/$asset'
   fileRoutesById: FileRoutesById
 }
@@ -499,7 +487,6 @@ export interface RootRouteChildren {
   OrganizationsHandleSectionRoute: typeof OrganizationsHandleSectionRoute
   HandleRepoIndexRoute: typeof HandleRepoIndexRoute
   HandleRepoCommitShaRoute: typeof HandleRepoCommitShaRoute
-  HandleRepoRunIdRoute: typeof HandleRepoRunIdRoute
   HandleRepoReleasesDownloadTagAssetRoute: typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 
@@ -743,13 +730,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HandleRepoCommitShaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$handle/$repo/run/$id': {
-      id: '/$handle/$repo/run/$id'
-      path: '/$handle/$repo/run/$id'
-      fullPath: '/$handle/$repo/run/$id'
-      preLoaderRoute: typeof HandleRepoRunIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/$handle/$repo/releases/download/$tag/$asset': {
       id: '/$handle/$repo/releases/download/$tag/$asset'
       path: '/$handle/$repo/releases/download/$tag/$asset'
@@ -798,7 +778,6 @@ const rootRouteChildren: RootRouteChildren = {
   OrganizationsHandleSectionRoute: OrganizationsHandleSectionRoute,
   HandleRepoIndexRoute: HandleRepoIndexRoute,
   HandleRepoCommitShaRoute: HandleRepoCommitShaRoute,
-  HandleRepoRunIdRoute: HandleRepoRunIdRoute,
   HandleRepoReleasesDownloadTagAssetRoute:
     HandleRepoReleasesDownloadTagAssetRoute,
 }

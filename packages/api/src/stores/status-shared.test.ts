@@ -68,7 +68,7 @@ test('only the API server may write or read the shared health', async () => {
   const { t } = await setup()
   await expect(
     t
-      .withIdentity({ subject: 'dana', sx_cls: 'human', sx_scp: '' })
+      .withIdentity({ subject: 'dana', sx_api: 'true', sx_scp: '' })
       .mutation(forge.forge.health.record, { buckets: [] }),
   ).rejects.toThrow()
   await expect(
@@ -118,7 +118,7 @@ test('the tally fill counts every table once, then writes keep it', async () => 
   const dana = t.withIdentity({
     subject: 'dana',
     sx_tok: 'tok',
-    sx_cls: 'human',
+    sx_api: 'true',
     sx_act: 'dana',
     sx_scp: 'repo:read repo:write repo:admin',
   })
@@ -176,7 +176,7 @@ test('product events are queued with the write and sent in a batch', async () =>
     const dana = t.withIdentity({
       subject: 'dana',
       sx_tok: 'tok',
-      sx_cls: 'human',
+      sx_api: 'true',
       sx_act: 'dana',
       sx_scp: 'repo:read repo:write repo:admin',
     })

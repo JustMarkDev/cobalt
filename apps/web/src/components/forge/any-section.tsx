@@ -88,7 +88,7 @@ const facets: Array<{
   },
   {
     title: 'Any agent',
-    body: 'Agents are users, with limits. They connect over the CLI or MCP with scoped tokens, follow the same policies as people, and never see a secret you did not grant.',
+    body: 'Sign a machine in once and every agent on it works as you, over the CLI or MCP. Each write names the machine, tool and model, and secrets stay with your team.',
     chips: (
       <>
         <Word mono>sx</Word>

@@ -1,3 +1,4 @@
+import { receiptFor } from '../receipt'
 import { ConvexError } from 'convex/values'
 import { apiError } from '../problem'
 import { Pre } from '../registry'
@@ -34,14 +35,20 @@ export type ConvexCall = (
 /** The identity claims for a principal. The Convex side reads them in `convex/lib/actor.ts`. */
 export function claimsOf(who: Principal | 'system') {
   if (who === 'system')
-    return { subject: '~system', sx_cls: 'bot', sx_sys: 'true', sx_scp: '' }
+    return { subject: '~system', sx_api: 'true', sx_sys: 'true', sx_scp: '' }
+  const via = receiptFor(who)
   const claims: Record<string, string> = {
     subject: who.handle,
+    sx_api: 'true',
     sx_tok: who.tokenId,
-    sx_cls: who.class,
+    sx_login: who.loginId,
     sx_act: who.actingAs,
     sx_scp: [...who.scopes].join(' '),
   }
+  if (via.machine) claims.sx_dev = via.machine
+  if (via.tool) claims.sx_tool = via.tool
+  if (via.model) claims.sx_model = via.model
+  if (who.session) claims.sx_ses = 'true'
   if (who.repos) claims.sx_rep = who.repos.join(',')
   // A write under an Idempotency-Key marks the key in its own transaction.
   const held = heldKey.getStore()
@@ -157,8 +164,8 @@ export class ConvexDomain implements DomainPort {
     return r
   }
 
-  async sweepRunsOperations() {
-    await this.m('runs:sweepNow', {}, 'system')
+  async sweepOperations() {
+    await this.m('operations:sweepNow', {}, 'system')
   }
 
   // ---- accounts --------------------------------------------------------------
@@ -210,6 +217,8 @@ export class ConvexDomain implements DomainPort {
   mayReadId: Port['mayReadId'] = (id, p) => this.q('repos:mayReadId', { id }, p)
   repoAccess: Port['repoAccess'] = (owner, name, p, need) =>
     this.q('repos:access', { owner, name, need, strict: false }, p)
+  secretsAccess: Port['secretsAccess'] = (owner, name, p) =>
+    this.q('extras:secretsAccess', { owner, name }, p)
   repoAccessStrict: Port['repoAccessStrict'] = (
     owner,
     name,
@@ -586,6 +595,10 @@ export class ConvexDomain implements DomainPort {
     )
   transition: Port['transition'] = (owner, name, ref, p, action, dry) =>
     this.m('changes:transition', { owner, name, ref, action, dry }, p)
+  autoLandCandidate: Port['autoLandCandidate'] = (owner, name, ref) =>
+    this.q('changes:autoLandCandidate', { owner, name, ref }, 'system')
+  autoLand: Port['autoLand'] = (owner, name, ref, sha) =>
+    this.m('changes:autoLand', { owner, name, ref, sha }, 'system')
   land: Port['land'] = (owner, name, ref, p, body, dry) =>
     this.m(
       'changes:land',
@@ -1006,29 +1019,6 @@ export class ConvexDomain implements DomainPort {
   updateNotificationPrefs: Port['updateNotificationPrefs'] = (p, body) =>
     this.m('notifications:updatePrefs', { prefs: body }, p)
 
-  // ---- runs -------------------------------------------------------------------
-
-  startRun: Port['startRun'] = (owner, name, p, input, dry) =>
-    this.m('runs:start', { owner, name, ...input, dry }, p)
-  listRuns: Port['listRuns'] = (owner, name, p, q) =>
-    this.q('runs:list', { owner, name, ...q, at: this.now() }, p)
-  getRun: Port['getRun'] = (owner, name, id, p) =>
-    this.q('runs:get', { owner, name, id, at: this.now() }, p)
-  claimRun: Port['claimRun'] = (owner, name, id, p) =>
-    this.m('runs:claim', { owner, name, id }, p)
-  noteRun: Port['noteRun'] = (owner, name, id, p, text, dry) =>
-    this.m('runs:note', { owner, name, id, text, dry }, p)
-  endRun: Port['endRun'] = (owner, name, id, p, state, summary, dry) =>
-    this.m('runs:end', { owner, name, id, state, summary, dry }, p)
-  updateRun: Port['updateRun'] = (owner, name, id, p, body, dry) =>
-    this.m('runs:update', { owner, name, id, ...body, dry }, p)
-  transcriptTarget: Port['transcriptTarget'] = (owner, name, id, p) =>
-    this.q('runs:transcriptTarget', { owner, name, id }, p)
-  attachTranscript: Port['attachTranscript'] = (owner, name, id, p, t, dry) =>
-    this.m('runs:attachTranscript', { owner, name, id, transcript: t, dry }, p)
-  runTranscript: Port['runTranscript'] = (owner, name, id, p) =>
-    this.q('runs:transcript', { owner, name, id }, p)
-
   // ---- pipelines ------------------------------------------------------------------
 
   listPipelineRuns: Port['listPipelineRuns'] = (owner, name, p, q) =>
@@ -1064,43 +1054,6 @@ export class ConvexDomain implements DomainPort {
   ) => this.m('pipelines:report', { owner, name, n, job, step, ...body }, p)
   cancelPipeline: Port['cancelPipeline'] = (owner, name, n, p, dry) =>
     this.m('pipelines:cancel', { owner, name, n, dry }, p)
-
-  // ---- bots and automations --------------------------------------------------------
-
-  listBots: Port['listBots'] = (handle, p) =>
-    this.q('automations:listBots', { handle }, p)
-  createBot: Port['createBot'] = (handle, p, body, dry) =>
-    this.m('automations:createBot', { handle, ...body, dry }, p)
-  installBot: Port['installBot'] = (owner, name, slug, p, on, dry) =>
-    this.m('automations:install', { owner, name, slug, on, dry }, p)
-  updateBot: Port['updateBot'] = (slug, p, body, dry) =>
-    this.m('automations:updateBot', { slug, ...body, dry }, p)
-  mintBotToken: Port['mintBotToken'] = (slug, p, days) =>
-    this.m('automations:mintBotToken', { slug, days }, p)
-  listAutomations: Port['listAutomations'] = (owner, name, p) =>
-    this.q('automations:list', { owner, name }, p)
-  automationsVersion: Port['automationsVersion'] = (owner, name, p) =>
-    this.q(
-      'automations:version',
-      { owner, name, access: this.accessRevision },
-      p,
-    )
-  createAutomation: Port['createAutomation'] = (owner, name, p, body, dry) =>
-    this.m('automations:create', { owner, name, body, dry }, p)
-  updateAutomation: Port['updateAutomation'] = (
-    owner,
-    name,
-    id,
-    p,
-    body,
-    dry,
-  ) => this.m('automations:update', { owner, name, id, body, dry }, p)
-  deleteAutomation: Port['deleteAutomation'] = (owner, name, id, p, dry) =>
-    this.m('automations:remove', { owner, name, id, dry }, p)
-  runAutomation: Port['runAutomation'] = (owner, name, id, p) =>
-    this.m('automations:run', { owner, name, id }, p)
-  tickSchedules: Port['tickSchedules'] = () =>
-    this.m('automations:tickNow', {}, 'system')
 
   // ---- policy rules -------------------------------------------------------------
 
@@ -1389,42 +1342,26 @@ export class ConvexDomain implements DomainPort {
     const full = await this.repoAccess(owner, name, p, 'read')
     const now = this.now()
     const commits = await this.history(full, 1000)
-    const logins = [
-      ...new Set(
-        commits
-          .map((c) =>
-            /^([^@]+)@users\.source\.code$/i
-              .exec(c.author.email)?.[1]
-              ?.toLowerCase(),
-          )
-          .filter((x): x is string => !!x),
-      ),
-    ]
     const f = await this.q<{
       repo: string
-      classes: Record<string, 'human' | 'agent' | 'bot'>
+      byModel: Array<{ model: string | null; count: number }>
       downloads: { total: number; days: Array<{ day: number; n: number }> }
       stars: { total: number; today: number }
       issues: Partial<Record<string, number>>
       changes: Partial<Record<string, number>>
-    }>('insights:repoFacts', { owner, name, at: now, logins }, p)
+    }>('insights:repoFacts', { owner, name, at: now }, p)
     const WEEKS = 26
     const weeks = Array.from({ length: WEEKS }, () => 0)
-    const by = { human: 0, agent: 0, bot: 0 }
     const people = new Set<string>()
     for (const c of commits) {
       const w = Math.floor((now - Date.parse(c.date)) / (7 * 86_400_000))
       if (w >= 0 && w < WEEKS) weeks[WEEKS - 1 - w]++
-      const login = /^([^@]+)@users\.source\.code$/i
-        .exec(c.author.email)?.[1]
-        ?.toLowerCase()
-      by[(login && f.classes[login]) || 'human']++
       people.add(c.author.email.toLowerCase())
     }
     return {
       object: 'repo_insights' as const,
       repo: f.repo,
-      commits: { total: commits.length, by_week: weeks, by_class: by },
+      commits: { total: commits.length, by_week: weeks, by_model: f.byModel },
       contributors: people.size,
       downloads: this.downloadsOf(f.downloads, now),
       stars: f.stars,
@@ -1475,6 +1412,11 @@ export class ConvexDomain implements DomainPort {
           state: string
           author: string
           patchSets: number
+          via: {
+            machine: string | null
+            tool: string | null
+            model: string | null
+          } | null
         }>
       }>
       toReview: Array<{
@@ -1561,8 +1503,8 @@ export class ConvexDomain implements DomainPort {
           kind: 'agent',
           title: c.title,
           repo: `${r.repo} · #${c.number}`,
-          status: c.state === 'draft' ? 'Agent working' : 'Waiting on review',
-          detail: `${c.author}, patch set ${c.patchSets}`,
+          status: c.state === 'draft' ? 'Draft' : 'Waiting on review',
+          detail: `${c.author} via ${c.via?.tool ?? 'a tool'} · ${c.via?.model}, patch set ${c.patchSets}`,
           path: path(r.repo, `/changes?n=${c.number}`),
         })
       for (const x of r.runs)
@@ -1584,7 +1526,7 @@ export class ConvexDomain implements DomainPort {
       .slice(0, 30)
       .map((e) => ({
         who: e.actor.handle,
-        class: e.actor.class,
+        via: e.via ?? null,
         type: e.type,
         repo: e.repo,
         subject: e.subject.number,

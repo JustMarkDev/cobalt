@@ -1,9 +1,8 @@
 import { chmodSync, writeFileSync } from 'node:fs'
-import { whoami } from '../account'
 import { resolveRepo } from '../repo'
 import { SxError, exit, print, table } from '../output'
 import { has, str } from '../args'
-import { parseTtl, runWithEnv, seal } from '../secrets'
+import { cliError, runWithEnv } from '../secrets'
 import type { Command } from './types'
 
 type Var = {
@@ -13,12 +12,13 @@ type Var = {
   environments: Array<string>
   set: boolean | null
 }
-type Grant = {
+type Confirmation = {
   id: string
   state: string
   environment: string
-  variables: Array<string>
+  device: string | null
   expires_at: string | null
+  confirm_url: string
 }
 
 export const env: Command = async (
@@ -52,7 +52,7 @@ export const env: Command = async (
 
   if (sub === 'set') {
     const name = rest.at(0)
-    let value = rest.at(1)
+    let value: string | undefined = rest.at(1)
     if (!name)
       throw new SxError(
         'missing_argument',
@@ -60,109 +60,89 @@ export const env: Command = async (
         'Example: sx env set STRIPE_KEY - --env production  (reads the value from stdin)',
         exit.usage,
       )
-    if (value === undefined)
+    // A value on the command line lands in shell history and the process
+    // list. It comes from stdin, always.
+    if (value !== '-')
       throw new SxError(
-        'missing_argument',
-        'env set needs a value or - to read stdin.',
-        'Example: echo $VALUE | sx env set STRIPE_KEY - --env production',
+        'value_on_command_line',
+        value === undefined
+          ? 'env set reads the value from stdin: pass - after the name.'
+          : 'A secret on the command line ends up in your shell history. env set reads it from stdin.',
+        `Example: printf %s "$VALUE" | sx env set ${name} - --env ${environment}`,
         exit.usage,
       )
-    if (value === '-') value = (await Bun.stdin.text()).replace(/\n$/, '')
-    // The value is sealed on this machine. The server only ever receives ciphertext.
-    const v = (
-      await api.put(`${repo.path}/env/${name}/${environment}`, {
-        body: { ciphertext: dry ? 'dry-run' : seal(value) },
-        dryRun: dry,
-      })
-    ).json as Var
+    value = (await Bun.stdin.text()).replace(/\n$/, '')
+    // Sent over TLS and sealed the moment it arrives; it is never answered back.
+    let v: Var
+    try {
+      v = (
+        await api.put(`${repo.path}/env/${name}/${environment}`, {
+          body: { value },
+          dryRun: dry,
+        })
+      ).json as Var
+    } catch (e) {
+      cliError(e, environment)
+    }
     print(
       ctx,
-      { name: v.name, env: environment, encrypted: true, dryRun: dry },
-      () => `${dry ? 'would encrypt' : 'encrypted'} ${name} for ${environment}`,
+      { name: v.name, env: environment, sealed: !dry, dryRun: dry },
+      () => `${dry ? 'would seal' : 'sealed'} ${name} for ${environment}`,
     )
     return
   }
 
   if (sub === 'pull') {
-    if (dry) {
-      await api.get(`${repo.path}/env/${environment}/values`, {
-        query: { check_only: 'true' },
-      })
-      const who = await whoami(ctx)
-      let vars: Array<Var> | null = null
-      if (who.scopes.includes('secrets:schema')) {
-        vars = (await api.get(`${repo.path}/env`, { query: { environment } }))
-          .json.data as Array<Var>
-        if (who.class !== 'human') {
-          const grants = (await api.get(`${repo.path}/env/grants`)).json
-            .data as Array<{
-            state: string
-            environment: string
-            variables: Array<string>
-          }>
-          const active = grants.find(
-            (g) => g.state === 'active' && g.environment === environment,
-          )
-          if (active)
-            vars = vars.filter((v) => active.variables.includes(v.name))
-        }
+    // A plaintext file is what leaks: into a commit, a backup, an agent's
+    // context. `sx env run` is the way to use values; a file is opt-in.
+    if (!has(flags, 'plaintext'))
+      throw new SxError(
+        'plaintext_refused',
+        'env pull writes values to a plaintext file, so it needs --plaintext.',
+        `Prefer: sx env run --env ${environment} -- <command>. Values reach that process only.`,
+        exit.usage,
+      )
+    try {
+      if (dry) {
+        await api.get(`${repo.path}/env/${environment}/values`, {
+          query: { check_only: 'true' },
+        })
+        print(
+          ctx,
+          { env: environment, written: null, dryRun: true },
+          () => `would write .env.local for ${environment}`,
+        )
+        return
       }
-      const missing = vars
-        ? vars.filter((v) => !v.set).map((v) => v.name)
-        : null
+      const values = (await api.get(`${repo.path}/env/${environment}/values`))
+        .json as { values: Record<string, string> }
+      const text = `${Object.entries(values.values)
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join('\n')}\n`
+      writeFileSync('.env.local', text, { mode: 0o600 })
+      chmodSync('.env.local', 0o600)
+      // A file git would commit is the leak this is meant to avoid.
+      const ignored =
+        Bun.spawnSync(['git', 'check-ignore', '-q', '.env.local']).exitCode ===
+        0
+      if (!ignored)
+        ctx.err(
+          'warning: .env.local is not in .gitignore. Add it before you commit.',
+        )
+      const vars = (
+        await api.get(`${repo.path}/env`, { query: { environment } })
+      ).json.data as Array<Var>
+      const missing = vars.filter((v) => !v.set).map((v) => v.name)
       print(
         ctx,
-        { env: environment, written: null, dryRun: true, missing },
+        { env: environment, written: '.env.local', dryRun: false, missing },
         () =>
-          `would write .env.local for ${environment}${missing?.length ? `\nmissing: ${missing.join(', ')}` : ''}`,
+          `wrote .env.local for ${environment} (only you can read it; keep it out of git)${missing.length ? `\nmissing: ${missing.join(', ')}` : ''}`,
       )
       return
+    } catch (e) {
+      cliError(e, environment)
     }
-    const values = (await api.get(`${repo.path}/env/${environment}/values`))
-      .json as { values: Record<string, string> }
-    const text = `${Object.entries(values.values)
-      .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
-      .join('\n')}\n`
-    writeFileSync('.env.local', text, { mode: 0o600 })
-    chmodSync('.env.local', 0o600)
-    const who = await whoami(ctx)
-    let missing: Array<string> | null = null
-    if (who.scopes.includes('secrets:schema')) {
-      let vars = (await api.get(`${repo.path}/env`, { query: { environment } }))
-        .json.data as Array<Var>
-      if (who.class !== 'human') {
-        const grants = (await api.get(`${repo.path}/env/grants`)).json
-          .data as Array<{
-          state: string
-          environment: string
-          variables: Array<string>
-        }>
-        const active = grants.find(
-          (g) => g.state === 'active' && g.environment === environment,
-        )
-        if (active) vars = vars.filter((v) => active.variables.includes(v.name))
-      }
-      missing = vars.filter((v) => !v.set).map((v) => v.name)
-    }
-    print(
-      ctx,
-      { env: environment, written: '.env.local', dryRun: false, missing },
-      () =>
-        `wrote .env.local for ${environment}${missing?.length ? `\nmissing: ${missing.join(', ')}` : ''}`,
-    )
-    return
-  }
-
-  if (sub === 'recipients') {
-    const rows = (await api.get(`${repo.path}/env/recipients`)).json
-      .data as Array<{ id: string; kind: string }>
-    print(ctx, rows, () =>
-      table(
-        rows.map((r) => [r.id, r.kind]),
-        ['RECIPIENT', 'KIND'],
-      ),
-    )
-    return
   }
 
   if (sub === 'run') {
@@ -186,10 +166,7 @@ export const env: Command = async (
       [
         result.stdout.trimEnd(),
         result.stderr.trimEnd(),
-        `(${result.namesKnown === false ? 'variable names unavailable; scrub status unavailable' : dry ? `would inject ${result.injected.length} variables` : `${result.injected.length} variables injected`}, ${result.namesKnown === false ? '' : `${dry ? 'would scrub' : 'scrubbed'} ${result.redacted.length} from output`})`.replace(
-          ', )',
-          ')',
-        ),
+        `(${dry ? `would inject ${result.injected.length} variables` : `${result.injected.length} variables injected`}, ${dry ? 'would scrub' : 'scrubbed'} ${result.redacted.length} from output)`,
       ]
         .filter(Boolean)
         .join('\n'),
@@ -197,103 +174,21 @@ export const env: Command = async (
     return result.exitCode === 0 ? exit.ok : exit.error
   }
 
-  if (sub === 'grant') {
-    const action = rest.at(0) ?? 'list'
-    const id = rest.at(1)
-    if (action === 'list') {
-      const rows = (await api.get(`${repo.path}/env/grants`)).json
-        .data as Array<Grant>
-      print(ctx, rows, () =>
-        table(
-          rows.map((g) => [
-            g.id,
-            g.state,
-            g.environment,
-            g.variables.join(','),
-            g.expires_at ?? 'awaiting approval',
-          ]),
-          ['GRANT', 'STATE', 'ENV', 'VARIABLES', 'EXPIRES'],
-        ),
-      )
-      return
-    }
-    if (action === 'request') {
-      const g = (
-        await api.post(`${repo.path}/env/grants`, {
-          body: {
-            environment,
-            ...(str(flags, 'reason') ? { reason: str(flags, 'reason') } : {}),
-            ...(str(flags, 'max-runs')
-              ? { max_runs: Number(str(flags, 'max-runs')) }
-              : {}),
-          },
-          dryRun: dry,
-        })
-      ).json as Grant
-      // A request is not access. Someone has to approve it, so this is a stop.
-      if (dry) {
-        print(
-          ctx,
-          { ...g, dryRun: true },
-          () =>
-            `would request ${g.id} for ${environment}; a person would need to approve it`,
-        )
-        return
-      }
-      throw new SxError(
-        'needs_human',
-        `Requested ${g.id}. A person must approve it in Settings, Secrets, Agent access, or run: sx env grant approve ${g.id}.`,
-        `Retry after approval: sx env run --env ${environment} -- <command>`,
-        exit.needsHuman,
-      )
-    }
-    if (!id)
-      throw new SxError(
-        'grant_not_found',
-        `env grant ${action} needs a grant id.`,
-        'sx env grant list shows ids.',
-        exit.notFound,
-      )
-    if (action === 'approve') {
-      const g = (
-        await api.post(`${repo.path}/env/grants/${id}/approve`, {
-          body: { ttl_minutes: parseTtl(str(flags, 'ttl')) },
-          dryRun: dry,
-        })
-      ).json as Grant
-      print(
-        ctx,
-        { ...g, dryRun: dry },
-        () =>
-          `${dry ? 'would approve' : 'approved'} ${g.id}${dry ? '' : ` until ${g.expires_at ?? ''}`}`,
-      )
-      return
-    }
-    if (action === 'revoke') {
-      const g = (
-        await api.post(`${repo.path}/env/grants/${id}/revoke`, { dryRun: dry })
-      ).json as Grant
-      print(
-        ctx,
-        { ...g, dryRun: dry },
-        () => `${dry ? 'would revoke' : 'revoked'} ${g.id}`,
-      )
-      return
-    }
-    throw new SxError(
-      'unknown_command',
-      `env grant ${action} is not a command.`,
-      'sx env --help lists them.',
-      exit.usage,
-    )
-  }
-
-  if (sub === 'rotate') {
-    print(
-      ctx,
-      { rotated: !dry, env: environment, dryRun: dry },
-      () =>
-        `${dry ? 'would rotate' : 'rotated'} the data key for ${environment}. Rotate the real credentials at each provider.`,
+  if (sub === 'confirmations') {
+    // Your own production confirmations: what is waiting, and what is live.
+    const rows = (await api.get(`${repo.path}/env/confirmations`)).json
+      .data as Array<Confirmation>
+    print(ctx, rows, () =>
+      table(
+        rows.map((c) => [
+          c.id,
+          c.state,
+          c.environment,
+          c.device ?? '',
+          c.state === 'pending' ? c.confirm_url : (c.expires_at ?? ''),
+        ]),
+        ['CONFIRMATION', 'STATE', 'ENV', 'MACHINE', 'EXPIRES / CONFIRM AT'],
+      ),
     )
     return
   }

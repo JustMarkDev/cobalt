@@ -1,54 +1,24 @@
 import * as React from 'react'
-import { File, PatchDiff } from '@pierre/diffs/react'
+import { useSearch } from '@tanstack/react-router'
+import { File } from '@pierre/diffs/react'
 import {
-  ArrowPathIcon,
-  CloudIcon,
   ComputerDesktopIcon,
-  CpuChipIcon,
-  KeyIcon,
-  LifebuoyIcon,
   LockClosedIcon,
-  PlusIcon,
   ShieldExclamationIcon,
-  UserIcon,
-  XMarkIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import { Chip, Modal, Panel, SectionLabel, Seg } from './bits'
-import { seal } from '~/lib/seal'
-import { AgentAccess } from './repo-agent-access'
 import { CopyField } from './repo-shell'
-import { Toggle } from './repo-pages'
 import type { Repo } from '~/lib/model/data'
-import type {
-  AuditEvent,
-  EnvName,
-  EnvVar,
-  Recipient,
-} from '~/lib/model/platform'
+import type { AuditEvent, EnvName, EnvVar } from '~/lib/model/platform'
 import { codeTheme, useCodeOverflow } from '~/lib/highlight'
 import { Button } from '~/components/ui/button'
 import { useIsDark } from '~/lib/theme'
-import { encryptedDiff, envNames } from '~/lib/model/platform'
-import { useOp, useWrite } from '~/lib/forge'
+import { envNames } from '~/lib/model/platform'
+import { useOp, useOpMaybe, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 import { field } from '~/components/ui/input'
-
-const kindIcon = {
-  member: UserIcon,
-  deploy: CloudIcon,
-  ci: ArrowPathIcon,
-  agent: CpuChipIcon,
-  escrow: LifebuoyIcon,
-} as const
-
-const kindLabel = {
-  member: 'Member',
-  deploy: 'Deploy',
-  ci: 'CI job',
-  agent: 'Agent',
-  escrow: 'Recovery',
-} as const
 
 function Variables({
   env,
@@ -152,7 +122,7 @@ function RotateDialog({
       open={v !== null}
       onClose={close}
       title={v ? `${v.set[env] ? 'Rotate' : 'Set'} ${v.name}` : ''}
-      description={`Encrypted in this browser before it is sent. The plaintext never reaches source.code.`}
+      description={`Sealed the moment it arrives, under this repository's own key, and never shown again. Only the team can set or read it.`}
     >
       {v && (
         <>
@@ -162,25 +132,17 @@ function RotateDialog({
               e.preventDefault()
               if (!value) return
               setBusy(true)
-              void seal(value)
-                .then((ciphertext) =>
-                  write('env.set', {
-                    owner: repo.owner,
-                    repo: repo.name,
-                    name: v.name,
-                    environment: env,
-                    body: { ciphertext },
-                  }),
-                )
-                .then((r) => {
-                  setBusy(false)
-                  if (r.error) return setError(r.error.message)
-                  close()
-                })
-                .catch(() => {
-                  setBusy(false)
-                  setError('This browser could not encrypt the value.')
-                })
+              void write('env.set', {
+                owner: repo.owner,
+                repo: repo.name,
+                name: v.name,
+                environment: env,
+                body: { value },
+              }).then((r) => {
+                setBusy(false)
+                if (r.error) return setError(r.error.message)
+                close()
+              })
             }}
           >
             <input
@@ -195,7 +157,7 @@ function RotateDialog({
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex justify-end">
               <Button type="submit" variant="brand" disabled={!value || busy}>
-                {busy ? 'Encrypting…' : 'Encrypt and save'}
+                {busy ? 'Saving…' : 'Save'}
               </Button>
             </div>
           </form>
@@ -203,7 +165,7 @@ function RotateDialog({
             Or from a terminal in the repository:
           </p>
           <CopyField
-            value={`sx env set ${v.name} --env ${env} --repo ${repo.owner}/${repo.name}`}
+            value={`printf %s "$VALUE" | sx env set ${v.name} - --env ${env} -R ${repo.owner}/${repo.name}`}
             prefix="$"
           />
           <p className="text-xs text-muted-foreground">
@@ -216,154 +178,151 @@ function RotateDialog({
   )
 }
 
-function Recipients({
-  list,
-  onRemove,
-}: {
-  list: Array<Recipient>
-  onRemove: (r: Recipient) => void
-}) {
+type Confirmation = {
+  id: string
+  environment: string
+  state: 'pending' | 'active' | 'revoked' | 'expired'
+  device: string | null
+  tool: string | null
+  expires_at: string
+  created_at: string
+}
+
+/**
+ * Production values wait for the person to confirm the login that asked,
+ * from here: a page you are signed in to, which a token cannot reach. A link
+ * from `sx` (`?confirm=cnf_…`) opens the request; nothing is confirmed until
+ * you press the button.
+ */
+function Confirmations({ repo }: { repo: Repo }) {
+  const at = { owner: repo.owner, repo: repo.name }
+  const write = useWrite()
+  const { confirm } = useSearch({ strict: false }) as { confirm?: string }
+  const list = useOp('confirmations.list', at).data as Array<Confirmation>
+  const [hours, setHours] = React.useState(1)
+  const [error, setError] = React.useState('')
+  const shown = list.filter(
+    (c) => c.state === 'pending' || c.state === 'active',
+  )
+  const asked = shown.find((c) => c.id === confirm && c.state === 'pending')
+  const act = (c: Confirmation, verb: 'confirm' | 'revoke') =>
+    void write(
+      verb === 'confirm' ? 'confirmations.confirm' : 'confirmations.revoke',
+      verb === 'confirm'
+        ? { ...at, confirmation: c.id, body: { ttl_minutes: hours * 60 } }
+        : { ...at, confirmation: c.id },
+    ).then((r) => setError(r.error?.message ?? ''))
   return (
-    <Panel className="overflow-hidden">
-      <ul className="divide-y">
-        {list.map((r) => {
-          const Icon = kindIcon[r.kind]
-          return (
-            <li key={r.id} className="flex items-start gap-3 px-4 py-3">
-              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <Icon className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1 space-y-1 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{r.name}</span>
-                  <Chip>{kindLabel[r.kind]}</Chip>
-                  {r.envs.map((e) => (
-                    <Chip
-                      key={e}
-                      tone={e === 'production' ? 'warning' : 'muted'}
-                    >
-                      {e}
-                    </Chip>
-                  ))}
+    <section className="space-y-3" id="confirmations">
+      <SectionLabel>Production confirmations</SectionLabel>
+      <p className="max-w-prose text-sm text-muted-foreground">
+        A machine reads production values only after you confirm it here, for a
+        few hours at a time. Development and preview need no confirmation.
+      </p>
+      {shown.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nothing is waiting, and no machine can read production values now.
+        </p>
+      ) : (
+        <Panel as="div" className="divide-y">
+          {shown.map((c) => (
+            <div
+              key={c.id}
+              className={cn(
+                'flex flex-wrap items-center gap-3 p-4 text-sm',
+                c.id === asked?.id && 'bg-warning/8',
+              )}
+            >
+              <ComputerDesktopIcon className="size-5 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">
+                  {c.device ?? 'A token'}
+                  {c.tool && (
+                    <span className="font-normal text-muted-foreground">
+                      {' '}
+                      through {c.tool}
+                    </span>
+                  )}
                 </div>
-                <div className="font-mono text-xs text-muted-foreground">
-                  {r.fingerprint}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Added {r.added}. Last used {r.lastUsed}.
-                  {r.note && ` ${r.note}.`}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  {c.state === 'pending'
+                    ? `Asked ${timeAgo(c.created_at)} for production values. Confirm only if you started this.`
+                    : `Can read production values until ${new Date(c.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`}
+                </p>
               </div>
-              {r.kind !== 'escrow' && (
+              {c.state === 'pending' ? (
+                <div className="flex items-center gap-2">
+                  <Seg
+                    value={String(hours)}
+                    onChange={(v) => setHours(Number(v))}
+                    options={[
+                      ['1', '1 hour'],
+                      ['4', '4 hours'],
+                      ['8', '8 hours'],
+                    ]}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => act(c, 'revoke')}
+                  >
+                    Turn down
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="brand"
+                    onClick={() => act(c, 'confirm')}
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              ) : (
                 <Button
                   size="sm"
-                  variant="ghost"
-                  aria-label={`Remove ${r.name}`}
-                  onClick={() => onRemove(r)}
+                  variant="outline"
+                  onClick={() => act(c, 'revoke')}
                 >
-                  <XMarkIcon className="size-4" />
+                  End now
                 </Button>
               )}
-            </li>
-          )
-        })}
-      </ul>
-    </Panel>
+            </div>
+          ))}
+        </Panel>
+      )}
+      {confirm && !shown.some((c) => c.id === confirm) && (
+        <p className="text-sm text-muted-foreground">
+          That request is no longer waiting. Run the command again to ask anew.
+        </p>
+      )}
+      {error && <p className="text-sm text-danger">{error}</p>}
+    </section>
   )
 }
 
-function PushGuard({ vars }: { vars: Array<EnvVar> }) {
-  const [rules, setRules] = React.useState({
-    plaintext: true,
-    recipients: true,
-    escrow: true,
-    signed: false,
-  })
-  const [line, setLine] = React.useState('STRIPE_KEY=sk_live_51Nf8aXyz')
-  const [result, setResult] = React.useState<null | {
-    ok: boolean
-    text: string
-  }>(null)
-
-  const run = () => {
-    const [key, ...rest] = line.split('=')
-    const value = rest.join('=')
-    const v = vars.find((x) => x.name === key.trim())
-    if (!v) {
-      setResult({ ok: true, text: 'Accepted. The key is not in the schema.' })
-      return
-    }
-    if (v.sensitive && !value.startsWith('enc:') && rules.plaintext) {
-      setResult({
-        ok: false,
-        text: `Rejected. ${v.name} is secret in the schema but this value is plaintext. Run: source secrets set ${v.name} --env production`,
-      })
-      return
-    }
-    setResult({
-      ok: true,
-      text: `Accepted. ${v.name} is ${value.startsWith('enc:') ? 'ciphertext' : 'public'}.`,
-    })
-  }
-
+/** Who reads values: the team, through their own logins. Nobody else. */
+function WhoReads({ repo }: { repo: Repo }) {
   return (
-    <Panel className="space-y-4 p-4">
-      <div className="space-y-3">
-        <Toggle
-          checked={rules.plaintext}
-          onChange={(v) => setRules((r) => ({ ...r, plaintext: v }))}
-          label="Reject plaintext in secret keys"
-          hint="Checked on every push, before it is stored."
-        />
-        <Toggle
-          checked={rules.recipients}
-          onChange={(v) => setRules((r) => ({ ...r, recipients: v }))}
-          label="Recipient changes need an owner"
-          hint="Adding or removing a recipient needs team:security."
-        />
-        <Toggle
-          checked={rules.escrow}
-          onChange={(v) => setRules((r) => ({ ...r, escrow: v }))}
-          label="Require a recovery recipient"
-          hint="One lost key never means lost secrets."
-        />
-        <Toggle
-          checked={rules.signed}
-          onChange={(v) => setRules((r) => ({ ...r, signed: v }))}
-          label="Signed commits on secret files"
-          hint="Stops tampering with recipients or file attributes."
-        />
+    <Panel className="space-y-3 p-5 text-sm">
+      <div className="flex items-center gap-2 font-medium">
+        <UserGroupIcon className="size-4" />
+        The team reads values. Nobody else does.
       </div>
-      <div className="space-y-2 border-t pt-4">
-        <SectionLabel>Try a push</SectionLabel>
-        <div className="flex gap-2">
-          <input
-            aria-label="A line to push"
-            value={line}
-            onChange={(e) => {
-              setLine(e.target.value)
-              setResult(null)
-            }}
-            className={cn(field, 'h-9 min-w-0 flex-1 font-mono text-xs')}
-          />
-          <Button variant="outline" onClick={run}>
-            Push
-          </Button>
-        </div>
-        {result && (
-          <p
-            role="status"
-            className={cn(
-              'rounded-xl border p-3 text-sm',
-              result.ok
-                ? 'border-success/40 bg-success/10'
-                : 'border-danger/40 bg-danger/10',
-            )}
-          >
-            {result.text}
-          </p>
-        )}
-      </div>
+      <p className="text-muted-foreground">
+        The team is {repo.owner} (every member, if it is an organization) and
+        the teams with write access. Each of them signs in a machine once, and
+        the values follow them there, with any agent they run on it. Anyone else
+        who can read this repository sees the names below and never a value: not
+        on this page, not in a clone, not through the API.
+      </p>
+      <CopyField
+        value={`sx env run --env development -R ${repo.owner}/${repo.name} -- bun dev`}
+        prefix="$"
+      />
+      <p className="text-xs text-muted-foreground">
+        Values go into that one process and are scrubbed from what it prints. No
+        .env file is written unless you ask for one with{' '}
+        <code>sx env pull --plaintext</code>.
+      </p>
     </Panel>
   )
 }
@@ -385,8 +344,7 @@ function Audit({ events }: { events: Array<AuditEvent> }) {
               {e.kind}
             </Chip>
             <span className="min-w-0 flex-1">
-              <span className="font-medium">{e.who}</span>{' '}
-              {e.action.toLowerCase()}{' '}
+              <span className="font-medium">{e.who}</span> {e.action}{' '}
               <span className="text-muted-foreground">{e.target}</span>
             </span>
             <span className="shrink-0 text-xs text-muted-foreground">
@@ -404,7 +362,6 @@ export function SecretsPage({ repo }: { repo: Repo }) {
   const overflow = useCodeOverflow()
   const theme = codeTheme(dark)
   const at = { owner: repo.owner, repo: repo.name }
-  const write = useWrite()
   const [env, setEnv] = React.useState<EnvName>('production')
   const vars: Array<EnvVar> = useOp('env.list', at).data.map((v) => ({
     name: v.name,
@@ -421,31 +378,15 @@ export function SecretsPage({ repo }: { repo: Repo }) {
     by: v.rotated_by ?? '',
   }))
   const [rotating, setRotating] = React.useState<EnvVar | null>(null)
-  const list: Array<Recipient> = useOp('env.recipients', at).data.map((r) => ({
-    id: r.id,
-    name: r.name ?? r.id,
-    kind: (['member', 'deploy', 'ci', 'agent', 'escrow'].includes(r.kind)
-      ? r.kind
-      : 'member') as Recipient['kind'],
-    fingerprint: r.fingerprint ?? '',
-    envs: r.environments,
-    added: r.added_at ? timeAgo(r.added_at) : '',
-    lastUsed: r.last_used_at ? timeAgo(r.last_used_at) : 'never',
-  }))
-  const [removing, setRemoving] = React.useState<Recipient | null>(null)
-  const events: Array<AuditEvent> = useOp('env.audit', at).data.map((a) => ({
-    when: timeAgo(a.at),
-    who: a.who,
-    action: a.action,
-    target: a.target ?? '',
-    kind: a.kind ?? 'read',
-  }))
-  const [newcomer, setNewcomer] = React.useState<{
-    kind: Recipient['kind']
-    name: string
-    key: string
-  } | null>(null)
-  const [error, setError] = React.useState('')
+  // The audit log is the team's: anyone else sees the names and no log.
+  const events: Array<AuditEvent> | null =
+    useOpMaybe('env.audit', at)?.data.map((a) => ({
+      when: timeAgo(a.at),
+      who: a.who,
+      action: a.action,
+      target: a.target ?? '',
+      kind: a.kind ?? 'read',
+    })) ?? null
   // The schema file, as the variables say it.
   const envSchema = vars
     .map(
@@ -453,8 +394,6 @@ export function SecretsPage({ repo }: { repo: Repo }) {
         `# ${v.description || v.name}\n# @type=${v.type}${v.sensitive ? ' @sensitive' : ''}${v.required.length ? ` @required=${v.required.join(',')}` : ''}\n${v.name}=`,
     )
     .join('\n\n')
-  const [file, setFile] = React.useState<'schema' | 'diff'>('schema')
-  const [adding, setAdding] = React.useState(false)
 
   const required = vars.filter((v) => v.required.includes(env))
   const missing = required.filter((v) => !v.set[env])
@@ -465,8 +404,8 @@ export function SecretsPage({ repo }: { repo: Repo }) {
         <div className="max-w-3xl space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">Secrets</h2>
           <p className="text-muted-foreground">
-            Commit your environment variables. Values are encrypted to the
-            people and machines that need them. This page shows names, types and
+            The names live in the repository; the values live here, sealed, and
+            only your team can read them. This page shows names, types and
             status, never values.
           </p>
         </div>
@@ -494,69 +433,31 @@ export function SecretsPage({ repo }: { repo: Repo }) {
           <Variables env={env} vars={vars} onRotate={setRotating} />
         </section>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <SectionLabel>Who can decrypt</SectionLabel>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAdding(true)}
-              >
-                <PlusIcon className="size-4" />
-                Add recipient
-              </Button>
-            </div>
-            <Recipients list={list} onRemove={setRemoving} />
-          </section>
-          <section className="space-y-3">
-            <SectionLabel>Push guard</SectionLabel>
-            <PushGuard vars={vars} />
-          </section>
-        </div>
+        <WhoReads repo={repo} />
 
-        <AgentAccess
-          repo={repo}
-          devVars={vars.filter((v) => v.set.development).map((v) => v.name)}
-        />
+        <Confirmations repo={repo} />
 
         <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <SectionLabel>In the repository</SectionLabel>
-            <Seg
-              value={file}
-              onChange={setFile}
-              options={[
-                ['schema', '.env.schema'],
-                ['diff', 'A rotation, as reviewed'],
-              ]}
+          <SectionLabel>In the repository</SectionLabel>
+          <div className="surface lit-edge overflow-hidden rounded-2xl border bg-card">
+            <File
+              file={{ name: '.env.schema', contents: envSchema }}
+              options={{ theme, overflow }}
             />
           </div>
-          <div className="surface lit-edge overflow-hidden rounded-2xl border bg-card">
-            {file === 'schema' ? (
-              <File
-                file={{ name: '.env.schema', contents: envSchema }}
-                options={{ theme, overflow }}
-              />
-            ) : (
-              <PatchDiff
-                patch={encryptedDiff}
-                options={{ theme, overflow, diffStyle: 'unified' }}
-              />
-            )}
-          </div>
           <p className="text-xs text-muted-foreground">
-            The schema is public to anyone who can read the repo: names, types
-            and which keys are secret. Values live in ciphertext next to it.
-            Review shows a changed line per key, so a rotation is reviewable
-            without exposing the value.
+            Anyone who can read the repository sees the schema: names, types and
+            which are secret. No value is ever committed, so a clone carries
+            none.
           </p>
         </section>
 
-        <section className="space-y-3">
-          <SectionLabel>Audit log</SectionLabel>
-          <Audit events={events} />
-        </section>
+        {events && (
+          <section className="space-y-3">
+            <SectionLabel>Audit log</SectionLabel>
+            <Audit events={events} />
+          </section>
+        )}
 
         <Panel className="space-y-3 p-5">
           <div className="flex items-center gap-2 font-medium">
@@ -566,11 +467,11 @@ export function SecretsPage({ repo }: { repo: Repo }) {
           <ul className="grid grid-cols-1 gap-3 text-sm text-muted-foreground md:grid-cols-3">
             <li>
               <span className="font-medium text-foreground">
-                Hide old history.
+                Take back what was read.
               </span>{' '}
-              Anyone who could decrypt a past commit still can. Removing a
-              person rotates the data key, and you still need to rotate the real
-              secrets at each provider.
+              Someone who leaves the team could have read values while on it.
+              Rotate the real credentials at each provider; the audit log says
+              who read what.
             </li>
             <li>
               <span className="font-medium text-foreground">
@@ -581,10 +482,11 @@ export function SecretsPage({ repo }: { repo: Repo }) {
             </li>
             <li>
               <span className="font-medium text-foreground">
-                Recover a lost key alone.
+                Stop a command you run.
               </span>{' '}
-              That is what the recovery recipient is for. Keep it offline with
-              two owners.
+              A process given values can still send them somewhere. Keep
+              production behind its confirmation, and run agents you do not
+              trust where outbound traffic is limited.
             </li>
           </ul>
         </Panel>
@@ -596,182 +498,6 @@ export function SecretsPage({ repo }: { repo: Repo }) {
         repo={repo}
         onClose={() => setRotating(null)}
       />
-
-      <Modal
-        open={removing !== null}
-        onClose={() => setRemoving(null)}
-        title={removing ? `Remove ${removing.name}` : ''}
-        description="This changes who can decrypt from now on."
-      >
-        {removing && (
-          <>
-            <ol className="list-decimal space-y-2 pl-5 text-sm">
-              <li>The data key is rotated in the same commit.</li>
-              <li>
-                {removing.name} can still read commits made before today. That
-                is{' '}
-                <span className="font-medium">
-                  {removing.envs.length} environment
-                  {removing.envs.length === 1 ? '' : 's'}
-                </span>{' '}
-                of history.
-              </li>
-              <li>
-                Rotate the real credentials they could see:{' '}
-                {vars
-                  .filter(
-                    (v) => v.sensitive && removing.envs.some((e) => v.set[e]),
-                  )
-                  .map((v) => v.name)
-                  .join(', ')}
-                .
-              </li>
-            </ol>
-            <CopyField
-              value={`source secrets remove ${removing.name} --rotate`}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setRemoving(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() =>
-                  void write('env.remove_recipient', {
-                    ...at,
-                    recipient: removing.id,
-                  }).then((r) => {
-                    setError(r.error?.message ?? '')
-                    setRemoving(null)
-                  })
-                }
-              >
-                Remove and rotate
-              </Button>
-            </div>
-          </>
-        )}
-      </Modal>
-
-      <Modal
-        open={adding}
-        onClose={() => setAdding(false)}
-        title="Add a recipient"
-        description="They get their own wrapped copy of the data key. A recipient change needs approval from team:security."
-      >
-        {newcomer ? (
-          <form
-            className="space-y-3 text-sm"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void write('env.add_recipient', {
-                ...at,
-                body: {
-                  name: newcomer.name.trim(),
-                  kind: newcomer.kind,
-                  fingerprint: newcomer.key.trim(),
-                  environments: [env],
-                },
-              }).then((r) => {
-                if (r.error) return setError(r.error.message)
-                setError('')
-                setNewcomer(null)
-                setAdding(false)
-              })
-            }}
-          >
-            <label className="block space-y-2">
-              <span className="text-muted-foreground">Name</span>
-              <input
-                value={newcomer.name}
-                onChange={(e) =>
-                  setNewcomer({ ...newcomer, name: e.target.value })
-                }
-                className={cn(field, 'h-9')}
-              />
-            </label>
-            <label className="block space-y-2">
-              <span className="text-muted-foreground">Public key</span>
-              <input
-                value={newcomer.key}
-                onChange={(e) =>
-                  setNewcomer({ ...newcomer, key: e.target.value })
-                }
-                placeholder="age1…"
-                className={cn(field, 'h-9 font-mono')}
-              />
-            </label>
-            <p className="text-xs text-muted-foreground">
-              For {env}. Values are encrypted to it the next time they are set.
-            </p>
-            {error && <p className="text-danger">{error}</p>}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => setNewcomer(null)}
-              >
-                Back
-              </Button>
-              <Button
-                variant="brand"
-                type="submit"
-                disabled={
-                  !newcomer.name.trim() || newcomer.key.trim().length < 4
-                }
-              >
-                Add recipient
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="grid grid-cols-1 gap-2">
-            {[
-              ['A person', 'Their device key, from their profile', UserIcon],
-              [
-                'A deploy target',
-                'A key held by your deploy platform',
-                CloudIcon,
-              ],
-              ['A CI job', 'Short-lived identity minted per run', KeyIcon],
-              [
-                'An agent',
-                'Runs commands with values it never sees; see Agent access',
-                ComputerDesktopIcon,
-              ],
-            ].map(([name, body, Icon]) => {
-              const I = Icon as typeof UserIcon
-              return (
-                <button
-                  key={name as string}
-                  type="button"
-                  onClick={() =>
-                    setNewcomer({
-                      kind: ({
-                        'A person': 'member',
-                        'A deploy target': 'deploy',
-                        'A CI job': 'ci',
-                        'An agent': 'agent',
-                      }[name as string] ?? 'member') as Recipient['kind'],
-                      name: '',
-                      key: '',
-                    })
-                  }
-                  className="raised flex items-center gap-3 rounded-lg border bg-card p-3 text-left text-sm hover:bg-muted"
-                >
-                  <I className="size-4" />
-                  <span>
-                    <span className="block font-medium">{name as string}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {body as string}
-                    </span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </Modal>
     </>
   )
 }

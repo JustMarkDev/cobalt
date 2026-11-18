@@ -181,7 +181,7 @@ export function presentAnchor(a: Anchor) {
 
 export type Addressed = {
   patchSet: number
-  by: { id: string; handle: string; class: 'human' | 'agent' | 'bot' }
+  by: { id: string; handle: string }
   note: string
   at: number
 }

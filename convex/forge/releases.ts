@@ -243,7 +243,7 @@ export const create = mutation({
         outcome: 'unchanged',
       })
     const at = Date.now()
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const r: Release = {
       id: newId('release', at),
       tag: a.tag,
@@ -371,7 +371,7 @@ export const update = mutation({
       ctx,
       repo,
       a.withdrawn ? 'release.withdrawn' : 'release.updated',
-      await actorFor(ctx, p.handle, p.class),
+      await actorFor(ctx, p.handle),
       { object: 'release', id: next.id, number: null },
       a.fields,
       shown,

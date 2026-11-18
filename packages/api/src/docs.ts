@@ -1,3 +1,4 @@
+import { personPrincipal } from './auth'
 import { createHash } from 'node:crypto'
 import { formatSource } from './format'
 import { randomSource } from './ids'
@@ -128,6 +129,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
   const now = () => T0 + 3_600_000
   const mail = new MemoryMailer()
   const api = createSampleApi({
+    ephemeralSecrets: true,
     mail,
     mount: '/v1',
     base: BASE,
@@ -154,23 +156,30 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       headers?: Record<string, string>
       /** Raw bytes, for uploads. */
       bytes?: Uint8Array
+      /** Call as this person signed in to the app, as the web app does. */
+      session?: string
     } = {},
   ) => {
-    const token = init.token === undefined ? t.dana : init.token
+    const token = init.session
+      ? null
+      : init.token === undefined
+        ? t.dana
+        : init.token
     const headers: Record<string, string> = { ...init.headers }
     if (token) headers.authorization = `Bearer ${token}`
     if (init.body !== undefined) headers['content-type'] = 'application/json'
-    const res = await api.fetch(
-      new Request(`https://api.source.code/v1${path}`, {
-        method,
-        headers,
-        body: init.bytes
-          ? (init.bytes as unknown as BodyInit)
-          : init.body === undefined
-            ? undefined
-            : JSON.stringify(init.body),
-      }),
-    )
+    const req = new Request(`https://api.source.code/v1${path}`, {
+      method,
+      headers,
+      body: init.bytes
+        ? (init.bytes as unknown as BodyInit)
+        : init.body === undefined
+          ? undefined
+          : JSON.stringify(init.body),
+    })
+    const res = init.session
+      ? await api.fetchAs(personPrincipal(init.session, Date.now()), req)
+      : await api.fetch(req)
     const binary =
       !(res.headers.get('content-type') ?? '').includes('json') &&
       res.status !== 204 &&
@@ -274,7 +283,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       },
     })
     await call('changes.create', 'POST', `${R}/changes`, {
-      token: t.fixAgent,
+      token: t.scoped,
       body: {
         branch: 'fix/trailing-dot-refs',
         title: 'Reject trailing-dot ref names',
@@ -550,53 +559,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('repos.create', 'POST', '/repos', {
       body: { name: 'notes2', description: 'Scratch', visibility: 'private' },
     })
-    // ----- runs
-    await call('runs.start', 'POST', `${R}/runs`, {
-      body: { task: 'Fix the flaky cache test', change: 216, ttl_minutes: 60 },
-    })
-    const runId = (out.get('runs.start')!.json as Json).id as string
-    const runToken = (out.get('runs.start')!.json as Json).token as string
-    await call('runs.note', 'POST', `${R}/runs/${runId}/notes`, {
-      token: runToken,
-      body: { text: 'Reproduced the failure on patch set 2' },
-    })
-    await call('runs.update', 'PATCH', `${R}/runs/${runId}`, {
-      token: runToken,
-      body: {
-        issue: 4,
-        harness: 'claude-code',
-        links: ['https://delta.example/threads/8c1f'],
-      },
-    })
-    await call(null, 'PATCH', R, { body: { transcripts: 'on' } })
-    const transcript = new TextEncoder().encode(
-      'user: why does the cache test flake?\nassistant: SX_TOKEN=sxp_Ab3dEf7hIj9kLm1nOp5qRs was set; the test reads a stale ref.\n',
-    )
-    const tu = (
-      await call(null, 'POST', '/uploads', {
-        body: {
-          filename: 'transcript.txt',
-          content_type: 'text/plain',
-          size: transcript.length,
-          purpose: 'transcript',
-        },
-      })
-    ).json as Json
-    await call(
-      null,
-      'PUT',
-      `/uploads/${tu.id}/data?${String(tu.upload_url).split('?')[1]}`,
-      {
-        token: null,
-        headers: { 'content-type': 'text/plain' },
-        bytes: transcript,
-      },
-    )
-    await call('runs.transcript.put', 'PUT', `${R}/runs/${runId}/transcript`, {
-      token: runToken,
-      body: { upload: tu.id },
-    })
-    await call('runs.transcript.get', 'GET', `${R}/runs/${runId}/transcript`)
     await call('changes.guide.put', 'PUT', `${R}/changes/216/guide`, {
       body: {
         summary: 'Caches missing refs so a lookup reads the disk once.',
@@ -626,26 +588,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('issues.presence.get', 'GET', `${R}/issues/4/presence`)
     await call('changes.timeline', 'GET', `${R}/changes/216/timeline?limit=5`)
     await call('issues.timeline', 'GET', `${R}/issues/4/timeline`)
-    await call('runs.list', 'GET', `${R}/runs`)
-    await call('runs.get', 'GET', `${R}/runs/${runId}`)
-    await call('runs.finish', 'POST', `${R}/runs/${runId}/finish`, {
-      token: runToken,
-      body: { state: 'succeeded', summary: 'Fixed in #217' },
-    })
-    const run2 = await call(null, 'POST', `${R}/runs`, {
-      body: { task: 'Triage new issues' },
-    })
-    await call(
-      'runs.claim',
-      'POST',
-      `${R}/runs/${(run2.json as Json).id as string}/claim`,
-    )
-    await call(
-      'runs.cancel',
-      'POST',
-      `${R}/runs/${(run2.json as Json).id as string}/cancel`,
-    )
-
     // ----- stars and contributors
     await call('stars.add', 'PUT', `${R}/star`)
     await call('stars.get', 'GET', `${R}/star`)
@@ -664,7 +606,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('accounts.profile', 'GET', '/accounts/dana/profile')
     await call('people.list', 'GET', '/people?limit=2', { token: null })
     await call('policy.rules', 'GET', `${R}/policy`)
-    await call('policy.update_rule', 'PATCH', `${R}/policy/rules/big-change`, {
+    await call('policy.update_rule', 'PATCH', `${R}/policy/rules/reviewed`, {
       body: { mode: 'enforce' },
     })
     await call('policy.create_rule', 'POST', `${R}/policy/rules`, {
@@ -684,7 +626,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       `${R}/policy/exceptions`,
       {
         body: {
-          rule: 'core-paths',
+          rule: 'reviewed',
           who: 'hollis',
           reason: 'On call this week',
           expires_at: '2026-11-14T09:00:00Z',
@@ -700,7 +642,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('policy.proposals.create', 'POST', `${R}/policy/proposals`, {
       body: {
         edits: [
-          { op: 'set_mode', rule: 'big-change', mode: 'enforce' },
+          { op: 'set_mode', rule: 'reviewed', mode: 'enforce' },
           {
             op: 'set_landing',
             fresh_approvals: true,
@@ -783,50 +725,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       'DELETE',
       '/accounts/dana/integrations/boat',
     )
-    await call('bots.list', 'GET', '/accounts/dana/bots')
-    await call('bots.create', 'POST', '/accounts/dana/bots', {
-      body: {
-        slug: 'docs-bot',
-        name: 'Docs bot',
-        description: 'Comments on documentation changes.',
-        scopes: ['repo:read', 'pulls:read', 'pulls:comment'],
-      },
-    })
-    await call('bots.install', 'PUT', `${R}/bots/docs-bot`, {
-      body: { installed: true },
-    })
-    await call('bots.update', 'PATCH', '/bots/docs-bot', {
-      body: { scopes: ['repo:read', 'pulls:read'] },
-    })
-    await call('bots.token', 'POST', '/bots/docs-bot/tokens', {
-      body: { days: 30 },
-    })
-    await call('automations.list', 'GET', `${R}/automations`)
-    const automation = await call(
-      'automations.create',
-      'POST',
-      `${R}/automations`,
-      {
-        body: {
-          name: 'Review docs changes',
-          bot: 'docs-bot',
-          triggers: ['change.opened', 'change.updated'],
-          runtime: 'Claude Code',
-          target: 'T3 Code',
-          instructions:
-            'Read the documentation changes and comment where they are unclear.',
-        },
-        headers: { 'idempotency-key': '9a4e1c7b-2d5f-4b8a-8e3c-6f1d0b7a2c55' },
-      },
-    )
-    const aid = (automation.json as Json).id as string
-    await call('automations.update', 'PATCH', `${R}/automations/${aid}`, {
-      body: { enabled: false },
-    })
-    await call('automations.run', 'POST', `${R}/automations/${aid}/run`, {
-      headers: { 'idempotency-key': '9d4e2b7a-1c6f-4a3e-8b5d-7f0c2a9e4b61' },
-    })
-    await call('automations.delete', 'DELETE', `${R}/automations/${aid}`)
     await call('links.list', 'GET', '/accounts/dana/links')
     await call('links.set', 'PUT', '/accounts/dana/links/gitlab', {
       body: { login: 'dana.okafor' },
@@ -984,46 +882,34 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       `${R}/mirrors/${(out.get('mirrors.create')!.json as Json).id}`,
     )
     await call('env.list', 'GET', `${R}/env?environment=development`)
-    await call('env.recipients', 'GET', `${R}/env/recipients`)
-    const recipient = await call(
-      'env.add_recipient',
-      'POST',
-      `${R}/env/recipients`,
-      {
-        body: {
-          name: 'preview deploy',
-          kind: 'deploy',
-          fingerprint: 'age1prev8k2…x9qt',
-          environments: ['preview'],
-        },
-      },
-    )
-    await call(
-      'env.remove_recipient',
-      'DELETE',
-      `${R}/env/recipients/${(recipient.json as Json).id as string}`,
-    )
     await call('env.set', 'PUT', `${R}/env/STRIPE_KEY/development`, {
-      body: { ciphertext: 'sx1.Zm9vYmFyYmF6cXV4cXV1eA==' },
-    })
-    await call('grants.request', 'POST', `${R}/env/grants`, {
-      token: t.fixAgent,
-      body: {
-        environment: 'development',
-        reason: 'Run the test suite',
-        max_runs: 10,
-      },
-    })
-    const grant = (out.get('grants.request')!.json as Json).id as string
-    await call('grants.list', 'GET', `${R}/env/grants`)
-    await call('grants.approve', 'POST', `${R}/env/grants/${grant}/approve`, {
-      body: { ttl_minutes: 30 },
+      body: { value: 'sk_test_51DocsDocsDocsDocs7q' },
     })
     await call('env.values', 'GET', `${R}/env/development/values`, {
-      token: t.fixAgent,
+      token: t.scoped,
     })
+    // Production waits for a confirmation from a signed-in page.
+    const asked = await call(null, 'GET', `${R}/env/production/values`, {
+      token: t.scoped,
+    })
+    const pending = (asked.json as { confirmation: { id: string } })
+      .confirmation.id
+    await call('confirmations.list', 'GET', `${R}/env/confirmations`, {
+      token: t.scoped,
+    })
+    await call(
+      'confirmations.confirm',
+      'POST',
+      `${R}/env/confirmations/${pending}/confirm`,
+      { session: 'dana', body: { ttl_minutes: 30 } },
+    )
     await call('env.audit', 'GET', `${R}/env/audit`)
-    await call('grants.revoke', 'POST', `${R}/env/grants/${grant}/revoke`)
+    await call(
+      'confirmations.revoke',
+      'POST',
+      `${R}/env/confirmations/${pending}/revoke`,
+      { session: 'dana' },
+    )
 
     const started = await call(
       'stacks.land',
@@ -1219,10 +1105,10 @@ const pages: Array<{
     file: 'accounts',
     title: 'Accounts',
     description:
-      'Who you can act as, profiles, organizations, members, invitations and teams, follows and the directory of people, your preferences, inbox and dashboard, connected services, linked accounts and bots.',
+      'Who you can act as, profiles, organizations, members, invitations and teams, follows and the directory of people, your preferences, inbox and dashboard, connected services and linked accounts.',
     icon: 'UsersIcon',
     match: (id) =>
-      /^(accounts|members|invitations|teams|people|follows|preferences|notifications|integrations|links|bots|dashboard)\./.test(
+      /^(accounts|members|invitations|teams|people|follows|preferences|notifications|integrations|links|dashboard)\./.test(
         id,
       ),
   },
@@ -1235,12 +1121,12 @@ const pages: Array<{
     match: (id) => /^(repos|stars|releases|imports)\./.test(id),
   },
   {
-    file: 'runs-and-automations',
-    title: 'Runs and automations',
+    file: 'pipelines',
+    title: 'Pipelines',
     description:
-      'Pipeline runs and their logs, agent runs with their tokens, and automations that start a run on an event, on a schedule or by hand.',
+      'Pipeline runs on your own runners, their jobs, steps and logs.',
     icon: 'PlayIcon',
-    match: (id) => /^(pipelines|runs|automations)\./.test(id),
+    match: (id) => id.startsWith('pipelines.'),
   },
   {
     file: 'git-data',
@@ -1326,11 +1212,11 @@ const pages: Array<{
     file: 'secrets-and-mirrors',
     title: 'Secrets and mirrors',
     description:
-      'Environment variables without values, grants that let an agent use them, and copies on other hosts.',
+      "Environment variables and their sealed values for the repository's team, confirmations for production values, and copies on other hosts.",
     icon: 'LockClosedIcon',
     match: (id) =>
       id.startsWith('env.') ||
-      id.startsWith('grants.') ||
+      id.startsWith('confirmations.') ||
       id.startsWith('mirrors.'),
   },
 ]
@@ -1495,8 +1381,10 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
       'signature_invalid',
       'insufficient_scope',
       'forbidden',
-      'human_required',
-      'grant_required',
+      'session_required',
+      'confirmation_required',
+      'denounced',
+      'model_declined',
     ],
   ],
   ['Where it is', ['not_found', 'moved']],
@@ -1510,8 +1398,6 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
       'version_mismatch',
       'limit_reached',
       'upload_incomplete',
-      'transcripts_disabled',
-      'transcript_has_secrets',
     ],
   ],
   [
@@ -1523,7 +1409,7 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
     ],
   ],
   ['Limits', ['rate_limited', 'concurrency_limited']],
-  ['Our side', ['backend_unavailable', 'internal']],
+  ['Our side', ['backend_unavailable', 'secrets_unavailable', 'internal']],
 ]
 
 /** Hints are plain text; make anything MDX would read as markup into code. */
@@ -1555,8 +1441,8 @@ function mdxSafe(text: string) {
       `\`${tok}\``,
     )
   return out
-    .replace('`sxp_, sxb_, sxr_ or sxo_`', '`sxp_`, `sxb_`, `sxr_` or `sxo_`')
-    .replace('sxp_, sxb_, sxr_ or sxo_', '`sxp_`, `sxb_`, `sxr_` or `sxo_`')
+    .replace('`sxp_ or sxo_`', '`sxp_` or `sxo_`')
+    .replace('sxp_ or sxo_', '`sxp_` or `sxo_`')
 }
 
 function errorsPage() {

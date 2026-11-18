@@ -17,7 +17,7 @@ async function toRefs(ctx: QueryCtx, names: Array<string>) {
 }
 
 /** The current lowercase names; repositories that are gone drop out. */
-async function toNames(ctx: QueryCtx, refs: Array<string>) {
+async function toNames(ctx: QueryCtx, refs: Array<string>, since: number) {
   const names: Array<string> = []
   for (const ref of refs) {
     if (ref.startsWith('n:')) {
@@ -27,7 +27,10 @@ async function toNames(ctx: QueryCtx, refs: Array<string>) {
       continue
     }
     const r = await repoByPublicId(ctx, ref)
-    if (r) names.push(`${r.owner}/${r.name}`.toLowerCase())
+    // A repository that changed hands after the token was made is not one
+    // its new owner gave it.
+    if (r && !((r.ownerSince ?? -1) >= since))
+      names.push(`${r.owner}/${r.name}`.toLowerCase())
   }
   return names
 }
@@ -36,12 +39,12 @@ export async function record(ctx: QueryCtx, t: Doc<'tokens'>) {
   return {
     id: t.publicId,
     name: t.name,
-    kind: t.kind,
+    kind: t.kind === 'oauth' ? ('oauth' as const) : ('personal' as const),
     handle: t.handle,
     actingAs: t.actingAs,
-    class: t.class,
+    device: t.device ?? null,
     scopes: t.scopes,
-    repos: t.repos ? await toNames(ctx, t.repos) : null,
+    repos: t.repos ? await toNames(ctx, t.repos, t.createdAt) : null,
     audience: t.audience,
     prefix: t.prefix,
     createdAt: t.createdAt,
@@ -50,6 +53,7 @@ export async function record(ctx: QueryCtx, t: Doc<'tokens'>) {
     revokedAt: t.revokedAt,
     ...(t.authorizationId ? { authorizationId: t.authorizationId } : {}),
     ...(t.limitKey ? { limitKey: t.limitKey } : {}),
+    ...(t.loginId ? { loginId: t.loginId } : {}),
   }
 }
 
@@ -58,16 +62,17 @@ export async function mintToken(
   args: {
     id?: string
     name: string
-    kind: 'personal' | 'bot' | 'run' | 'oauth'
+    kind: 'personal' | 'oauth'
     handle: string
     actingAs?: string
-    class: 'human' | 'agent' | 'bot'
+    device?: string | null
     scopes: Array<string>
     repos?: Array<string> | null
     audience?: Array<'api' | 'mcp'>
     ttlMs: number
     authorizationId?: string
     limitKey?: string
+    loginId?: string
     secret?: string
   },
 ) {
@@ -80,7 +85,7 @@ export async function mintToken(
     kind: args.kind,
     handle: args.handle,
     actingAs: args.actingAs ?? args.handle,
-    class: args.class,
+    device: args.device ?? null,
     scopes: [...args.scopes],
     repos: args.repos ? await toRefs(ctx, args.repos) : null,
     audience: args.audience ?? ['api', 'mcp'],
@@ -91,6 +96,7 @@ export async function mintToken(
     revokedAt: null,
     ...(args.authorizationId ? { authorizationId: args.authorizationId } : {}),
     ...(args.limitKey ? { limitKey: args.limitKey } : {}),
+    ...(args.loginId ? { loginId: args.loginId } : {}),
   })
   return {
     record: await record(ctx, (await ctx.db.get('tokens', id))!),

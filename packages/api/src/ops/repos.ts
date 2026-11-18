@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
 import { contextMarkdown } from '../markdown'
-import { ApiError } from '../problem'
+import { ApiError, apiError } from '../problem'
 import { afterOf, fp, listOf, pageShape, repoParams } from './common'
 
 const common = {
@@ -230,15 +230,37 @@ export const updateRepo = defineOp({
     website: webAddress.nullable().optional(),
     docs_url: webAddress.nullable().optional(),
     install: z.string().min(1).max(200).nullable().optional(),
-    transcripts: z
-      .enum(['off', 'on'])
-      .optional()
-      .describe('Let agent runs attach their transcripts'),
-    run_trailer: z
-      .enum(['auto', 'on', 'off'])
+    declined_models: z
+      .array(z.string().min(1).max(80))
+      .max(50)
       .optional()
       .describe(
-        'Keep the `Run-Id:` commit trailer. `auto`: in private repositories only',
+        'Declared models to take no changes from, compared without case. Replaces the list',
+      ),
+    auto_land: z
+      .boolean()
+      .optional()
+      .describe(
+        'Land a change by itself once it can. You answer for what lands this way',
+      ),
+    vouched: z
+      .array(z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i))
+      .max(1000)
+      .optional()
+      .describe(
+        'Accounts you trust; their changes come first. Replaces the list',
+      ),
+    denounced: z
+      .array(
+        z.strictObject({
+          handle: z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i),
+          reason: z.string().min(1).max(300),
+        }),
+      )
+      .max(1000)
+      .optional()
+      .describe(
+        'Accounts that may not open changes or issues here. Replaces the list',
       ),
   }),
   response: S.Repo,
@@ -251,6 +273,20 @@ export const updateRepo = defineOp({
   ],
   handler: (ctx) =>
     Effect.gen(function* () {
+      // Landing by itself lands under this login: it must be one that may land.
+      if (ctx.body.auto_land && !ctx.principal!.scopes.has('pulls:merge'))
+        return yield* Effect.fail(
+          apiError(
+            'insufficient_scope',
+            'Turning on auto-land needs the pulls:merge scope: changes will land under this login.',
+            {
+              extra: {
+                required_scopes: ['pulls:merge'],
+                token_scopes: [...ctx.principal!.scopes],
+              },
+            },
+          ),
+        )
       const { run } = yield* Domain
       return yield* run((d) =>
         d.updateRepo(
@@ -269,7 +305,7 @@ export const transferRepo = defineOp({
   id: 'repos.transfer',
   summary: 'Give a repository to another account',
   description:
-    'Owners and admins of the repository, into an account where they are an owner or admin. Send `confirm` with the current `owner/name`. The old address answers `308` with the new one, and webhooks, mirrors, variables and agent grants move with it. Teams of the account it leaves lose their access.',
+    'Owners and admins of the repository, into an account where they are an owner or admin. Send `confirm` with the current `owner/name`. The old address answers `308` with the new one. Within the same account it is a rename and everything stays. To another account, only the code, its history and its changes and issues go: secret values, production confirmations, the secrets audit log, webhooks, mirrors, integrations, collaborators, maintainers, team grants, auto-land, declined models, vouched and denounced accounts stay behind, and tokens limited to it stop reaching it. Variable names stay; the new owner sets values.',
   tags: ['repositories'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/transfer',

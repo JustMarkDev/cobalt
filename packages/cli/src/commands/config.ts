@@ -44,7 +44,7 @@ export const config: Command = ({ rest }, ctx) => {
       throw new SxError(
         'missing_argument',
         'config set needs a key and a value.',
-        'Example: sx config set agent.target boat',
+        'Example: sx config set handoff.to boat',
         exit.usage,
       )
     writeConfig({ ...readConfig(), [key]: value })

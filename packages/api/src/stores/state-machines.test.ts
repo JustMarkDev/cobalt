@@ -58,7 +58,12 @@ afterEach(() => {
   failAfterWrite.armed = false
 })
 
-const SYSTEM = { subject: '~system', sx_cls: 'bot', sx_sys: 'true', sx_scp: '' }
+const SYSTEM = {
+  subject: '~system',
+  sx_api: 'true',
+  sx_sys: 'true',
+  sx_scp: '',
+}
 const advance = (ms: number) => setSystemTime(new Date(Date.now() + ms))
 
 async function setup() {
@@ -73,7 +78,7 @@ async function setup() {
     t.withIdentity({
       subject: 'dana',
       sx_tok: 'tok',
-      sx_cls: 'human',
+      sx_api: 'true',
       sx_act: 'dana',
       sx_scp:
         'repo:read repo:write issues:read issues:write pulls:read pulls:write pulls:merge',
@@ -312,132 +317,6 @@ test('of two requests sending one upload its file, one is told no before keeping
   expect([a, b].find((x) => x !== null)).toContain('already has its file')
 })
 
-// ---- Agent runs --------------------------------------------------------------------
-
-test('runs whose token ran out do not hide the live ones from the limit', async () => {
-  const s = await setup()
-  const run = (expires: number) => ({
-    publicId: `run_${Math.random().toString(36).slice(2)}`,
-    repoId: s.repo._id,
-    repo: 'dana/gitfs',
-    task: 'old',
-    state: 'running' as const,
-    handle: 'dana',
-    change: null,
-    scopes: ['repo:read'],
-    tokenId: 'tok_none',
-    notes: [],
-    summary: null,
-    started: expires - 30 * MINUTE,
-    expires,
-    finished: null,
-    version: 1,
-  })
-  await s.t.run(async (ctx) => {
-    // A hundred runs nobody finished, from before expiry was written.
-    for (let i = 0; i < 100; i++)
-      await ctx.db.insert('runs', run(START - 60 * MINUTE))
-    // And twenty going now.
-    for (let i = 0; i < 20; i++)
-      await ctx.db.insert('runs', run(START + 60 * MINUTE))
-  })
-  // It used to look at the oldest hundred, see none live, and allow a 21st.
-  await expect(
-    s.dana().mutation(forge.forge.runs.start, {
-      owner: 'dana',
-      name: 'gitfs',
-      task: 'one too many',
-      ttl_minutes: 30,
-    }),
-  ).rejects.toThrow(/runs going at once/)
-})
-
-test('a run is written expired when its token runs out', async () => {
-  const s = await setup()
-  const started = JSON.parse(
-    await s.dana().mutation(forge.forge.runs.start, {
-      owner: 'dana',
-      name: 'gitfs',
-      task: 'Left alone',
-      ttl_minutes: 30,
-    }),
-  ) as { run: { id: string } }
-  const row = async () =>
-    (await s.t.run((ctx) => ctx.db.query('runs').collect())).find(
-      (r) => r.publicId === started.run.id,
-    )!
-  const scheduled = await s.t.run((ctx) =>
-    ctx.db.system.query('_scheduled_functions').collect(),
-  )
-  // Its expiry is booked for its deadline when it starts.
-  const at = (await row()).expires
-  expect(
-    scheduled.some(
-      (j) =>
-        j.name.includes('runs') &&
-        j.name.includes('expire') &&
-        j.scheduledTime === at,
-    ),
-  ).toBe(true)
-  advance(31 * MINUTE)
-  await s.t.mutation(internal.forge.runs.expire, { run: (await row())._id })
-  const after = await row()
-  // It used to stay `running` in the database for a week.
-  expect(after.state).toBe('expired')
-  expect(after.finished).toBe(after.expires)
-  const token = await s.t.run(async (ctx) =>
-    (await ctx.db.query('tokens').collect()).find(
-      (x) => x.publicId === after.tokenId,
-    ),
-  )
-  expect(token?.revokedAt).not.toBeNull()
-})
-
-// ---- Automations ---------------------------------------------------------------------
-
-test('turned-off automations never keep a due one from firing', async () => {
-  const s = await setup()
-  const automation = (n: number, enabled: boolean) => ({
-    repoId: s.repo._id,
-    publicId: `aut_${enabled ? 'on' : 'off'}${n}`,
-    name: `${enabled ? 'On' : 'Off'} ${n}`,
-    bot: 'triage-bot',
-    triggers: ['schedule'],
-    runtime: 'Claude Code',
-    target: 'T3 Code',
-    instructions: 'Look.',
-    enabled,
-    triggered: 0,
-    lastTriggered: null,
-    lastRun: null,
-    every: 'hour',
-    lastScheduled: START - 2 * 3_600_000,
-    // Turned off before the schedule was cleared on turning off.
-    nextRun: START - 3_600_000 - (enabled ? 0 : 1000),
-    created: START - 3 * 3_600_000,
-    version: 1,
-  })
-  await s.t.run(async (ctx) => {
-    for (let i = 0; i < 500; i++)
-      await ctx.db.insert('automations', automation(i, false))
-    await ctx.db.insert('automations', automation(0, true))
-  })
-  const tick = () => s.t.mutation(internal.forge.automations.tickSchedules, {})
-  // It used to read the first 500 due, skip every one, and never get here.
-  let fired = await tick()
-  if (fired === 0) fired = await tick()
-  expect(fired).toBe(1)
-  const all = await s.t.run((ctx) => ctx.db.query('automations').collect())
-  expect(all.find((a) => a.publicId === 'aut_on0')!.lastScheduled).toBe(START)
-  // And the turned-off ones left the queue.
-  expect(
-    all.filter(
-      (a) =>
-        !a.enabled && a.nextRun !== null && a.publicId.startsWith('aut_off'),
-    ),
-  ).toHaveLength(0)
-})
-
 // ---- Landing steps ---------------------------------------------------------------------
 
 async function landingStep(s: Awaited<ReturnType<typeof setup>>) {
@@ -471,11 +350,11 @@ async function landingStep(s: Awaited<ReturnType<typeof setup>>) {
     as: {
       handle: 'dana',
       actingAs: 'dana',
-      class: 'human' as const,
+      via: { machine: 'Laptop', tool: null, model: null },
       scopes: ['repo:read', 'repo:write'],
       repos: null,
     },
-    by: { id: 'acc_dana', handle: 'dana', class: 'human' as const },
+    by: { id: 'acc_dana', handle: 'dana' },
   }
   const step = (i: number) =>
     s.t.mutation(internal.forge.stackLanding.step, { ...args, i })

@@ -346,6 +346,7 @@ export abstract class DomainPolicy extends DomainPipelines {
       id: newId('event', at),
       sequence: 0,
       type: 'change.landed',
+      via: null,
       created_at: new Date(at).toISOString(),
       repo: `${repo.owner}/${repo.name}`,
       repo_id: repo.id,

@@ -7,8 +7,7 @@ type Json = Record<string, any>
 
 const line = (...parts: Array<string | null | undefined | false>) =>
   parts.filter(Boolean).join(' ')
-const who = (a: Json | null | undefined) =>
-  a ? `@${a.handle}${a.class !== 'human' ? ` (${a.class})` : ''}` : 'nobody'
+const who = (a: Json | null | undefined) => (a ? `@${a.handle}` : 'nobody')
 
 export function changeMarkdown(c: Json): string {
   const out: Array<string> = []

@@ -129,7 +129,6 @@ describe('rate limits across many nodes', () => {
       name: 'second',
       kind: 'personal',
       handle: 'dana',
-      class: 'human',
       scopes: ['repo:read'],
       ttlMs: 3_600_000,
     })

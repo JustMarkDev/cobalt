@@ -64,36 +64,6 @@ export function changeTarget(
   return canMove(changeLifecycle, c.state, to) ? to : null
 }
 
-// ---- Agent runs -------------------------------------------------------------
-
-export type RunState =
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'cancelled'
-  | 'expired'
-
-/** An agent's run. `expired` is written when its token runs out. */
-export const runLifecycle = machine<RunState>('run', {
-  running: ['succeeded', 'failed', 'cancelled', 'expired'],
-  succeeded: [],
-  failed: [],
-  cancelled: [],
-  expired: [],
-})
-
-/**
- * A run as it stands at `at`. The expiry is written by a scheduled write at
- * the deadline; until that lands (milliseconds), a running run past its
- * deadline already reads as expired, so no caller ever sees the gap.
- */
-export function runStateAt(
-  r: { state: RunState; expires: number },
-  at: number,
-): RunState {
-  return r.state === 'running' && r.expires <= at ? 'expired' : r.state
-}
-
 // ---- Long operations and their steps ------------------------------------------
 
 export type OperationState =
@@ -311,7 +281,7 @@ export const deviceLifecycle = machine<DeviceStatus>('device code', {
   denied: [],
 })
 
-// ---- Secret grants ----------------------------------------------------------------
+// ---- Production confirmations ----------------------------------------------------------------
 
 export type GrantState = 'pending' | 'active' | 'revoked'
 
@@ -320,30 +290,3 @@ export const grantLifecycle = machine<GrantState>('grant', {
   active: ['revoked'],
   revoked: [],
 })
-
-// ---- Automations -----------------------------------------------------------------
-
-export const AUTOMATION_INTERVAL = {
-  hour: 3_600_000,
-  day: 86_400_000,
-  week: 7 * 86_400_000,
-} as const
-
-/**
- * When a scheduled automation fires next: null when it has no schedule or is
- * turned off, so a turned-off automation is never due.
- */
-export function automationNextRun(a: {
-  enabled: boolean
-  triggers: ReadonlyArray<string>
-  every?: string
-  lastScheduled?: number
-  created: number
-}): number | null {
-  if (!a.enabled || !a.triggers.includes('schedule')) return null
-  const every: keyof typeof AUTOMATION_INTERVAL =
-    a.every !== undefined && a.every in AUTOMATION_INTERVAL
-      ? (a.every as keyof typeof AUTOMATION_INTERVAL)
-      : 'week'
-  return (a.lastScheduled ?? a.created) + AUTOMATION_INTERVAL[every]
-}

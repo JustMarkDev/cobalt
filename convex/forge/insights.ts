@@ -12,7 +12,6 @@ import { fail, out } from '../lib/errors'
 import { counters } from '../lib/events'
 import { presentRepo } from '../lib/present'
 import { countsOf } from './health'
-import { knownActor } from '../lib/issues'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
@@ -76,20 +75,39 @@ export const repoFacts = query({
     owner: v.string(),
     name: v.string(),
     at: v.number(),
-    logins: v.array(v.string()),
   },
   returns: v.string(),
   handler: async (ctx, a) => {
     const r = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
-    const classes: Record<string, string> = {}
-    for (const l of a.logins) {
-      const x = await knownActor(ctx, l)
-      if (x) classes[l] = x.class
-    }
+    // Patch sets by the model their tool declared, over the newest changes:
+    // the repository's own record of which models' work it took.
+    const models = new Map<string | null, number>()
+    for (const c of await ctx.db
+      .query('changes')
+      .withIndex('by_repoId_and_number', (q) => q.eq('repoId', r._id))
+      .order('desc')
+      .take(200))
+      for (const part of await ctx.db
+        .query('changeParts')
+        .withIndex('by_changeId_and_kind_and_seq', (q) =>
+          q.eq('changeId', c._id).eq('kind', 'patchSet'),
+        )
+        .take(100)) {
+        const model =
+          (JSON.parse(part.json) as { via?: { model?: string | null } }).via
+            ?.model ?? null
+        models.set(model, (models.get(model) ?? 0) + 1)
+      }
+    const byModel = [...models]
+      .map(([model, count]) => ({ model, count }))
+      .sort(
+        (x, y) =>
+          y.count - x.count || String(x.model).localeCompare(String(y.model)),
+      )
     const shown = await presentRepo(ctx, r, a.at)
     return out({
       repo: `${r.owner}/${r.name}`,
-      classes,
+      byModel,
       downloads: await downloads(ctx, [r], a.at),
       stars: { total: r.stars, today: shown.stars_today },
       issues: await countBy(ctx, 'issues', r),
@@ -202,28 +220,42 @@ export const dashboardFacts = query({
         openIssues: shown.open_issues,
         size,
         runs,
-        agentChanges: await Promise.all(
-          changes
-            .filter(
-              (c) =>
-                (c.state === 'open' || c.state === 'draft') &&
-                c.author.class !== 'human',
-            )
-            .map(async (c) => ({
-              number: c.number,
-              title: c.title,
-              state: c.state,
-              author: c.author.handle,
-              patchSets: (
-                await ctx.db
+        // Open work whose newest patch set came from a tool that declared a
+        // model: an agent at work, whoever's account it is.
+        agentChanges: (
+          await Promise.all(
+            changes
+              .filter((c) => c.state === 'open' || c.state === 'draft')
+              .map(async (c) => {
+                const parts = await ctx.db
                   .query('changeParts')
                   .withIndex('by_changeId_and_kind_and_seq', (q) =>
                     q.eq('changeId', c._id).eq('kind', 'patchSet'),
                   )
                   .take(500)
-              ).length,
-            })),
-        ),
+                const last = parts.at(-1)
+                const via = last
+                  ? ((
+                      JSON.parse(last.json) as {
+                        via?: {
+                          machine: string | null
+                          tool: string | null
+                          model: string | null
+                        }
+                      }
+                    ).via ?? null)
+                  : null
+                return {
+                  number: c.number,
+                  title: c.title,
+                  state: c.state,
+                  author: c.author.handle,
+                  patchSets: parts.length,
+                  via,
+                }
+              }),
+          )
+        ).filter((c) => !!c.via?.model),
       })
     }
     // Changes waiting on this person's review, and issues given to them.

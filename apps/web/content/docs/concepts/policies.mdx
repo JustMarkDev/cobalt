@@ -8,21 +8,20 @@ A policy says when it applies and what it requires. Policies live in `.source/po
 
 ```yaml title=".source/policy/main.yml"
 rules:
-  - id: core-paths
+  - id: ci-evidence # built in: green checks on the tree that lands
+    mode: enforce
+  - id: findings # built in: no open high finding
+    mode: enforce
+  - id: reviewed # built in: an approval, not from the author
+    mode: dry-run
+  - id: storage-owners
     when:
-      paths: ['src/**', '!src/**/tests/**']
+      paths: ['src/store/**']
     require:
-      - approval: { min: 1, class: human, from: team:maintainers }
-      - evidence: { check: ci/test, bound_to: tree }
-
-  - id: agent-authored
-    when: { author_class: agent }
-    require:
-      - approval: { min: 1, class: human }
-      - not_same_identity_as_author: true
+      - approval: { min: 1, from: [hollis] }
 
 exceptions:
-  - rule: core-paths
+  - rule: storage-owners
     for: ines
     reason: Release week, covering for hollis
     expires: 2026-11-12
@@ -35,16 +34,16 @@ exceptions:
 
 ## Parts of a rule
 
-| Key       | Meaning                                                             |
-| --------- | ------------------------------------------------------------------- |
-| `id`      | A name, shown wherever the rule blocks something                    |
-| `when`    | What the rule applies to: `paths`, `author_class`, `size`, `labels` |
-| `require` | What must be true before a change lands                             |
-| `mode`    | `enforce` (default), `dry-run` or `off`                             |
+| Key       | Meaning                                          |
+| --------- | ------------------------------------------------ |
+| `id`      | A name, shown wherever the rule blocks something |
+| `when`    | What the rule applies to: `paths`                |
+| `require` | What must be true before a change lands          |
+| `mode`    | `enforce` (default), `dry-run` or `off`          |
 
-## Approver classes
+## The same rules for every account
 
-Approvals come from a class: `human`, `agent` or `bot`. A rule can demand a human, accept an agent, or both. An agent never satisfies a requirement for a human.
+There are no approver classes. Every account follows the same rules, and whoever opened a change never counts as its approver, from any machine. Proof comes first: checks bound to the tree, and the AI reviewer's findings as the independent review. `reviewed` starts in dry run, so an approval is shown, not required, until you enforce it. Every write keeps a [receipt](/docs/concepts/agents#receipts) of the machine, tool and model.
 
 ## Evidence
 

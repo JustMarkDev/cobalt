@@ -6,15 +6,15 @@ import type { Document, YAMLMap, YAMLSeq } from 'yaml'
  * changes under, kept in the repository like its code.
  *
  *   rules:
- *     - id: core-paths          # a built-in rule: its mode only
+ *     - id: reviewed            # a built-in rule: its mode only
  *       mode: enforce
  *     - id: docs-review         # a rule of the repository's own
  *       name: Docs need a writer
  *       when: { paths: ["docs/**"] }
  *       require:
- *         - approval: { min: 1, class: human, from: [hollis] }
+ *         - approval: { min: 1, from: [hollis] }
  *   exceptions:
- *     - { id: exc_…, rule: core-paths, for: hollis, reason: "…", expires: 2026-12-01 }
+ *     - { id: exc_…, rule: reviewed, for: hollis, reason: "…", expires: 2026-12-01 }
  *   landing:
  *     strategy: squash
  *     fresh_approvals: true
@@ -31,6 +31,17 @@ export const POLICY_FILE = '.source/policy/main.yml'
 export const POLICY_DIR = '.source/policy/'
 
 export type RuleMode = 'enforce' | 'dry-run' | 'off'
+
+/**
+ * Built-in rules that were retired when changes stopped being judged by who
+ * typed them (a person, an agent or a bot). A file that still names one reads
+ * as before, and the rule does nothing.
+ */
+export const RETIRED_RULES: ReadonlySet<string> = new Set([
+  'core-paths',
+  'agent-authored',
+  'big-change',
+])
 
 export type CustomRule = {
   id: string
@@ -141,7 +152,6 @@ function ruleNode(r: CustomRule, mode: RuleMode): Record<string, unknown> {
       {
         approval: {
           min: r.approvals ?? 1,
-          class: 'human',
           ...(r.from?.length ? { from: r.from } : {}),
         },
       },
@@ -235,6 +245,9 @@ export function parsePolicy(
         return err(`${at}.id`, node, 'id is lowercase letters, digits and -.')
       if (ids.has(id)) return err(`${at}.id`, node, `${id} appears twice.`)
       ids.add(id)
+      // A built-in rule that no longer exists: an older file still reads,
+      // and its line is left alone.
+      if (RETIRED_RULES.has(id) && !known.has(id)) return
       if (r.mode !== undefined) {
         if (!MODES.includes(r.mode as string))
           err(`${at}.mode`, field('mode'), 'mode is enforce, dry-run or off.')
@@ -675,10 +688,8 @@ export function policyFileCheck(
     state: owners.length ? ('pass' as const) : ('pending' as const),
     detail: owners.length
       ? `${owners.join(', ')} approved the policy change on patch set ${head.n}.`
-      : `${POLICY_DIR} needs 1 human approval from a maintainer.`,
-    needs: owners.length
-      ? null
-      : { approval: { min: 1, class: 'human', from: 'maintainers' } },
+      : `${POLICY_DIR} needs 1 approval from a maintainer.`,
+    needs: owners.length ? null : { approval: { min: 1, from: 'maintainers' } },
   }
 }
 

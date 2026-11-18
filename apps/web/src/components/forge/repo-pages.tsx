@@ -10,7 +10,7 @@ import {
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, SectionLabel, Seg, Tile } from './bits'
 import { slugOf } from './repo-shell'
-import { WorkWithAgent } from './work-with-agent'
+import { HandOff } from './hand-off'
 import type { Repo } from '~/lib/model/data'
 import type { Label } from '@source-code/sdk'
 import { compact, latestStable } from '~/lib/model/data'
@@ -355,7 +355,7 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
             </div>
           </div>
           {issue.state === 'open' && (
-            <WorkWithAgent
+            <HandOff
               repo={slugOf(repo)}
               subject={{
                 kind: 'issue',
@@ -505,7 +505,11 @@ export function InsightsPage({ repo }: { repo: Repo }) {
     label: `W${i + 1}`,
     value,
   }))
-  const { human, agent, bot } = ins.commits.by_class
+  // By the model each patch set declared; none declared is shown as such.
+  const byModel = ins.commits.by_model.map((m) => ({
+    name: m.model ?? 'No model declared',
+    value: m.count,
+  }))
   return (
     <>
       <div className="space-y-10">
@@ -547,19 +551,12 @@ export function InsightsPage({ repo }: { repo: Repo }) {
 
         <section className="space-y-3">
           <h2 className="text-sm font-medium">
-            Commits per week, by people, agents and bots
+            Commits per week, and the models they were written with
           </h2>
           <Panel className="h-56 p-3">
             <TrendChart data={weekly} unit="Commits" className="h-full" />
           </Panel>
-          <ShareBar
-            className="max-w-md"
-            data={[
-              { name: 'People', value: human },
-              { name: 'Agents', value: agent },
-              { name: 'Bots', value: bot },
-            ]}
-          />
+          <ShareBar className="max-w-md" data={byModel} />
         </section>
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">

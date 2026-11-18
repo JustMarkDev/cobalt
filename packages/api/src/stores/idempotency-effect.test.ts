@@ -59,7 +59,7 @@ async function setup() {
     t.withIdentity({
       subject: 'dana',
       sx_tok: 'tok',
-      sx_cls: 'human',
+      sx_api: 'true',
       sx_act: 'dana',
       sx_scp: 'repo:read repo:write issues:read issues:write',
       ...(key

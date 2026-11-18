@@ -45,7 +45,21 @@ function toSxError(status: number, problem: Record<string, unknown>): SxError {
   return e
 }
 
+/**
+ * What this process says it is, on every request: the tool (`Sx-Tool`) and
+ * the model behind it (`Sx-Model`). They go on the receipt of every write.
+ * An orchestrator sets them for the agents it starts (`SX_TOOL`, `SX_MODEL`);
+ * the MCP server fills the tool in from the client that connected. A
+ * repository can decline changes declared with a given model.
+ */
+export const declared: { tool: string; model: string | null } = {
+  tool: process.env.SX_TOOL || 'sx',
+  model: process.env.SX_MODEL || null,
+}
+
 export class ApiClient {
+  /** The tool this client declares, over the process's `declared.tool`. */
+  tool: string | undefined
   constructor(
     readonly base: string,
     private readonly token: string | null | (() => Promise<string | null>),
@@ -61,7 +75,9 @@ export class ApiClient {
     const qs = query.size ? `?${query}` : ''
     const headers: Record<string, string> = {
       accept: 'application/json',
-      'sx-agent': `sx-cli/${version}`,
+      'user-agent': `sx-cli/${version}`,
+      'sx-tool': this.tool ?? declared.tool,
+      ...(declared.model ? { 'sx-model': declared.model } : {}),
       ...init.headers,
     }
     const token =
@@ -88,9 +104,18 @@ export class ApiClient {
         )
       }
       // A renamed repository answers 308 with the new address. Follow it, keeping method and body.
+      // Only to the same server: the token goes with the request.
       const to = res.status === 308 ? res.headers.get('location') : null
       if (to) {
-        url = to
+        const next = new URL(to, url)
+        if (next.origin !== new URL(url).origin)
+          throw new SxError(
+            'redirect_refused',
+            `The server pointed to another host (${next.origin}); sx does not send your login there.`,
+            'Check SX_API.',
+            exit.error,
+          )
+        url = next.href
         continue
       }
       const text = await res.text()
@@ -147,6 +172,8 @@ function sampleApi(): Promise<SampleApi> {
         mount: '/v1',
         base: 'https://api.source.code/v1',
         allowPrivateWebhooks: false,
+        // Sample values, sealed for as long as this process runs.
+        ephemeralSecrets: true,
       }) as SampleApi,
   )
   return sample
@@ -156,7 +183,7 @@ export const SAMPLE_BASE = 'https://api.source.code/v1'
 
 // The sample's tokens are in the repository, so they only exist here.
 const SAMPLE_PERSON = 'sxp_dana_full_access_0001'
-const SAMPLE_AGENT = 'sxb_fix_agent_scoped_03'
+const SAMPLE_SCOPED = 'sxp_dana_scoped_gitfs_03'
 
 /**
  * A stored access token, refreshed shortly before it expires. Requests made
@@ -229,10 +256,11 @@ export function makeClient(): ApiClient {
       )
     return new ApiClient(base, provider, (req) => fetch(req), 'network')
   }
-  const asAgent = process.env.SX_ACTOR === 'agent'
+  // SX_SAMPLE_TOKEN=scoped tries the narrower token dana made for her agent.
+  const scoped = process.env.SX_SAMPLE_TOKEN === 'scoped'
   return new ApiClient(
     SAMPLE_BASE,
-    asAgent ? SAMPLE_AGENT : SAMPLE_PERSON,
+    scoped ? SAMPLE_SCOPED : SAMPLE_PERSON,
     async (req) => (await sampleApi()).fetch(req),
     'sample',
   )

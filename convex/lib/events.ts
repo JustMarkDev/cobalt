@@ -4,38 +4,34 @@ import { accountByHandle } from './access'
 import { now } from './time'
 import { internal } from '../_generated/api'
 import { track, tracked } from './stats'
-import type { ActorClass } from './actor'
+import { actorOf } from './actor'
+import type { Via } from './actor'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-export type ActorRef = { id: string; handle: string; class: ActorClass }
+export type ActorRef = { id: string; handle: string }
 
 /**
- * Who an action is recorded as. A person and an agent acting for them share a
- * handle but are not the same actor: policy counts approvals from people, and
- * a run token must never be mistaken for the person who started the run.
+ * Who an action is recorded as: the account, whatever typed the request.
+ * A handle with no account of its own here (a review service, say) gets an
+ * actor row so its id stays the same.
  */
 export async function actorFor(
   ctx: MutationCtx,
   handle: string,
-  cls: ActorClass,
 ): Promise<ActorRef> {
   const account = await accountByHandle(ctx, handle)
-  if (account && cls === 'human')
-    return { id: account.publicId, handle, class: cls }
+  if (account) return { id: account.publicId, handle }
   const own = await actorRow(ctx, handle)
-  if (!account && !own) {
-    const publicId = seededId('account', now(), handle)
-    await ctx.db.insert('actors', { key: handle, publicId, handle, class: cls })
-    return { id: publicId, handle, class: cls }
-  }
-  if (own && own.class === cls) return { id: own.publicId, handle, class: cls }
-  const key = `${handle}~${cls}`
-  const other = await actorRow(ctx, key)
-  if (other) return { id: other.publicId, handle, class: cls }
-  const publicId = seededId('account', now(), key)
-  await ctx.db.insert('actors', { key, publicId, handle, class: cls })
-  return { id: publicId, handle, class: cls }
+  if (own) return { id: own.publicId, handle }
+  const publicId = seededId('account', now(), handle)
+  await ctx.db.insert('actors', { key: handle, publicId, handle })
+  return { id: publicId, handle }
+}
+
+/** The receipt for the request being served: machine, tool, declared model. */
+export async function viaOf(ctx: QueryCtx): Promise<Via> {
+  return (await actorOf(ctx))?.via ?? { machine: null, tool: null, model: null }
 }
 
 function actorRow(ctx: QueryCtx, key: string) {
@@ -72,6 +68,8 @@ export async function emit(
   bump: Array<CounterField> = [],
   /** Whether the repository counts as updated. A webhook turning itself off does not. */
   touch = true,
+  /** A receipt that replaces the request's, when the server acts on its own. */
+  via?: Via,
 ): Promise<EventRecord> {
   const at = now()
   const c = await counters(ctx, repo)
@@ -89,7 +87,8 @@ export async function emit(
     created_at: new Date(at).toISOString(),
     repo: full,
     repo_id: repo.publicId,
-    actor: { object: 'actor', id: by.id, handle: by.handle, class: by.class },
+    actor: { object: 'actor', id: by.id, handle: by.handle },
+    via: via ?? (await viaOf(ctx)),
     subject,
     changes,
     data: (data ?? null) as EventRecord['data'],
@@ -110,13 +109,13 @@ export async function emit(
       to: state,
       at,
       eventId: record.id,
-      actor: by,
+      actor: { id: by.id, handle: by.handle },
+      via: record.via ?? undefined,
     })
   if (tracked(type))
     await track(ctx, type, by.handle, {
       repo_id: repo.publicId,
       visibility: repo.visibility,
-      actor_class: by.class,
     })
   await ctx.db.insert('forgeEvents', {
     stream: repo.publicId,

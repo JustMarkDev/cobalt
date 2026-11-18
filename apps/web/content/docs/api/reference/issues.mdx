@@ -60,7 +60,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues?state=all&limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.0.1.0-ie2q-KCPT1hAZ8wH"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.0.1.0-vQ8TjphmO-Te1LnY"
 ratelimit: "read";r=1185;t=60
 ```
 
@@ -86,8 +86,7 @@ ratelimit: "read";r=1185;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0qxd5nps5",
-        "handle": "tomas",
-        "class": "human"
+        "handle": "tomas"
       },
       "labels": ["docs"],
       "assignees": [],
@@ -115,8 +114,7 @@ ratelimit: "read";r=1185;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm08gbjfr85",
-        "handle": "hollis",
-        "class": "human"
+        "handle": "hollis"
       },
       "labels": ["feature"],
       "assignees": [],
@@ -189,7 +187,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/issues" \
 HTTP/1.1 201
 location: https://api.source.code/v1/repos/dana/gitfs/issues/220
 sx-outcome: created
-ratelimit: "write";r=109;t=60
+ratelimit: "write";r=108;t=60
 ```
 
 ```json
@@ -211,8 +209,7 @@ ratelimit: "write";r=109;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "labels": ["bug"],
   "assignees": [],
@@ -268,7 +265,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues/4" \
 
 ```http
 HTTP/1.1 200
-etag: W/"iss_01m60vspm0e27awv79.1.1.0-KO3isrAOBKaFndKd"
+etag: W/"iss_01m60vspm0e27awv79.1.1.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1184;t=60
 ```
 
@@ -291,16 +288,14 @@ ratelimit: "read";r=1184;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm064yg2dad",
-    "handle": "mira",
-    "class": "human"
+    "handle": "mira"
   },
   "labels": ["bug"],
   "assignees": [
     {
       "object": "actor",
       "id": "acc_01m203xrm0bw4d69nd",
-      "handle": "dana",
-      "class": "human"
+      "handle": "dana"
     }
   ],
   "comments": 2,
@@ -361,14 +356,14 @@ Send If-Match with the ETag you read. `state: closed` closes.
 ```bash
 curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/4" \
   -H "Authorization: Bearer $SX_TOKEN" \
-  -H "if-match: W/\"iss_01m60vspm0e27awv79.1.1.0-KO3isrAOBKaFndKd\"" \
+  -H "if-match: W/\"iss_01m60vspm0e27awv79.1.1.0-XXOZRe1tchpBajOB\"" \
   -H "Content-Type: application/json" \
   -d '{"state":"closed"}'
 ```
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=108;t=60
+ratelimit: "write";r=107;t=60
 ```
 
 ```json
@@ -390,16 +385,14 @@ ratelimit: "write";r=108;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm064yg2dad",
-    "handle": "mira",
-    "class": "human"
+    "handle": "mira"
   },
   "labels": ["bug"],
   "assignees": [
     {
       "object": "actor",
       "id": "acc_01m203xrm0bw4d69nd",
-      "handle": "dana",
-      "class": "human"
+      "handle": "dana"
     }
   ],
   "comments": 2,
@@ -456,7 +449,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/comments" \
 
 ```http
 HTTP/1.1 200
-etag: W/"iss_01m60vspm0e27awv79.2.c.0-KO3isrAOBKaFndKd"
+etag: W/"iss_01m60vspm0e27awv79.2.c.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1181;t=60
 ```
 
@@ -471,8 +464,7 @@ ratelimit: "read";r=1181;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "body": "Thanks for the report. I can reproduce this on main.",
       "created_at": "2026-10-28T21:00:00.000Z",
@@ -486,8 +478,7 @@ ratelimit: "read";r=1181;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0pqcgp142",
-        "handle": "ines",
-        "class": "human"
+        "handle": "ines"
       },
       "body": "Same here on macOS. The trailing dot is passed straight to the path join.",
       "created_at": "2026-10-29T04:12:00.000Z",
@@ -553,19 +544,18 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/issues/4/comments" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=104;t=60
+ratelimit: "write";r=103;t=60
 ```
 
 ```json
 {
   "object": "issue_comment",
-  "id": "cmt_01m6tq6r80yrw6ar9d",
+  "id": "cmt_01m6tq6r80dvhcf1ay",
   "issue": 4,
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "body": "Fixed by #217, closing.",
   "created_at": "2026-11-07T10:00:00.000Z",
@@ -611,8 +601,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/presence" \
 
 ```http
 HTTP/1.1 200
-etag: W/"a_PsyJHM-A5gJDIx"
-ratelimit: "read";r=1156;t=60
+etag: W/"M0mHpiyJZ16-mtEm"
+ratelimit: "read";r=1157;t=60
 ```
 
 ```json
@@ -626,8 +616,7 @@ ratelimit: "read";r=1156;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "path": null,
       "seen_at": "2026-11-07T10:00:00.000Z"
@@ -683,7 +672,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/issues/4/presence" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=73;t=60
+ratelimit: "write";r=75;t=60
 ```
 
 ```json
@@ -697,8 +686,7 @@ ratelimit: "write";r=73;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "path": null,
       "seen_at": "2026-11-07T10:00:00.000Z"
@@ -751,8 +739,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/timeline" \
 
 ```http
 HTTP/1.1 200
-etag: W/"PT9BBBPYojZePF0V"
-ratelimit: "read";r=1154;t=60
+etag: W/"UGudWJ542pznrSgm"
+ratelimit: "read";r=1155;t=60
 ```
 
 ```json
@@ -767,10 +755,9 @@ ratelimit: "read";r=1154;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
-      "run": null,
+      "via": null,
       "summary": "Thanks for the report. I can reproduce this on main.",
       "item": {
         "object": "issue_comment",
@@ -779,8 +766,7 @@ ratelimit: "read";r=1154;t=60
         "author": {
           "object": "actor",
           "id": "acc_01m203xrm0bw4d69nd",
-          "handle": "dana",
-          "class": "human"
+          "handle": "dana"
         },
         "body": "Thanks for the report. I can reproduce this on main.",
         "created_at": "2026-10-28T21:00:00.000Z",
@@ -796,10 +782,9 @@ ratelimit: "read";r=1154;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0pqcgp142",
-        "handle": "ines",
-        "class": "human"
+        "handle": "ines"
       },
-      "run": null,
+      "via": null,
       "summary": "Same here on macOS. The trailing dot is passed straight to the path join.",
       "item": {
         "object": "issue_comment",
@@ -808,8 +793,7 @@ ratelimit: "read";r=1154;t=60
         "author": {
           "object": "actor",
           "id": "acc_01m203xrm0pqcgp142",
-          "handle": "ines",
-          "class": "human"
+          "handle": "ines"
         },
         "body": "Same here on macOS. The trailing dot is passed straight to the path join.",
         "created_at": "2026-10-29T04:12:00.000Z",
@@ -817,7 +801,7 @@ ratelimit: "read";r=1154;t=60
         "version": 1
       }
     },
-    "…and 3 more"
+    "…and 2 more"
   ],
   "has_more": false,
   "next_cursor": null
@@ -862,13 +846,13 @@ Its author, or anyone who can change the repository.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80yrw6ar9d" \
+curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80dvhcf1ay" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=102;t=60
+ratelimit: "write";r=101;t=60
 ```
 
 ### `comments.update`
@@ -915,7 +899,7 @@ Its author only. Send If-Match with the ETag you read.
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80yrw6ar9d" \
+curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80dvhcf1ay" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"body":"Fixed by #217."}'
@@ -923,19 +907,18 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_0
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=103;t=60
+ratelimit: "write";r=102;t=60
 ```
 
 ```json
 {
   "object": "issue_comment",
-  "id": "cmt_01m6tq6r80yrw6ar9d",
+  "id": "cmt_01m6tq6r80dvhcf1ay",
   "issue": 4,
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "body": "Fixed by #217.",
   "created_at": "2026-11-07T10:00:00.000Z",
@@ -987,7 +970,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/labels" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.0.2.0-KO3isrAOBKaFndKd"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.0.2.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1182;t=60
 ```
 
@@ -1074,13 +1057,13 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/labels" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=107;t=60
+ratelimit: "write";r=106;t=60
 ```
 
 ```json
 {
   "object": "label",
-  "id": "lbl_01m6tq6r80jm2pgnhb",
+  "id": "lbl_01m6tq6r802gnwz809",
   "name": "windows",
   "color": "blue",
   "description": "Windows only",
@@ -1133,7 +1116,7 @@ curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/labels/windows" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=105;t=60
+ratelimit: "write";r=104;t=60
 ```
 
 ### `labels.update`
@@ -1190,13 +1173,13 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/labels/windows" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=106;t=60
+ratelimit: "write";r=105;t=60
 ```
 
 ```json
 {
   "object": "label",
-  "id": "lbl_01m6tq6r80jm2pgnhb",
+  "id": "lbl_01m6tq6r802gnwz809",
   "name": "windows",
   "color": "purple",
   "description": "Windows only",

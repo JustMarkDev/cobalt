@@ -53,8 +53,9 @@ http.route({
       before: p.before,
       after: p.after,
       pushedAt: Number.isNaN(at) ? Date.now() : at,
-      // The head commit's message, when the store sends it: its `Run-Id:`
-      // trailer names the run that made the commit.
+      // The head commit's message, when the store sends it: its trailers
+      // declare the model (`Assisted-by:`, a vendor `Co-Authored-By:`). Without
+      // it nothing is declared, so a declined model cannot be turned away.
       ...(typeof p.head_commit?.message === 'string'
         ? { message: p.head_commit.message.slice(0, 65536) }
         : {}),

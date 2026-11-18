@@ -1,45 +1,39 @@
 ---
 icon: CpuChipIcon
 title: Agents and the CLI
-description: Hand work to an agent and give it what it needs, safely.
+description: Hand work to an orchestrator, and let agents work under your login.
 ---
 
-## Start an agent
+## Sign the machine in once
 
 ```bash
-sx agent start #4 --target t3
+sx auth login
 ```
 
-`sx agent start` takes an issue or a change, builds a prompt from it, and prints the command that starts the agent where you chose. The prompt names the repository, the subject and its title, asks for a draft change, and points the agent at `sx context`.
+Every agent on the machine uses this login. Set `SX_MODEL` (and `SX_TOOL`, if the orchestrator does not) in the environment the agent runs `sx` in, so each write keeps the model on its receipt.
 
-| Target        | What you get                                                                                                            |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `t3`          | The `t3 thread start . "<prompt>" --worktree main` command, which opens a thread in a new worktree on your own computer |
-| `boat`, `e2b` | The prompt, to start in that service from its dashboard or API                                                          |
-
-<Callout title="What is documented">
-  Only parts the services document are used. T3 Code documents an MCP server and
-  the `t3` command. It has no deep link that opens a thread, so source.code
-  gives you the command rather than a one-click link.
-</Callout>
-
-## Give an agent context
+## Hand off
 
 ```bash
-sx context -R dana/gitfs
+sx handoff 216            # to T3 Code, on this machine
+sx handoff 4 --to boat    # to boat.dev, in the cloud
 ```
 
-Returns the default branch, open changes with their blockers, open issues, a policy summary and the env schema, as JSON. It is the first thing an agent should call.
+It builds the prompt from the issue or change (names and structure, never a secret value) and prints the command that hands it to the orchestrator. source.code starts no agent itself. Set the default with `sx config set handoff.to boat`.
 
-## What an agent never gets
+The MCP server has the same as `hand_off`.
 
-- Secret values. `sx context` and `sx env list` show names and kinds only. Decrypting is a separate grant for one environment, with an expiry.
-- Scopes it was not given. A token belongs to a bot, and a bot's scopes can only shrink while it is installed.
+## Teach an agent sx
 
-## Same rules as people
+```bash
+sx skill install                   # .claude/skills/sx/SKILL.md
+sx skill install --target agents   # a block in AGENTS.md
+```
 
-An agent's change goes through the same policy. `sx change land` exits `5` for an agent exactly as it does for you, and an agent cannot approve its own work.
+## Values
 
-## Teaching an agent sx
+```bash
+sx env run --env development -- bun test
+```
 
-No model has seen `sx`. `sx skill install` writes a short skill into the repository, and `sx commands` lists every command as JSON. See [Teach an agent to use sx](/docs/cli/agent-guide), or connect over [MCP](/docs/mcp).
+See [Secrets for agents](/docs/concepts/agent-secrets).

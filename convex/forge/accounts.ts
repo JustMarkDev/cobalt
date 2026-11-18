@@ -255,8 +255,6 @@ export const createOrganization = mutation({
           hint: 'Use a token that is not limited to repositories.',
         },
       )
-    if (p.class !== 'human')
-      fail('human_required', 'Only a person can create an organization.')
     const existing = await accountByHandle(ctx, args.handle)
     if (existing) {
       if (
@@ -592,7 +590,6 @@ export const acceptInvitation = mutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     const p = await signedIn(ctx)
-    if (p.class !== 'human') fail('human_required', 'Only a person can join.')
     if (p.repos)
       fail(
         'forbidden',

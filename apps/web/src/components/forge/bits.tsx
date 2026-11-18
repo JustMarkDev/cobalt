@@ -219,3 +219,51 @@ export function CopyAddress({ handle }: { handle: string }) {
     </button>
   )
 }
+
+/** A write's receipt: the machine, tool and model it came through. */
+export type Via = {
+  machine: string | null
+  tool: string | null
+  model: string | null
+}
+
+/**
+ * A receipt in words: `Claude Opus 5.5 in T3 Code, on Laptop`. The model and
+ * tool are what the client declared; the machine is the login's. Empty when
+ * there is nothing worth saying (a page in the browser).
+ */
+export function receiptText(via: Via | null | undefined): string {
+  if (!via) return ''
+  const tool = via.tool === 'source.code' ? null : via.tool
+  const what =
+    via.model && tool ? `${via.model} in ${tool}` : (via.model ?? tool ?? '')
+  const where =
+    via.machine && via.machine !== 'browser' ? `on ${via.machine}` : ''
+  return [what, where].filter(Boolean).join(', ')
+}
+
+/** The receipt, small and quiet, after a name. Hover says it is declared. */
+export function ReceiptNote({
+  via,
+  className,
+}: {
+  via: Via | null | undefined
+  className?: string
+}) {
+  const text = receiptText(via)
+  if (!text) return null
+  return (
+    <span
+      title={`Receipt: ${[
+        via?.machine && `machine ${via.machine}`,
+        via?.tool && `tool ${via.tool}`,
+        via?.model && `model ${via.model} (declared)`,
+      ]
+        .filter(Boolean)
+        .join(', ')}`}
+      className={cn('text-xs text-muted-foreground', className)}
+    >
+      {text}
+    </span>
+  )
+}

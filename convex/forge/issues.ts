@@ -1,6 +1,7 @@
 import { attachUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
 import { v } from 'convex/values'
+import { assertMayContribute } from '../lib/contribute'
 import { newId } from '@source-code/api/ids'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
@@ -158,13 +159,14 @@ export const create = mutation({
     }
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, args.owner, args.name, p, 'write')
+    assertMayContribute(repo, p, 'issue')
     const assignees =
       args.assignees && (await assignable(ctx, repo, args.assignees))
     const same = await openWithTitle(ctx, repo, args.title)
     if (same)
       return out({ issue: presentIssue(repo, same), outcome: 'unchanged' })
     const at = Date.now()
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const c = await counters(ctx, repo)
     await ctx.db.patch('repoCounters', c._id, { nextNumber: c.nextNumber + 1 })
     const body = args.body ?? ''
@@ -271,7 +273,7 @@ export const update = mutation({
       ctx,
       repo,
       after.state === 'closed' ? 'issue.closed' : 'issue.updated',
-      await actorFor(ctx, p.handle, p.class),
+      await actorFor(ctx, p.handle),
       { object: 'issue', id: after.publicId, number: after.number },
       fields,
       shown,
@@ -570,7 +572,7 @@ export const createComment = mutation({
     const repo = await resolve(ctx, args.owner, args.name, p)
     const i = await issueOf(ctx, repo, args.number)
     const at = Date.now()
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const id = await ctx.db.insert('issueComments', {
       issueId: i._id,
       repoId: repo._id,
@@ -720,7 +722,7 @@ export const addEvidence = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, args.owner, args.name, p)
     const i = await issueOf(ctx, repo, args.number)
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const at = Date.now()
     await attachUpload(ctx, args.upload.id, repo)
     const id = await ctx.db.insert('issueEvidence', {

@@ -135,13 +135,13 @@ function Landing() {
             ),
           },
           {
-            title: 'Agents are users, with limits',
-            body: 'Agents connect over the CLI or MCP with scoped tokens, follow the same policies as people, and never see a secret unless you grant it.',
+            title: 'Your agents, with receipts',
+            body: 'Agents work under your login and the same rules as everyone. Every write names the machine, tool and model, and a repository can turn away models it does not trust.',
             visual: (
               <ul className="space-y-1.5 font-mono text-xs text-muted-foreground">
-                <li>sx skill install</li>
-                <li>/mcp</li>
-                <li>exit 5 = stop</li>
+                <li>sx auth login</li>
+                <li>Claude Opus 5.5 in T3 Code</li>
+                <li>on Laptop</li>
               </ul>
             ),
           },

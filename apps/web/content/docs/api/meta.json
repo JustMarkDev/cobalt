@@ -12,7 +12,6 @@
     "events-and-sync",
     "webhooks",
     "repositories",
-    "runs",
     "search",
     "uploads",
     "rate-limits",

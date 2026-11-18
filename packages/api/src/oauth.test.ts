@@ -768,6 +768,28 @@ describe('device authorization', () => {
     expect((await poll()).json.error).toBe('invalid_grant')
   })
 
+  test('a machine may be given secret values, and a server can say no', async () => {
+    for (const [allow, expected] of [
+      [true, true],
+      [false, false],
+    ] as const) {
+      const now = clock()
+      const h = setup({ now, deviceDecrypt: () => allow })
+      const { client, json } = await start(h, 'repo:read secrets:decrypt')
+      await approveDevice(h, json.user_code)
+      now.advance(6000)
+      const t = await h.exchange({
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: json.device_code,
+        client_id: client,
+      })
+      const scopes = (
+        await h.call('GET', '/auth/principal', { token: t.json.access_token })
+      ).json.scopes as Array<string>
+      expect(scopes.includes('secrets:decrypt')).toBe(expected)
+    }
+  })
+
   test('polling too fast is told to slow down', async () => {
     const now = clock()
     const h = setup({ now })

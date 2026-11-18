@@ -9,10 +9,10 @@ Commands
   repo      list, view, create, clone
   change    list, view, create, land, checkout
   issue     list, view, create, close
-  env       list, set, pull, run, grant, rotate, recipients
+  env       list, set, run, pull, confirmations
   policy    check, explain
   mirror    list, add, sync, remove
-  agent     start (hand an issue or change to an agent)
+  handoff   hand an issue or change to an orchestrator (T3 Code, boat)
   context   everything an agent needs, no secret values
   config    list, get, set, path
   account   list, current, switch (one login, any account)
@@ -45,7 +45,6 @@ export const groupHelp: Record<string, string> = {
                           title = last commit, base = default branch
                           run again to add a patch set
                           --addresses cmt_1,cmt_2  threads the patch set fixes
-                          in an agent run (SX_RUN), adds a Run-Id: trailer
   timeline [number]       everything that happened to it, oldest first
   presence [number]       who else is looking, and at which file
                           --here [--path f] says you are; --leave that you left
@@ -66,7 +65,7 @@ export const groupHelp: Record<string, string> = {
 
   list [--state all]      open issues by default
   view <n>
-  timeline <n>            comments, runs, linked changes, oldest first
+  timeline <n>            comments, reviews, linked changes, oldest first
   presence <n>            who else is looking (--here, --leave)
   create <title>          --label bug,docs. Same title twice returns the open one.
   close <n>
@@ -74,12 +73,14 @@ export const groupHelp: Record<string, string> = {
   env: `sx env <command>   (--env development|preview|production)
 
   list                    names, kinds and whether each has a value. Never values.
-  set <NAME> <value|->    encrypt a value for an environment (- reads stdin)
-  pull                    write .env.local for an environment
-  run -- <command>        run with values injected into that process only; output is scrubbed (short values when standalone)
-  grant request|list|approve|revoke   time-limited access for agents (development or preview)
-  rotate                  rotate the data key
-  recipients              who can decrypt
+  set <NAME> -            set a value from stdin; the server seals it. Team only.
+  run -- <command>        run with values injected into that process only; output is scrubbed
+  pull --plaintext        write .env.local (0600). Prefer run: a file is what leaks.
+  confirmations           your production confirmations, and where to confirm one
+
+  Values follow your login: on the repository's team, any machine you sign in
+  on (sx auth login) reads them, and so does an agent you run there. Production
+  waits until you confirm the login on a signed-in page.
 `,
   policy: `sx policy <command>
 
@@ -93,10 +94,11 @@ export const groupHelp: Record<string, string> = {
   sync <id>
   remove <id>             stops mirroring. History here is untouched.
 `,
-  agent: `sx agent start <issue|change>   (--target t3|boat|e2b, --runtime claude|codex)
+  handoff: `sx handoff <issue|change|run:N>   (--to t3|boat)
 
-  Builds the prompt from the issue or change, the policies that apply and the
-  env schema (never values), then prints the command that starts the agent.
+  Builds the prompt from the issue or change and prints the command that hands
+  it to the orchestrator. source.code runs no agent: the orchestrator starts
+  one under your login, and its writes come back with a receipt.
 `,
   account: `sx account <command>
 
@@ -132,12 +134,12 @@ export const groupHelp: Record<string, string> = {
 }
 
 export const completions: Record<string, string> = {
-  bash: `_sx() { COMPREPLY=($(compgen -W "repo change issue env policy mirror agent context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
+  bash: `_sx() { COMPREPLY=($(compgen -W "repo change issue env policy mirror handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
 complete -F _sx sx
 `,
   zsh: `#compdef sx
-_arguments '1: :(repo change issue env policy mirror agent context config account auth skill mcp commands completion)'
+_arguments '1: :(repo change issue env policy mirror handoff context config account auth skill mcp commands completion)'
 `,
-  fish: `complete -c sx -f -a "repo change issue env policy mirror agent context config account auth skill mcp commands completion"
+  fish: `complete -c sx -f -a "repo change issue env policy mirror handoff context config account auth skill mcp commands completion"
 `,
 }

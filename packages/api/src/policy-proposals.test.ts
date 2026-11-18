@@ -42,18 +42,18 @@ describe('the rules live in the repository', () => {
       strategy: 'squash',
       fresh_approvals: false,
     })
-    const r = await h.call('PATCH', `${R}/policy/rules/big-change`, {
+    const r = await h.call('PATCH', `${R}/policy/rules/reviewed`, {
       body: { mode: 'off' },
     })
     expect(r.status).toBe(200)
-    expect(await modeOf(h, 'big-change')).toBe('off')
+    expect(await modeOf(h, 'reviewed')).toBe('off')
   })
 
   test('a proposal is a change to the file; it applies when it lands', async () => {
     const h = harness()
     const dry = await h.call('POST', `${R}/policy/proposals?dry_run=true`, {
       body: {
-        edits: [{ op: 'set_mode', rule: 'big-change', mode: 'enforce' }],
+        edits: [{ op: 'set_mode', rule: 'reviewed', mode: 'enforce' }],
       },
     })
     // A dry run answers 200, as every dry run does, with the diff and no change.
@@ -65,7 +65,7 @@ describe('the rules live in the repository', () => {
     const first = await h.call('POST', `${R}/policy/proposals`, {
       body: {
         edits: [
-          { op: 'set_mode', rule: 'big-change', mode: 'enforce' },
+          { op: 'set_mode', rule: 'reviewed', mode: 'enforce' },
           { op: 'set_landing', fresh_approvals: true },
         ],
       },
@@ -77,7 +77,7 @@ describe('the rules live in the repository', () => {
     const change = (await h.call('GET', `${R}/changes/${n}`)).json
     expect(change.title).toContain('Move the rules into the policy file')
     // Nothing applies yet.
-    expect(await modeOf(h, 'big-change')).toBe('dry-run')
+    expect(await modeOf(h, 'reviewed')).toBe('dry-run')
     const pending = (await h.call('GET', `${R}/policy`)).json.source.pending
     expect(pending.map((x: { change: number }) => x.change)).toEqual([n])
 
@@ -87,7 +87,7 @@ describe('the rules live in the repository', () => {
         edits: [
           {
             op: 'add_exception',
-            rule: 'core-paths',
+            rule: 'ci-evidence',
             who: 'hollis',
             reason: 'On call this week',
             expires_at: new Date(h.now() + 7 * 86_400_000).toISOString(),
@@ -113,7 +113,7 @@ describe('the rules live in the repository', () => {
     expect(after.source.state).toBe('file')
     expect(after.source.pending).toEqual([])
     expect(after.yaml).toContain('fresh_approvals: true')
-    expect(await modeOf(h, 'big-change')).toBe('enforce')
+    expect(await modeOf(h, 'reviewed')).toBe('enforce')
     // The exceptions there were moved with the rules, and the new one added.
     expect(after.exceptions.map((e: { who: string }) => e.who)).toEqual([
       'ines',
@@ -126,12 +126,12 @@ describe('the rules live in the repository', () => {
     const h = harness()
     const moved = await h.call('POST', `${R}/policy/proposals`, {
       body: {
-        edits: [{ op: 'set_mode', rule: 'big-change', mode: 'dry-run' }],
+        edits: [{ op: 'set_mode', rule: 'reviewed', mode: 'dry-run' }],
       },
     })
     await landIt(h, moved.json.change)
 
-    const patch = await h.call('PATCH', `${R}/policy/rules/big-change`, {
+    const patch = await h.call('PATCH', `${R}/policy/rules/reviewed`, {
       body: { mode: 'off' },
     })
     expect(patch.status).toBe(202)
@@ -139,7 +139,7 @@ describe('the rules live in the repository', () => {
       object: 'policy_proposal',
       created: true,
     })
-    expect(await modeOf(h, 'big-change')).toBe('dry-run')
+    expect(await modeOf(h, 'reviewed')).toBe('dry-run')
     const created = await h.call('POST', `${R}/policy/rules`, {
       body: {
         id: 'docs-review',
@@ -166,7 +166,7 @@ describe('the rules live in the repository', () => {
     ).toBe(false)
     // A built-in rule still cannot be deleted.
     expect(
-      (await h.call('DELETE', `${R}/policy/rules/core-paths`)).status,
+      (await h.call('DELETE', `${R}/policy/rules/ci-evidence`)).status,
     ).toBe(409)
   })
 
@@ -181,7 +181,7 @@ describe('the rules live in the repository', () => {
         kind: 'update',
         files: {
           '.source/policy/main.yml':
-            'rules:\n  - id: core-paths\n    mode: sometimes\n',
+            'rules:\n  - id: ci-evidence\n    mode: sometimes\n',
         },
       },
     })

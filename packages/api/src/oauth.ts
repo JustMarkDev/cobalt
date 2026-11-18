@@ -4,7 +4,8 @@ import type { DeviceStatus } from './lifecycles'
 import type { OAuthState } from './oauth-state'
 import { createHash } from 'node:crypto'
 import { randomSource } from './ids'
-import { oauthScopes, secretFor } from './auth'
+import { deviceScopes, oauthScopes, secretFor } from './auth'
+import { cleanLabel } from './via'
 import type { Audience, Scope, TokenService } from './auth'
 
 const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
@@ -150,6 +151,8 @@ type Device = {
   interval: number
   status: DeviceStatus
   handle: string | null
+  /** The machine, as the client named it: shown on the approval page. */
+  name?: string | null
 }
 
 /** How a device code is being polled: kept apart, so a poll never rewrites the code. */
@@ -172,6 +175,12 @@ export type OAuthOptions = {
   apiBase: string
   resources: { api: string; mcp: string }
   sessions: SessionResolver
+  /**
+   * Whether a device login (`sx auth login`) may also be given
+   * `secrets:decrypt`, beyond `userScopes`. Default: yes. Set it to refuse,
+   * or make it refuse for some people, and their machines read no values.
+   */
+  deviceDecrypt?: (handle: string) => boolean
   /** The most a person may delegate. */
   userScopes?: (handle: string) => ReadonlyArray<Scope>
   now?: () => number
@@ -323,7 +332,10 @@ const page = (
           "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
         'x-frame-options': 'DENY',
         'x-content-type-options': 'nosniff',
-        'referrer-policy': 'no-referrer',
+        // same-origin, not no-referrer: with no-referrer a browser posts this
+        // page's own forms with `Origin: null`, and the same-origin check
+        // refuses them. Codes in the URL still never reach another site.
+        'referrer-policy': 'same-origin',
         ...noStore,
         ...extra,
       },
@@ -511,9 +523,10 @@ export class OAuthServer {
   private parseScopes(
     raw: string | null | undefined,
     max: ReadonlyArray<Scope>,
+    grantable: ReadonlyArray<Scope> = oauthScopes,
   ): { error: string } | { scopes: Array<Scope> } {
     const asked = raw ? raw.split(/\s+/).filter(Boolean) : DEFAULT_SCOPES
-    const bad = asked.filter((s) => !oauthScopes.includes(s as Scope))
+    const bad = asked.filter((s) => !grantable.includes(s as Scope))
     if (bad.length)
       return { error: `Unknown or ungrantable scope: ${bad.join(' ')}.` }
     const scopes = asked as Array<Scope>
@@ -554,6 +567,8 @@ export class OAuthServer {
           'secrets:schema':
             'See the names of environment variables, never their values',
           'secrets:write': 'Set environment variables',
+          'secrets:decrypt':
+            'Read secret values of repositories your team owns, on this machine',
           'webhooks:read': 'Read webhooks',
           'webhooks:write': 'Create and change webhooks',
         } as Record<string, string>
@@ -734,8 +749,9 @@ export class OAuthServer {
         headers: { location: to.toString(), ...noStore },
       })
     }
-    const scopes = pending.scopes.filter((s) =>
-      this.maxScopes(user.handle).includes(s),
+    // A web application never gets values, whatever a person may delegate.
+    const scopes = pending.scopes.filter(
+      (s) => this.maxScopes(user.handle).includes(s) && oauthScopes.includes(s),
     )
     const code = `oac_${randomBytes(24).toString('base64url')}`
     const expires = this.now() + CODE_TTL
@@ -769,18 +785,18 @@ export class OAuthServer {
     audience: ReadonlyArray<Audience>,
     clientId: string,
   ) {
+    const auth = (await this.o.auth.getAuthorization(authorizationId))!
     const { secret } = await this.o.auth.create({
       name: clientName,
       kind: 'oauth',
       handle,
-      class: 'human',
       scopes,
       audience,
       ttlMs: ACCESS_TTL * 1000,
       authorizationId,
+      device: auth.device ?? null,
     })
     const refreshSecret = secretFor('refresh')
-    const auth = (await this.o.auth.getAuthorization(authorizationId))!
     const expires = Math.min(
       this.now() + REFRESH_TTL,
       auth.createdAt + REFRESH_MAX,
@@ -989,7 +1005,7 @@ export class OAuthServer {
         'invalid_target',
         'resource must be one this server protects.',
       )
-    const parsed = this.parseScopes(f.get('scope'), oauthScopes)
+    const parsed = this.parseScopes(f.get('scope'), deviceScopes, deviceScopes)
     if ('error' in parsed) return oauthError('invalid_scope', parsed.error)
     let userCode = ''
     for (let i = 0; i < 8; i++)
@@ -1004,6 +1020,7 @@ export class OAuthServer {
       interval: 5,
       status: 'pending',
       handle: null,
+      name: cleanLabel(f.get('device_name')),
     }
     const deviceHash = createHash('sha256').update(deviceCode).digest('hex')
     await this.state.set('device', deviceHash, device, device.expires)
@@ -1077,6 +1094,7 @@ export class OAuthServer {
       handle: d.handle!,
       scopes: d.scopes,
       audience: d.audience,
+      device: d.name ?? null,
     })
     return this.issue(
       a.id,
@@ -1141,8 +1159,14 @@ export class OAuthServer {
             ...d,
             status: to,
             handle: user.handle,
+            // What the person may delegate, and values only to a machine
+            // they sign in themselves.
+            // Values only to a machine the person signs in, and only as
+            // `deviceDecrypt` allows: it alone decides that scope.
             scopes: d.scopes.filter((s) =>
-              this.maxScopes(user.handle).includes(s),
+              s === 'secrets:decrypt'
+                ? (this.o.deviceDecrypt?.(user.handle) ?? true)
+                : this.maxScopes(user.handle).includes(s),
             ),
           },
           d.expires,
@@ -1155,7 +1179,7 @@ export class OAuthServer {
     }
     return page(
       'Connect a device',
-      `<h1>Connect ${esc(d.client.name)}</h1><p>Signed in as <strong>${esc(user.handle)}</strong>. Only approve if you started this on your own device. It will be able to:</p><ul>${d.scopes.map((s) => `<li>${esc(this.describeScope(s))} <code>${esc(s)}</code></li>`).join('')}</ul><form method="post" action="${esc(this.url('/device'))}"><input type="hidden" name="csrf" value="${esc(String(form.get('csrf')))}"><input type="hidden" name="user_code" value="${esc(code)}"><button name="decision" value="approve">Approve</button><button name="decision" value="deny">Deny</button></form>`,
+      `<h1>Connect ${esc(d.client.name)}${d.name ? ` on ${esc(d.name)}` : ''}</h1><p>Signed in as <strong>${esc(user.handle)}</strong>. Only approve if you started this yourself, on this machine, a moment ago. If someone sent you this link, deny it.</p>${d.scopes.includes('secrets:decrypt') ? '<p><strong>This machine will be able to read secret values</strong> of repositories your team owns, and so will any agent you run on it. Production values still ask you first.</p>' : ''}<p>It will be able to:</p><ul>${d.scopes.map((s) => `<li>${esc(this.describeScope(s))} <code>${esc(s)}</code></li>`).join('')}</ul><form method="post" action="${esc(this.url('/device'))}"><input type="hidden" name="csrf" value="${esc(String(form.get('csrf')))}"><input type="hidden" name="user_code" value="${esc(code)}"><button name="decision" value="approve">Approve</button><button name="decision" value="deny">Deny</button></form>`,
     )
   }
 }

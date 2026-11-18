@@ -130,7 +130,7 @@ A tool calls the API as the token that connected, so it can do what that token's
 
 ## What an agent never gets
 
-- **Secret values.** `get_context` and `list_env` return names and kinds only. Decrypting is a separate, expiring grant for one environment.
+- **Secret values.** `get_context` and `list_env` return names and kinds only. Values reach a command through `sx env run`, under the login of the machine, and production waits for you to confirm.
 - **Scopes it was not given.** A token belongs to a bot. A bot's scopes can shrink while it is installed and never grow. See [Agents](/docs/concepts/agents).
 
 ## How it works

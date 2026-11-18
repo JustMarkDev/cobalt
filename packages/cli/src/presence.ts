@@ -3,7 +3,7 @@ import { print, table } from './output'
 import type { Ctx } from './output'
 
 type Viewer = {
-  actor: { handle: string; class: string }
+  actor: { handle: string }
   path: string | null
   seen_at: string
 }
@@ -38,7 +38,7 @@ export async function showPresence(
     viewers.length
       ? table(
           viewers.map((v) => [
-            `${v.actor.handle}${v.actor.class === 'human' ? '' : ` (${v.actor.class})`}`,
+            v.actor.handle,
             v.path ?? '-',
             v.seen_at.slice(11, 19),
           ]),

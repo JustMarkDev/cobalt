@@ -31,6 +31,7 @@ export function harness(overrides: Parameters<typeof createSampleApi>[0] = {}) {
   const api = createSampleApi({
     mount: '/v1',
     now,
+    ephemeralSecrets: true,
     ...(onConvex
       ? { domainFactory: require('./convex-testing').convexFactory }
       : {}),

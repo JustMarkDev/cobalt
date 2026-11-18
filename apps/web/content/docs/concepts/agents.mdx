@@ -1,46 +1,48 @@
 ---
 icon: CpuChipIcon
 title: Agents
-description: Agents are users with limits, a record, and a place to work.
+description: One kind of account. Agents work under your login, and every write keeps a receipt.
 ---
 
-An agent in source.code has an identity, explicit scopes, a record of what it did, and a place to work.
+There is no separate kind of account for agents. An agent works under the login of the machine it runs on, so what it writes is yours, under the same rules as everything else you write. What changes is that every write says how it got here.
 
-## Bots and scopes
-
-A bot is a named identity with scopes such as `changes:write` or `secrets:schema`, installed on specific repositories.
-
-- While a bot is installed, its scopes can be reduced but not expanded. To add one, remove the install and reinstall where someone approves it.
-- A run gets a token limited to one repository and one run. There is no long-lived token in the loop.
-- `secrets:decrypt` is separate from `secrets:schema`. Reading names and types never implies reading values.
-
-Manage bots in **Settings, Agents and tokens**.
-
-## Automations
-
-An automation is an event, a bot, a place to run, and instructions. Set them up in a repository under **Settings, Automations**.
-
-Events: `issue.created`, `change.opened`, `change.updated`, `finding.raised`, `ci.failed`, `bot.mentioned`, `repository.pushed`, and a schedule.
-
-## Where an agent works
-
-You choose, per task, from the environments you have connected:
-
-- **T3 Code**: a thread on your own computer, with your own agent logins.
-- **boat.dev**: a clean cloud machine for the task. More sandboxes, such as E2B and Daytona, are planned.
-
-source.code does not host machines for agents or runners. See [Integrations](/docs/integrations).
-
-## Work with an agent
-
-On an issue or change, **Work with an agent** builds a prompt from the text, the policies that apply, open findings and the env schema, and gives you the command to start it:
+## Log in once per machine
 
 ```bash
-sx agent start 216 -R dana/gitfs --target t3
+sx auth login
 ```
 
-Secret values are never part of the prompt. See [Agents and the CLI](/docs/cli/agents).
+The approval page names the machine and says that it will be able to read your team's secret values. Approve it only if you started it yourself. From then on every agent on that machine (Claude Code, Codex, whatever T3 Code runs) uses the same login. There are no keys to paste and nothing that expires in the middle of a task. **Settings, Machines and tokens** lists every machine and token that can act as you, with a button to sign each out.
 
-## Same rules as people
+To give an agent less than you have, make it a personal token with fewer scopes or fewer repositories, and name its machine.
 
-An agent's change goes through the same [policies](/docs/concepts/policies) as anyone's. It cannot approve its own work.
+## Receipts
+
+Every write records, next to the account responsible:
+
+| Part    | From                                                     |
+| ------- | -------------------------------------------------------- |
+| Machine | The login: the name the machine gave when it signed in   |
+| Tool    | What the client declares: `sx`, `T3 Code`, an MCP client |
+| Model   | What the client declares, such as `Claude Opus 5.5`      |
+
+Orchestrators set `SX_TOOL` and `SX_MODEL` for the agents they start; `sx` and the MCP server send them on every request. A `git push` reads the model from the commit: `Assisted-by: <tool>:<model>`, or a `Co-Authored-By` with a model vendor's no-reply address.
+
+The receipt shows on the change, in the timeline, in the audit log and behind any line of code. source.code hosts no model and cannot check what a tool declares, so tool and model are labels: they grant nothing.
+
+## What a repository takes
+
+In **Settings, Contributions** an owner sets:
+
+- **Declined models.** Changes declared with these models are turned away (`model_declined`). It stops tools that report honestly, which is most of them.
+- **Vouched.** People whose changes are listed first. The checks are the same for everyone.
+- **Denounced.** Accounts that may not open changes or issues, with the reason they are shown.
+- **Land when green.** A change whose checks pass, with no open high finding and the policy met, lands by itself under the account that turned this on. Never a draft, a stacked change, or one that touches CI, policies or the env schema.
+
+## Proof, then one button
+
+Checks are evidence, and the AI reviewer's findings are the independent review. Landing is the person's act: one **Land** button, pressed with or without reading the diff, or the repository's land-when-green. Whoever opened a change can never approve it, from any machine.
+
+## Handing work off
+
+source.code starts no agent. **Hand off** on an issue, a change or a failing pipeline gives you the command that passes it to an orchestrator (T3 Code on your machine, or boat.dev in the cloud). The agent works under your login, opens a draft change, and its writes come back with receipts. See [Agents and the CLI](/docs/cli/agents).

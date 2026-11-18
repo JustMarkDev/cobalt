@@ -42,12 +42,19 @@ ${Object.entries(exitMeaning)
 
 ## Working on a task
 
-1. \`sx context\`, then read the issue or change you were given.
-2. Branch, commit, push with git as normal.
-3. \`sx change create --draft\`. Re-run it after each push; it adds a patch set.
-4. \`sx change view\` lists every requirement blocking the change.
-5. Never run \`sx change land\` yourself unless told to. If it exits 5, stop and
-   report the requirements. You cannot approve your own change.
+You work under the login of the machine you run on: whatever you write is
+the person's, and keeps a receipt with this machine, your tool and your model.
+
+1. Set \`SX_MODEL\` to the model you are (for example \`Claude Opus 5.5\`) in the
+   environment of every sx command, unless your orchestrator already did.
+   Commits you push can say it too: \`Assisted-by: <tool>:<model>\`.
+2. \`sx context\`, then read the issue or change you were given. \`rules\` says
+   which models this repository declines; if yours is one, stop and say so.
+3. Branch, commit, push with git as normal.
+4. \`sx change create --draft\`. Re-run it after each push; it adds a patch set.
+5. \`sx change view\` lists every requirement blocking the change.
+6. Never run \`sx change land\` yourself unless told to. Landing is the
+   person's act. If it exits 5, stop and report the requirements.
 
 ## Secrets
 
@@ -57,11 +64,12 @@ ${Object.entries(exitMeaning)
   \`sx env run --env development -- <command>\`. The values reach that process
   and are scrubbed from the output you get back. A value shorter than four
   characters is scrubbed only where it stands alone.
-- No grant yet? \`sx env grant request --env development --reason "<why>"\`. It
-  exits 6: stop and tell the person it needs approval. Retry after they approve.
 - Never put a value in a commit, a log, a comment or a prompt. Never run a
-  command whose job is to print or send environment variables.
-- Production values are not available to agents. Exit 6 means stop and ask.
+  command whose job is to print or send environment variables, and never
+  \`sx env pull\`: a plaintext file is what leaks.
+- Production values wait for the person to confirm this login. Exit 6 with
+  \`confirmation_required\` means stop, give them the link in the hint, and
+  retry after they confirm.
 - To store a value, pipe it: \`printf %s "$V" | sx env set NAME - --env development\`.
 
 ## Help

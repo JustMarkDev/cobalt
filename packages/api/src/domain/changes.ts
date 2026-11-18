@@ -1,3 +1,5 @@
+import { contributionRefusal, serverReceipt } from '../via'
+import { rulesReadChangedFiles } from '../policy-builtins'
 import {
   canMove,
   changeTarget,
@@ -31,7 +33,6 @@ import type {
   RepoRec,
   ReviewCommentRec,
   ReviewRec,
-  RunRec,
   TestCaseRec,
   ViaRec,
   Viewer,
@@ -45,7 +46,7 @@ import type { GuideBody } from '../guides'
 import type { SeenMark } from '../seen'
 import { parseEvent } from '../events'
 import { PRESENCE_INTERVAL } from '../presence'
-import { DEFAULT_LANDING } from '../policy-file'
+import { DEFAULT_LANDING, landingWaits } from '../policy-file'
 import type { Landing } from '../policy-file'
 import { hasAfterSteps, landingPlan, skipRest } from '../landing'
 import type { LandingStepRec } from '../landing'
@@ -63,6 +64,75 @@ type Entry = z.infer<typeof S.TimelineEntry>
 
 /** Changes: patch sets, reviews, checks, policy, landing and stacks. */
 export abstract class DomainChanges extends DomainIssues {
+  /**
+   * Whether a change could land by itself now, short of one question only the
+   * API server can answer (does it touch what protects the repository: policy,
+   * CI, env schema). Never a draft, a change in a stack, a landing with steps
+   * after it, or one whose enabler can no longer write here. The answer names
+   * the commit, so landing can refuse if the change moved since.
+   */
+  async autoLandCandidate(owner: string, name: string, ref: string) {
+    const repo =
+      this.repos.get(`${owner}/${name}`) ??
+      this.byLower(`${owner}/${name}`.toLowerCase())
+    const by = repo?.autoLand?.by
+    if (!repo || !by) return null
+    let c: ChangeRec
+    try {
+      c = this.getChangeRec(repo, ref)
+    } catch {
+      return null
+    }
+    if (c.state !== 'open' || c.stackId) return null
+    // A rebase keeps the old tree's checks and approvals on the client's
+    // word; nothing lands by itself on that word.
+    if (this.head(c).kind === 'rebase') return null
+    if (hasAfterSteps(repo.landing ?? DEFAULT_LANDING)) return null
+    if (rulesReadChangedFiles(repo.customRules ?? [])) return null
+    // The repository's own rules on who and what it takes hold here too.
+    if (
+      contributionRefusal(
+        repo,
+        c.author.handle,
+        this.head(c).via?.model ?? null,
+        'change',
+      )
+    )
+      return null
+    const canWrite =
+      this.isMember(repo.owner, by) ||
+      repo.collaborators.has(by) ||
+      this.teamLevel(repo, by) === 'write'
+    if (!canWrite) return null
+    if (this.policyState(this.evaluate(repo, c)) !== 'met') return null
+    // The landing's own gates (checks it waits on) hold as for a person.
+    if (
+      landingWaits(repo.landing ?? DEFAULT_LANDING, c.checks, this.head(c))
+        .length
+    )
+      return null
+    return {
+      full: `${repo.owner}/${repo.name}`,
+      by,
+      base: c.base,
+      sha: this.head(c).sha,
+    }
+  }
+
+  /** Lands it, if it is still a candidate at the same commit. */
+  async autoLand(owner: string, name: string, ref: string, sha: string) {
+    const ready = await this.autoLandCandidate(owner, name, ref)
+    if (!ready || ready.sha !== sha) return false
+    const repo = this.repos.get(ready.full)!
+    this.viaOverride = serverReceipt('auto-land')
+    try {
+      this.doLand(repo, this.getChangeRec(repo, ref), this.actorFor(ready.by))
+    } finally {
+      this.viaOverride = null
+    }
+    return true
+  }
+
   async addEvidence(
     owner: string,
     name: string,
@@ -212,7 +282,7 @@ export abstract class DomainChanges extends DomainIssues {
         throw apiError(code as never, detail, more)
       })
       if (at === 'base')
-        return { change: null, patch_set: null, run: null, on_base: c.base }
+        return { change: null, patch_set: null, via: null, on_base: c.base }
       ps = c.patchSets[at - 1]
     } else if (q.sha) {
       for (const x of repo.changes.values()) {
@@ -223,7 +293,6 @@ export abstract class DomainChanges extends DomainIssues {
         }
       }
     }
-    const run = ps?.via?.run ? this.runs.get(ps.via.run) : undefined
     return {
       change: c
         ? {
@@ -235,7 +304,7 @@ export abstract class DomainChanges extends DomainIssues {
           }
         : null,
       patch_set: ps?.n ?? null,
-      run: run ? this.presentRun(run) : null,
+      via: ps?.via ?? null,
       on_base: null,
     }
   }
@@ -257,8 +326,9 @@ export abstract class DomainChanges extends DomainIssues {
     },
   ) {
     const repo = this.resolve(owner, name, p, 'write')
+    this.assertMayContribute(repo, p!, 'change')
     const by = this.asActor(p!)
-    const via = this.viaOfCommit(repo, p!, body.message)
+    const via = this.viaOf(p!)
     const sha = body.sha ?? this.fakeSha(repo, body.branch)
     const existing = repo.openChangeByBranch.get(body.branch)
     const fail = (code: string, detail: string, more?: object) => {
@@ -374,7 +444,6 @@ export abstract class DomainChanges extends DomainIssues {
       }
     repo.nextNumber++
     this.seedChange(repo, c)
-    this.recordRunPatchSet(c, c.patchSets[0])
     this.changeEvent(repo, c, 'change.opened', by, ['state'])
     return {
       change: this.presentChange(repo, c, p),
@@ -459,7 +528,6 @@ export abstract class DomainChanges extends DomainIssues {
         c.commentRev = (c.commentRev ?? 0) + 1
       }
     })
-    this.recordRunPatchSet(c, this.head(c))
     this.changeEvent(
       repo,
       c,
@@ -474,14 +542,6 @@ export abstract class DomainChanges extends DomainIssues {
       addressed.length ? { addressed } : undefined,
     )
   }
-  /** A run lists the patch sets it pushed; its version covers them. */
-  protected recordRunPatchSet(c: ChangeRec, ps: PatchSetRec) {
-    const run = ps.via?.run ? this.runs.get(ps.via.run) : undefined
-    if (!run) return
-    ;(run.patchSets ??= []).push({ change: c.number, patchSet: ps.n })
-    run.version++
-  }
-
   async updateChange(
     owner: string,
     name: string,
@@ -544,7 +604,7 @@ export abstract class DomainChanges extends DomainIssues {
       author: this.actor(ps.author),
       files: Object.keys(ps.files).length,
       url: `${this.repoUrl(repo)}/changes/${c.number}/patch-sets/${ps.n}`,
-      run: ps.via?.run ?? null,
+      via: ps.via ?? null,
       created_at: iso(ps.created),
     }
   }
@@ -579,9 +639,19 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
+    this.assertMayContribute(repo, p!, 'change')
     const c = this.getChangeRec(repo, ref)
     if (c.state === 'landed' || c.state === 'abandoned')
       throw apiError('invalid_state', `Change #${c.number} is ${c.state}.`)
+    // A denounced author's change takes no more work, from anyone: the same
+    // rule a push meets.
+    const authorRefused = contributionRefusal(
+      repo,
+      c.author.handle,
+      null,
+      'change',
+    )
+    if (authorRefused) throw apiError(authorRefused.code, authorRefused.detail)
     // The threads this patch set answers, checked before anything is written.
     const addresses = body.addresses ?? []
     if (addresses.length)
@@ -800,11 +870,9 @@ export abstract class DomainChanges extends DomainIssues {
     if (c.state !== 'open' && c.state !== 'draft')
       throw apiError('invalid_state', `Change #${c.number} is ${c.state}.`)
     if (body.state === 'approved' && c.author.handle === by.handle)
-      throw apiError(
-        by.class === 'human' ? 'forbidden' : 'human_required',
-        'You cannot approve your own change.',
-        { hint: 'Ask someone else to review it.' },
-      )
+      throw apiError('forbidden', 'You cannot approve your own change.', {
+        hint: 'Ask someone else to review it.',
+      })
     const patchSet = body.patch_set ?? this.head(c).n
     if (patchSet < 1 || patchSet > c.patchSets.length)
       throw apiError(
@@ -849,7 +917,7 @@ export abstract class DomainChanges extends DomainIssues {
       patch_set: r.patchSet,
       carries_to_head: r.carries,
       body: r.body,
-      run: r.via?.run ?? null,
+      via: r.via ?? null,
       created_at: iso(r.created),
     }
   }
@@ -1527,7 +1595,7 @@ export abstract class DomainChanges extends DomainIssues {
             at: iso(x.addressed.at),
           }
         : null,
-      run: x.via?.run ?? null,
+      via: x.via ?? null,
       created_at: iso(x.created),
       updated_at: iso(x.updated),
       version: x.version,
@@ -1906,7 +1974,7 @@ export abstract class DomainChanges extends DomainIssues {
       summary: body.summary,
       order: body.order,
       by,
-      run: this.viaOf(p!).run,
+      via: this.viaOf(p!),
       created: this.now(),
     }
     if (!dry) {
@@ -2002,7 +2070,7 @@ export abstract class DomainChanges extends DomainIssues {
     number: number,
   ): z.infer<typeof S.Presence> {
     const now = this.now()
-    // Each person or agent once, at their latest heartbeat.
+    // Each account once, at its latest heartbeat, whichever machine sent it.
     const latest = new Map<
       string,
       { actor: ActorRec; path: string | null; at: number }
@@ -2044,8 +2112,8 @@ export abstract class DomainChanges extends DomainIssues {
     body: { session: string; path: string | null; leave: boolean },
   ) {
     const { room, number } = this.roomOf(owner, name, subject, p)
-    // A person and their agent share a handle; they are two viewers.
-    const user = p.class === 'human' ? p.handle : `${p.handle}~${p.class}`
+    // One viewer per account and session: two machines are two sessions.
+    const user = p.handle
     const viewers = this.rooms.get(room) ?? new Map()
     this.rooms.set(room, viewers)
     const key = `${user}:${body.session}`
@@ -2063,7 +2131,7 @@ export abstract class DomainChanges extends DomainIssues {
 
   /**
    * Everything that happened to a change or an issue, oldest first: its
-   * parts, the notes of the runs that worked on it, its state changes and,
+   * parts, its state changes and,
    * for an issue, the changes that link it.
    */
   async timeline(
@@ -2083,7 +2151,7 @@ export abstract class DomainChanges extends DomainIssues {
       id: string,
       at: number,
       actor: ActorRec | null,
-      run: string | null,
+      via: ViaRec | null,
       summary: string,
       item: Entry['item'],
     ) =>
@@ -2093,32 +2161,10 @@ export abstract class DomainChanges extends DomainIssues {
         kind,
         created_at: iso(at),
         actor: actor ? this.actor(actor) : null,
-        run,
+        via,
         summary,
         item,
       })
-    const runNotes = (runs: Array<RunRec>) => {
-      for (const r of runs) {
-        const agent = this.actorFor(r.handle, 'agent')
-        r.notes.forEach((x, k) =>
-          entry('run_note', `${r.id}:${k}`, x.at, agent, r.id, x.text, {
-            object: 'run_note',
-            run: r.id,
-            task: r.task,
-            text: x.text,
-            final: false,
-          }),
-        )
-        if (r.finished && r.summary)
-          entry('run_note', `${r.id}:end`, r.finished, agent, r.id, r.summary, {
-            object: 'run_note',
-            run: r.id,
-            task: r.task,
-            text: r.summary,
-            final: true,
-          })
-      }
-    }
     const states = (object: 'change' | 'issue', first: string) => {
       let from: string | null = null
       // Only the events that can move a state are read in full.
@@ -2135,8 +2181,8 @@ export abstract class DomainChanges extends DomainIssues {
           'state_change',
           e.id,
           Date.parse(e.created_at),
-          { id: by.id, handle: by.handle, class: by.class },
-          null,
+          { id: by.id, handle: by.handle },
+          e.via ?? null,
           from ? `${from} to ${to}` : `opened as ${to}`,
           { object: 'state_change', from, to },
         )
@@ -2144,7 +2190,6 @@ export abstract class DomainChanges extends DomainIssues {
       }
       return from ?? first
     }
-    const runs = this.runsByRepo.get(`${repo.owner}/${repo.name}`) ?? []
     if (subject.kind === 'change') {
       const c = this.getChangeRec(repo, subject.ref)
       for (const ps of c.patchSets)
@@ -2153,7 +2198,7 @@ export abstract class DomainChanges extends DomainIssues {
           String(ps.n),
           ps.created,
           ps.author,
-          ps.via?.run ?? null,
+          ps.via ?? null,
           `Patch set ${ps.n}: ${ps.note}`,
           this.presentPatchSet(repo, c, ps),
         )
@@ -2163,7 +2208,7 @@ export abstract class DomainChanges extends DomainIssues {
           x.id,
           x.created,
           x.author,
-          x.via?.run ?? null,
+          x.via ?? null,
           `${x.file ? `${x.file}${x.line ? `:${x.line}` : ''}: ` : ''}${x.body.split('\n')[0]}`,
           this.presentReviewComment(c, x),
         )
@@ -2173,7 +2218,7 @@ export abstract class DomainChanges extends DomainIssues {
           r.id,
           r.created,
           r.actor,
-          r.via?.run ?? null,
+          r.via ?? null,
           `${r.state === 'changes' ? 'asked for changes' : r.state} on patch set ${r.patchSet}${r.carries ? '' : ' (stale)'}`,
           this.presentReview(r),
         )
@@ -2182,8 +2227,8 @@ export abstract class DomainChanges extends DomainIssues {
           'finding',
           f.id,
           f.created,
-          this.actorFor(f.by, 'agent'),
-          f.via?.run ?? null,
+          this.actorFor(f.by),
+          f.via ?? null,
           `${f.label} (${f.severity}): ${f.title}`,
           this.presentFinding(repo, c, f),
         )
@@ -2203,7 +2248,7 @@ export abstract class DomainChanges extends DomainIssues {
           `${c.id}:${c.guide.created}`,
           c.guide.created,
           c.guide.by,
-          c.guide.run,
+          c.guide.via ?? null,
           `Guide for patch set ${c.guide.patchSet}: ${c.guide.summary.split('\n')[0]}`,
           this.presentGuide(c, c.guide),
         )
@@ -2220,13 +2265,6 @@ export abstract class DomainChanges extends DomainIssues {
             this.presentEvidence(c, e, u),
           )
       }
-      runNotes(
-        runs.filter(
-          (r) =>
-            r.change === c.number ||
-            (r.patchSets ?? []).some((x) => x.change === c.number),
-        ),
-      )
       if (
         states('change', c.state) === c.state &&
         !out.some((e) => e.kind === 'state_change')
@@ -2274,7 +2312,6 @@ export abstract class DomainChanges extends DomainIssues {
             this.presentIssueEvidence(i, e, u),
           )
       }
-      runNotes(runs.filter((r) => r.issue === i.number))
       for (const c of repo.changes.values())
         for (const ref of issueRefs(`${c.title}\n${c.description}`))
           if (ref.issue === i.number)
@@ -2283,7 +2320,7 @@ export abstract class DomainChanges extends DomainIssues {
               `${c.id}`,
               c.created,
               c.author,
-              c.patchSets[0]?.via?.run ?? null,
+              c.patchSets[0]?.via ?? null,
               `#${c.number} ${ref.closes ? 'fixes' : 'refers to'} this: ${c.title}`,
               {
                 object: 'reference',

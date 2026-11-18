@@ -1,44 +1,22 @@
 /**
- * How agents get to use secrets without ever seeing them.
+ * How a command gets secret values without anyone pasting them.
  *
+ *  - Your login on this machine reads them, if you are on the repository's
+ *    team. An agent you run here uses the same login, so it can too.
  *  - Values are injected into ONE child process, never printed or written.
  *  - Everything that process writes is scrubbed: exact values, and their
  *    base64 and URL-encoded forms, become «NAME».
- *  - An agent needs an expiring grant. Production is never available to agents.
- *  - Every read is written to the audit log by the server.
+ *  - Production values wait until you confirm this login on a signed-in page.
+ *  - Every read is in the audit log, with the machine, tool and model.
  *
- * What this cannot stop: a command you let an agent run can still send a value
- * over the network. Keep grants to development values, keep them short, and run
- * agents where outbound traffic is restricted.
+ * What this cannot stop: a command you run can still send a value over the
+ * network, and an agent on your machine can do whatever you can. Keep
+ * production behind its confirmation, and run agents you do not trust where
+ * outbound traffic is restricted.
  */
-import { createCipheriv, randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { SxError, exit } from './output'
-import { whoami } from './account'
-import { configPath } from './config'
+import { SxError } from './output'
 import type { Ctx } from './output'
 import type { RepoRef } from './repo'
-
-export function parseTtl(s: string | undefined): number {
-  const m = (s ?? '1h').match(/^(\d+)(m|h)$/)
-  if (!m)
-    throw new SxError(
-      'bad_ttl',
-      `${s} is not a duration.`,
-      'Use 15m, 1h or 8h.',
-      exit.usage,
-    )
-  const minutes = Number(m[1]) * (m[2] === 'h' ? 60 : 1)
-  if (minutes > 8 * 60)
-    throw new SxError(
-      'ttl_too_long',
-      'Agent grants last at most 8 hours.',
-      'Request a shorter grant and renew it.',
-      exit.usage,
-    )
-  return minutes
-}
 
 /** Replace every secret value, and its common encodings, with its name. */
 export function scrub(text: string, secrets: Record<string, string>): string {
@@ -49,6 +27,8 @@ export function scrub(text: string, secrets: Record<string, string>): string {
       value,
       Buffer.from(value).toString('base64'),
       encodeURIComponent(value),
+      // As it appears inside a JSON string.
+      JSON.stringify(value).slice(1, -1),
     ])
     for (const f of forms) {
       // A very short value would rewrite ordinary text, so redact it only
@@ -70,51 +50,30 @@ export function scrub(text: string, secrets: Record<string, string>): string {
   return out
 }
 
-/**
- * Seals a value on this machine, so a plaintext secret never reaches the
- * server. The key lives beside your settings. The hosted service encrypts to
- * the repository's recipients instead; the server only ever sees ciphertext.
- */
-export function seal(value: string): string {
-  const keyFile = join(dirname(configPath()), 'secret.key')
-  let key: Buffer
-  if (existsSync(keyFile))
-    key = Buffer.from(readFileSync(keyFile, 'utf8').trim(), 'base64')
-  else {
-    key = randomBytes(32)
-    mkdirSync(dirname(keyFile), { recursive: true })
-    writeFileSync(keyFile, key.toString('base64') + '\n', { mode: 0o600 })
-  }
-  const iv = randomBytes(12)
-  const c = createCipheriv('aes-256-gcm', key, iv)
-  const body = Buffer.concat([c.update(value, 'utf8'), c.final()])
-  return `sx1.${Buffer.concat([iv, c.getAuthTag(), body]).toString('base64')}`
-}
-
 export type RunResult = {
   env: string
   injected: Array<string>
   redacted: Array<string>
-  namesKnown?: boolean
   exitCode: number
   stdout: string
   stderr: string
 }
 
-/** The CLI's own words for what the API says, so the next step is a command. */
-function cliError(e: unknown, env: string): never {
-  if (e instanceof SxError && e.code === 'grant_required')
+/** The CLI's own words for what the API says, so the next step is clear. */
+export function cliError(e: unknown, env: string): never {
+  if (e instanceof SxError && e.code === 'confirmation_required')
     throw new SxError(
       e.code,
-      `No active grant for ${env}.`,
-      `Run: sx env grant request --env ${env} --reason "<why>". A person approves it, then retry.`,
+      `${env} values need you to confirm this login first.`,
+      e.hint ??
+        'Confirm it in Settings, Secrets, where you are signed in, then retry.',
       e.status,
     )
-  if (e instanceof SxError && e.code === 'human_required')
+  if (e instanceof SxError && e.code === 'secrets_unavailable')
     throw new SxError(
       e.code,
-      'Agents cannot use production values.',
-      'Ask a person to run this, or use development values.',
+      'This server keeps no secret values.',
+      'Ask its operator to set SX_SECRETS_KEY.',
       e.status,
     )
   throw e
@@ -129,42 +88,29 @@ export async function runWithEnv(opts: {
   dryRun: boolean
 }): Promise<RunResult> {
   const api = opts.ctx.api()
-  const who = await whoami(opts.ctx)
   const names = opts.only?.join(',')
 
   if (opts.dryRun) {
-    // Ask the server to run the same access checks without reading or auditing values.
-    await api.get(`${opts.repo.path}/env/${opts.env}/values`, {
-      query: { check_only: 'true' },
-    })
-    const canSchema = who.scopes.includes('secrets:schema')
-    let vars = canSchema
-      ? ((
-          await api.get(`${opts.repo.path}/env`, {
-            query: { environment: opts.env as 'development' },
-          })
-        ).json.data as Array<{ name: string; secret: boolean; set: boolean }>)
-      : null
-    if (vars && who.class !== 'human') {
-      const grants = (await api.get(`${opts.repo.path}/env/grants`)).json
-        .data as Array<{
-        state: string
-        environment: string
-        variables: Array<string>
-      }>
-      const active = grants.find(
-        (g) => g.state === 'active' && g.environment === opts.env,
-      )
-      if (active) vars = vars.filter((v) => active.variables.includes(v.name))
+    // The same access checks as a real read, without reading or auditing values.
+    try {
+      await api.get(`${opts.repo.path}/env/${opts.env}/values`, {
+        query: { check_only: 'true' },
+      })
+    } catch (e) {
+      cliError(e, opts.env)
     }
-    const shown = (vars ?? []).filter(
+    const vars = (
+      await api.get(`${opts.repo.path}/env`, {
+        query: { environment: opts.env as 'development' },
+      })
+    ).json.data as Array<{ name: string; secret: boolean; set: boolean }>
+    const shown = vars.filter(
       (v) => v.set && (!opts.only || opts.only.includes(v.name)),
     )
     return {
       env: opts.env,
       injected: shown.map((v) => v.name),
       redacted: shown.filter((v) => v.secret).map((v) => v.name),
-      namesKnown: vars !== null,
       exitCode: 0,
       stdout: '',
       stderr: '',

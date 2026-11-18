@@ -281,16 +281,6 @@ const reads: { [Id in OperationId]?: Read<Id> } = {
     fn: api.forge.pipelines.log,
     args: (i) => ({ ...repo(i), n: i.run, job: i.job, step: i.step }),
   },
-  'automations.list': {
-    fn: api.forge.automations.list,
-    args: (i) => repo(i),
-    list: true,
-  },
-  'bots.list': {
-    fn: api.forge.automations.listBots,
-    args: (i) => ({ handle: i.handle }),
-    list: true,
-  },
   'people.list': {
     fn: api.forge.people.listPeople,
     args: (i, c) => ({ q: i.q, after: c.after, limit: c.limit }),
@@ -492,27 +482,6 @@ const writes: { [Id in OperationId]?: Write<Id> } = {
     fn: api.forge.accounts.revokeInvitation,
     args: (i) => ({ handle: i.handle, id: i.invitation }),
     empty: true,
-  },
-  'bots.update': {
-    fn: api.forge.automations.updateBot,
-    args: (i) => ({ slug: i.bot, ...i.body }),
-  },
-  'automations.create': {
-    fn: api.forge.automations.create,
-    args: (i) => ({ ...repo(i), body: i.body }),
-  },
-  'automations.update': {
-    fn: api.forge.automations.update,
-    args: (i) => ({ ...repo(i), id: i.automation, body: i.body }),
-  },
-  'automations.run': {
-    fn: api.forge.automations.run,
-    args: (i) => ({ ...repo(i), id: i.automation }),
-  },
-  'runs.start': {
-    fn: api.forge.runs.start,
-    args: (i) => ({ ...repo(i), ttl_minutes: 60, ...i.body }),
-    pick: 'run',
   },
 }
 

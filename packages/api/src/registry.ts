@@ -176,6 +176,12 @@ export type OpSpec<
   status?: number
   /** The response contains a secret or a one-time capability, so it is not stored for idempotency. */
   secretResponse?: boolean
+  /**
+   * The request body carries a secret. It takes no Idempotency-Key: the
+   * stored fingerprint is a hash of the body, and a short secret's hash can
+   * be guessed back.
+   */
+  secretRequest?: boolean
   /** Default true. False turns off ETags, conditional reads and the body cache. */
   conditional?: boolean
   /** The response is not JSON: the media type it is served as. */ responseContentType?: string

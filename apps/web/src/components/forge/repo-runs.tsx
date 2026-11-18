@@ -18,7 +18,7 @@ import {
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, Seg } from './bits'
 import { slugOf } from './repo-shell'
-import { WorkWithAgent } from './work-with-agent'
+import { HandOff } from './hand-off'
 import type { Repo } from '~/lib/model/data'
 import type {
   Job,
@@ -459,7 +459,7 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {status === 'failure' && (
-              <WorkWithAgent
+              <HandOff
                 repo={slugOf(repo)}
                 subject={{
                   kind: 'run',
