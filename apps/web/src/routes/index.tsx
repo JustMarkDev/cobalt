@@ -200,7 +200,7 @@ function Landing() {
             [
               ShieldCheckIcon,
               'Rules that apply to everyone',
-              'Landing policies are code, reviewed like code. People and agents follow the same ones, and an agent cannot approve its own change.',
+              'Landing policies are code, reviewed like code. People and agents follow the same ones, and nobody approves their own change, whatever tool sends the approval.',
             ],
             [
               ClockIcon,
@@ -209,8 +209,8 @@ function Landing() {
             ],
             [
               KeyIcon,
-              'Secrets agents never see',
-              'Agents run commands that have the values. They never receive them, and production stays with people.',
+              'Production secrets wait for a person',
+              'Secrets are sealed per repository and readable only by your team. Production values reach an agent only after someone confirms in the browser, for 1, 4 or 8 hours.',
             ],
             [
               CurrencyDollarIcon,

@@ -63,12 +63,12 @@ export const rows: Array<Row> = [
         'Repositories live on code.storage: quorum-replicated writes, failover without downtime, and a 99.99% monthly SLA.',
       ),
       github: no('93.88% uptime over the last 90 days, with 58 incidents.'),
-      gitlab: unclear,
-      gitcafe: unclear,
+      gitlab: partly('A 99.9% SLA, with service credits only on Ultimate.'),
+      gitcafe: no('In beta, with no service-level commitment.'),
       trylle: partly(
         'No published SLA. Its status page shows 99.89% to 100% over 60 days.',
       ),
-      origin: unclear,
+      origin: no('Early beta, with no published SLA.'),
       forgejo: partly(
         'Up to whoever runs it. Codeberg shows about 99.7%, with weekly maintenance of up to 8 hours.',
       ),
@@ -83,9 +83,9 @@ export const rows: Array<Row> = [
       github: yes(),
       gitlab: yes(),
       forgejo: no('Community servers only.'),
-      origin: unclear,
+      origin: yes('In early beta.'),
       gitcafe: yes(),
-      trylle: unclear,
+      trylle: no('Agents use its CLI skill instead.'),
     },
   },
   {
@@ -121,9 +121,11 @@ export const rows: Array<Row> = [
     },
   },
   {
+    // An estimate, not a measurement: we are not hosted yet. It assumes a
+    // network like GitCafe's and a server that adds little on top.
     id: 'speed',
     title: 'Fast API',
-    detail: 'About 1 ms past the network for a cached read.',
+    detail: 'About 100 to 150 ms for a single issue, most of it the network.',
     cells: {
       us: yes(),
       github: no('About 300 ms for a single issue.'),
@@ -136,15 +138,17 @@ export const rows: Array<Row> = [
   },
   {
     id: 'secrets',
-    title: 'Secrets agents never see',
-    detail: 'Commands get the value. The agent never does.',
+    title: 'Production secrets wait for a person',
+    detail: 'Agents read them only after someone confirms in the browser.',
     cells: {
       us: yes(),
       github: no('Secrets in the agent’s environment are passed to the agent.'),
-      gitlab: unclear,
-      forgejo: no(),
+      gitlab: yes('Its agent flows get no custom CI/CD variables at all.'),
+      forgejo: unclear,
       origin: unclear,
-      gitcafe: unclear,
+      gitcafe: no(
+        'Every CI job gets every repository secret, with no approval step.',
+      ),
       trylle: unclear,
     },
   },
@@ -158,7 +162,7 @@ export const rows: Array<Row> = [
       gitlab: no(),
       forgejo: no(),
       origin: unclear,
-      gitcafe: unclear,
+      gitcafe: no('Rulesets have no rule about models.'),
       trylle: unclear,
     },
   },
@@ -171,9 +175,9 @@ export const rows: Array<Row> = [
       github: partly('Only for commits by Copilot’s own agent.'),
       gitlab: partly('An audit report of agent sessions, in beta.'),
       forgejo: no(),
-      origin: unclear,
+      origin: partly('Marks commits a Cursor agent made, not the model.'),
       gitcafe: unclear,
-      trylle: unclear,
+      trylle: partly('Only its own automation runs record the model.'),
     },
   },
   {
@@ -184,9 +188,11 @@ export const rows: Array<Row> = [
       us: yes(),
       github: partly('Can lose its place after a rewrite.'),
       gitlab: yes(),
-      forgejo: unclear,
-      origin: unclear,
-      gitcafe: unclear,
+      forgejo: partly('Can compare the commits before and after a force-push.'),
+      origin: partly('Shows the commits before and after a force-push.'),
+      gitcafe: partly(
+        'Old reviews stay on their commits. No view of what changed since.',
+      ),
       trylle: unclear,
     },
   },
@@ -199,7 +205,7 @@ export const rows: Array<Row> = [
       github: yes(),
       gitlab: partly('Still an experiment in the CLI.'),
       forgejo: no(),
-      origin: unclear,
+      origin: yes(),
       gitcafe: yes(),
       trylle: yes(),
     },
@@ -215,9 +221,11 @@ export const rows: Array<Row> = [
       forgejo: partly(
         'Branch protection lives in settings. CODEOWNERS is a file.',
       ),
-      origin: unclear,
+      origin: partly(
+        'Rulesets live in settings or Terraform. Code owners are a file.',
+      ),
       gitcafe: no(),
-      trylle: unclear,
+      trylle: no('Branch protection lives in settings.'),
     },
   },
   {
