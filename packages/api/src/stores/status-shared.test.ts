@@ -8,6 +8,9 @@ import { Health, reportFrom } from '../health'
 import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 
+// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
+process.env.API_JWT_ISSUER = 'https://convex.test'
+
 /**
  * The status page says the same thing whichever server answers: each sends
  * its minutes to Convex and reads everyone's. Counts come from tallies kept

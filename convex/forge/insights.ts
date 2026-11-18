@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { query } from '../_generated/server'
-import { actorOf, signedIn } from '../lib/actor'
+import { actorOf, signedIn, system } from '../lib/actor'
 import {
   accountByHandle,
   canRead,
@@ -344,6 +344,7 @@ export const statusFacts = query({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
+    await system(ctx)
     let waiting = 0
     let oldest = Infinity
     // Runs that are not finished, oldest first, across every repository.

@@ -73,6 +73,8 @@ export const convexFactory: DomainFactory = ({
 }) => {
   process.env.SITE_URL = urls.html
   process.env.API_URL = urls.api
+  // convex-test's issuer: the API's JWT is trusted only from its own issuer.
+  process.env.API_JWT_ISSUER = 'https://convex.test'
   const t = convexTest(schema, modules)
   t.registerComponent('presence', presence.schema, presence.modules)
   t.registerComponent(

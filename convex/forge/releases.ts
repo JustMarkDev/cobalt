@@ -244,6 +244,22 @@ export const create = mutation({
       })
     const at = Date.now()
     const by = await actorFor(ctx, p.handle)
+    // An attached file is the caller's own upload; its size and digest are
+    // the stored file's, whatever the request said.
+    const assets = []
+    for (const x of a.assets) {
+      if (!x.uploadId) {
+        assets.push({ ...x, downloads: 0 })
+        continue
+      }
+      const u = await attachUpload(ctx, x.uploadId, repo, p)
+      assets.push({
+        ...x,
+        size: u.size,
+        sha256: u.sha256 ?? x.sha256,
+        downloads: 0,
+      })
+    }
     const r: Release = {
       id: newId('release', at),
       tag: a.tag,
@@ -257,13 +273,11 @@ export const create = mutation({
       signed: a.signed ?? false,
       commit: a.commit ?? null,
       withdrawn: null,
-      assets: a.assets.map((x) => ({ ...x, downloads: 0 })),
+      assets,
       author: by,
       published: at,
       version: 1,
     }
-    for (const x of a.assets)
-      if (x.uploadId) await attachUpload(ctx, x.uploadId, repo)
     await insertRelease(ctx, repo._id, r)
     const shown = present(repo, r)
     await emit(

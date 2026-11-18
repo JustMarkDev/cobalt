@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import { env, internalMutation, mutation } from './_generated/server'
 import { heldBy } from './lib/idempotency'
+import type { MutationCtx } from './_generated/server'
 
 /**
  * The shared stores behind the HTTP API: rate-limit counters and idempotency
@@ -62,31 +63,52 @@ export const takeLimit = mutation({
   }),
   handler: async (ctx, args) => {
     assertSecret(args.secret)
-    if (args.windowMs <= 0 || args.want < 0 || args.limit < 0)
-      throw new Error('bad policy')
-    const now = Date.now()
-    const start = now - (now % args.windowMs)
-    const row = await ctx.db
-      .query('apiLimits')
-      .withIndex('by_key', (q) => q.eq('key', args.key))
-      .unique()
-    const used = row && row.start === start ? row.used : 0
-    const granted = Math.max(0, Math.min(args.want, args.limit - used))
-    if (!row)
-      await ctx.db.insert('apiLimits', {
-        key: args.key,
-        start,
-        used: used + granted,
-      })
-    else if (granted > 0 || row.start !== start)
-      await ctx.db.patch('apiLimits', row._id, { start, used: used + granted })
-    return {
-      granted,
-      remaining: args.limit - used - granted,
-      resetMs: start + args.windowMs - now,
-    }
+    return await take(ctx, args)
   },
 })
+
+/**
+ * The same counter for sign-in (`auth.ts`), keyed by the account a request
+ * names rather than by address, so a spoofed `X-Forwarded-For` buys nothing.
+ */
+export const takeAuthLimit = internalMutation({
+  args: { key: v.string(), limit: v.number(), windowMs: v.number() },
+  returns: v.object({
+    granted: v.number(),
+    remaining: v.number(),
+    resetMs: v.number(),
+  }),
+  handler: async (ctx, args) => await take(ctx, { ...args, want: 1 }),
+})
+
+async function take(
+  ctx: MutationCtx,
+  args: { key: string; want: number; limit: number; windowMs: number },
+) {
+  if (args.windowMs <= 0 || args.want < 0 || args.limit < 0)
+    throw new Error('bad policy')
+  const now = Date.now()
+  const start = now - (now % args.windowMs)
+  const row = await ctx.db
+    .query('apiLimits')
+    .withIndex('by_key', (q) => q.eq('key', args.key))
+    .unique()
+  const used = row && row.start === start ? row.used : 0
+  const granted = Math.max(0, Math.min(args.want, args.limit - used))
+  if (!row)
+    await ctx.db.insert('apiLimits', {
+      key: args.key,
+      start,
+      used: used + granted,
+    })
+  else if (granted > 0 || row.start !== start)
+    await ctx.db.patch('apiLimits', row._id, { start, used: used + granted })
+  return {
+    granted,
+    remaining: args.limit - used - granted,
+    resetMs: start + args.windowMs - now,
+  }
+}
 
 // ----- idempotency -----------------------------------------------------------
 

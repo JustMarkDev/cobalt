@@ -1,3 +1,4 @@
+import { globMatcher } from '@source-code/api/glob'
 import {
   approvalsOf,
   policyRules,
@@ -40,21 +41,6 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 export const BIG_CHANGE = 400
 
 export { policyRules } from '@source-code/api/policy-builtins'
-
-/** A path glob as a pattern: `**` crosses folders, `*` does not. */
-export function globToRegExp(glob: string) {
-  let out = ''
-  for (let i = 0; i < glob.length; i++) {
-    const ch = glob[i]
-    if (ch === '*' && glob[i + 1] === '*') {
-      out += glob[i + 2] === '/' ? '(?:.*/)?' : '.*'
-      i += glob[i + 2] === '/' ? 2 : 1
-    } else if (ch === '*') out += '[^/]*'
-    else if (ch === '?') out += '[^/]'
-    else out += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-  }
-  return new RegExp(`^${out}$`)
-}
 
 // ---- the repository as change logic needs it ---------------------------------
 
@@ -605,7 +591,7 @@ export class ChangeView {
         blocking: [],
       }
     }
-    const globs = (r.paths ?? []).map(globToRegExp)
+    const globs = (r.paths ?? []).map((g) => globMatcher(g))
     const touched = Object.keys(head.files).filter((f) =>
       globs.some((g) => g.test(f)),
     )

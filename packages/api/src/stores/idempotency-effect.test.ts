@@ -9,6 +9,9 @@ import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 import { sampleTokens } from '../sample'
 
+// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
+process.env.API_JWT_ISSUER = 'https://convex.test'
+
 /**
  * A write and its Idempotency-Key commit together. A request that crashed is
  * then told apart by what it did: one that wrote nothing runs again once its

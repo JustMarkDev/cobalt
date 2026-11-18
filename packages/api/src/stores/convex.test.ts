@@ -13,6 +13,9 @@ import schema from '../../../../convex/schema'
 import { ConvexIdempotencyStore, ConvexLimitStore } from './convex'
 import type { ConvexCall } from './convex'
 
+// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
+process.env.API_JWT_ISSUER = 'https://convex.test'
+
 // The Convex functions, loaded the way Vite's `import.meta.glob` would load them.
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
