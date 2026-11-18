@@ -7,6 +7,9 @@ import { claimsOf } from '../domain/convex'
 import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 
+// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
+process.env.API_JWT_ISSUER = 'https://convex.test'
+
 /**
  * API servers send webhooks when `nextDue` says the next one comes due,
  * instead of asking Convex every few seconds (`dueTimer`).

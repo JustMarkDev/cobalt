@@ -1,4 +1,4 @@
-import { attachUpload } from '../lib/uploads'
+import { attachUpload, evidenceFits, evidenceUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
 import { changeTarget } from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
@@ -1791,6 +1791,7 @@ export const operationRepoId = query({
   args: { id: v.string() },
   returns: v.string(),
   handler: async (ctx, { id }) => {
+    await system(ctx)
     const op = await ctx.db
       .query('operations')
       .withIndex('by_publicId', (q) => q.eq('publicId', id))
@@ -1827,13 +1828,15 @@ export const addEvidence = mutation({
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const l = await loadChange(ctx, repo, a.ref)
     const by = await actorFor(ctx, p.handle)
-    await attachUpload(ctx, a.upload.id, repo)
+    const upload = evidenceUpload(
+      await attachUpload(ctx, a.upload.id, repo, p, evidenceFits[a.kind]),
+    )
     const e: EvidenceRec = {
       id: newId('evidence', Date.now()),
       kind: a.kind,
       caption: a.caption,
-      uploadId: a.upload.id,
-      upload: a.upload,
+      uploadId: upload.id,
+      upload,
       by,
       created: Date.now(),
     }

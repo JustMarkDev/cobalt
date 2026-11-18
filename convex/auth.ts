@@ -117,6 +117,44 @@ async function mayTake(
 }
 
 /**
+ * Attempts per account, whatever address they come from: password guessing
+ * against one account, or a flood of reset or verification mail to one
+ * inbox, stops after a few tries in the window. Only the HTTP routes can
+ * write the count; a query building the auth object skips it.
+ */
+const THROTTLED: Partial<
+  Record<string, { field: string; limit: number; windowMs: number }>
+> = {
+  '/sign-in/email': { field: 'email', limit: 10, windowMs: 15 * 60_000 },
+  '/sign-in/username': { field: 'username', limit: 10, windowMs: 15 * 60_000 },
+  '/request-password-reset': { field: 'email', limit: 5, windowMs: 3_600_000 },
+  '/send-verification-email': { field: 'email', limit: 5, windowMs: 3_600_000 },
+}
+
+async function throttle(
+  ctx: GenericCtx<DataModel>,
+  path: string,
+  body: unknown,
+) {
+  const rule = THROTTLED[path]
+  if (!rule || !('runMutation' in ctx)) return
+  const raw = (body as Record<string, unknown> | undefined)?.[rule.field]
+  if (typeof raw !== 'string' || !raw) return
+  const { granted, resetMs } = await ctx.runMutation(
+    internal.apiStores.takeAuthLimit,
+    {
+      key: `auth:${path}:${raw.trim().toLowerCase().slice(0, 320)}`,
+      limit: rule.limit,
+      windowMs: rule.windowMs,
+    },
+  )
+  if (granted < 1)
+    throw new APIError('TOO_MANY_REQUESTS', {
+      message: `Too many attempts. Try again in ${Math.ceil(resetMs / 60_000)} minutes.`,
+    })
+}
+
+/**
  * Convex builds this once while loading `http.ts`, before any request, so a
  * missing setting must not throw here: it would block every deploy. Instead
  * an unconfigured deployment refuses each sign-in request, and the stand-in
@@ -131,21 +169,30 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     baseURL,
     secret: secret ?? 'unconfigured-every-request-is-refused',
     hooks: {
-      before: createAuthMiddleware(() => {
-        if (configured) return Promise.resolve()
-        throw new APIError('SERVICE_UNAVAILABLE', {
-          message:
-            'Sign-in is not configured: set SITE_URL and BETTER_AUTH_SECRET on the Convex deployment (see convex/convex.config.ts).',
-        })
+      before: createAuthMiddleware(async (actx) => {
+        if (!configured)
+          throw new APIError('SERVICE_UNAVAILABLE', {
+            message:
+              'Sign-in is not configured: set SITE_URL and BETTER_AUTH_SECRET on the Convex deployment (see convex/convex.config.ts).',
+          })
+        await throttle(ctx, actx.path, actx.body)
       }),
     },
     database: authComponent.adapter(ctx),
     user: {
       changeEmail: {
         enabled: true,
-        // Nothing sends email yet. Once it does, turn this off so a change
-        // is confirmed from the old address.
-        updateEmailWithoutVerification: true,
+        // A new address takes effect only once its owner opens the link,
+        // and a verified address must approve the move first: someone who
+        // borrows a session cannot move the account (and its password
+        // resets) to an address they own.
+        updateEmailWithoutVerification: false,
+        sendChangeEmailConfirmation: ({ user, newEmail, url }) =>
+          sendMail(
+            user.email,
+            'Confirm the change of your source.code email',
+            `Someone asked to change the email of your source.code account from ${user.email} to ${newEmail}.\n\nIf it was you, open this link to approve it:\n\n${url}\n\nIf it was not, ignore this email and change your password.`,
+          ),
       },
     },
     databaseHooks: {

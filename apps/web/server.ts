@@ -8,6 +8,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { carriesSecrets, compressDynamic, serveBuilt } from './compress'
+import { withSecurityHeaders } from './security-headers'
 
 type Handler = { fetch: (request: Request) => Response | Promise<Response> }
 
@@ -57,14 +58,16 @@ const server = Bun.serve({
       const { pathname } = new URL(request.url)
       const file = builtFile(pathname)
       if (file)
-        return serveBuilt(request, file, has, {
-          // Files under /assets carry a content hash in their name.
-          'cache-control': pathname.startsWith('/assets/')
-            ? 'public, max-age=31536000, immutable'
-            : 'public, max-age=3600',
-        })
+        return withSecurityHeaders(
+          serveBuilt(request, file, has, {
+            // Files under /assets carry a content hash in their name.
+            'cache-control': pathname.startsWith('/assets/')
+              ? 'public, max-age=31536000, immutable'
+              : 'public, max-age=3600',
+          }),
+        )
     }
-    const res = await app.fetch(request)
+    const res = withSecurityHeaders(await app.fetch(request))
     if (carriesSecrets(new URL(request.url).pathname)) return res
     return await compressDynamic(request, res)
   },

@@ -6,6 +6,9 @@ import { load } from '../../../convex/seed'
 import { createSampleApi } from './index'
 import { exportWorld } from './seed-export'
 
+// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
+process.env.API_JWT_ISSUER = 'https://convex.test'
+
 /** code.storage telling us about a push: checked, recorded once, a patch set for an open change. */
 const dir = new URL('../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}

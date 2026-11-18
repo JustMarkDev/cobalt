@@ -6,6 +6,7 @@ import { seedLabels } from '../lib/issues'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { actorOf, signedIn, system } from '../lib/actor'
+import { bodyOf } from '../lib/input'
 import {
   accessStamp,
   accountByHandle,
@@ -265,8 +266,10 @@ export const update = mutation({
     dry: v.optional(v.boolean()),
   },
   returns: v.string(),
-  handler: async (ctx, { owner, name, body, ifMatch, dry }) => {
+  handler: async (ctx, { owner, name, body: given, ifMatch, dry }) => {
     const p = await signedIn(ctx)
+    // Checked as the API checks it: a page can call this directly.
+    const body = await bodyOf(ctx, 'repos.update', given)
     const at = Date.now()
     const repo = await resolve(ctx, owner, name, p, 'write')
     await assertAdmin(ctx, repo, p)
@@ -761,8 +764,10 @@ export const mayReadName = query({
 export const canActAs = query({
   args: { login: v.string(), account: v.string() },
   returns: v.string(),
-  handler: async (ctx, args) =>
-    out(await isMember(ctx, args.account, args.login)),
+  handler: async (ctx, args) => {
+    await system(ctx)
+    return out(await isMember(ctx, args.account, args.login))
+  },
 })
 
 /** Follows renames from a lowercase `owner/name`, at most ten steps. */
@@ -816,13 +821,17 @@ export async function historyId(
 export const idForHistory = query({
   args: { full: v.string() },
   returns: v.string(),
-  handler: async (ctx, { full }) => out(await historyId(ctx, full)),
+  handler: async (ctx, { full }) => {
+    await system(ctx)
+    return out(await historyId(ctx, full))
+  },
 })
 
 export const canonicalName = query({
   args: { full: v.string() },
   returns: v.string(),
   handler: async (ctx, { full }) => {
+    await system(ctx)
     const direct = await repoByKey(ctx, full)
     if (direct) return out(`${direct.owner}/${direct.name}`)
     const repo = await repoByKey(ctx, await follow(ctx, full.toLowerCase()))

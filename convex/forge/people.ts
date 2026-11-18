@@ -310,6 +310,8 @@ export const profileRepos = query({
   returns: v.string(),
   handler: async (ctx, a) => {
     const target = await person(ctx, a.handle)
+    // Only what the caller may read: a private repository's name is private.
+    const viewer = await actorOf(ctx)
     const ids = new Set<Id<'repos'>>()
     for (const r of await ctx.db
       .query('repos')
@@ -326,7 +328,8 @@ export const profileRepos = query({
     const names = []
     for (const id of ids) {
       const r = await ctx.db.get('repos', id)
-      if (r) names.push(`${r.owner}/${r.name}`)
+      if (r && (await canRead(ctx, r, viewer)))
+        names.push(`${r.owner}/${r.name}`)
     }
     return out(names)
   },

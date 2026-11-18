@@ -1,4 +1,4 @@
-import { attachUpload } from '../lib/uploads'
+import { attachUpload, evidenceFits, evidenceUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
 import { v } from 'convex/values'
 import { assertMayContribute } from '../lib/contribute'
@@ -724,13 +724,15 @@ export const addEvidence = mutation({
     const i = await issueOf(ctx, repo, args.number)
     const by = await actorFor(ctx, p.handle)
     const at = Date.now()
-    await attachUpload(ctx, args.upload.id, repo)
+    const upload = evidenceUpload(
+      await attachUpload(ctx, args.upload.id, repo, p, evidenceFits[args.kind]),
+    )
     const id = await ctx.db.insert('issueEvidence', {
       issueId: i._id,
       publicId: newId('evidence', at),
       kind: args.kind,
       caption: args.caption,
-      upload: args.upload,
+      upload,
       by,
       created: at,
     })

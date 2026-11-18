@@ -14,6 +14,9 @@ import { load } from '../../../../convex/seed'
 import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 
+// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
+process.env.API_JWT_ISSUER = 'https://convex.test'
+
 /**
  * The races and stale states the Convex functions used to allow, each
  * reproduced against the functions themselves. The moves they may make are

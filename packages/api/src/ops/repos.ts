@@ -2,6 +2,7 @@ import { Effect } from 'effect'
 import { z } from 'zod'
 import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
+import { bodies } from '../bodies'
 import { contextMarkdown } from '../markdown'
 import { ApiError, apiError } from '../problem'
 import { afterOf, fp, listOf, pageShape, repoParams } from './common'
@@ -185,12 +186,6 @@ export const numberRef = defineOp({
     }),
 })
 
-/** A link shown on the repository. Only the web: it is rendered as a link. */
-const webAddress = z
-  .string()
-  .max(300)
-  .regex(/^https?:\/\/[^\s<>"']+$/, 'An http or https address')
-
 export const updateRepo = defineOp({
   id: 'repos.update',
   summary:
@@ -208,61 +203,7 @@ export const updateRepo = defineOp({
   idempotent: true,
   dryRun: true,
   params: repoParams,
-  body: z.strictObject({
-    name: z
-      .string()
-      .regex(
-        /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/,
-        'Letters, digits, dot, dash and underscore; up to 100',
-      )
-      .optional(),
-    description: z.string().max(500).optional(),
-    visibility: z.enum(['public', 'private']).optional(),
-    default_branch: z.string().min(1).max(200).optional(),
-    maintainers: z
-      .array(z.string())
-      .max(50)
-      .optional()
-      .describe(
-        'People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant.',
-      ),
-    category: z.enum(S.repoCategories).nullable().optional(),
-    website: webAddress.nullable().optional(),
-    docs_url: webAddress.nullable().optional(),
-    install: z.string().min(1).max(200).nullable().optional(),
-    declined_models: z
-      .array(z.string().min(1).max(80))
-      .max(50)
-      .optional()
-      .describe(
-        'Declared models to take no changes from, compared without case. Replaces the list',
-      ),
-    auto_land: z
-      .boolean()
-      .optional()
-      .describe(
-        'Land a change by itself once it can. You answer for what lands this way',
-      ),
-    vouched: z
-      .array(z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i))
-      .max(1000)
-      .optional()
-      .describe(
-        'Accounts you trust; their changes come first. Replaces the list',
-      ),
-    denounced: z
-      .array(
-        z.strictObject({
-          handle: z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i),
-          reason: z.string().min(1).max(300),
-        }),
-      )
-      .max(1000)
-      .optional()
-      .describe(
-        'Accounts that may not open changes or issues here. Replaces the list',
-      ),
-  }),
+  body: bodies['repos.update'],
   response: S.Repo,
   errors: [
     'not_found',

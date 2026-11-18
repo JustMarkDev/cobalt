@@ -140,14 +140,15 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
 
 /**
  * Whether a verified identity is the API's own JWT. It must carry the API's
- * marker claim and, once the deployment knows the API's issuer, come from
- * that issuer: a sign-in token can never pass for the API, so it can never
- * set its own scopes, receipt or session flag.
+ * marker claim and come from the API's issuer: a sign-in token can never
+ * pass for the API, so it can never set its own scopes, receipt or session
+ * flag. A deployment that does not know the issuer trusts no API token
+ * (`auth.config.ts` does not accept one then either).
  */
 export function fromApi(id: Record<string, unknown> & { issuer?: string }) {
   if (id[claim.api] !== 'true') return false
   const issuer = env.API_JWT_ISSUER
-  return !issuer || id.issuer === issuer
+  return !!issuer && id.issuer === issuer
 }
 
 /** The caller, who must be signed in. */
