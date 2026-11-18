@@ -46,7 +46,8 @@ export function toChangeItem(
   return {
     id: String(c.number),
     title: c.title,
-    author: { name: c.author.handle, kind: c.author.class },
+    // One kind of account: the receipt, not a class, says how it was written.
+    author: { name: c.author.handle, kind: 'human', via: c.head.via },
     state: c.state === 'abandoned' ? 'abandoned' : c.state,
     stack: c.stack ? { index: c.stack.position, of: c.stack.size } : undefined,
     // A list row only needs the newest; the detail passes them all.
@@ -58,12 +59,7 @@ export function toChangeItem(
     deletions: c.stats.deletions,
     reviewers: c.reviewers.map((r) => ({
       name: r.actor.handle,
-      kind:
-        r.actor.class === 'human'
-          ? 'human'
-          : r.actor.class === 'agent'
-            ? 'agent'
-            : 'reviewer',
+      kind: 'human',
       state: r.state,
     })),
     ci: ci(c),
@@ -155,10 +151,7 @@ export function toMedia(
       id: e.id,
       origin: {
         by: e.created_by.handle,
-        kind:
-          e.created_by.class === 'human'
-            ? ('human' as const)
-            : ('agent' as const),
+        kind: 'human' as const,
       },
     }
     if (e.kind === 'image')
@@ -181,12 +174,11 @@ export function timelineOf(
   checks: Array<CheckRun>,
   now = Date.now(),
 ): Array<TimelineEvent> {
-  const actor = (cls: 'human' | 'agent' | 'bot') => cls
   const out: Array<TimelineEvent> = [
     {
       kind: 'opened',
       who: c.author.handle,
-      actor: actor(c.author.class),
+      actor: 'human',
       what: `opened this change from ${c.branch}`,
       hoursAgo: ago(c.created_at, now),
     },
@@ -195,7 +187,8 @@ export function timelineOf(
     out.push({
       kind: 'patchset',
       who: p.author.handle,
-      actor: actor(p.author.class),
+      actor: 'human',
+      via: p.via,
       what: `pushed patch set ${p.number}`,
       detail: p.note,
       hoursAgo: ago(p.created_at, now),
@@ -232,7 +225,7 @@ export function timelineOf(
       out.push({
         kind: 'review',
         who: r.actor.handle,
-        actor: actor(r.actor.class),
+        actor: 'human',
         what:
           r.state === 'approved'
             ? `approved patch set ${r.patch_set}`
@@ -247,7 +240,7 @@ export function timelineOf(
     out.push({
       kind: 'land',
       who: c.author.handle,
-      actor: actor(c.author.class),
+      actor: 'human',
       what: `landed #${c.number}`,
       hoursAgo: ago(c.landed_at, now),
       tone: 'success',

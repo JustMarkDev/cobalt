@@ -1,14 +1,9 @@
-import { seededId } from '../ids'
-import { runIdOf } from '../trailers'
+import { receiptFor } from '../receipt'
+import { contributionRefusal } from '../via'
+import { apiError } from '../problem'
 import type { EventRecord } from '../events'
 import type { Principal } from '../auth'
-import type {
-  ActorClass,
-  ActorRec,
-  ChangeRec,
-  RepoRec,
-  ViaRec,
-} from './records'
+import type { ActorRec, ChangeRec, RepoRec, ViaRec } from './records'
 import { DomainPresent } from './present'
 
 /** Every mutation writes one event; these build and emit it. */
@@ -28,67 +23,43 @@ export abstract class DomainEvents extends DomainPresent {
       repo: `${repo.owner}/${repo.name}`,
       repo_id: repo.id,
       actor: this.actor(by),
+      via: this.viaOverride ?? receiptFor(),
       subject,
       changes,
       data,
     })
   }
 
+  /** A receipt that replaces the request's, while the server acts on its own. */
+  protected viaOverride: ViaRec | null = null
+
   protected asActor(p: Principal): ActorRec {
-    return this.actorFor(p.handle, p.class)
+    return this.actorFor(p.handle)
   }
 
-  /**
-   * Which run a write comes from, and the kind of token it used. A run token
-   * carries its run, so a client sends nothing for this.
-   */
+  /** The receipt for a write by this caller: machine, tool, declared model. */
   protected viaOf(p: Principal): ViaRec {
-    const kind = this.memAuth.get(p.tokenId)?.kind ?? 'session'
-    if (kind !== 'run') return { run: null, tokenKind: kind }
-    for (const r of this.runs.values())
-      if (r.tokenId === p.tokenId) return { run: r.id, tokenKind: 'run' }
-    return { run: null, tokenKind: 'run' }
+    return this.viaOverride ?? receiptFor(p)
   }
 
   /**
-   * The same, for a commit: a run token's run wins; otherwise a `Run-Id:`
-   * trailer counts when it names a run of the caller's in this repository.
+   * Whether this caller may add to a repository: a denounced account may not
+   * open changes or issues, and a change declared with a model the repository
+   * declines is refused. The model is what the tool declared; it stops tools
+   * that report honestly, and every receipt keeps the claim.
    */
-  protected viaOfCommit(
+  protected assertMayContribute(
     repo: RepoRec,
     p: Principal,
-    message: string | undefined,
-  ): ViaRec {
-    const via = this.viaOf(p)
-    const named = via.run ? null : runIdOf(message ?? '')
-    if (!named) return via
-    const r = this.runs.get(named)
-    return r && r.repo === `${repo.owner}/${repo.name}` && r.handle === p.handle
-      ? { ...via, run: r.id }
-      : via
+    what: 'change' | 'issue',
+  ) {
+    const no = contributionRefusal(repo, p.handle, this.viaOf(p).model, what)
+    if (no) throw apiError(no.code, no.detail)
   }
 
-  /**
-   * Who an action is recorded as. A person and an agent acting for them share a
-   * handle but are not the same actor: policy counts approvals from people, and
-   * a run token must never be mistaken for the person who started the run.
-   */
-  protected actorFor(handle: string, cls: ActorClass): ActorRec {
-    const found = this.actors.get(handle)
-    if (found?.class === cls) return found
-    if (!found) return this.seedActor(handle, cls, this.now())
-    const key = `${handle}~${cls}`
-    let rec = this.actors.get(key)
-    if (!rec)
-      this.actors.set(
-        key,
-        (rec = {
-          id: seededId('account', this.now(), key),
-          handle,
-          class: cls,
-        }),
-      )
-    return rec
+  /** Who an action is recorded as: the account, whatever typed the request. */
+  protected actorFor(handle: string): ActorRec {
+    return this.actors.get(handle) ?? this.seedActor(handle, this.now())
   }
 
   protected touchChange(repo: RepoRec, c: ChangeRec, mutate: () => void) {

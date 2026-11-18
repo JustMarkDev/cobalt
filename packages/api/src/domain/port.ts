@@ -1,14 +1,12 @@
 import type { z } from 'zod'
 import type { ProposalEditBody } from '../policy-proposals'
-import type { Principal, Scope } from '../auth'
+import type { Principal } from '../auth'
 import type { CursorPosition, Page } from '../cursor'
 import type { EventLog } from '../events'
 import type { Pre } from '../registry'
 import type * as S from '../schemas'
 import type { SearchDoc } from '../search'
 import type { UploadRec } from '../uploads'
-import type { TranscriptRec } from '../transcripts'
-import type { RunUpdate } from './runs'
 import type { GuideBody } from '../guides'
 import type {
   Assume,
@@ -34,7 +32,8 @@ export type ProvenanceFacts = {
     html_url: string
   } | null
   patch_set: number | null
-  run: Out<typeof S.Run> | null
+  /** How that patch set got here: machine, tool and declared model. */
+  via: Out<typeof S.Via> | null
   /** The line was already on the change's base, this branch: blame it there. */
   on_base: string | null
 }
@@ -70,8 +69,8 @@ export interface DomainPort {
   readonly svc: Attached
   /** Rises on every access change, so cached bodies cannot outlive access. */
   readonly accessRevision: number
-  /** Housekeeping: drop finished runs and operations after a week. */
-  sweepRunsOperations: () => void | Promise<void>
+  /** Housekeeping: drop finished operations after a week. */
+  sweepOperations: () => void | Promise<void>
 
   // ---- access -------------------------------------------------------------
 
@@ -90,6 +89,12 @@ export interface DomainPort {
     need: 'read' | 'write',
   ) => Promise<string>
   /** Read access that requires a real relationship, not public visibility. */
+  /** The caller's place in a repository's secrets team, and its stable id. */
+  secretsAccess: (
+    owner: string,
+    name: string,
+    p: Viewer,
+  ) => Promise<{ full: string; repoId: string; team: boolean }>
   repoAccessStrict: (
     owner: string,
     name: string,
@@ -245,8 +250,10 @@ export interface DomainPort {
       website?: string | null
       docs_url?: string | null
       install?: string | null
-      transcripts?: 'off' | 'on'
-      run_trailer?: 'auto' | 'on' | 'off'
+      declined_models?: Array<string>
+      auto_land?: boolean
+      vouched?: Array<string>
+      denounced?: Array<{ handle: string; reason: string }>
     },
     ifMatch: IfMatch,
     dry: Dry,
@@ -341,87 +348,8 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<void>
 
-  // ---- runs and long operations ------------------------------------------
+  // ---- long operations -------------------------------------------------
 
-  listRuns: (
-    owner: string,
-    name: string,
-    p: Viewer,
-    q: Paging & { state?: string; actor?: string },
-  ) => Promise<Page<Out<typeof S.Run>>>
-  claimRun: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Principal,
-  ) => Promise<Out<typeof S.Run>>
-  getRun: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Viewer,
-  ) => Promise<Out<typeof S.Run>>
-  startRun: (
-    owner: string,
-    name: string,
-    p: Principal,
-    input: {
-      task: string
-      change?: number
-      scopes?: Array<string>
-      ttl_minutes: number
-    },
-    dry: Dry,
-  ) => Promise<{ run: Out<typeof S.Run> }>
-  noteRun: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Principal,
-    text: string,
-    dry: Dry,
-  ) => Promise<Out<typeof S.Run>>
-  endRun: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Principal,
-    state: 'succeeded' | 'failed' | 'cancelled',
-    summary: string | undefined,
-    dry: Dry,
-  ) => Promise<Out<typeof S.Run>>
-  updateRun: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Principal,
-    body: RunUpdate,
-    dry: Dry,
-  ) => Promise<Out<typeof S.Run>>
-  /**
-   * Checks a transcript may be attached to a run (404, 403, 409
-   * transcripts_disabled) and answers where it goes and the one it replaces.
-   */
-  transcriptTarget: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Principal,
-  ) => Promise<{ full: string; repoId: string; previous: string | null }>
-  attachTranscript: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Principal,
-    t: TranscriptRec,
-    dry: Dry,
-  ) => Promise<Out<typeof S.Run>>
-  runTranscript: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Viewer,
-  ) => Promise<TranscriptRec>
   getOperation: (id: string, p: Viewer) => Promise<Out<typeof S.Operation>>
   operationVersion: (id: string, p: Viewer) => Promise<string | null>
   /** The repository an operation belongs to, for waiting on it. Unchecked. */
@@ -729,98 +657,6 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.RepoIntegration>>
 
-  // ---- bots and automations ------------------------------------------------
-
-  listBots: (handle: string, p: Viewer) => Promise<Array<Out<typeof S.Bot>>>
-  createBot: (
-    handle: string,
-    p: Viewer,
-    body: {
-      slug: string
-      name: string
-      description?: string
-      class: 'bot' | 'agent'
-      scopes: Array<Scope>
-    },
-    dry: Dry,
-  ) => Promise<{ bot: Out<typeof S.Bot>; created: boolean }>
-  installBot: (
-    owner: string,
-    name: string,
-    slug: string,
-    p: Viewer,
-    on: boolean,
-    dry: Dry,
-  ) => Promise<Out<typeof S.Bot>>
-  updateBot: (
-    slug: string,
-    p: Viewer,
-    body: { name?: string; description?: string; scopes?: Array<Scope> },
-    dry: Dry,
-  ) => Promise<Out<typeof S.Bot>>
-  mintBotToken: (
-    slug: string,
-    p: Viewer,
-    days: number,
-  ) => Promise<Out<typeof S.BotToken>>
-  listAutomations: (
-    owner: string,
-    name: string,
-    p: Viewer,
-  ) => Promise<Array<Out<typeof S.Automation>>>
-  automationsVersion: (
-    owner: string,
-    name: string,
-    p: Viewer,
-  ) => Promise<string>
-  createAutomation: (
-    owner: string,
-    name: string,
-    p: Viewer,
-    body: {
-      name: string
-      bot: string
-      triggers: Array<(typeof S.automationTriggers)[number]>
-      runtime: string
-      target: string
-      instructions: string
-      enabled?: boolean
-      every?: 'hour' | 'day' | 'week'
-    },
-    dry: Dry,
-  ) => Promise<Out<typeof S.Automation>>
-  /** Fire the scheduled automations that are due. Returns how many fired. */
-  tickSchedules: () => number | Promise<number>
-  runAutomation: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Viewer,
-  ) => Promise<Out<typeof S.Run>>
-  updateAutomation: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Viewer,
-    body: {
-      name?: string
-      triggers?: Array<(typeof S.automationTriggers)[number]>
-      runtime?: string
-      target?: string
-      instructions?: string
-      enabled?: boolean
-      every?: 'hour' | 'day' | 'week'
-    },
-    dry: Dry,
-  ) => Promise<Out<typeof S.Automation>>
-  deleteAutomation: (
-    owner: string,
-    name: string,
-    id: string,
-    p: Viewer,
-    dry: Dry,
-  ) => Promise<void>
-
   // ---- imports and linked accounts -----------------------------------------
 
   listLinks: (
@@ -1104,6 +940,22 @@ export interface DomainPort {
     action: 'ready' | 'abandon' | 'restore',
     dry: Dry,
   ) => Promise<Out<typeof S.Change>>
+  /**
+   * Whether a change could land by itself now, all but the paths it touches,
+   * which only the API server can read from git. Null when it may not.
+   */
+  autoLandCandidate: (
+    owner: string,
+    name: string,
+    ref: string,
+  ) => Promise<{ full: string; by: string; base: string; sha: string } | null>
+  /** Lands it under the account that turned auto-land on, if still at `sha`. */
+  autoLand: (
+    owner: string,
+    name: string,
+    ref: string,
+    sha: string,
+  ) => Promise<boolean>
   /** Land one change. `expected_tree` must be the tree that was checked. */
   land: (
     owner: string,

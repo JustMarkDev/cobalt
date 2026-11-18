@@ -1,3 +1,4 @@
+import { cleanLabel } from '../via'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { allScopes } from '../auth'
@@ -19,8 +20,8 @@ function present(
     object: 'token',
     id: t.id,
     name: t.name,
-    kind: t.kind === 'oauth' ? 'personal' : t.kind,
-    class: t.class,
+    kind: 'personal',
+    device: t.device ?? null,
     scopes: [...t.scopes],
     repos: t.repos ? [...t.repos] : null,
     prefix: t.prefix,
@@ -66,13 +67,9 @@ export const listTokens = defineOp({
     Effect.gen(function* () {
       const { run } = yield* Domain
       const data = yield* run(async (d) =>
-        (
-          await d.svc.auth.list(ctx.principal!.handle, [
-            'personal',
-            'bot',
-            'run',
-          ])
-        ).map((t) => present(d, t, null)),
+        (await d.svc.auth.list(ctx.principal!.handle, ['personal'])).map((t) =>
+          present(d, t, null),
+        ),
       )
       return {
         object: 'list' as const,
@@ -106,6 +103,18 @@ export const createToken = defineOp({
       .max(50)
       .optional()
       .describe('`owner/name`. Limits the token to these repositories'),
+    device: z
+      .string()
+      .min(1)
+      .max(80)
+      .refine((v) => cleanLabel(v) === v.trim(), {
+        message:
+          'Plain text only: letters, digits, spaces and . _ : + / ( ) @ -',
+      })
+      .optional()
+      .describe(
+        'The machine it is for, as you name it. Receipts and production confirmations show it; it is your label, not verified',
+      ),
   }),
   response: S.Token,
   status: 201,
@@ -125,6 +134,14 @@ export const createToken = defineOp({
         const requestedName = new Map<string, string>()
         for (const r of body.repos ?? [])
           requestedName.set(canonical.get(r)!, r)
+        // A signed-in page never gets values, so it cannot make itself a
+        // token that reads them either: a machine signs in for that.
+        if (p.session && body.scopes.includes('secrets:decrypt'))
+          throw apiError(
+            'forbidden',
+            'A token that reads secret values is made by signing a machine in, not from a page.',
+            { hint: 'Run sx auth login on the machine that needs them.' },
+          )
         const missing = body.scopes.filter((s) => !p.scopes.has(s))
         if (missing.length)
           throw apiError(
@@ -166,8 +183,8 @@ export const createToken = defineOp({
               kind: 'personal',
               handle: p.handle,
               actingAs: p.handle,
-              class: p.class,
               scopes: body.scopes,
+              device: body.device ?? null,
               repos,
               audience: ['api', 'mcp'],
               prefix: 'sxp_',
@@ -180,10 +197,10 @@ export const createToken = defineOp({
           )
         const { record, secret } = await d.svc.auth.create({
           name: body.name,
-          kind: p.class === 'human' ? 'personal' : 'bot',
+          kind: 'personal',
           handle: p.handle,
-          class: p.class,
           scopes: body.scopes,
+          device: body.device ?? null,
           repos,
           ttlMs: body.expires_in_days * 86_400_000,
         })
@@ -253,6 +270,7 @@ function presentAuthz(
     object: 'authorization',
     id: a.id,
     client: { id: a.clientId, name: a.clientName },
+    device: a.device ?? null,
     scopes: [...a.scopes],
     audience: [...a.audience],
     url: `${d.urls.api}/authorizations/${a.id}`,

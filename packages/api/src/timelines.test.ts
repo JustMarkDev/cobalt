@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { sampleTokens } from './sample'
 import { harness } from './testing'
 
 const REPO = '/repos/dana/gitfs'
@@ -7,7 +8,11 @@ type Entry = {
   id: string
   kind: string
   created_at: string
-  run: string | null
+  via: {
+    machine: string | null
+    tool: string | null
+    model: string | null
+  } | null
   summary: string
   item: { object: string; [k: string]: unknown }
 }
@@ -28,26 +33,16 @@ async function all(h: ReturnType<typeof harness>, path: string) {
 }
 
 describe('one timeline per change and per issue', () => {
-  test("a change's story, in time order, with the run that made each part", async () => {
+  test("a change's story, in time order, with the receipt of each part", async () => {
     const h = harness()
-    const run = await h.call('POST', `${REPO}/runs`, {
-      body: {
-        task: 'Answer review',
-        change: 216,
-        scopes: ['repo:read', 'pulls:read', 'pulls:comment', 'pulls:write'],
-      },
-    })
-    await h.call('POST', `${REPO}/runs/${run.json.id}/notes`, {
-      token: run.json.token,
-      body: { text: 'Reading the review.' },
-    })
     await h.call('POST', `${REPO}/changes/216/patch-sets`, {
-      token: run.json.token,
+      token: sampleTokens.scoped,
+      headers: { 'sx-tool': 'T3 Code', 'sx-model': 'Claude Opus 5.5' },
       body: { sha: '9'.repeat(40), kind: 'update', note: 'Bounded the cache' },
     })
     const entries = await all(h, `${REPO}/changes/216/timeline`)
     const kinds = new Set(entries.map((e) => e.kind))
-    for (const k of ['patch_set', 'run_note', 'state_change'])
+    for (const k of ['patch_set', 'state_change'])
       expect(kinds.has(k)).toBe(true)
     const times = entries.map((e) => Date.parse(e.created_at))
     expect([...times].sort((a, b) => a - b)).toEqual(times)
@@ -56,30 +51,21 @@ describe('one timeline per change and per issue', () => {
     const pushed = entries.find(
       (e) => e.kind === 'patch_set' && e.item.number === 4,
     )!
-    expect(pushed.run).toBe(run.json.id)
+    expect(pushed.via).toEqual({
+      machine: 'Laptop',
+      tool: 'T3 Code',
+      model: 'Claude Opus 5.5',
+    })
     expect(pushed.item.object).toBe('patch_set')
-    const note = entries.find((e) => e.summary === 'Reading the review.')!
-    expect(note).toMatchObject({ kind: 'run_note', run: run.json.id })
   })
 
-  test("an issue's story: its runs, the changes that fix it, and closing it", async () => {
+  test("an issue's story: the changes that fix it, and closing it", async () => {
     const h = harness()
     const issue = (
       await h.call('POST', `${REPO}/issues`, {
         body: { title: 'Lookups of missing refs hit the disk' },
       })
     ).json.number as number
-    const run = await h.call('POST', `${REPO}/runs`, {
-      body: { task: 'Look into it' },
-    })
-    await h.call('PATCH', `${REPO}/runs/${run.json.id}`, {
-      token: run.json.token,
-      body: { issue },
-    })
-    await h.call('POST', `${REPO}/runs/${run.json.id}/notes`, {
-      token: run.json.token,
-      body: { text: 'Found it: no negative cache.' },
-    })
     const change = await h.call('POST', `${REPO}/changes`, {
       body: {
         branch: 'missing-refs-hit-disk',
@@ -97,9 +83,6 @@ describe('one timeline per change and per issue', () => {
       change: change.json.number,
       closes: true,
     })
-    expect(
-      entries.find((e) => e.summary === 'Found it: no negative cache.'),
-    ).toMatchObject({ kind: 'run_note', run: run.json.id })
     const moves = entries
       .filter((e) => e.kind === 'state_change')
       .map((e) => e.item.to)

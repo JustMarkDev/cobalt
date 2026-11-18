@@ -1,6 +1,6 @@
 import { mutation as plainMutation } from '../_generated/server'
 import { ConvexError } from 'convex/values'
-import { claim } from './actor'
+import { claim, fromApi } from './actor'
 import { heldBy } from './idempotency'
 import type { MutationCtx } from '../_generated/server'
 
@@ -30,8 +30,8 @@ export const mutation = ((definition: {
 async function markEffect(ctx: MutationCtx) {
   const id = await ctx.auth.getUserIdentity()
   const held = id?.[claim.idempotency]
-  // Only the API's JWT carries the class claim; a sign-in token has none.
-  if (typeof held !== 'string' || typeof id?.[claim.class] !== 'string') return
+  // Only the API's own JWT may mark a key; a sign-in token never does.
+  if (typeof held !== 'string' || !id || !fromApi(id)) return
   let scope: unknown
   let key: unknown
   let lease: unknown

@@ -111,7 +111,7 @@ export const heartbeat = mutation({
       })
     const { room, number } = await roomOf(ctx, repo, a.kind, a.ref)
     // A person and their agent share a handle; they are two viewers.
-    const user = p.class === 'human' ? p.handle : `${p.handle}~${p.class}`
+    const user = p.handle
     const { roomToken, sessionToken } = await presence.heartbeat(
       ctx,
       room,
@@ -124,7 +124,7 @@ export const heartbeat = mutation({
       return out(await present(ctx, room, a.kind, number))
     }
     const data: Data = {
-      actor: await actorFor(ctx, p.handle, p.class),
+      actor: await actorFor(ctx, p.handle),
       path: a.path ?? null,
       at: Date.now(),
     }

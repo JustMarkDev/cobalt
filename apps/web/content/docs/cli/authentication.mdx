@@ -25,7 +25,7 @@ and check the code is BCDF-GHJK
 
 Open the address in any browser, check the code matches, and approve. `sx` waits, then saves a token that **refreshes itself**. This is the OAuth device flow (RFC 8628), so it works over SSH and on machines with no browser. The code and the address go to stderr, so a script's stdout stays clean.
 
-The saved sign-in is in `credentials.json` next to your settings, readable only by you. `sx auth logout` revokes it on the server and deletes it. Ask for fewer powers with `--scope "repo:read pulls:read"`. The default includes `pulls:merge` and `secrets:write`, so the documented landing and secret commands work. `sx env pull` and `sx env run` need `secrets:decrypt`, which OAuth does not grant; use a personal `SX_TOKEN` with that scope. [How the flow works](/docs/api/oauth).
+The saved sign-in is in `credentials.json` next to your settings, readable only by you. `sx auth logout` revokes it on the server and deletes it. Ask for fewer powers with `--scope "repo:read pulls:read"`. The default includes `pulls:merge`, `secrets:write` and `secrets:decrypt`, so landing, `sx env run` and the other secret commands work. The approval page names the machine (`--device` to choose the name; the default is the system, such as `Mac`) and says it will read your team's values. A server can refuse that with `SX_DEVICE_DECRYPT=0`: machines then sign in without it. [How the flow works](/docs/api/oauth).
 
 ## Tokens for scripts and agents
 
@@ -36,7 +36,7 @@ export SX_TOKEN=sxp_...
 sx auth status
 ```
 
-Create tokens with `POST /v1/tokens` or in **Settings, Agents and tokens**. They always expire, show their secret once, and can be limited to repositories and to fewer scopes than you hold. A token belonging to a bot can lose scopes while installed but never gain them. A run started by an automation receives a token limited to one repository and one run. See [Authentication](/docs/api/authentication).
+Create tokens with `POST /v1/tokens` or in **Settings, Machines and tokens**. They always expire, show their secret once, and can be limited to repositories and to fewer scopes than you hold. A token belonging to a bot can lose scopes while installed but never gain them. A run started by an automation receives a token limited to one repository and one run. See [Authentication](/docs/api/authentication).
 
 ## Check where you stand
 

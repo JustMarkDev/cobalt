@@ -10,18 +10,18 @@ the rules change when it lands.
 
 ```yaml
 rules:
-  - id: core-paths # a built-in rule: its mode only
+  - id: ci-evidence # a built-in rule: its mode only
     mode: enforce
-  - id: big-change
+  - id: reviewed
     mode: dry-run
   - id: docs-review # a rule of the repository's own
     name: Docs need a writer
     when: { paths: ['docs/**'] }
     require:
-      - approval: { min: 1, class: human, from: [hollis] }
+      - approval: { min: 1, from: [hollis] }
 exceptions:
   - id: exc_01J…
-    rule: core-paths
+    rule: docs-review
     for: hollis
     reason: On call this week
     expires: 2026-12-01
@@ -51,8 +51,9 @@ landing:
 | `when`    | object                          | What the rule applies to                    |
 | `require` | list                            | What must hold before landing: one item     |
 
-A built-in rule (`core-paths`, `agent-authored`, `ci-evidence`, `findings`,
-`big-change`) takes its `mode` only.
+A built-in rule (`ci-evidence`, `findings`, `reviewed`) takes its `mode` only.
+The retired built-ins `core-paths`, `agent-authored` and `big-change` are
+ignored if an older file still names them.
 
 ## when
 
@@ -62,11 +63,11 @@ A built-in rule (`core-paths`, `agent-authored`, `ci-evidence`, `findings`,
 
 ## require
 
-| Item        | Example                                    | Meaning                                      |
-| ----------- | ------------------------------------------ | -------------------------------------------- |
-| `approval`  | `{ min: 1, class: human, from: [hollis] }` | Approvals from people, optionally named ones |
-| `evidence`  | `{ check: ci/test, bound_to: tree }`       | A check on the tree that will land           |
-| `max_lines` | `400`                                      | At most this many lines added and removed    |
+| Item        | Example                              | Meaning                                                       |
+| ----------- | ------------------------------------ | ------------------------------------------------------------- |
+| `approval`  | `{ min: 1, from: [hollis] }`         | Approvals, optionally from named accounts; never the author's |
+| `evidence`  | `{ check: ci/test, bound_to: tree }` | A check on the tree that will land                            |
+| `max_lines` | `400`                                | At most this many lines added and removed                     |
 
 ## Exception
 

@@ -11,7 +11,7 @@ import { insertRelease } from './forge/releases'
 import type { Release } from './forge/releases'
 import type { PipelineRun } from './forge/pipelines'
 import type { ChangeRec } from './lib/changeTypes'
-import type { Doc, Id } from './_generated/dataModel'
+import type { Id } from './_generated/dataModel'
 import type { MutationCtx } from './_generated/server'
 
 /**
@@ -103,7 +103,7 @@ export async function load(ctx: MutationCtx, w: World) {
     repoIds.set(`${r.owner}/${r.name}`, id)
     const repoDoc = (await ctx.db.get('repos', id))!
     await ctx.db.insert('repoCounters', { repoId: id, ...counters })
-    for (const h of new Set([...r.collaborators, ...r.installs]))
+    for (const h of new Set(r.collaborators))
       await ctx.db.insert('repoGrants', { handle: h, repoId: id })
     for (const [handle, at] of starredBy)
       await ctx.db.insert('stars', { repoId: id, handle, at })
@@ -214,39 +214,6 @@ export async function load(ctx: MutationCtx, w: World) {
         await ctx.db.insert('repoIntegrations', { repoId, integration })
   }
   for (const l of w.links) await ctx.db.insert('links', l)
-  for (const b of w.bots) {
-    const installs = w.repos
-      .filter((r) => r.installs.includes(b.slug))
-      .map((r) => repoIds.get(`${r.owner}/${r.name}`)!)
-    await ctx.db.insert('bots', { ...b, installs })
-  }
-  for (const [full, list] of w.automations) {
-    const repoId = repoIds.get(full)
-    if (!repoId) continue
-    for (const json of list) {
-      const a = JSON.parse(json) as Omit<
-        Doc<'automations'>,
-        '_id' | '_creationTime' | 'repoId' | 'publicId' | 'nextRun' | 'lastRun'
-      > & {
-        id: string
-        lastRun?: string | null
-      }
-      const { id, lastRun, ...rest } = a
-      const next = a.triggers.includes('schedule')
-        ? (a.lastScheduled ?? a.created) +
-            ({ hour: 3_600_000, day: 86_400_000 } as Record<string, number>)[
-              a.every ?? ''
-            ] || (a.lastScheduled ?? a.created) + 7 * 86_400_000
-        : null
-      await ctx.db.insert('automations', {
-        ...rest,
-        repoId,
-        publicId: id,
-        lastRun: lastRun ?? null,
-        nextRun: next,
-      })
-    }
-  }
   for (const n of w.notifications) {
     const r =
       n.repo && n.repo.includes('/')

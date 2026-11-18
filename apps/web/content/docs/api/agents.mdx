@@ -51,9 +51,22 @@ Patch set 2 (tree `9c4d7e1`) · 3 files, +84 −12 · checks pending (0 passed, 
 
 The Markdown is built from the JSON, so the two cannot disagree. Each form has its own `ETag`, `If-None-Match` works in both, and the response says `Vary: Accept`. Errors are always `application/problem+json`. Operations that have a readable form list `text/markdown` in the OpenAPI document.
 
-## Give an agent its own token
+## Say who you are: the receipt
 
-Start a [run](/docs/api/runs) rather than handing over your token. It is limited to one repository and a few scopes, it expires, you can cancel it, and everything it does is recorded as an agent.
+An agent works under a person's login: the one on the machine it runs on (`sx auth login`), or a narrower token the person made for it. There is no separate kind of account for agents. What it writes is the person's, and every write keeps a receipt:
+
+| Part      | From                                                                 |
+| --------- | -------------------------------------------------------------------- |
+| `machine` | The login: the name the machine gave when it signed in               |
+| `tool`    | The `Sx-Tool` header, such as `T3 Code` (`sx` sends its own)         |
+| `model`   | The `Sx-Model` header, such as `Claude Opus 5.5` (`SX_MODEL` for sx) |
+
+```bash
+curl -X POST $SX/repos/dana/gitfs/changes -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Sx-Tool: T3 Code" -H "Sx-Model: Claude Opus 5.5" -d '{"branch":"fix-cache"}'
+```
+
+Tool and model are declarations: source.code hosts no model and cannot check them, so they grant nothing. A repository may decline changes declared with a given model (`declined_models`), which answers `403 model_declined`. Labels that are not plain text are dropped, not stored. A `git push` reads the model from the commit message: `Assisted-by: <tool>:<model>`, or a `Co-Authored-By` with a model vendor's no-reply address.
 
 ## A loop that works
 
@@ -69,30 +82,32 @@ Start a [run](/docs/api/runs) rather than handing over your token. It is limited
 
 Branch on `code`, never on text.
 
-| `code`                                | Do                                                                                |
-| ------------------------------------- | --------------------------------------------------------------------------------- |
-| `policy_blocked`, `retryable: false`  | **Stop.** Report the `requirements` that failed. Do not look for another way in.  |
-| `policy_blocked`, `retryable: true`   | Only waiting is left. `wait` on the change, or sleep and send the same request.   |
-| `human_required`                      | **Stop and ask a person.** An agent cannot approve its own work.                  |
-| `stale_head`                          | The change moved. Read it again, check the new `head.tree`, decide again.         |
-| `version_mismatch`                    | Merge your edit into `current` and send again with its ETag.                      |
-| `parent_not_landed`                   | Land the stack, or the parent first.                                              |
-| `insufficient_scope`                  | Do not retry. Report `required_scopes`. A person has to give the token the scope. |
-| `rate_limited`, `concurrency_limited` | Wait `Retry-After` seconds.                                                       |
-| `request_in_progress`                 | Wait `Retry-After`, send the same request with the same key.                      |
-| `backend_unavailable`                 | Retry after `Retry-After` with backoff. Keyed writes are safe to repeat.          |
-| `not_found`                           | Check the path. Private things also answer this.                                  |
-| `invalid_request`                     | Fix what `errors` lists. It names each field.                                     |
+| `code`                                | Do                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------- |
+| `policy_blocked`, `retryable: false`  | **Stop.** Report the `requirements` that failed. Do not look for another way in.   |
+| `policy_blocked`, `retryable: true`   | Only waiting is left. `wait` on the change, or sleep and send the same request.    |
+| `confirmation_required`               | **Stop and ask a person** to confirm this login at the link in `hint`, then retry. |
+| `model_declined`                      | **Stop.** This repository does not take changes from the model you declared.       |
+| `denounced`                           | **Stop.** This account may not contribute here.                                    |
+| `stale_head`                          | The change moved. Read it again, check the new `head.tree`, decide again.          |
+| `version_mismatch`                    | Merge your edit into `current` and send again with its ETag.                       |
+| `parent_not_landed`                   | Land the stack, or the parent first.                                               |
+| `insufficient_scope`                  | Do not retry. Report `required_scopes`. A person has to give the token the scope.  |
+| `rate_limited`, `concurrency_limited` | Wait `Retry-After` seconds.                                                        |
+| `request_in_progress`                 | Wait `Retry-After`, send the same request with the same key.                       |
+| `backend_unavailable`                 | Retry after `Retry-After` with backoff. Keyed writes are safe to repeat.           |
+| `not_found`                           | Check the path. Private things also answer this.                                   |
+| `invalid_request`                     | Fix what `errors` lists. It names each field.                                      |
 
 `retryable` is a boolean so a generic retry loop is one `if`.
 
 ## Rules the API holds for you
 
-- **An agent never approves itself.** Not through the API, not through a policy.
-- **Secret values never appear** in any response, event or context. Names and kinds do.
-- **Scopes only shrink** while a bot is installed.
-- **What an agent writes is marked.** Every actor has a `class` of `human`, `agent` or `bot`. The `Sx-Agent` header is reserved and not recorded in this version.
-- **The same rules as people.** There is no looser path for automation.
+- **One kind of account.** The same rules for everyone; no looser path for automation, and no stricter one to work around.
+- **Approvals never come from the author.** Whoever opened a change cannot approve it, from any machine.
+- **Secret values appear in one response only**, `env.values`, to the repository's team, and never in an event, a context or a page.
+- **Every write keeps a receipt**: the machine, tool and model, next to the account responsible.
+- **Landing is a person's act**, or the repository's auto-land, which only takes a change whose checks are green and that touches nothing that protects the repository.
 
 ## Keeping cost down
 

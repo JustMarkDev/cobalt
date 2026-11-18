@@ -26,7 +26,7 @@ sxcurl $SX/auth/principal
   "object": "principal",
   "login": "dana",
   "acting_as": "dana",
-  "class": "human",
+  "device": "Laptop",
   "scopes": [
     "issues:comment",
     "issues:read",
@@ -37,7 +37,6 @@ sxcurl $SX/auth/principal
     "pulls:write",
     "repo:read",
     "repo:write",
-    "runs:transcripts",
     "secrets:decrypt",
     "secrets:schema",
     "secrets:write",
@@ -48,7 +47,7 @@ sxcurl $SX/auth/principal
 }
 ```
 
-(Trimmed.) `class` is `human`, `agent` or `bot`. Policies read it, so the API shows it everywhere an actor appears.
+(Trimmed.) `device` is the machine this login is on. Every write you make keeps it on its receipt, with the tool and model you declare.
 
 ## 2. Start work with one request
 

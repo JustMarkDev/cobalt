@@ -14,10 +14,18 @@ import type {
   RepoRec,
   Viewer,
 } from './records'
-import { DomainRuns } from './runs'
+import { DomainTeams } from './teams'
 
 /** Issues. */
-export abstract class DomainIssues extends DomainRuns {
+export abstract class DomainIssues extends DomainTeams {
+  /** Drop finished operations after a week. */
+  sweepOperations() {
+    const cutoff = this.now() - 7 * 86_400_000
+    for (const [id, op] of this.operations)
+      if (op.finished !== null && op.finished < cutoff)
+        this.operations.delete(id)
+  }
+
   async listIssues(
     owner: string,
     name: string,
@@ -75,6 +83,7 @@ export abstract class DomainIssues extends DomainRuns {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
+    this.assertMayContribute(repo, p!, 'issue')
     const assignees = body.assignees && this.assignable(repo, body.assignees)
     const same = repo.openIssueByTitle.get(body.title)
     if (same)
@@ -206,7 +215,6 @@ export abstract class DomainIssues extends DomainRuns {
         (repo.visibility === 'public' ||
           this.isMember(repo.owner, h) ||
           repo.collaborators.has(h) ||
-          repo.installs.has(h) ||
           this.teamLevel(repo, h) !== null)
       if (!a || !can)
         throw apiError('invalid_request', `${h} cannot be assigned here.`, {

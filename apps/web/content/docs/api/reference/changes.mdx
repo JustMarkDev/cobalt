@@ -63,7 +63,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes?limit=2&fields=number,
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.0.1.0-sRrnTkkI_ONzQQsq"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.0.1.0-qhkWXjv0dJO43KHW"
 ratelimit: "read";r=1193;t=60
 ```
 
@@ -85,7 +85,7 @@ ratelimit: "read";r=1193;t=60
       },
       "policy": {
         "state": "pending",
-        "blocking": 2
+        "blocking": 1
       }
     },
     {
@@ -101,8 +101,8 @@ ratelimit: "read";r=1193;t=60
         "pending": 0
       },
       "policy": {
-        "state": "pending",
-        "blocking": 2
+        "state": "met",
+        "blocking": 0
       }
     }
   ],
@@ -171,7 +171,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes" \
 HTTP/1.1 201
 location: https://api.source.code/v1/repos/dana/gitfs/changes/219
 sx-outcome: created
-ratelimit: "write";r=119;t=60
+ratelimit: "write";r=113;t=60
 ```
 
 ```json
@@ -192,9 +192,8 @@ ratelimit: "write";r=119;t=60
   "state": "draft",
   "author": {
     "object": "actor",
-    "id": "acc_01m203xrm0mdzde249",
-    "handle": "fix-agent",
-    "class": "agent"
+    "id": "acc_01m203xrm0bw4d69nd",
+    "handle": "dana"
   },
   "base": "main",
   "branch": "fix/trailing-dot-refs",
@@ -202,7 +201,12 @@ ratelimit: "write";r=119;t=60
   "head": {
     "patch_set": 1,
     "sha": "bd907e9ce9cf1d80983d4e25f3caba1f8f486935",
-    "tree": "bd907e9"
+    "tree": "bd907e9",
+    "via": {
+      "machine": "Laptop",
+      "tool": null,
+      "model": null
+    }
   },
   "stack": null,
   "stats": {
@@ -218,7 +222,7 @@ ratelimit: "write";r=119;t=60
   },
   "policy": {
     "state": "pending",
-    "blocking": 3
+    "blocking": 1
   },
   "reviewers": [],
   "mirrors": [],
@@ -229,7 +233,7 @@ ratelimit: "write";r=119;t=60
   "actions": {
     "land": {
       "allowed": false,
-      "reasons": ["state:draft", "scope:pulls:merge", "…and 3 more"]
+      "reasons": ["state:draft", "scope:pulls:merge", "…and 1 more"]
     },
     "abandon": {
       "allowed": true,
@@ -298,7 +302,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216" \
 
 ```http
 HTTP/1.1 200
-etag: W/"chg_01m6dqs9m0g7q74420.1.3.chg_01m6dqs9m0g7q74420.1.0-KO3isrAOBKaFndKd"
+etag: W/"chg_01m6dqs9m0g7q74420.1.3.chg_01m6dqs9m0g7q74420.1.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1192;t=60
 ```
 
@@ -321,8 +325,7 @@ ratelimit: "read";r=1192;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "base": "main",
   "branch": "neg-cache",
@@ -330,7 +333,8 @@ ratelimit: "read";r=1192;t=60
   "head": {
     "patch_set": 3,
     "sha": "9c4d7e1000000000000000000000000000000000",
-    "tree": "9c4d7e1"
+    "tree": "9c4d7e1",
+    "via": null
   },
   "stack": {
     "id": "stk_01m6jwjqm0ryrkz956",
@@ -358,8 +362,7 @@ ratelimit: "read";r=1192;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm08gbjfr85",
-        "handle": "hollis",
-        "class": "human"
+        "handle": "hollis"
       },
       "state": "approved",
       "patch_set": 2,
@@ -369,8 +372,7 @@ ratelimit: "read";r=1192;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0xgnjyxtd",
-        "handle": "greptile",
-        "class": "bot"
+        "handle": "greptile"
       },
       "state": "changes",
       "patch_set": 3,
@@ -490,8 +492,7 @@ ratelimit: "write";r=114;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0pqcgp142",
-    "handle": "ines",
-    "class": "human"
+    "handle": "ines"
   },
   "base": "main",
   "branch": "win-paths",
@@ -499,7 +500,12 @@ ratelimit: "write";r=114;t=60
   "head": {
     "patch_set": 3,
     "sha": "8e41c07d2b9a",
-    "tree": "8e41c07"
+    "tree": "8e41c07",
+    "via": {
+      "machine": "Laptop",
+      "tool": null,
+      "model": null
+    }
   },
   "stack": null,
   "stats": {
@@ -515,15 +521,14 @@ ratelimit: "write";r=114;t=60
   },
   "policy": {
     "state": "pending",
-    "blocking": 2
+    "blocking": 1
   },
   "reviewers": [
     {
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm08gbjfr85",
-        "handle": "hollis",
-        "class": "human"
+        "handle": "hollis"
       },
       "state": "commented",
       "patch_set": 2,
@@ -544,7 +549,7 @@ ratelimit: "write";r=114;t=60
   "actions": {
     "land": {
       "allowed": false,
-      "reasons": ["policy:core-paths pending", "policy:ci-evidence pending"]
+      "reasons": ["policy:ci-evidence pending"]
     },
     "abandon": {
       "allowed": true,
@@ -608,7 +613,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/218/abandon" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=112;t=60
+ratelimit: "write";r=111;t=60
 ```
 
 ```json
@@ -630,8 +635,7 @@ ratelimit: "write";r=112;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "base": "main",
   "branch": "doctor-stats",
@@ -639,7 +643,8 @@ ratelimit: "write";r=112;t=60
   "head": {
     "patch_set": 1,
     "sha": "c19b4d7000000000000000000000000000000000",
-    "tree": "c19b4d7"
+    "tree": "c19b4d7",
+    "via": null
   },
   "stack": {
     "id": "stk_01m6jwjqm0ryrkz956",
@@ -660,7 +665,7 @@ ratelimit: "write";r=112;t=60
   },
   "policy": {
     "state": "pending",
-    "blocking": 2
+    "blocking": 1
   },
   "reviewers": [],
   "mirrors": [
@@ -677,7 +682,11 @@ ratelimit: "write";r=112;t=60
   "actions": {
     "land": {
       "allowed": false,
-      "reasons": ["state:abandoned", "policy:core-paths pending", "…and 2 more"]
+      "reasons": [
+        "state:abandoned",
+        "policy:ci-evidence pending",
+        "…and 1 more"
+      ]
     },
     "abandon": {
       "allowed": false,
@@ -914,7 +923,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments" \
 
 ```http
 HTTP/1.1 200
-etag: W/"chg_01m6dqs9m0g7q74420.rc2.0-KO3isrAOBKaFndKd"
+etag: W/"chg_01m6dqs9m0g7q74420.rc2.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1180;t=60
 ```
 
@@ -924,13 +933,12 @@ ratelimit: "read";r=1180;t=60
   "data": [
     {
       "object": "change_comment",
-      "id": "cmt_01m6tq6r8053g0xt2b",
+      "id": "cmt_01m6tq6r80bawfbmjj",
       "change": 216,
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "body": "Does this still hold when the ref is packed?",
       "file": "src/refs.rs",
@@ -947,26 +955,29 @@ ratelimit: "read";r=1180;t=60
       "current_line": 3,
       "outdated": false,
       "addressed": null,
-      "run": null,
+      "via": {
+        "machine": "Laptop",
+        "tool": null,
+        "model": null
+      },
       "created_at": "2026-11-07T10:00:00.000Z",
       "updated_at": "2026-11-07T10:00:00.000Z",
       "version": 1
     },
     {
       "object": "change_comment",
-      "id": "cmt_01m6tq6r80frj8b3z8",
+      "id": "cmt_01m6tq6r8018ee3mb6",
       "change": 216,
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "body": "Done in patch set 3.",
       "file": "src/refs.rs",
       "line": 3,
       "patch_set": 3,
-      "reply_to": "cmt_01m6tq6r8053g0xt2b",
+      "reply_to": "cmt_01m6tq6r80bawfbmjj",
       "resolved": false,
       "anchor": {
         "quote": "    neg: NegCache,",
@@ -977,7 +988,11 @@ ratelimit: "read";r=1180;t=60
       "current_line": 3,
       "outdated": false,
       "addressed": null,
-      "run": null,
+      "via": {
+        "machine": "Laptop",
+        "tool": null,
+        "model": null
+      },
       "created_at": "2026-11-07T10:00:00.000Z",
       "updated_at": "2026-11-07T10:00:00.000Z",
       "version": 1
@@ -1046,19 +1061,18 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments" 
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=101;t=60
+ratelimit: "write";r=100;t=60
 ```
 
 ```json
 {
   "object": "change_comment",
-  "id": "cmt_01m6tq6r8053g0xt2b",
+  "id": "cmt_01m6tq6r80bawfbmjj",
   "change": 216,
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "body": "Does this still hold when the ref is packed?",
   "file": "src/refs.rs",
@@ -1075,7 +1089,11 @@ ratelimit: "write";r=101;t=60
   "current_line": 3,
   "outdated": false,
   "addressed": null,
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -1121,13 +1139,13 @@ Its author, or anyone who can change the repository. Deleting the comment that s
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r8053g0xt2b" \
+curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=96;t=60
+ratelimit: "write";r=95;t=60
 ```
 
 ### `change_comments.update`
@@ -1176,7 +1194,7 @@ ratelimit: "write";r=96;t=60
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r8053g0xt2b" \
+curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"resolved":true}'
@@ -1184,19 +1202,18 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=97;t=60
+ratelimit: "write";r=96;t=60
 ```
 
 ```json
 {
   "object": "change_comment",
-  "id": "cmt_01m6tq6r8053g0xt2b",
+  "id": "cmt_01m6tq6r80bawfbmjj",
   "change": 216,
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "body": "Does this still hold when the ref is packed?",
   "file": "src/refs.rs",
@@ -1217,13 +1234,16 @@ ratelimit: "write";r=97;t=60
     "by": {
       "object": "actor",
       "id": "acc_01m203xrm0bw4d69nd",
-      "handle": "dana",
-      "class": "human"
+      "handle": "dana"
     },
     "note": "Packed refs go through the same lookup now.",
     "at": "2026-11-07T10:00:00.000Z"
   },
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 3
@@ -1276,7 +1296,7 @@ Links a fix to the comment it answers. The thread's author is told, and the chan
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r8053g0xt2b/address" \
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj/address" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"note":"Packed refs go through the same lookup now."}'
@@ -1284,19 +1304,18 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/c
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=98;t=60
+ratelimit: "write";r=97;t=60
 ```
 
 ```json
 {
   "object": "change_comment",
-  "id": "cmt_01m6tq6r8053g0xt2b",
+  "id": "cmt_01m6tq6r80bawfbmjj",
   "change": 216,
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "body": "Does this still hold when the ref is packed?",
   "file": "src/refs.rs",
@@ -1317,13 +1336,16 @@ ratelimit: "write";r=98;t=60
     "by": {
       "object": "actor",
       "id": "acc_01m203xrm0bw4d69nd",
-      "handle": "dana",
-      "class": "human"
+      "handle": "dana"
     },
     "note": "Packed refs go through the same lookup now.",
     "at": "2026-11-07T10:00:00.000Z"
   },
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -1437,7 +1459,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings?state=ope
 
 ```http
 HTTP/1.1 200
-etag: W/"5Klg720r8Pj-at6F"
+etag: W/"0P4sN6waZujv0CFd"
 ratelimit: "read";r=1189;t=60
 ```
 
@@ -1469,7 +1491,7 @@ ratelimit: "read";r=1189;t=60
         ]
       },
       "prompt": "NegCache in src/refs.rs never evicts, while the positive cache in src/cache.rs stops at 10,000 entries. Bound it to the same size with LRU eviction: add put_…",
-      "run": null,
+      "via": null,
       "created_at": "2026-11-06T13:00:00.000Z"
     },
     {
@@ -1494,7 +1516,7 @@ ratelimit: "read";r=1189;t=60
         "lines": ["        if self.neg.peek(name) {"]
       },
       "prompt": "In src/refs.rs, lookup() calls self.neg.contains(name), which takes the cache lock on every call even for repeat hits. Read from a lock-free snapshot instead…",
-      "run": null,
+      "via": null,
       "created_at": "2026-11-06T13:00:00.000Z"
     },
     "…and 1 more"
@@ -1569,7 +1591,7 @@ ratelimit: "write";r=118;t=60
 ```json
 {
   "object": "finding",
-  "id": "fnd_01m6tq6r80szwv5hyb",
+  "id": "fnd_01m6tq6r8060d2gg0y",
   "label": "F-5",
   "by": "hollis",
   "severity": "medium",
@@ -1580,10 +1602,14 @@ ratelimit: "write";r=118;t=60
   "title": "The cache is never bounded",
   "body": "A long-running mount keeps every missing ref forever.",
   "patch_set": 4,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6tq6r80szwv5hyb",
+  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6tq6r8060d2gg0y",
   "suggestion": null,
   "prompt": null,
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -1665,7 +1691,7 @@ ratelimit: "write";r=117;t=60
     "lines": ["        if self.neg.peek(name) {"]
   },
   "prompt": "In src/refs.rs, lookup() calls self.neg.contains(name), which takes the cache lock on every call even for repeat hits. Read from a lock-free snapshot instead…",
-  "run": null,
+  "via": null,
   "created_at": "2026-11-06T13:00:00.000Z"
 }
 ```
@@ -1741,7 +1767,7 @@ ratelimit: "write";r=118;t=60
     ]
   },
   "prompt": "NegCache in src/refs.rs never evicts, while the positive cache in src/cache.rs stops at 10,000 entries. Bound it to the same size with LRU eviction: add put_…",
-  "run": null,
+  "via": null,
   "created_at": "2026-11-06T13:00:00.000Z"
 }
 ```
@@ -1783,8 +1809,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/guide" \
 
 ```http
 HTTP/1.1 200
-etag: W/"u1fVgWEfhE-zVFvn"
-ratelimit: "read";r=1160;t=60
+etag: W/"H7iLxCJc_98gAly2"
+ratelimit: "read";r=1161;t=60
 ```
 
 ```json
@@ -1809,10 +1835,13 @@ ratelimit: "read";r=1160;t=60
   "by": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -1871,7 +1900,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/changes/216/guide" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=76;t=60
+ratelimit: "write";r=78;t=60
 ```
 
 ```json
@@ -1896,10 +1925,13 @@ ratelimit: "write";r=76;t=60
   "by": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -1980,8 +2012,7 @@ ratelimit: "write";r=119;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "base": "main",
   "branch": "step-1",
@@ -1989,7 +2020,8 @@ ratelimit: "write";r=119;t=60
   "head": {
     "patch_set": 1,
     "sha": "1111111000000000000000000000000000000000",
-    "tree": "1111111"
+    "tree": "1111111",
+    "via": null
   },
   "stack": {
     "id": "stk_stacky000000000000",
@@ -2017,8 +2049,7 @@ ratelimit: "write";r=119;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm08gbjfr85",
-        "handle": "hollis",
-        "class": "human"
+        "handle": "hollis"
       },
       "state": "approved",
       "patch_set": 1,
@@ -2092,8 +2123,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/landability" \
 
 ```http
 HTTP/1.1 200
-etag: W/"3mO68082t2P6K6IW"
-ratelimit: "read";r=1158;t=60
+etag: W/"9CJik28nndsa5M9W"
+ratelimit: "read";r=1159;t=60
 ```
 
 ```json
@@ -2104,20 +2135,6 @@ ratelimit: "read";r=1158;t=60
   "tree": "3361c86",
   "landable": false,
   "blockers": [
-    {
-      "id": "core-paths",
-      "rule": "Core paths need a maintainer",
-      "state": "pending",
-      "detail": "src/** needs 1 human approval from a maintainer.",
-      "needs": {
-        "approval": {
-          "min": 1,
-          "class": "human",
-          "from": "maintainers"
-        }
-      },
-      "blocking": []
-    },
     {
       "id": "ci-evidence",
       "rule": "Tests pass on the tree that will land",
@@ -2133,28 +2150,26 @@ ratelimit: "read";r=1158;t=60
   ],
   "requirements": [
     {
-      "id": "core-paths",
-      "rule": "Core paths need a maintainer",
+      "id": "ci-evidence",
+      "rule": "Tests pass on the tree that will land",
       "state": "pending",
-      "detail": "src/** needs 1 human approval from a maintainer.",
+      "detail": "No ci/test result for tree 3361c86 yet.",
       "needs": {
-        "approval": {
-          "min": 1,
-          "class": "human",
-          "from": "maintainers"
-        }
+        "check": "ci/test",
+        "bound_to": "tree",
+        "tree": "3361c86"
       },
       "blocking": []
     },
     {
-      "id": "agent-authored",
-      "rule": "Agent-authored changes need a human",
-      "state": "na",
-      "detail": "The author is a person.",
+      "id": "findings",
+      "rule": "No open high-severity findings",
+      "state": "pass",
+      "detail": "No open high-severity findings.",
       "needs": null,
       "blocking": []
     },
-    "…and 3 more"
+    "…and 1 more"
   ],
   "landing": {
     "strategy": "squash",
@@ -2200,7 +2215,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets" \
 
 ```http
 HTTP/1.1 200
-etag: W/"jWSVIQS5u5d_Cejv"
+etag: W/"qEExpUJwNZq5Q6kZ"
 ratelimit: "read";r=1191;t=60
 ```
 
@@ -2218,12 +2233,11 @@ ratelimit: "read";r=1191;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "files": 2,
       "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/1",
-      "run": null,
+      "via": null,
       "created_at": "2026-11-04T09:00:00.000Z"
     },
     {
@@ -2236,12 +2250,11 @@ ratelimit: "read";r=1191;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "files": 2,
       "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/2",
-      "run": null,
+      "via": null,
       "created_at": "2026-11-05T09:00:00.000Z"
     },
     "…and 1 more"
@@ -2322,12 +2335,15 @@ ratelimit: "write";r=115;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "files": 2,
   "url": "https://api.source.code/v1/repos/dana/gitfs/changes/212/patch-sets/3",
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -2368,7 +2384,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/3" \
 
 ```http
 HTTP/1.1 200
-etag: W/"VGTZnrq5A8rOz7EA"
+etag: W/"nxhobOMXS3x57ynM"
 ratelimit: "read";r=1190;t=60
 ```
 
@@ -2383,12 +2399,11 @@ ratelimit: "read";r=1190;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "files": 2,
   "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/3",
-  "run": null,
+  "via": null,
   "created_at": "2026-11-06T09:00:00.000Z"
 }
 ```
@@ -2493,8 +2508,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/presence" \
 
 ```http
 HTTP/1.1 200
-etag: W/"vSeNM3tjahL7Cjuf"
-ratelimit: "read";r=1157;t=60
+etag: W/"n60AEhAaCEr9hyLd"
+ratelimit: "read";r=1158;t=60
 ```
 
 ```json
@@ -2508,8 +2523,7 @@ ratelimit: "read";r=1157;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "path": "src/refs.rs",
       "seen_at": "2026-11-07T10:00:00.000Z"
@@ -2565,7 +2579,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/changes/216/presence" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=74;t=60
+ratelimit: "write";r=76;t=60
 ```
 
 ```json
@@ -2579,8 +2593,7 @@ ratelimit: "write";r=74;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "path": "src/refs.rs",
       "seen_at": "2026-11-07T10:00:00.000Z"
@@ -2631,7 +2644,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/218/ready" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=113;t=60
+ratelimit: "write";r=112;t=60
 ```
 
 ```json
@@ -2653,8 +2666,7 @@ ratelimit: "write";r=113;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "base": "main",
   "branch": "doctor-stats",
@@ -2662,7 +2674,8 @@ ratelimit: "write";r=113;t=60
   "head": {
     "patch_set": 1,
     "sha": "c19b4d7000000000000000000000000000000000",
-    "tree": "c19b4d7"
+    "tree": "c19b4d7",
+    "via": null
   },
   "stack": {
     "id": "stk_01m6jwjqm0ryrkz956",
@@ -2683,7 +2696,7 @@ ratelimit: "write";r=113;t=60
   },
   "policy": {
     "state": "pending",
-    "blocking": 2
+    "blocking": 1
   },
   "reviewers": [],
   "mirrors": [
@@ -2700,11 +2713,7 @@ ratelimit: "write";r=113;t=60
   "actions": {
     "land": {
       "allowed": false,
-      "reasons": [
-        "policy:core-paths pending",
-        "policy:ci-evidence pending",
-        "…and 1 more"
-      ]
+      "reasons": ["policy:ci-evidence pending", "parent:#217 not landed"]
     },
     "abandon": {
       "allowed": true,
@@ -2768,7 +2777,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/218/restore" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=111;t=60
+ratelimit: "write";r=110;t=60
 ```
 
 ```json
@@ -2790,8 +2799,7 @@ ratelimit: "write";r=111;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "base": "main",
   "branch": "doctor-stats",
@@ -2799,7 +2807,8 @@ ratelimit: "write";r=111;t=60
   "head": {
     "patch_set": 1,
     "sha": "c19b4d7000000000000000000000000000000000",
-    "tree": "c19b4d7"
+    "tree": "c19b4d7",
+    "via": null
   },
   "stack": {
     "id": "stk_01m6jwjqm0ryrkz956",
@@ -2820,7 +2829,7 @@ ratelimit: "write";r=111;t=60
   },
   "policy": {
     "state": "pending",
-    "blocking": 2
+    "blocking": 1
   },
   "reviewers": [],
   "mirrors": [
@@ -2837,11 +2846,7 @@ ratelimit: "write";r=111;t=60
   "actions": {
     "land": {
       "allowed": false,
-      "reasons": [
-        "policy:core-paths pending",
-        "policy:ci-evidence pending",
-        "…and 1 more"
-      ]
+      "reasons": ["policy:ci-evidence pending", "parent:#217 not landed"]
     },
     "abandon": {
       "allowed": true,
@@ -2869,7 +2874,7 @@ ratelimit: "write";r=111;t=60
 
 **Approve, comment or ask for changes**
 
-An approval is tied to a patch set and says whether it still holds for the head. Approving your own change is refused: with human_required for an agent, forbidden for a person.
+An approval is tied to a patch set and says whether it still holds for the head. Approving your own change is refused with forbidden, whatever tool sends it.
 
 | About      |                                     |
 | ---------- | ----------------------------------- |
@@ -2904,7 +2909,7 @@ An approval is tied to a patch set and says whether it still holds for the head.
 
 **Errors**
 
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`human_required`](/docs/api/errors#human_required), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
 
 **Example**
 
@@ -2927,14 +2932,17 @@ ratelimit: "write";r=119;t=60
   "actor": {
     "object": "actor",
     "id": "acc_01m203xrm08gbjfr85",
-    "handle": "hollis",
-    "class": "human"
+    "handle": "hollis"
   },
   "state": "commented",
   "patch_set": 2,
   "carries_to_head": true,
   "body": "The regression test covers it. One question inline.",
-  "run": null,
+  "via": {
+    "machine": "Laptop",
+    "tool": null,
+    "model": null
+  },
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -2977,7 +2985,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/seen" \
 ```http
 HTTP/1.1 200
 etag: W/"2gyNy_i00YgjnTZx"
-ratelimit: "read";r=1159;t=60
+ratelimit: "read";r=1160;t=60
 ```
 
 ```json
@@ -3057,7 +3065,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/changes/216/seen" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=75;t=60
+ratelimit: "write";r=77;t=60
 ```
 
 ```json
@@ -3128,8 +3136,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/timeline?limit=5" 
 
 ```http
 HTTP/1.1 200
-etag: W/"iw9MPrqPZ7QTO8lA"
-ratelimit: "read";r=1155;t=60
+etag: W/"hr1lXuoDdoRndgpA"
+ratelimit: "read";r=1156;t=60
 ```
 
 ```json
@@ -3144,10 +3152,9 @@ ratelimit: "read";r=1155;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
-      "run": null,
+      "via": null,
       "summary": "Patch set 1: Initial version",
       "item": {
         "object": "patch_set",
@@ -3159,12 +3166,11 @@ ratelimit: "read";r=1155;t=60
         "author": {
           "object": "actor",
           "id": "acc_01m203xrm0bw4d69nd",
-          "handle": "dana",
-          "class": "human"
+          "handle": "dana"
         },
         "files": 2,
         "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/1",
-        "run": null,
+        "via": null,
         "created_at": "2026-11-04T09:00:00.000Z"
       }
     },
@@ -3176,10 +3182,9 @@ ratelimit: "read";r=1155;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
-      "run": null,
+      "via": null,
       "summary": "Patch set 2: Address review: rename hit() to contains()",
       "item": {
         "object": "patch_set",
@@ -3191,12 +3196,11 @@ ratelimit: "read";r=1155;t=60
         "author": {
           "object": "actor",
           "id": "acc_01m203xrm0bw4d69nd",
-          "handle": "dana",
-          "class": "human"
+          "handle": "dana"
         },
         "files": 2,
         "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/2",
-        "run": null,
+        "via": null,
         "created_at": "2026-11-05T09:00:00.000Z"
       }
     },
@@ -3260,15 +3264,15 @@ curl -X POST "https://api.source.code/v1/repos/dana/stacky/stacks/stk_stacky0000
 
 ```http
 HTTP/1.1 202
-location: https://api.source.code/v1/operations/op_01m6tq6r80tgf8fc46
+location: https://api.source.code/v1/operations/op_01m6tq6r80p8s3577q
 retry-after: 1
-ratelimit: "write";r=7;t=60
+ratelimit: "write";r=20;t=60
 ```
 
 ```json
 {
   "object": "operation",
-  "id": "op_01m6tq6r80tgf8fc46",
+  "id": "op_01m6tq6r80p8s3577q",
   "kind": "stack.land",
   "state": "queued",
   "progress": {
@@ -3277,7 +3281,7 @@ ratelimit: "write";r=7;t=60
   },
   "result": null,
   "error": null,
-  "url": "https://api.source.code/v1/operations/op_01m6tq6r80tgf8fc46",
+  "url": "https://api.source.code/v1/operations/op_01m6tq6r80p8s3577q",
   "created_at": "2026-11-07T10:00:00.000Z",
   "finished_at": null,
   "steps": [

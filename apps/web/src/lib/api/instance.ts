@@ -128,7 +128,6 @@ export function getApi(requestUrl: string) {
   const onConvex = convexApi(origin, sessions, live)
   if (onConvex) {
     current = onConvex
-    startSchedules()
     return current
   }
   console.warn(
@@ -151,23 +150,5 @@ export function getApi(requestUrl: string) {
       : {}),
   })
   current = api
-  startSchedules()
   return current
-}
-
-/**
- * Scheduled automations fire from this clock: one timer per process, also
- * across reloads in development. On Convex the deployment's own cron fires
- * them too; a tick that finds nothing due does nothing.
- */
-function startSchedules() {
-  const g = globalThis as { sxSchedules?: ReturnType<typeof setInterval> }
-  if (g.sxSchedules) clearInterval(g.sxSchedules)
-  // A schedule missed while the server was down fires once, at start.
-  void Promise.resolve(current?.port.tickSchedules()).catch(() => {})
-  g.sxSchedules = setInterval(
-    () => void Promise.resolve(current?.port.tickSchedules()).catch(() => {}),
-    60_000,
-  )
-  g.sxSchedules.unref()
 }

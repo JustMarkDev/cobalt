@@ -1,4 +1,5 @@
 import { fail } from './errors'
+import { env } from '../_generated/server'
 import type { QueryCtx } from '../_generated/server'
 
 /**
@@ -9,23 +10,38 @@ import type { QueryCtx } from '../_generated/server'
  *    themself with every scope, as they would with a full personal token.
  *  - the HTTP API, after it checked a bearer token. Its short JWT carries
  *    the principal the API worked out: the login, the account it acts as,
- *    the class of actor, the scopes and the repositories it is limited to.
+ *    the scopes, the repositories it is limited to, and the receipt (the
+ *    machine, tool and declared model) every write records.
  *
- * The same `Actor` comes out of both, so a rule is written once.
+ * The same `Actor` comes out of both, so a rule is written once. There is no
+ * kind of actor: an account is responsible for what it writes, whatever typed
+ * it.
  */
-export type ActorClass = 'human' | 'agent' | 'bot'
+export type Via = {
+  machine: string | null
+  tool: string | null
+  model: string | null
+}
 
 export type Actor = {
   /** The login. */
   handle: string
   /** The account the request acts as. */
   actingAs: string
-  class: ActorClass
+  /** How this request got here; the receipt its writes keep. */
+  via: Via
+  /** A signed-in page, not a token: the only place production access is confirmed. */
+  session: boolean
   scopes: ReadonlySet<string>
   /** Lowercase `owner/name` list when limited to repositories. */
   repos: ReadonlyArray<string> | null
   /** The API token behind the request; null for a browser session. */
   tokenId: string | null
+  /**
+   * The login behind it: the OAuth authorization, or the token itself. What
+   * a production confirmation is bound to, the same as the API's principal.
+   */
+  loginId?: string | null
   /** The API server itself, for housekeeping no person asked for. */
   system: boolean
 }
@@ -46,13 +62,18 @@ export const allScopes = [
   'webhooks:read',
   'webhooks:write',
   'tokens:manage',
-  'runs:transcripts',
 ] as const
 
 /** The claims the API puts in its JWT. Short names: they ride on every call. */
 export const claim = {
+  /** Present only on the API's own JWT. */
+  api: 'sx_api',
   token: 'sx_tok',
-  class: 'sx_cls',
+  login: 'sx_login',
+  device: 'sx_dev',
+  tool: 'sx_tool',
+  model: 'sx_model',
+  session: 'sx_ses',
   actingAs: 'sx_act',
   scopes: 'sx_scp',
   repos: 'sx_rep',
@@ -66,16 +87,24 @@ type Ctx = Pick<QueryCtx, 'auth' | 'db'>
 export async function actorOf(ctx: Ctx): Promise<Actor | null> {
   const id = await ctx.auth.getUserIdentity()
   if (!id) return null
-  const cls = id[claim.class]
-  if (typeof cls === 'string') {
+  if (fromApi(id)) {
     const scopes = id[claim.scopes]
     const repos = id[claim.repos]
     const acting = id[claim.actingAs]
     const token = id[claim.token]
+    const text = (k: string) => {
+      const v = id[k]
+      return typeof v === 'string' && v ? v : null
+    }
     return {
       handle: id.subject,
       actingAs: typeof acting === 'string' ? acting : id.subject,
-      class: cls === 'agent' || cls === 'bot' ? cls : 'human',
+      via: {
+        machine: text(claim.device),
+        tool: text(claim.tool),
+        model: text(claim.model),
+      },
+      session: id[claim.session] === 'true',
       scopes: new Set(
         typeof scopes === 'string' ? scopes.split(' ').filter(Boolean) : [],
       ),
@@ -87,6 +116,7 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
               .map((r) => r.toLowerCase())
           : null,
       tokenId: typeof token === 'string' ? token : null,
+      loginId: text(claim.login),
       system: id[claim.system] === true || id[claim.system] === 'true',
     }
   }
@@ -99,12 +129,25 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
   return {
     handle: account.handle,
     actingAs: account.handle,
-    class: 'human',
+    via: { machine: 'browser', tool: 'source.code', model: null },
+    session: true,
     scopes: new Set(allScopes),
     repos: null,
     tokenId: null,
     system: false,
   }
+}
+
+/**
+ * Whether a verified identity is the API's own JWT. It must carry the API's
+ * marker claim and, once the deployment knows the API's issuer, come from
+ * that issuer: a sign-in token can never pass for the API, so it can never
+ * set its own scopes, receipt or session flag.
+ */
+export function fromApi(id: Record<string, unknown> & { issuer?: string }) {
+  if (id[claim.api] !== 'true') return false
+  const issuer = env.API_JWT_ISSUER
+  return !issuer || id.issuer === issuer
 }
 
 /** The caller, who must be signed in. */

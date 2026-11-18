@@ -1,7 +1,7 @@
 ---
 icon: UsersIcon
 title: Accounts
-description: Who you can act as, profiles, organizations, members, invitations and teams, follows and the directory of people, your preferences, inbox and dashboard, connected services, linked accounts and bots.
+description: Who you can act as, profiles, organizations, members, invitations and teams, follows and the directory of people, your preferences, inbox and dashboard, connected services and linked accounts.
 ---
 
 {/* Generated from the API definitions by scripts/api-docs.ts. Do not edit by hand. */}
@@ -115,7 +115,7 @@ You become its first owner. People and organizations share one namespace, so the
 
 **Errors**
 
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`human_required`](/docs/api/errors#human_required), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
 
 **Example**
 
@@ -130,7 +130,7 @@ curl -X POST "https://api.source.code/v1/accounts" \
 HTTP/1.1 201
 location: https://api.source.code/v1/accounts/harbor-tools
 sx-outcome: created
-ratelimit: "write";r=33;t=60
+ratelimit: "write";r=46;t=60
 ```
 
 ```json
@@ -190,7 +190,7 @@ curl "https://api.source.code/v1/accounts/dana" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m203xrm0bw4d69nd.1.0-KO3isrAOBKaFndKd"
+etag: W/"acc_01m203xrm0bw4d69nd.1.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1198;t=60
 ```
 
@@ -262,7 +262,7 @@ curl -X PATCH "https://api.source.code/v1/accounts/harbor-tools" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=32;t=60
+ratelimit: "write";r=45;t=60
 ```
 
 ```json
@@ -279,152 +279,6 @@ ratelimit: "write";r=32;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
-}
-```
-
-### `bots.list`
-
-`GET /accounts/{handle}/bots`
-
-**Bots an account owns**
-
-Yours, or an organization you own or administer.
-
-| About      |                        |
-| ---------- | ---------------------- |
-| Safety     | `read`, safe to repeat |
-| Needs      | a token                |
-| Scopes     | none                   |
-| Rate limit | `read` pool, 1 unit    |
-| Success    | `200`, a list of `bot` |
-
-**Path parameters**
-
-| Name     | Type   | Notes |
-| -------- | ------ | ----- |
-| `handle` | string |       |
-
-**Errors**
-
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
-
-**Example**
-
-```bash
-curl "https://api.source.code/v1/accounts/dana/bots" \
-  -H "Authorization: Bearer $SX_TOKEN"
-```
-
-```http
-HTTP/1.1 200
-etag: W/"7kK8bpXdqp4YYktk"
-ratelimit: "read";r=1138;t=60
-```
-
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "object": "bot",
-      "slug": "triage-bot",
-      "name": "Triage bot",
-      "description": "Labels and answers new issues.",
-      "owner": "dana",
-      "class": "bot",
-      "scopes": ["repo:read", "issues:read", "…and 2 more"],
-      "installs": ["dana/gitfs", "dana/tinyqueue"],
-      "tokens": 1,
-      "created_at": "2026-09-28T09:00:00.000Z"
-    },
-    {
-      "object": "bot",
-      "slug": "release-bot",
-      "name": "Release bot",
-      "description": "Cuts release notes and tags builds.",
-      "owner": "dana",
-      "class": "bot",
-      "scopes": ["repo:read", "repo:write", "…and 1 more"],
-      "installs": ["dana/gitfs"],
-      "tokens": 0,
-      "created_at": "2026-09-28T09:00:00.000Z"
-    },
-    "…and 1 more"
-  ],
-  "has_more": false,
-  "next_cursor": null
-}
-```
-
-### `bots.create`
-
-`POST /accounts/{handle}/bots`
-
-**Make a bot**
-
-Its slug is its handle everywhere it acts. Naturally idempotent: making one that is yours again returns it.
-
-| About      |                         |
-| ---------- | ----------------------- |
-| Safety     | `write`, safe to repeat |
-| Needs      | a token                 |
-| Scopes     | none                    |
-| Rate limit | `write` pool, 1 unit    |
-| Dry run    | `?dry_run=true`         |
-| Success    | `201`, a `bot`          |
-
-**Path parameters**
-
-| Name     | Type   | Notes |
-| -------- | ------ | ----- |
-| `handle` | string |       |
-
-**Query parameters**
-
-| Name      | Type    | Notes                                                                                                   |
-| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
-
-**Request body**
-
-| Member        | Type                                                                                                                                                                                                                                                                                                         | Notes            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
-| `slug`        | string (pattern)                                                                                                                                                                                                                                                                                             | Required.        |
-| `name`        | string (up to 100 characters, at least 1)                                                                                                                                                                                                                                                                    | Required.        |
-| `description` | string (up to 300 characters)                                                                                                                                                                                                                                                                                |                  |
-| `class`       | `bot` or `agent`                                                                                                                                                                                                                                                                                             | Default `"bot"`. |
-| `scopes`      | array of `repo:read` or `repo:write` or `issues:read` or `issues:comment` or `issues:write` or `pulls:read` or `pulls:comment` or `pulls:write` or `pulls:merge` or `secrets:schema` or `secrets:write` or `secrets:decrypt` or `webhooks:read` or `webhooks:write` or `tokens:manage` or `runs:transcripts` | Required.        |
-
-**Errors**
-
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
-
-**Example**
-
-```bash
-curl -X POST "https://api.source.code/v1/accounts/dana/bots" \
-  -H "Authorization: Bearer $SX_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"slug":"docs-bot","name":"Docs bot","description":"Comments on documentation changes.","scopes":["repo:read","pulls:read","pulls:comment"]}'
-```
-
-```http
-HTTP/1.1 201
-ratelimit: "write";r=47;t=60
-```
-
-```json
-{
-  "object": "bot",
-  "slug": "docs-bot",
-  "name": "Docs bot",
-  "description": "Comments on documentation changes.",
-  "owner": "dana",
-  "class": "bot",
-  "scopes": ["repo:read", "pulls:read", "…and 1 more"],
-  "installs": [],
-  "tokens": 0,
-  "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
 
@@ -468,8 +322,8 @@ curl "https://api.source.code/v1/accounts/dana/followers" \
 
 ```http
 HTTP/1.1 200
-etag: W/"ppl2.1.6-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1148;t=60
+etag: W/"ppl2.1.6-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1151;t=60
 ```
 
 ```json
@@ -537,8 +391,8 @@ curl "https://api.source.code/v1/accounts/dana/following" \
 
 ```http
 HTTP/1.1 200
-etag: W/"ppl2.1.6-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1147;t=60
+etag: W/"ppl2.1.6-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1150;t=60
 ```
 
 ```json
@@ -600,8 +454,8 @@ curl "https://api.source.code/v1/accounts/dana/integrations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.int0-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1140;t=60
+etag: W/"dana.int0-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1143;t=60
 ```
 
 ```json
@@ -674,7 +528,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/dana/integrations/boat" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=48;t=60
+ratelimit: "write";r=53;t=60
 ```
 
 ### `integrations.connect`
@@ -728,7 +582,7 @@ curl -X PUT "https://api.source.code/v1/accounts/dana/integrations/boat" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=50;t=60
+ratelimit: "write";r=55;t=60
 ```
 
 ```json
@@ -777,8 +631,8 @@ curl "https://api.source.code/v1/accounts/harbor-tools/invitations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m6tq6r80xfyz652f.4-6cRIC52TuXBLKCO9"
-ratelimit: "read";r=1129;t=60
+etag: W/"acc_01m6tq6r80xfyz652f.4-8OiyqXhHovuH4NFx"
+ratelimit: "read";r=1134;t=60
 ```
 
 ```json
@@ -787,14 +641,14 @@ ratelimit: "read";r=1129;t=60
   "data": [
     {
       "object": "invitation",
-      "id": "inv_01m6tq6r80gwv7c278",
+      "id": "inv_01m6tq6r80dx54cbk3",
       "account": "harbor-tools",
       "email": "yuki@example.com",
       "role": "member",
       "invited_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
       "expires_at": "2026-11-14T10:00:00.000Z",
-      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80gwv7c278"
+      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80dx54cbk3"
     }
   ],
   "has_more": false,
@@ -854,20 +708,20 @@ curl -X POST "https://api.source.code/v1/accounts/harbor-tools/invitations" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=30;t=60
+ratelimit: "write";r=43;t=60
 ```
 
 ```json
 {
   "object": "invitation",
-  "id": "inv_01m6tq6r80gwv7c278",
+  "id": "inv_01m6tq6r80dx54cbk3",
   "account": "harbor-tools",
   "email": "yuki@example.com",
   "role": "member",
   "invited_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
   "expires_at": "2026-11-14T10:00:00.000Z",
-  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80gwv7c278"
+  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80dx54cbk3"
 }
 ```
 
@@ -908,13 +762,13 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80gwv7c278" \
+curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80dx54cbk3" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=28;t=60
+ratelimit: "write";r=41;t=60
 ```
 
 ### `links.list`
@@ -951,7 +805,7 @@ curl "https://api.source.code/v1/accounts/dana/links" \
 ```http
 HTTP/1.1 200
 etag: W/"uAT56aSLO6vqD0Ud"
-ratelimit: "read";r=1136;t=60
+ratelimit: "read";r=1141;t=60
 ```
 
 ```json
@@ -1007,7 +861,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/dana/links/gitlab" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=38;t=60
+ratelimit: "write";r=51;t=60
 ```
 
 ### `links.set`
@@ -1055,7 +909,7 @@ curl -X PUT "https://api.source.code/v1/accounts/dana/links/gitlab" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=39;t=60
+ratelimit: "write";r=52;t=60
 ```
 
 ```json
@@ -1105,8 +959,8 @@ curl "https://api.source.code/v1/accounts/harbor-tools/members" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m6tq6r80xfyz652f.3-6cRIC52TuXBLKCO9"
-ratelimit: "read";r=1130;t=60
+etag: W/"acc_01m6tq6r80xfyz652f.3-8OiyqXhHovuH4NFx"
+ratelimit: "read";r=1135;t=60
 ```
 
 ```json
@@ -1178,7 +1032,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/members/hollis"
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=27;t=60
+ratelimit: "write";r=40;t=60
 ```
 
 ### `members.set`
@@ -1233,7 +1087,7 @@ curl -X PUT "https://api.source.code/v1/accounts/harbor-tools/members/hollis" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=31;t=60
+ratelimit: "write";r=44;t=60
 ```
 
 ```json
@@ -1282,8 +1136,8 @@ curl "https://api.source.code/v1/accounts/dana/profile" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m203xrm0bw4d69nd.1.30.3.1.20764.dana-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1146;t=60
+etag: W/"acc_01m203xrm0bw4d69nd.1.22.3.1.20764.dana-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1149;t=60
 ```
 
 ```json
@@ -1297,7 +1151,7 @@ ratelimit: "read";r=1146;t=60
   "following": 1,
   "viewer_follows": null,
   "contributions": {
-    "total": 131,
+    "total": 132,
     "private": 0,
     "by_month": [
       {
@@ -1328,7 +1182,7 @@ ratelimit: "read";r=1146;t=60
   "work": [
     {
       "axis": "Commits",
-      "value": 91
+      "value": 90
     },
     {
       "axis": "Reviews",
@@ -1339,7 +1193,7 @@ ratelimit: "read";r=1146;t=60
   "languages": [
     {
       "name": "Rust",
-      "percent": 30
+      "percent": 31
     },
     {
       "name": "Go",
@@ -1353,14 +1207,14 @@ ratelimit: "read";r=1146;t=60
   "agent_share": 0,
   "activity": [
     {
-      "kind": "issue",
-      "title": "Opened issue #220 Crash on empty repo",
+      "kind": "change",
+      "title": "Opened #219 Reject trailing-dot ref names",
       "repo": "dana/gitfs",
       "at": "2026-11-07T10:00:00.000Z"
     },
     {
       "kind": "issue",
-      "title": "Opened issue #221 A webhook will carry this",
+      "title": "Opened issue #220 Crash on empty repo",
       "repo": "dana/gitfs",
       "at": "2026-11-07T10:00:00.000Z"
     },
@@ -1405,8 +1259,8 @@ curl "https://api.source.code/v1/accounts/northwind/teams" \
 
 ```http
 HTTP/1.1 200
-etag: W/"lWDXE1UNS3DLw698"
-ratelimit: "read";r=1128;t=60
+etag: W/"VWoowNooUK5UJPuZ"
+ratelimit: "read";r=1133;t=60
 ```
 
 ```json
@@ -1415,7 +1269,7 @@ ratelimit: "read";r=1128;t=60
   "data": [
     {
       "object": "team",
-      "id": "tem_01m6tq6r80hx2dqtnt",
+      "id": "tem_01m6tq6r80f721nfmg",
       "org": "northwind",
       "slug": "support",
       "name": "Support",
@@ -1487,13 +1341,13 @@ curl -X POST "https://api.source.code/v1/accounts/northwind/teams" \
 HTTP/1.1 201
 location: https://api.source.code/v1/accounts/northwind/teams/support
 sx-outcome: created
-ratelimit: "write";r=26;t=60
+ratelimit: "write";r=39;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80hx2dqtnt",
+  "id": "tem_01m6tq6r80f721nfmg",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1550,7 +1404,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=20;t=60
+ratelimit: "write";r=33;t=60
 ```
 
 ### `teams.get`
@@ -1589,14 +1443,14 @@ curl "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-etag: W/"tem_01m6tq6r80hx2dqtnt.1-V-Yop1zI5AKwq2nq"
-ratelimit: "read";r=1127;t=60
+etag: W/"tem_01m6tq6r80f721nfmg.1-Ejm5Dr90CjwcDgP8"
+ratelimit: "read";r=1132;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80hx2dqtnt",
+  "id": "tem_01m6tq6r80f721nfmg",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1662,13 +1516,13 @@ curl -X PATCH "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=25;t=60
+ratelimit: "write";r=38;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80hx2dqtnt",
+  "id": "tem_01m6tq6r80f721nfmg",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1724,7 +1578,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/memb
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=21;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ### `teams.members.add`
@@ -1771,13 +1625,13 @@ curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/members
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=24;t=60
+ratelimit: "write";r=37;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80hx2dqtnt",
+  "id": "tem_01m6tq6r80f721nfmg",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1834,7 +1688,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/repo
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=22;t=60
+ratelimit: "write";r=35;t=60
 ```
 
 ### `teams.repos.set`
@@ -1890,13 +1744,13 @@ curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/repos/n
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=23;t=60
+ratelimit: "write";r=36;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80hx2dqtnt",
+  "id": "tem_01m6tq6r80f721nfmg",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1912,134 +1766,6 @@ ratelimit: "write";r=23;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 4
-}
-```
-
-### `bots.update`
-
-`PATCH /bots/{bot}`
-
-**Rename a bot or change what it may do**
-
-While it is installed anywhere, its scopes can shrink but not grow: a repository approved it with the scopes it had.
-
-| About      |                         |
-| ---------- | ----------------------- |
-| Safety     | `write`, safe to repeat |
-| Needs      | a token                 |
-| Scopes     | none                    |
-| Rate limit | `write` pool, 1 unit    |
-| Dry run    | `?dry_run=true`         |
-| Success    | `200`, a `bot`          |
-
-**Path parameters**
-
-| Name  | Type   | Notes |
-| ----- | ------ | ----- |
-| `bot` | string |       |
-
-**Query parameters**
-
-| Name      | Type    | Notes                                                                                                   |
-| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
-
-**Request body**
-
-| Member        | Type                                                                                                                                                                                                                                                                                                         | Notes |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| `name`        | string (up to 100 characters, at least 1)                                                                                                                                                                                                                                                                    |       |
-| `description` | string (up to 300 characters)                                                                                                                                                                                                                                                                                |       |
-| `scopes`      | array of `repo:read` or `repo:write` or `issues:read` or `issues:comment` or `issues:write` or `pulls:read` or `pulls:comment` or `pulls:write` or `pulls:merge` or `secrets:schema` or `secrets:write` or `secrets:decrypt` or `webhooks:read` or `webhooks:write` or `tokens:manage` or `runs:transcripts` |       |
-
-**Errors**
-
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
-
-**Example**
-
-```bash
-curl -X PATCH "https://api.source.code/v1/bots/docs-bot" \
-  -H "Authorization: Bearer $SX_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"scopes":["repo:read","pulls:read"]}'
-```
-
-```http
-HTTP/1.1 200
-ratelimit: "write";r=45;t=60
-```
-
-```json
-{
-  "object": "bot",
-  "slug": "docs-bot",
-  "name": "Docs bot",
-  "description": "Comments on documentation changes.",
-  "owner": "dana",
-  "class": "bot",
-  "scopes": ["repo:read", "pulls:read"],
-  "installs": ["dana/gitfs"],
-  "tokens": 0,
-  "created_at": "2026-11-07T10:00:00.000Z"
-}
-```
-
-### `bots.token`
-
-`POST /bots/{bot}/tokens`
-
-**Make a token for a bot**
-
-With the bot's scopes, limited to the repositories it is installed on. Shown once.
-
-| About      |                                     |
-| ---------- | ----------------------------------- |
-| Safety     | `write`, not safe to repeat blindly |
-| Needs      | a token                             |
-| Scopes     | `tokens:manage`                     |
-| Rate limit | `write` pool, 1 unit                |
-| Success    | `201`, a `bot_token`                |
-
-**Path parameters**
-
-| Name  | Type   | Notes |
-| ----- | ------ | ----- |
-| `bot` | string |       |
-
-**Request body**
-
-| Member | Type                     | Notes         |
-| ------ | ------------------------ | ------------- |
-| `days` | integer (min 1, max 365) | Default `90`. |
-
-**Errors**
-
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
-
-**Example**
-
-```bash
-curl -X POST "https://api.source.code/v1/bots/docs-bot/tokens" \
-  -H "Authorization: Bearer $SX_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"days":30}'
-```
-
-```http
-HTTP/1.1 201
-ratelimit: "write";r=44;t=60
-```
-
-```json
-{
-  "object": "bot_token",
-  "id": "tok_01m6tq6r801aq5p0af",
-  "bot": "docs-bot",
-  "token": "sxb_…",
-  "scopes": ["repo:read", "pulls:read"],
-  "repos": ["dana/gitfs"],
-  "expires_at": "2026-12-07T10:00:00.000Z"
 }
 ```
 
@@ -2078,7 +1804,7 @@ curl "https://api.source.code/v1/dashboard" \
 
 ```http
 HTTP/1.1 200
-etag: W/"Rio-yJVIIfMk03cU"
+etag: W/"Kv59ajNcbV23EvzQ"
 ratelimit: "heavy";r=114;t=60
 ```
 
@@ -2110,41 +1836,47 @@ ratelimit: "heavy";r=114;t=60
   ],
   "in_progress": [
     {
-      "kind": "agent",
-      "title": "Bump object-store client to 2.4",
-      "repo": "dana/gitfs · #215",
-      "status": "Waiting on review",
-      "detail": "dep-bot, patch set 1",
-      "path": "/dana/gitfs/changes?n=215"
+      "kind": "change",
+      "title": "Add a read-only mount mode",
+      "repo": "dana/gitfs · build #1840",
+      "status": "Running",
+      "detail": "kofi/readonly-mount by kofi",
+      "path": "/dana/gitfs/pipelines?n=1840"
     },
     {
-      "kind": "agent",
-      "title": "Bound the negative cache and evict LRU",
-      "repo": "dana/gitfs · #217",
-      "status": "Agent working",
-      "detail": "claude-t3, patch set 1",
-      "path": "/dana/gitfs/changes?n=217"
-    },
-    "…and 3 more"
+      "kind": "change",
+      "title": "Cache negative lookups",
+      "repo": "dana/gitfs · build #1837",
+      "status": "Queued",
+      "detail": "dana/neg-cache by dana",
+      "path": "/dana/gitfs/pipelines?n=1837"
+    }
   ],
   "activity": [
     {
-      "who": "fix-agent",
-      "class": "agent",
-      "type": "run.started",
-      "repo": "dana/gitfs",
-      "subject": null,
-      "at": "2026-11-07T10:00:00.000Z"
-    },
-    {
       "who": "hollis",
-      "class": "human",
+      "via": {
+        "machine": "Laptop",
+        "tool": null,
+        "model": null
+      },
       "type": "finding.raised",
       "repo": "dana/gitfs",
       "subject": 216,
       "at": "2026-11-07T10:00:00.000Z"
     },
-    "…and 4 more"
+    {
+      "who": "hollis",
+      "via": {
+        "machine": "Laptop",
+        "tool": null,
+        "model": null
+      },
+      "type": "change.reviewed",
+      "repo": "dana/gitfs",
+      "subject": 212,
+      "at": "2026-11-07T10:00:00.000Z"
+    }
   ],
   "repos": [
     {
@@ -2187,11 +1919,11 @@ ratelimit: "heavy";r=114;t=60
   },
   "contributions": {
     "daily": [0, 0, "…and 26 more"],
-    "total": 8,
-    "change": 300,
+    "total": 9,
+    "change": 350,
     "commits": 1,
     "reviews": 2,
-    "changes": 5
+    "changes": 6
   },
   "stars": {
     "total": 2780,
@@ -2231,7 +1963,7 @@ Send the token from the link in the email. You join with the role the invitation
 
 **Errors**
 
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`human_required`](/docs/api/errors#human_required), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`limit_reached`](/docs/api/errors#limit_reached), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`limit_reached`](/docs/api/errors#limit_reached), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
 
 **Example**
 
@@ -2239,7 +1971,7 @@ Send the token from the link in the email. You join with the role the invitation
 curl -X POST "https://api.source.code/v1/invitations/accept" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"token":"sxi_DB0BYtMQkE41tX2QX2YI8Bs9AXU5UBt-"}'
+  -d '{"token":"sxi_Wfd7C8y1J89ucjCi2V7MXNNIIGm8Xbci"}'
 ```
 
 ```http
@@ -2296,8 +2028,8 @@ curl "https://api.source.code/v1/notifications?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.8.3-OTd0y9nC_lFx_qCj"
-ratelimit: "read";r=1134;t=60
+etag: W/"dana.8.2-7gMDZxP-jx4j5GVU"
+ratelimit: "read";r=1139;t=60
 ```
 
 ```json
@@ -2306,7 +2038,7 @@ ratelimit: "read";r=1134;t=60
   "data": [
     {
       "object": "notification",
-      "id": "ntf_01m6tq6r80zy79bt7p",
+      "id": "ntf_01m6tq6r80bcjy602t",
       "kind": "review",
       "title": "hollis raised a finding on #216 Cache negative ref lookups",
       "repo": "dana/gitfs",
@@ -2357,13 +2089,13 @@ ratelimit: "read";r=1134;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/notifications/ntf_01m6tq6r80zy79bt7p/read" \
+curl -X POST "https://api.source.code/v1/notifications/ntf_01m6tq6r80bcjy602t/read" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=49;t=60
 ```
 
 ### `notifications.count`
@@ -2395,8 +2127,8 @@ curl "https://api.source.code/v1/notifications/count" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.8.3-6oaJJ1Nb4M3s5vRI"
-ratelimit: "read";r=1133;t=60
+etag: W/"dana.8.2-6oLkGm-GCsFXp9Zk"
+ratelimit: "read";r=1138;t=60
 ```
 
 ```json
@@ -2434,7 +2166,7 @@ curl "https://api.source.code/v1/notifications/preferences" \
 ```http
 HTTP/1.1 200
 etag: W/"Bju-rRirgHUpJAq-"
-ratelimit: "read";r=1131;t=60
+ratelimit: "read";r=1136;t=60
 ```
 
 ```json
@@ -2493,7 +2225,7 @@ curl -X PATCH "https://api.source.code/v1/notifications/preferences" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=34;t=60
+ratelimit: "write";r=47;t=60
 ```
 
 ```json
@@ -2536,7 +2268,7 @@ curl -X POST "https://api.source.code/v1/notifications/read" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=35;t=60
+ratelimit: "write";r=48;t=60
 ```
 
 ### `people.list`
@@ -2576,7 +2308,7 @@ curl "https://api.source.code/v1/people?limit=2"
 ```http
 HTTP/1.1 200
 etag: W/"ppl3.1.6-L7VeknOsMYj6bnJ1"
-ratelimit: "anonymous";r=53;t=60
+ratelimit: "anonymous";r=55;t=60
 ```
 
 ```json
@@ -2610,76 +2342,6 @@ ratelimit: "anonymous";r=53;t=60
   ],
   "has_more": true,
   "next_cursor": "c_WzIsImluZXMiLCJvMmpjb2EiXQ"
-}
-```
-
-### `bots.install`
-
-`PUT /repos/{owner}/{repo}/bots/{bot}`
-
-**Install a bot on a repository, or remove it**
-
-Installed, it can act in the repository with its scopes. Tokens made after this include the repository.
-
-| About      |                         |
-| ---------- | ----------------------- |
-| Safety     | `write`, safe to repeat |
-| Needs      | a token                 |
-| Scopes     | `repo:write`            |
-| Rate limit | `write` pool, 1 unit    |
-| Dry run    | `?dry_run=true`         |
-| Success    | `200`, a `bot`          |
-
-**Path parameters**
-
-| Name    | Type   | Notes |
-| ------- | ------ | ----- |
-| `owner` | string |       |
-| `repo`  | string |       |
-| `bot`   | string |       |
-
-**Query parameters**
-
-| Name      | Type    | Notes                                                                                                   |
-| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
-
-**Request body**
-
-| Member      | Type    | Notes     |
-| ----------- | ------- | --------- |
-| `installed` | boolean | Required. |
-
-**Errors**
-
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
-
-**Example**
-
-```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/bots/docs-bot" \
-  -H "Authorization: Bearer $SX_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"installed":true}'
-```
-
-```http
-HTTP/1.1 200
-ratelimit: "write";r=46;t=60
-```
-
-```json
-{
-  "object": "bot",
-  "slug": "docs-bot",
-  "name": "Docs bot",
-  "description": "Comments on documentation changes.",
-  "owner": "dana",
-  "class": "bot",
-  "scopes": ["repo:read", "pulls:read", "…and 1 more"],
-  "installs": ["dana/gitfs"],
-  "tokens": 0,
-  "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
 
@@ -2719,8 +2381,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/integrations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.int1.1-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1139;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.int1.1-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1142;t=60
 ```
 
 ```json
@@ -2794,7 +2456,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/integrations/boat" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=49;t=60
+ratelimit: "write";r=54;t=60
 ```
 
 ```json
@@ -2838,7 +2500,7 @@ curl -X DELETE "https://api.source.code/v1/user/following/hollis" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=65;t=60
+ratelimit: "write";r=70;t=60
 ```
 
 ### `follows.add`
@@ -2876,7 +2538,7 @@ curl -X PUT "https://api.source.code/v1/user/following/hollis" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=66;t=60
+ratelimit: "write";r=71;t=60
 ```
 
 ### `preferences.get`
@@ -2907,7 +2569,7 @@ curl "https://api.source.code/v1/user/preferences" \
 ```http
 HTTP/1.1 200
 etag: W/"qDv7yTBnNXffhQu7"
-ratelimit: "read";r=1149;t=60
+ratelimit: "read";r=1152;t=60
 ```
 
 ```json
@@ -2964,7 +2626,7 @@ curl -X PATCH "https://api.source.code/v1/user/preferences" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=67;t=60
+ratelimit: "write";r=72;t=60
 ```
 
 ```json

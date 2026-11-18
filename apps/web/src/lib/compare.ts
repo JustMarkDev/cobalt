@@ -150,26 +150,22 @@ export const rows: Array<Row> = [
   },
   {
     id: 'agentrules',
-    title: 'Agents can’t approve their own work',
-    detail: 'Each agent gets its own scoped, expiring token.',
+    title: 'Turn away weak models',
+    detail: 'Decline changes written with models you do not trust.',
     cells: {
       us: yes(),
-      github: partly('Copilot code review can approve, if you turn that on.'),
-      gitlab: partly(
-        'Agents run as service accounts, with no rules of their own.',
-      ),
-      forgejo: partly('Bot accounts, with nothing specific to agents.'),
+      github: no(),
+      gitlab: no(),
+      forgejo: no(),
       origin: unclear,
-      gitcafe: partly('Scoped tokens. Self-approval is not addressed.'),
-      trylle: partly(
-        'Bot identities with scoped permissions. Self-approval is not addressed.',
-      ),
+      gitcafe: unclear,
+      trylle: unclear,
     },
   },
   {
     id: 'provenance',
-    title: 'Every line traces to its agent',
-    detail: 'Find the session and prompt behind any change.',
+    title: 'Every line traces to its model',
+    detail: 'The machine, tool and model behind any change.',
     cells: {
       us: yes(),
       github: partly('Only for commits by Copilot’s own agent.'),

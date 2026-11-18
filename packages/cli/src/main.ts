@@ -3,7 +3,7 @@ import { has, parse } from './args'
 import { SxError, exit, fail, wantsJson } from './output'
 import { completions, groupHelp, topHelp, version } from './help'
 import { account } from './commands/account'
-import { agent } from './commands/agent'
+import { handoff } from './commands/handoff'
 import { auth } from './commands/auth'
 import { change } from './commands/change'
 import { config } from './commands/config'
@@ -27,7 +27,7 @@ const commands: Record<string, Command> = {
   env,
   policy,
   mirror,
-  agent,
+  handoff,
   context,
   config,
   account,

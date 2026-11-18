@@ -35,7 +35,11 @@ const stepArgs = {
   as: v.object({
     handle: v.string(),
     actingAs: v.string(),
-    class: v.union(v.literal('human'), v.literal('agent'), v.literal('bot')),
+    via: v.object({
+      machine: v.union(v.null(), v.string()),
+      tool: v.union(v.null(), v.string()),
+      model: v.union(v.null(), v.string()),
+    }),
     scopes: v.array(v.string()),
     repos: v.union(v.null(), v.array(v.string())),
   }),
@@ -162,6 +166,7 @@ export const doStep = internalMutation({
     const p: Actor = {
       ...a.as,
       scopes: new Set(a.as.scopes),
+      session: false,
       tokenId: null,
       system: false,
     }

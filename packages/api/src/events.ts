@@ -1,3 +1,4 @@
+import type { Receipt } from './via'
 import { newId } from './ids'
 
 /**
@@ -11,7 +12,6 @@ import { newId } from './ids'
 export type ActorLike = {
   id: string
   handle: string
-  class: 'human' | 'agent' | 'bot'
 }
 
 export type EventRecord = {
@@ -27,8 +27,9 @@ export type EventRecord = {
     object: 'actor'
     id: string
     handle: string
-    class: ActorLike['class']
   }
+  /** The receipt: the machine, tool and declared model the write came through. */
+  via: Receipt | null
   subject: { object: string; id: string; number: number | null }
   changes: Array<string>
   data: Record<string, unknown> | null

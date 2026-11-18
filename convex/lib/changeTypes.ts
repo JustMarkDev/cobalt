@@ -4,17 +4,17 @@
  * so the Convex functions do not reach into the rest of the API.
  */
 import type { Addressed, Anchor, Placement } from '@source-code/api/anchors'
-export type ActorClass = 'human' | 'agent' | 'bot'
-export type ActorRec = { id: string; handle: string; class: ActorClass }
+export type ActorRec = { id: string; handle: string }
 export type FileStat = { hash: string; add: number; del: number }
 /**
- * Which run made a part, and with what kind of token. Filled in from the
- * caller's token, never sent by a client. Older parts have none.
+ * How a part got here: the machine, tool and declared model of the request
+ * that wrote it (`packages/api/src/receipt.ts`). Filled in from the caller's
+ * signed identity, never from an argument. Older parts have none.
  */
 export type ViaRec = {
-  run: string | null
-  /** `push` when it came as a git push rather than through the API. */
-  tokenKind: 'personal' | 'bot' | 'run' | 'oauth' | 'session' | 'push'
+  machine: string | null
+  tool: string | null
+  model: string | null
 }
 export type PatchSetRec = {
   n: number
@@ -86,7 +86,7 @@ export type GuideRec = {
   summary: string
   order: Array<{ path: string; why: string; risk: 'low' | 'medium' | 'high' }>
   by: ActorRec
-  run: string | null
+  via?: ViaRec | null
   created: number
 }
 export type ReviewCommentRec = {

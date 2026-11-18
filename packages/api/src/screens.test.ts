@@ -33,6 +33,7 @@ function world() {
   // On the hour, so the hour a page reads for is the API's own clock.
   const now = clock(hourOf(T0) + 3 * 3_600_000)
   const api = createSampleApi({
+    ephemeralSecrets: true,
     mount: '/v1',
     now,
     domainFactory: convexFactory,
@@ -105,7 +106,10 @@ function normal(value: unknown): unknown {
     JSON.stringify(value)
       .replace(/\b[a-z]{2,5}_[0-9a-z]{16,}\b/g, '<id>')
       .replace(/\bsx[a-z]_[0-9A-Za-z_-]{20,}/g, '<token>')
-      .replace(/\d{4}-\d\d-\d\dT[\d:.]+Z/g, '<time>'),
+      .replace(/\d{4}-\d\d-\d\dT[\d:.]+Z/g, '<time>')
+      // A page writes from the browser session, the API from a token on a
+      // machine: the receipts differ by design, the rest must not.
+      .replace(/"via":\{"machine":[^{}]*\}/g, '"via":"<via>"'),
   )
 }
 
@@ -136,7 +140,6 @@ describe('a screen reads what the API answers', () => {
     await same('dana', 'preferences.get', {})
     await same('dana', 'links.list', { handle: 'dana' })
     await same('dana', 'integrations.list', { handle: 'dana' })
-    await same('dana', 'bots.list', { handle: 'dana' })
     const people = await same('dana', 'people.list', { limit: 2 })
     expect(people.next_cursor).not.toBeNull()
     await same('dana', 'people.list', {
@@ -160,7 +163,6 @@ describe('a screen reads what the API answers', () => {
     await same('dana', 'stars.get', at)
     await same('dana', 'integrations.repo', at)
     await same('dana', 'policy.rules', at)
-    await same('dana', 'automations.list', at)
     await same('dana', 'releases.list', { ...at, limit: 50 })
   })
 
@@ -412,7 +414,7 @@ describe('a screen writes what the API writes', () => {
     })
   })
 
-  test('pipelines, automations and runs', async () => {
+  test('pipelines', async () => {
     const runs = await read('pipelines.list', at)
     const finished = runs.data.find(
       (r) => r.status === 'success' || r.status === 'failure',
@@ -423,41 +425,6 @@ describe('a screen writes what the API writes', () => {
     )
     if (going)
       await same('dana', 'pipelines.cancel', { ...at, run: going.number })
-    const bots = await read('bots.list', { handle: 'dana' })
-    const bot =
-      bots.data.find((b) => b.installs.includes('dana/gitfs')) ?? bots.data[0]
-    await same('dana', 'bots.update', {
-      bot: bot.slug,
-      body: { description: 'Changed from a page' },
-    })
-    const made = await same('dana', 'automations.create', {
-      ...at,
-      body: {
-        name: 'Triage',
-        bot: bot.slug,
-        triggers: ['issue.created'],
-        runtime: 'claude',
-        target: 'issues',
-        instructions: 'Label it.',
-      },
-    })
-    await same('dana', 'automations.update', (s) => ({
-      ...at,
-      automation: made[s].id,
-      body: { enabled: false },
-    }))
-    await same('dana', 'automations.update', (s) => ({
-      ...at,
-      automation: made[s].id,
-      body: { enabled: true },
-    }))
-    await same('dana', 'automations.run', (s) => ({
-      ...at,
-      automation: made[s].id,
-    }))
-
-    await same('dana', 'runs.start', { ...at, body: { task: 'Tidy the docs' } })
-    await same('dana', 'runs.start', { ...at, body: { task: '' } })
   })
 
   test('accounts, links and integrations', async () => {

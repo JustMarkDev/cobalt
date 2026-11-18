@@ -78,6 +78,8 @@ function loadTab(tab: string) {
 type TabSearch = {
   n?: number
   section?: string
+  /** A production confirmation to open, from the link `sx` prints. */
+  confirm?: string
   path?: string
   view?: 'history'
 }
@@ -103,6 +105,10 @@ export const Route = createFileRoute('/$handle/$repo/$tab')({
           ? Number(s.n)
           : undefined,
     section: typeof s.section === 'string' ? s.section : undefined,
+    confirm:
+      typeof s.confirm === 'string' && /^cnf_[0-9a-z]+$/.test(s.confirm)
+        ? s.confirm
+        : undefined,
     path: typeof s.path === 'string' && s.path ? s.path : undefined,
     view: s.view === 'history' ? 'history' : undefined,
   }),

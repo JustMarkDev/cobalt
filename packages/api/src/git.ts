@@ -25,11 +25,15 @@ export type GitDiffFile = {
 }
 
 export interface GitData {
-  /** Every file path at `ref`, with the commit it was resolved to. */
+  /**
+   * Every file path at `ref`, with the commit it was resolved to. `complete`
+   * is true only when the whole tree was read; whatever must not miss a path
+   * (auto-land's guard) trusts nothing less.
+   */
   files: (
     repo: string,
     ref?: string,
-  ) => Promise<{ ref: string; paths: Array<string> }>
+  ) => Promise<{ ref: string; paths: Array<string>; complete?: boolean }>
   blob: (repo: string, path: string, ref?: string) => Promise<Uint8Array | null>
   /** Newest first. */
   commits: (repo: string, limit: number) => Promise<Array<GitCommit>>
@@ -100,8 +104,20 @@ export class StoreGit implements GitData {
 
   files(repo: string, ref?: string) {
     return guarded(`The ref ${ref ?? 'main'}`, async () => {
-      const r = await this.repo(repo).listFiles({ ref })
-      return { ref: r.ref, paths: r.paths }
+      const store = this.repo(repo)
+      const paths: Array<string> = []
+      let cursor: string | undefined
+      let resolved = ref ?? ''
+      // The whole tree, page by page, up to a bound; past it, incomplete.
+      for (let page = 0; page < 100; page++) {
+        const r = await store.listFiles({ ref, recursive: true, cursor })
+        resolved = r.ref
+        paths.push(...r.paths)
+        if (!r.hasMore || !r.nextCursor)
+          return { ref: resolved, paths, complete: true }
+        cursor = r.nextCursor
+      }
+      return { ref: resolved, paths, complete: false }
     })
   }
 

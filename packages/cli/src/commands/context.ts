@@ -9,20 +9,9 @@ export const context: Command = async ({ flags }, ctx) => {
   const repo = resolveRepo(str(flags, 'repo'))
   const git = gitContext()
   const api = ctx.api()
-  const [acting, c, grants] = await Promise.all([
+  const [acting, c] = await Promise.all([
     activeAccount(ctx, flags),
     api.get(`${repo.path}/context`),
-    // Reading grants needs a scope some tokens do not have; that is not an error here.
-    api.get(`${repo.path}/env/grants`).catch(() => ({
-      json: {
-        data: [] as Array<{
-          id: string
-          state: string
-          environment: string
-          expires_at: string | null
-        }>,
-      },
-    })),
   ])
   const data = {
     account: { handle: acting.handle, kind: acting.kind, role: acting.role },
@@ -40,26 +29,25 @@ export const context: Command = async ({ flags }, ctx) => {
       number: i.number,
       title: i.title,
     })),
-    policy: { humanApprovalRequired: true, agentsMayApprove: false },
+    // The same rules for every account. What this repository takes, and how
+    // a change lands: on evidence, by someone pressing Land, or by itself.
+    rules: {
+      declinedModels: c.json.repo.declined_models ?? [],
+      autoLand: c.json.repo.auto_land ?? false,
+      vouched: c.json.repo.vouched ?? [],
+      declare:
+        'Set SX_MODEL to the model you are; every write keeps it on its receipt.',
+    },
     envSchema: c.json.env.map((v: { name: string; kind: string }) => ({
       name: v.name,
       kind: v.kind,
     })),
     envAccess: {
-      values: 'never returned',
+      values: 'never returned here',
       run: 'sx env run --env development -- <command>',
-      needAccess:
-        'sx env grant request --env development --reason "<why>"; a person approves; then retry',
-      activeGrants: grants.json.data
-        .filter((g: { state: string }) => g.state === 'active')
-        .map(
-          (g: {
-            id: string
-            environment: string
-            expires_at: string | null
-          }) => ({ id: g.id, env: g.environment, expires: g.expires_at }),
-        ),
-      production: 'not available to agents',
+      who: "the repository's team, through the login of the machine you run on",
+      production:
+        'waits until the person confirms this login on a signed-in page; sx says where',
     },
     cursor: c.json.cursor,
     note: 'Secret values are never included. Run commands through sx env run so values reach the process but never you.',

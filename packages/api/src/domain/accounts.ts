@@ -121,11 +121,6 @@ export abstract class DomainAccounts extends DomainEvents {
         'A token limited to repositories cannot create an organization.',
         { hint: 'Use a token that is not limited to repositories.' },
       )
-    if (p.class !== 'human')
-      throw apiError(
-        'human_required',
-        'Only a person can create an organization.',
-      )
     const existing = this.accounts.get(input.handle)
     if (existing) {
       if (
@@ -428,8 +423,6 @@ export abstract class DomainAccounts extends DomainEvents {
    * link and is signed in as a person joins; the link then stops working.
    */
   async acceptInvitation(secret: string, p: Principal, dry: boolean) {
-    if (p.class !== 'human')
-      throw apiError('human_required', 'Only a person can join.')
     if (p.repos)
       throw apiError(
         'forbidden',

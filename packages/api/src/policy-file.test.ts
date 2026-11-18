@@ -156,3 +156,11 @@ describe('the policy file', () => {
     ).toThrow('No exception')
   })
 })
+
+test('a file that names a retired built-in rule still reads', () => {
+  const read = parsePolicy(
+    'rules:\n  - id: core-paths\n    mode: enforce\n  - id: agent-authored\n    mode: enforce\n',
+    [{ id: 'reviewed', mode: 'dry-run' }],
+  )
+  expect(read.errors).toEqual([])
+})

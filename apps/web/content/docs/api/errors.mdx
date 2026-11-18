@@ -106,7 +106,7 @@ Send `Authorization: Bearer <token>`. Create a token in Settings, Agents and tok
 
 **401.** The token is not valid. Not retryable. CLI exit code 4.
 
-Check the token was copied whole. Tokens start with `sxp_`, `sxb_`, `sxr_` or `sxo_`.
+Check the token was copied whole. Tokens start with `sxp_` or `sxo_`.
 
 ### `token_expired`
 
@@ -130,7 +130,7 @@ Ask for a new upload link. They expire after an hour and work for one file.
 
 **403.** The token lacks a scope this needs. Not retryable. CLI exit code 5.
 
-Create a token with the scopes in `required_scopes`. Scopes on an installed bot can shrink but never grow.
+Create a token with the scopes in `required_scopes`, or sign in again with them (sx auth login --scope).
 
 ### `forbidden`
 
@@ -138,17 +138,29 @@ Create a token with the scopes in `required_scopes`. Scopes on an installed bot 
 
 You can see this, but your role here does not allow the action.
 
-### `human_required`
+### `session_required`
 
-**403.** A person has to do this. Not retryable. CLI exit code 6.
+**403.** Confirm this from a signed-in page. Not retryable. CLI exit code 6.
 
-Stop and ask a person. An agent cannot approve its own work.
+A token cannot confirm production access, not even its own. Open the page in a browser where you are signed in.
 
-### `grant_required`
+### `confirmation_required`
 
-**403.** This needs a grant from a person. Not retryable. CLI exit code 6.
+**403.** Production values need you to confirm first. Not retryable. CLI exit code 6.
 
-Request a grant, ask a person to approve it, then retry. Grants are short and cover one environment.
+Open confirm_url on a device where you are signed in, confirm, then retry. A confirmation covers this one login for a while.
+
+### `denounced`
+
+**403.** This account may not contribute here. Not retryable. CLI exit code 5.
+
+The owners denounced this account. The reason is in detail.
+
+### `model_declined`
+
+**403.** This repository takes no changes from that model. Not retryable. CLI exit code 5.
+
+The tool declared a model the repository declines (declined_models). Use another model, or ask an owner.
 
 ## Where it is
 
@@ -208,18 +220,6 @@ Delete one you no longer need. `GET /v1/limits` lists the numbers.
 
 PUT the bytes to the `upload_url` from the upload, then use it.
 
-### `transcripts_disabled`
-
-**409.** This repository does not keep agent transcripts. Not retryable. CLI exit code 2.
-
-An owner can turn transcripts on in the repository settings (transcripts: on).
-
-### `transcript_has_secrets`
-
-**422.** The transcript has secrets in it. Not retryable. CLI exit code 2.
-
-The upload was deleted. Remove the secrets, or attach it with mode=mask to have them masked.
-
 ## Retries
 
 ### `idempotency_key_reused`
@@ -261,6 +261,12 @@ Wait for a running request to finish, or wait for `Retry-After`.
 **503.** A service we depend on did not answer. Retryable. CLI exit code 1.
 
 Retry after `Retry-After` seconds with backoff. Reads and keyed writes are safe to repeat.
+
+### `secrets_unavailable`
+
+**503.** This server keeps no secret values. Not retryable. CLI exit code 1.
+
+The server has no SX_SECRETS_KEY, so it seals and opens nothing. Names and kinds still work.
 
 ### `internal`
 

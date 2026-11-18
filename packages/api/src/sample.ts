@@ -30,10 +30,10 @@ const days = (d: number) => T0 - d * 86_400_000
 export const sampleTokens = {
   dana: 'sxp_dana_full_access_0001',
   hollis: 'sxp_hollis_maintainer_02',
-  /** An agent: can read, write and comment on changes, cannot land. */
-  fixAgent: 'sxb_fix_agent_scoped_03',
-  /** A triage bot: issues only, installed on dana/gitfs. */
-  triage: 'sxb_triage_bot_issues_04',
+  /** A narrower token dana made for her agent: changes on gitfs, cannot land. */
+  scoped: 'sxp_dana_scoped_gitfs_03',
+  /** A token that only touches issues, on dana/gitfs. */
+  issuesOnly: 'sxp_dana_issues_only_04',
   /** A token limited to one repository. */
   limited: 'sxp_dana_limited_repo_05',
   expired: 'sxp_dana_expired_token_06',
@@ -56,7 +56,6 @@ const all: Array<Scope> = [
   'webhooks:read',
   'webhooks:write',
   'tokens:manage',
-  'runs:transcripts',
 ]
 
 export function sampleTokenStore(
@@ -67,24 +66,22 @@ export function sampleTokenStore(
   const add = (
     secret: string,
     tag: string,
-    input: Partial<CreateToken> &
-      Pick<CreateToken, 'handle' | 'class' | 'scopes'>,
+    input: Partial<CreateToken> & Pick<CreateToken, 'handle' | 'scopes'>,
   ) =>
     store.add(secret, {
       name: tag,
-      kind: input.class === 'human' ? 'personal' : 'bot',
+      kind: 'personal',
+      device: 'Laptop',
       ttlMs: year,
       id: seededId('token', T0, tag),
       ...input,
     })
   add(sampleTokens.dana, 'dana', {
     handle: 'dana',
-    class: 'human',
     scopes: all,
   })
   add(sampleTokens.hollis, 'hollis', {
     handle: 'hollis',
-    class: 'human',
     scopes: [
       'repo:read',
       'pulls:read',
@@ -97,9 +94,8 @@ export function sampleTokenStore(
       'webhooks:read',
     ],
   })
-  add(sampleTokens.fixAgent, 'fix-agent', {
-    handle: 'fix-agent',
-    class: 'agent',
+  add(sampleTokens.scoped, 'Claude Code on Laptop', {
+    handle: 'dana',
     scopes: [
       'repo:read',
       'repo:write',
@@ -111,27 +107,23 @@ export function sampleTokenStore(
     ],
     repos: ['dana/gitfs'],
   })
-  add(sampleTokens.triage, 'triage-bot', {
-    handle: 'triage-bot',
-    class: 'bot',
+  add(sampleTokens.issuesOnly, 'issues only', {
+    handle: 'dana',
     scopes: ['repo:read', 'issues:read', 'issues:comment', 'issues:write'],
     repos: ['dana/gitfs'],
   })
   add(sampleTokens.limited, 'limited', {
     handle: 'dana',
-    class: 'human',
     scopes: all,
     repos: ['dana/tinyqueue'],
   })
   const expired = add(sampleTokens.expired, 'expired', {
     handle: 'dana',
-    class: 'human',
     scopes: all,
   })
   expired.expiresAt = now - 1000
   add(sampleTokens.stranger, 'stranger', {
     handle: 'stranger',
-    class: 'human',
     scopes: all,
   })
   return store
@@ -173,23 +165,23 @@ function sampleFacts() {
 }
 
 export function seedSample(d: MemoryDomain) {
-  for (const [h, c] of [
-    ['dana', 'human'],
-    ['hollis', 'human'],
-    ['ines', 'human'],
-    ['tomas', 'human'],
-    ['kofi', 'human'],
-    ['yuki', 'human'],
-    ['mira', 'human'],
-    ['stranger', 'human'],
-    ['claude-t3', 'agent'],
-    ['fix-agent', 'agent'],
-    ['triage-bot', 'bot'],
-    ['dep-bot', 'bot'],
-    ['greptile', 'bot'],
-    ['coderabbit', 'bot'],
-  ] as const)
-    d.seedActor(h, c, days(60))
+  for (const h of [
+    'dana',
+    'hollis',
+    'ines',
+    'tomas',
+    'kofi',
+    'yuki',
+    'mira',
+    'stranger',
+    'claude-t3',
+    'fix-agent',
+    'triage-bot',
+    'dep-bot',
+    'greptile',
+    'coderabbit',
+  ])
+    d.seedActor(h, days(60))
   d.seedAccount('dana', 'Dana Okafor', 'person', [], days(60))
   d.seedAccount('hollis', 'Hollis Reyes', 'person', [], days(60))
   d.seedAccount('ines', 'Inês Barbosa', 'person', [], days(60))
@@ -233,7 +225,6 @@ export function seedSample(d: MemoryDomain) {
     docsUrl: 'https://gitfs.dev/docs',
     created: days(40),
     collaborators: ['hollis', 'ines'],
-    installs: ['triage-bot', 'fix-agent'],
     maintainers: ['dana', 'hollis'],
     env: [
       { name: 'DATABASE_URL', kind: 'url', set: ['development', 'production'] },
@@ -787,11 +778,11 @@ export function seedSample(d: MemoryDomain) {
     }
   }
 
-  // ines covers core paths in gitfs while hollis is away.
+  // ines lands without a second review in gitfs while hollis is away.
   gitfs.policyExceptions = [
     {
       id: seededId('exception', days(2), 'gitfs-ines-core'),
-      rule: 'core-paths',
+      rule: 'reviewed',
       who: 'ines',
       reason: 'Release week, covering for hollis',
       createdBy: 'dana',
@@ -808,131 +799,8 @@ export function seedSample(d: MemoryDomain) {
     new Set(['coderabbit', 't3code', 'varlock']),
   )
 
-  // dana's bots, and what wakes them in gitfs.
-  for (const [slug, name, description, cls, scopes, installs] of [
-    [
-      'triage-bot',
-      'Triage bot',
-      'Labels and answers new issues.',
-      'bot',
-      ['repo:read', 'issues:read', 'issues:comment', 'issues:write'],
-      ['dana/gitfs', 'dana/tinyqueue'],
-    ],
-    [
-      'release-bot',
-      'Release bot',
-      'Cuts release notes and tags builds.',
-      'bot',
-      ['repo:read', 'repo:write', 'pulls:read'],
-      ['dana/gitfs'],
-    ],
-    [
-      'fix-agent',
-      'Fix agent',
-      'Opens draft changes for failing CI and review findings.',
-      'agent',
-      [
-        'repo:read',
-        'repo:write',
-        'pulls:read',
-        'pulls:write',
-        'pulls:comment',
-        'secrets:schema',
-      ],
-      ['dana/gitfs'],
-    ],
-  ] as const)
-    d.seedBot(
-      {
-        slug,
-        name,
-        description,
-        owner: 'dana',
-        class: cls,
-        scopes: [...scopes],
-        created: days(40),
-      },
-      [...installs],
-    )
-  for (const [
-    id,
-    name,
-    bot,
-    triggers,
-    runtime,
-    target,
-    instructions,
-    enabled,
-    triggered,
-    ago,
-  ] of [
-    [
-      'a1',
-      'Triage new issues',
-      'triage-bot',
-      ['issue.created'],
-      'Claude Code',
-      'E2B',
-      'Label the issue, link duplicates, and ask for a repro when one is missing.',
-      true,
-      214,
-      0.2,
-    ],
-    [
-      'a2',
-      'Fix high-severity findings',
-      'fix-agent',
-      ['finding.raised'],
-      'Claude Code',
-      'T3 Code',
-      'For a high finding, open a draft change on top of the stack that fixes it and cite the finding id.',
-      true,
-      37,
-      2,
-    ],
-    [
-      'a3',
-      'Repair red CI',
-      'fix-agent',
-      ['ci.failed'],
-      'Codex',
-      'boat.dev',
-      'Reproduce the failure in a fresh environment, fix it, and open a draft change.',
-      false,
-      9,
-      72,
-    ],
-    [
-      'a4',
-      'Weekly dependency sweep',
-      'release-bot',
-      ['schedule'],
-      'OpenCode',
-      'E2B',
-      'Check for new dependency versions, open one change per major bump.',
-      true,
-      22,
-      96,
-    ],
-  ] as const)
-    d.seedAutomation('dana/gitfs', {
-      id: seededId('automation', days(30), `gitfs-${id}`),
-      name,
-      bot,
-      triggers: [...triggers],
-      runtime,
-      target,
-      instructions,
-      enabled,
-      triggered,
-      lastTriggered: hours(ago),
-      // A scheduled one last fired when it was last triggered.
-      ...(triggers.includes('schedule' as never)
-        ? { lastScheduled: hours(ago) }
-        : {}),
-      created: days(30),
-      version: 1,
-    })
+  // People dana trusts on gitfs: their changes go first.
+  d.repos.get('dana/gitfs')!.vouched = ['hollis', 'ines']
 
   // Downloads by day for the last 60 days, so the charts have a shape. Only
   // what is downloaded from now on is counted for real.

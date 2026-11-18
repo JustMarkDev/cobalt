@@ -88,23 +88,17 @@ test('a person acts as themself, and no token is made for it', async () => {
   const { callers, api } = setup(dana)
   const before = (api.domain.svc.auth as AuthStore).list('dana', [
     'personal',
-    'bot',
-    'run',
     'oauth',
   ]).length
   const first = await callers.for(dana)
   expect(await callers.for(dana)).toBe(first)
   const me = await first.call('auth.principal', {})
   expect(me.login).toBe('dana')
-  expect(me.class).toBe('human')
+  expect(me.acting_as).toBe('dana')
   // Signing in mints nothing: there is no secret to leak or let expire.
   expect(
-    (api.domain.svc.auth as AuthStore).list('dana', [
-      'personal',
-      'bot',
-      'run',
-      'oauth',
-    ]).length,
+    (api.domain.svc.auth as AuthStore).list('dana', ['personal', 'oauth'])
+      .length,
   ).toBe(before)
   callers.drop('dana')
   expect(await callers.for(dana)).not.toBe(first)

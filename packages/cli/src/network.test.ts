@@ -28,7 +28,11 @@ import type { Ctx } from './output'
 /** The CLI against the API over real sockets, the way it will run against the hosted service. */
 let server: ReturnType<typeof Bun.serve>
 let base = ''
-const api = createSampleApi({ mount: '/v1', base: 'http://placeholder/v1' })
+const api = createSampleApi({
+  mount: '/v1',
+  base: 'http://placeholder/v1',
+  ephemeralSecrets: true,
+})
 
 async function sx(
   env: Record<string, string | undefined>,
@@ -155,7 +159,7 @@ describe('over the network', () => {
 
   test('an agent token is limited: a triage bot cannot land', async () => {
     const r = await sx(
-      { ...net(), SX_TOKEN: sampleTokens.triage },
+      { ...net(), SX_TOKEN: sampleTokens.issuesOnly },
       'change',
       'land',
       '216',
@@ -300,6 +304,7 @@ describe('signing in with a code', () => {
     const real = createSampleApi({
       mount: '/v1',
       base: 'http://placeholder/v1',
+      ephemeralSecrets: true,
     })
     const srv = Bun.serve({
       port: 0,
@@ -429,7 +434,7 @@ describe('MCP carries the caller’s token', () => {
       arguments: { repo: 'dana/gitfs', id: '216' },
     })
     expect(JSON.parse(text(ok)).number).toBe(216)
-    const triage = await connect(sampleTokens.triage)
+    const triage = await connect(sampleTokens.issuesOnly)
     const denied = await triage.callTool({
       name: 'land_change',
       arguments: { repo: 'dana/gitfs', id: '216' },
@@ -455,7 +460,7 @@ describe('MCP carries the caller’s token', () => {
     expect(body.requirements.length).toBeGreaterThan(0)
 
     // The triage bot has repo:read but not pulls:read.
-    const triage = await connect(sampleTokens.triage)
+    const triage = await connect(sampleTokens.issuesOnly)
     const denied = await triage.callTool({
       name: 'check_policy',
       arguments: { repo: 'dana/gitfs', change: '216' },
@@ -559,7 +564,7 @@ describe('MCP carries the caller’s token', () => {
     expect(secret.body.error.code).toBe('not_callable')
 
     // The token's scopes still hold: the triage bot cannot land.
-    const triage = await connect(sampleTokens.triage)
+    const triage = await connect(sampleTokens.issuesOnly)
     const denied = (await triage.callTool({
       name: 'call_operation',
       arguments: {

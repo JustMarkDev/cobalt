@@ -2,6 +2,9 @@ import { attachUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
 import { changeTarget } from '@source-code/api/lifecycles'
 import { v } from 'convex/values'
+import { assertMayContribute } from '../lib/contribute'
+import { contributionRefusal } from '@source-code/api/via'
+import { rulesReadChangedFiles } from '@source-code/api/policy-builtins'
 import { sha1 } from '@noble/hashes/legacy.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { newId } from '@source-code/api/ids'
@@ -9,7 +12,8 @@ import { internal } from '../_generated/api'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
-import { actorOf, signedIn } from '../lib/actor'
+import { actorOf, signedIn, system } from '../lib/actor'
+import { repoByKey } from '../lib/access'
 import {
   accessStamp,
   assertMatch,
@@ -18,7 +22,7 @@ import {
   resolve,
 } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
-import { actorFor, counters, emit } from '../lib/events'
+import { actorFor, counters, emit, viaOf } from '../lib/events'
 import { keysetPage } from '../lib/paginate'
 import { changeBlame } from '@source-code/api/provenance'
 import { landingWaits } from '@source-code/api/policy-file'
@@ -38,7 +42,6 @@ import {
   placeThreads,
 } from '@source-code/api/anchors'
 import type { Anchor } from '@source-code/api/anchors'
-import { presentRun, recordRunPatchSet, viaOf, viaOfCommit } from '../lib/runs'
 import { iso, repoUrl, urls } from '../lib/present'
 import {
   branchOwner,
@@ -51,7 +54,8 @@ import {
   stackMembers,
   viewFor,
 } from '../lib/changes'
-import type { Actor } from '../lib/actor'
+import type { Actor, Via } from '../lib/actor'
+import { serverReceipt } from '@source-code/api/via'
 import type { ActorRef } from '../lib/events'
 import type { ChangeView, Loaded } from '../lib/changes'
 import type {
@@ -121,14 +125,14 @@ async function commit(
     changes: Array<string>
     data?: unknown
     extra?: Record<string, unknown>
+    /** A receipt for something the server did on its own. */
+    via?: Via
   } | null,
 ) {
   if (wasState === null) {
     await tally(ctx, 'change.opened')
     l.doc = (await ctx.db.get('changes', await insertChange(ctx, repo, l.rec)))!
   } else await saveChange(ctx, l)
-  const head = l.rec.patchSets[l.rec.patchSets.length - 1]
-  await recordRunPatchSet(ctx, l.doc._id, head.n, head.via?.run ?? null)
   await syncIssueRefs(ctx, repo, l.doc._id, l.rec)
   const c = await counters(ctx, repo)
   const open =
@@ -148,8 +152,108 @@ async function commit(
     { object: 'change', id: l.rec.id, number: l.rec.number },
     event.changes,
     event.data ?? { ...view.presentChange(l.rec, 'event'), ...event.extra },
+    [],
+    true,
+    event.via,
   )
 }
+
+/**
+ * Whether a change could land by itself now, all but the paths it touches,
+ * which the API server reads from git before it calls `autoLand`. Never a
+ * draft, a change in a stack, a landing with steps after it, or one whose
+ * enabler can no longer write here. The same rules as `MemoryDomain`.
+ */
+async function autoLandReady(
+  ctx: QueryCtx,
+  owner: string,
+  name: string,
+  ref: string,
+) {
+  const repo = await repoByKey(ctx, `${owner}/${name}`)
+  const by = repo?.autoLand?.by
+  if (!repo || !by) return null
+  const doc = await findChange(ctx, repo, ref)
+  if (!doc) return null
+  const l = await hydrate(ctx, doc)
+  const c = l.rec
+  if (c.state !== 'open' || c.stackId) return null
+  // A rebase keeps the old tree's checks and approvals on the client's
+  // word; nothing lands by itself on that word.
+  if (c.patchSets[c.patchSets.length - 1].kind === 'rebase') return null
+  const as: Actor = {
+    handle: by,
+    actingAs: by,
+    via: serverReceipt('auto-land'),
+    session: false,
+    scopes: new Set(['pulls:merge', 'repo:read']),
+    repos: null,
+    tokenId: null,
+    system: false,
+  }
+  if (!(await canWrite(ctx, repo, as))) return null
+  const view = await viewFor(ctx, repo, as, Date.now(), [c])
+  if (hasAfterSteps(view.policy.landing)) return null
+  if (rulesReadChangedFiles(view.policy.customRules)) return null
+  // The repository's own rules on who and what it takes hold here too.
+  if (
+    contributionRefusal(
+      repo,
+      c.author.handle,
+      c.patchSets[c.patchSets.length - 1].via?.model ?? null,
+      'change',
+    )
+  )
+    return null
+  if (view.policyState(view.evaluate(c)) !== 'met') return null
+  const head = c.patchSets[c.patchSets.length - 1]
+  // The landing's own gates (checks it waits on) hold as for a person.
+  if (landingWaits(view.policy.landing, c.checks, head).length) return null
+  return { repo, l, by, base: c.base, sha: head.sha }
+}
+
+export const autoLandCandidate = query({
+  args: { owner: v.string(), name: v.string(), ref: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const r = await autoLandReady(ctx, a.owner, a.name, a.ref)
+    return out(
+      r
+        ? {
+            full: `${r.repo.owner}/${r.repo.name}`,
+            by: r.by,
+            base: r.base,
+            sha: r.sha,
+          }
+        : null,
+    )
+  },
+})
+
+/** Lands it under the account that turned auto-land on, if still at `sha`. */
+export const autoLand = mutation({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    ref: v.string(),
+    sha: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const r = await autoLandReady(ctx, a.owner, a.name, a.ref)
+    if (!r || r.sha !== a.sha) return out(false)
+    await doLand(
+      ctx,
+      r.repo,
+      r.l,
+      await actorFor(ctx, r.by),
+      serverReceipt('auto-land'),
+    )
+    return out(true)
+  },
+})
 
 async function shown(
   ctx: QueryCtx,
@@ -336,7 +440,7 @@ export const provenance = query({
         return out({
           change: null,
           patch_set: null,
-          run: null,
+          via: null,
           on_base: c.base,
         })
       ps = c.patchSets[at - 1]
@@ -356,13 +460,6 @@ export const provenance = query({
         }
       }
     }
-    const runId = ps?.via?.run
-    const run = runId
-      ? await ctx.db
-          .query('runs')
-          .withIndex('by_publicId', (q) => q.eq('publicId', runId))
-          .unique()
-      : null
     return out({
       change: c
         ? {
@@ -374,7 +471,7 @@ export const provenance = query({
           }
         : null,
       patch_set: ps?.n ?? null,
-      run: run ? await presentRun(ctx, run, a.at) : null,
+      via: ps?.via ?? null,
       on_base: null,
     })
   },
@@ -493,8 +590,9 @@ export const create = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const by = await actorFor(ctx, p.handle, p.class)
-    const via = await viaOfCommit(ctx, repo, p, a.message)
+    assertMayContribute(repo, p, 'change')
+    const by = await actorFor(ctx, p.handle)
+    const via = await viaOf(ctx)
     const at = Date.now()
     const sha =
       a.sha ?? hex(`${repo.publicId}/${a.branch}/${at}/${Math.random()}`)
@@ -622,7 +720,7 @@ export const update = mutation({
     touch(c)
     await commit(ctx, repo, l, c.state, {
       type: 'change.updated',
-      by: await actorFor(ctx, p.handle, p.class),
+      by: await actorFor(ctx, p.handle),
       changes: fields,
     })
     return finish(dry, await shown(ctx, repo, c, p, at))
@@ -708,11 +806,21 @@ export const addPatchSet = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    assertMayContribute(repo, p, 'change')
     const l = await loadChange(ctx, repo, a.ref)
     const c = l.rec
     if (c.state === 'landed' || c.state === 'abandoned')
       fail('invalid_state', `Change #${c.number} is ${c.state}.`)
-    const by = await actorFor(ctx, p.handle, p.class)
+    // A denounced author's change takes no more work, from anyone: the same
+    // rule a push meets.
+    const authorRefused = contributionRefusal(
+      repo,
+      c.author.handle,
+      null,
+      'change',
+    )
+    if (authorRefused) fail(authorRefused.code, authorRefused.detail)
+    const by = await actorFor(ctx, p.handle)
     const view = await viewFor(ctx, repo, p, Date.now(), [])
     const addresses = a.addresses ?? []
     let addressed: ReturnType<typeof addressThreads> = []
@@ -758,7 +866,7 @@ export const addPatchSet = mutation({
         note: a.note ?? 'Edited in the browser',
         files,
         contents,
-        via: await viaOf(ctx, p),
+        via: await viaOf(ctx),
       })
     } else {
       if (!a.sha)
@@ -777,7 +885,7 @@ export const addPatchSet = mutation({
         sha: a.sha,
         kind: a.kind,
         note: a.note ?? (a.kind === 'rebase' ? 'Rebased' : 'Updated'),
-        via: await viaOf(ctx, p),
+        via: await viaOf(ctx),
       })
     }
     await commit(ctx, repo, l, c.state, patchSetEvent(by, addressed))
@@ -889,17 +997,13 @@ export const review = mutation({
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const l = await loadChange(ctx, repo, a.ref)
     const c = l.rec
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     if (!isOpen(c.state))
       fail('invalid_state', `Change #${c.number} is ${c.state}.`)
     if (a.state === 'approved' && c.author.handle === by.handle)
-      fail(
-        by.class === 'human' ? 'forbidden' : 'human_required',
-        'You cannot approve your own change.',
-        {
-          hint: 'Ask someone else to review it.',
-        },
-      )
+      fail('forbidden', 'You cannot approve your own change.', {
+        hint: 'Ask someone else to review it.',
+      })
     const headN = c.patchSets[c.patchSets.length - 1].n
     const patchSet = a.patch_set ?? headN
     if (patchSet < 1 || patchSet > c.patchSets.length)
@@ -924,7 +1028,7 @@ export const review = mutation({
       carries: patchSet === headN,
       body: a.body ?? '',
       created: Date.now(),
-      via: await viaOf(ctx, p),
+      via: await viaOf(ctx),
     }
     c.reviews.push(r)
     touch(c)
@@ -936,12 +1040,12 @@ export const review = mutation({
     return finish(a.dry, {
       object: 'review',
       id: r.id,
-      actor: { object: 'actor', id: by.id, handle: by.handle, class: by.class },
+      actor: { object: 'actor', id: by.id, handle: by.handle },
       state: r.state,
       patch_set: r.patchSet,
       carries_to_head: r.carries,
       body: r.body,
-      run: r.via?.run ?? null,
+      via: r.via ?? null,
       created_at: iso(r.created),
     })
   },
@@ -1014,7 +1118,7 @@ export const raiseFinding = mutation({
           ],
         },
       )
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const at = Date.now()
     const n =
       Math.max(
@@ -1036,7 +1140,7 @@ export const raiseFinding = mutation({
       created: at,
       ...(a.suggestion ? { suggestion: a.suggestion } : {}),
       ...(a.prompt ? { prompt: a.prompt } : {}),
-      via: await viaOf(ctx, p),
+      via: await viaOf(ctx),
     }
     c.findings.push(f)
     touch(c)
@@ -1088,7 +1192,7 @@ export const setFinding = mutation({
       touch(c)
       await commit(ctx, repo, l, c.state, {
         type: 'finding.resolved',
-        by: await actorFor(ctx, p.handle, p.class),
+        by: await actorFor(ctx, p.handle),
         changes: ['findings', 'policy.state'],
       })
     }
@@ -1166,7 +1270,7 @@ export const reportCheck = mutation({
       touch(c)
       await commit(ctx, repo, l, c.state, {
         type: a.state === 'fail' ? 'ci.failed' : 'check.reported',
-        by: await actorFor(ctx, p.handle, p.class),
+        by: await actorFor(ctx, p.handle),
         changes: ['checks', 'policy.state'],
       })
     }
@@ -1305,7 +1409,7 @@ export const transition = mutation({
     touch(c)
     await commit(ctx, repo, l, was, {
       type: a.action === 'abandon' ? 'change.abandoned' : 'change.updated',
-      by: await actorFor(ctx, p.handle, p.class),
+      by: await actorFor(ctx, p.handle),
       changes: ['state'],
     })
     return finish(a.dry, await shown(ctx, repo, c, p, Date.now()))
@@ -1384,6 +1488,7 @@ async function doLand(
   repo: Doc<'repos'>,
   l: Loaded,
   by: ActorRef,
+  via?: Via,
 ) {
   const c = l.rec
   const was = c.state
@@ -1396,6 +1501,7 @@ async function doLand(
     type: 'change.landed',
     by,
     changes: ['state', 'landed_at'],
+    via,
   })
   // A change to the policy file that lands is the repository's rules now.
   await readLandedPolicy(ctx, repo, c, by)
@@ -1511,7 +1617,7 @@ export const land = mutation({
           },
         ),
       })
-    await doLand(ctx, repo, l, await actorFor(ctx, p.handle, p.class))
+    await doLand(ctx, repo, l, await actorFor(ctx, p.handle))
     return finish(a.dry, await shown(ctx, repo, l.rec, p, Date.now()))
   },
 })
@@ -1572,11 +1678,11 @@ async function startLanding(
     as: {
       handle: p.handle,
       actingAs: p.actingAs,
-      class: p.class,
+      via: p.via,
       scopes: [...p.scopes],
       repos: p.repos ? [...p.repos] : null,
     },
-    by: await actorFor(ctx, p.handle, p.class),
+    by: await actorFor(ctx, p.handle),
   })
   return presentOp((await ctx.db.get('operations', id))!)
 }
@@ -1720,7 +1826,7 @@ export const addEvidence = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const l = await loadChange(ctx, repo, a.ref)
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     await attachUpload(ctx, a.upload.id, repo)
     const e: EvidenceRec = {
       id: newId('evidence', Date.now()),
@@ -1924,7 +2030,7 @@ export const createReviewComment = mutation({
       }
     }
     const at = Date.now()
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const x: ReviewCommentRec = {
       id: newId('comment', at),
       author: by,
@@ -1937,7 +2043,7 @@ export const createReviewComment = mutation({
       created: at,
       updated: at,
       version: 1,
-      via: await viaOf(ctx, p),
+      via: await viaOf(ctx),
       ...(anchor ? { anchor } : {}),
     }
     const view = await viewFor(ctx, repo, p, at, [])
@@ -2005,7 +2111,7 @@ export const addressReviewComment = mutation({
           },
         ],
       })
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     const at = Date.now()
     const addressed = addressThreads(
       c.comments ?? [],
@@ -2303,13 +2409,13 @@ export const putGuide = mutation({
     const n = checkGuide(c.patchSets, a, (code, detail, more) =>
       fail(code, detail, more),
     )
-    const by = await actorFor(ctx, p.handle, p.class)
+    const by = await actorFor(ctx, p.handle)
     c.guide = {
       patchSet: n,
       summary: a.summary,
       order: a.order,
       by,
-      run: (await viaOf(ctx, p)).run,
+      via: await viaOf(ctx),
       created: Date.now(),
     }
     touch(c)

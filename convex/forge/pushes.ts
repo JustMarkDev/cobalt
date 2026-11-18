@@ -4,19 +4,18 @@ import { internalMutation } from '../_generated/server'
 import { emit } from '../lib/events'
 import { branchOwner, hydrate, saveChange } from '../lib/changes'
 import { counters } from '../lib/events'
-import { recordRunPatchSet } from '../lib/runs'
-import { runIdOf } from '@source-code/api/trailers'
+import { pushReceipt } from '@source-code/api/trailers'
+import { contributionRefusal } from '@source-code/api/via'
 
 /**
  * A push code.storage told us about. Recorded once, however many times the
  * webhook arrives. A push to the branch of an open change is that change's
- * new patch set; every push is a `repository.pushed` event, which automations
- * can wake on.
+ * new patch set; every push is a `repository.pushed` event, which webhooks
+ * can deliver.
  */
 const STORAGE_ACTOR = {
   id: 'acc_codestorage000000',
   handle: 'code.storage',
-  class: 'bot' as const,
 }
 
 export const recordPush = internalMutation({
@@ -54,19 +53,21 @@ export const recordPush = internalMutation({
         const l = await hydrate(ctx, doc)
         const c = l.rec
         const prev = c.patchSets[c.patchSets.length - 1]
-        if (prev.sha !== a.after) {
-          // A git push carries no run token, so the trailer is all there is.
-          const named = runIdOf(message ?? '')
-          const run = named
-            ? await ctx.db
-                .query('runs')
-                .withIndex('by_publicId', (q) => q.eq('publicId', named))
-                .unique()
-            : null
-          const via = {
-            run: run && run.repoId === repo._id ? run.publicId : null,
-            tokenKind: 'push' as const,
-          }
+        // A git push carries no headers: the commit's trailers declare the model.
+        const via = pushReceipt(message)
+        // A repository that declines the declared model, or has denounced the
+        // change's author, does not take the push into the change: the branch
+        // moved, the change did not. (A push names no pusher; the change's
+        // author answers for it.)
+        const refused = contributionRefusal(
+          repo,
+          c.author.handle,
+          via.model,
+          'change',
+        )
+        const declined = refused !== null
+        if (refused) result = refused.code
+        if (prev.sha !== a.after && !declined) {
           c.patchSets.push({
             n: prev.n + 1,
             sha: a.after,
@@ -83,7 +84,6 @@ export const recordPush = internalMutation({
           c.updated = Math.max(Date.now(), c.updated + 1)
           c.version++
           await saveChange(ctx, l)
-          await recordRunPatchSet(ctx, doc._id, prev.n + 1, via.run)
           const k = await counters(ctx, repo)
           await ctx.db.patch('repoCounters', k._id, {
             changeRev: k.changeRev + 1,

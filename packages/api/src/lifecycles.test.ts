@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import {
-  automationNextRun,
   canMove,
   changeLifecycle,
   changeTarget,
@@ -13,8 +12,6 @@ import {
   pipelineLifecycle,
   pipelineStepLifecycle,
   reportStep,
-  runLifecycle,
-  runStateAt,
   uploadLifecycle,
   uploadMoveRefusal,
 } from './lifecycles'
@@ -33,7 +30,6 @@ const R = '/repos/dana/gitfs'
 describe('the tables', () => {
   const all: Array<Machine<string>> = [
     changeLifecycle,
-    runLifecycle,
     operationLifecycle,
     landingStepLifecycle,
     pipelineLifecycle,
@@ -76,14 +72,6 @@ describe('the tables', () => {
     expect(changeTarget('restore', { state: 'abandoned' })).toBe('open')
   })
 
-  test('a run past its deadline reads as expired, and expired is final', () => {
-    const r = { state: 'running' as const, expires: 1000 }
-    expect(runStateAt(r, 999)).toBe('running')
-    expect(runStateAt(r, 1000)).toBe('expired')
-    expect(isTerminal(runLifecycle, 'expired')).toBe(true)
-    expect(canMove(runLifecycle, 'succeeded', 'expired')).toBe(false)
-  })
-
   test('a delivery that finished never goes back', () => {
     expect(canMove(deliveryLifecycle, 'succeeded', 'failed')).toBe(false)
     expect(canMove(deliveryLifecycle, 'failed', 'succeeded')).toBe(false)
@@ -111,22 +99,16 @@ describe('the tables', () => {
     expect(uploadMoveRefusal(up, pending)).toContain('cannot become pending')
   })
 
+  test('a production confirmation is answered once, and ending it is final', () => {
+    expect(canMove(grantLifecycle, 'pending', 'active')).toBe(true)
+    expect(canMove(grantLifecycle, 'revoked', 'active')).toBe(false)
+    expect(isTerminal(grantLifecycle, 'revoked')).toBe(true)
+  })
+
   test('a device code is answered once', () => {
     expect(canMove(deviceLifecycle, 'pending', 'approved')).toBe(true)
     expect(canMove(deviceLifecycle, 'approved', 'denied')).toBe(false)
     expect(canMove(deviceLifecycle, 'denied', 'approved')).toBe(false)
-  })
-
-  test('a turned-off automation has no next run', () => {
-    const a = {
-      enabled: true,
-      triggers: ['schedule'],
-      every: 'day',
-      created: 0,
-    }
-    expect(automationNextRun(a)).toBe(86_400_000)
-    expect(automationNextRun({ ...a, enabled: false })).toBeNull()
-    expect(automationNextRun({ ...a, triggers: ['change.opened'] })).toBeNull()
   })
 
   test('a pipeline step is reported in order, forward only', () => {
@@ -232,30 +214,6 @@ describe('pipelines', () => {
       )
     ).json
     expect(JSON.stringify(log).split('step 1 success').length - 1).toBe(1)
-  })
-})
-
-describe('automations', () => {
-  test('a turned-off automation shows no next run', async () => {
-    const h = harness()
-    const made = await h.call('POST', `${R}/automations`, {
-      body: {
-        name: 'Weekly sweep',
-        bot: 'triage-bot',
-        triggers: ['schedule'],
-        every: 'week',
-        runtime: 'Claude Code',
-        target: 'T3 Code',
-        instructions: 'Look around.',
-      },
-    })
-    expect(made.status).toBe(201)
-    expect(made.json.next_run_at).not.toBeNull()
-    const off = await h.call('PATCH', `${R}/automations/${made.json.id}`, {
-      body: { enabled: false },
-    })
-    expect(off.status).toBe(200)
-    expect(off.json.next_run_at).toBeNull()
   })
 })
 

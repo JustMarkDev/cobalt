@@ -132,7 +132,7 @@ function operationErrors(op: Op): Array<string> {
     out.add('payload_too_large')
   }
   if (op.rawBody) out.add('payload_too_large')
-  if (op.method !== 'GET' && !op.secretResponse) {
+  if (op.method !== 'GET' && !op.secretResponse && !op.secretRequest) {
     out.add('idempotency_key_reused')
     out.add('request_in_progress')
   }
@@ -256,6 +256,7 @@ export function buildOpenApi(
       'x-sx-errors': operationErrors(op),
       'x-sx-async': !!op.mayBeAsync,
       'x-sx-secret-response': !!op.secretResponse,
+      'x-sx-secret-request': !!op.secretRequest,
     }
     const item = (paths[op.path] ??= {}) as Json
     item[op.method.toLowerCase()] = entry
@@ -284,7 +285,7 @@ export function buildOpenApi(
           type: 'http',
           scheme: 'bearer',
           description:
-            'A token starting sxp_ (person), sxb_ (bot), sxr_ (run) or sxo_ (OAuth). Tokens always expire.',
+            'A token starting sxp_ (personal) or sxo_ (OAuth, such as `sx auth login`). Tokens always expire.',
         },
       },
     },

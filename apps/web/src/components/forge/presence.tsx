@@ -1,6 +1,4 @@
 import * as React from 'react'
-import { CpuChipIcon } from '@heroicons/react/24/outline'
-import { cn } from 'cn'
 import { Tile } from './bits'
 import { useOpMaybe, useWrite } from '~/lib/forge'
 import { useMe } from '~/lib/auth/accounts'
@@ -15,7 +13,7 @@ type At = { owner: string; repo: string; number: string }
 type Kind = 'change' | 'issue'
 
 export type Viewer = {
-  actor: { handle: string; class: 'human' | 'agent' | 'bot' }
+  actor: { handle: string }
   path: string | null
 }
 
@@ -79,12 +77,10 @@ export function usePresence(
   return listed?.viewers ?? []
 }
 
-/** The others looking, as a row of faces; agents carry a chip mark. */
+/** The others looking, as a row of faces. Your own agents are you, so they are not shown. */
 export function Viewers({ viewers }: { viewers: Array<Viewer> }) {
   const me = useMe()
-  const others = viewers.filter(
-    (v) => !(v.actor.class === 'human' && v.actor.handle === me?.handle),
-  )
+  const others = viewers.filter((v) => v.actor.handle !== me?.handle)
   if (!others.length) return null
   return (
     <div
@@ -93,7 +89,7 @@ export function Viewers({ viewers }: { viewers: Array<Viewer> }) {
     >
       <div className="flex -space-x-1.5">
         {others.slice(0, 6).map((v) => (
-          <Face key={`${v.actor.handle}:${v.actor.class}`} v={v} />
+          <Face key={v.actor.handle} v={v} />
         ))}
       </div>
       <span>
@@ -106,26 +102,14 @@ export function Viewers({ viewers }: { viewers: Array<Viewer> }) {
 }
 
 function Face({ v, small }: { v: Viewer; small?: boolean }) {
-  const title = `${v.actor.handle}${v.actor.class === 'human' ? '' : ` (${v.actor.class})`}${v.path ? ` on ${v.path}` : ''}`
-  if (v.actor.class === 'human')
-    return (
-      <span title={title} className="rounded-full ring-2 ring-background">
-        <Tile
-          name={v.actor.handle}
-          round
-          className={small ? 'size-4 text-[9px]' : 'size-6 text-xs'}
-        />
-      </span>
-    )
+  const title = `${v.actor.handle}${v.path ? ` on ${v.path}` : ''}`
   return (
-    <span
-      title={title}
-      className={cn(
-        'flex items-center justify-center rounded-full bg-info/12 text-info ring-2 ring-background',
-        small ? 'size-4' : 'size-6',
-      )}
-    >
-      <CpuChipIcon className={small ? 'size-2.5' : 'size-3.5'} />
+    <span title={title} className="rounded-full ring-2 ring-background">
+      <Tile
+        name={v.actor.handle}
+        round
+        className={small ? 'size-4 text-[9px]' : 'size-6 text-xs'}
+      />
     </span>
   )
 }
@@ -140,16 +124,14 @@ export function FileViewers({
 }) {
   const me = useMe()
   const here = viewers.filter(
-    (v) =>
-      v.path === path &&
-      !(v.actor.class === 'human' && v.actor.handle === me?.handle),
+    (v) => v.path === path && v.actor.handle !== me?.handle,
   )
   if (!here.length) return null
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="flex -space-x-1">
         {here.map((v) => (
-          <Face key={`${v.actor.handle}:${v.actor.class}`} v={v} small />
+          <Face key={v.actor.handle} v={v} small />
         ))}
       </span>
       {here.length === 1

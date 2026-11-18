@@ -12,7 +12,6 @@ import {
 } from './records'
 import type {
   AccountRec,
-  ActorClass,
   ActorRec,
   Attached,
   ChangeRec,
@@ -22,7 +21,6 @@ import type {
   OperationRec,
   RepoRec,
   Role,
-  RunRec,
   TeamRec,
   Urls,
 } from './records'
@@ -43,11 +41,6 @@ export abstract class DomainState {
 
   /** Teams by `org/slug`, and the teams each person is in. */
   readonly teams = new Map<string, TeamRec>()
-
-  /** Runs by id, and each repository's runs oldest first. */
-  readonly runs = new Map<string, RunRec>()
-
-  protected readonly runsByRepo = new Map<string, Array<RunRec>>()
 
   readonly teamsOf = new Map<string, Set<string>>()
 
@@ -84,10 +77,10 @@ export abstract class DomainState {
     this.events = events ?? new EventLog(now)
   }
 
-  seedActor(handle: string, cls: ActorClass, at = this.now()): ActorRec {
+  seedActor(handle: string, at = this.now()): ActorRec {
     const found = this.actors.get(handle)
     if (found) return found
-    const rec = { id: seededId('account', at, handle), handle, class: cls }
+    const rec = { id: seededId('account', at, handle), handle }
     this.actors.set(handle, rec)
     return rec
   }
@@ -99,7 +92,7 @@ export abstract class DomainState {
     members: Array<[string, Role]> = [],
     at = this.now(),
   ) {
-    const actor = this.seedActor(handle, 'human', at)
+    const actor = this.seedActor(handle, at)
     const rec: AccountRec = {
       id: actor.id,
       handle,
@@ -142,7 +135,6 @@ export abstract class DomainState {
       >
     > & {
       collaborators?: Array<string>
-      installs?: Array<string>
       maintainers?: Array<string>
       maintainerGrants?: Array<string>
     } = {},
@@ -180,7 +172,6 @@ export abstract class DomainState {
       >
     > & {
       collaborators?: Array<string>
-      installs?: Array<string>
       maintainers?: Array<string>
       maintainerGrants?: Array<string>
     } = {},
@@ -216,7 +207,6 @@ export abstract class DomainState {
       issueRev: 0,
       nextNumber: 1,
       collaborators: new Set(init.collaborators ?? []),
-      installs: new Set(init.installs ?? []),
       maintainers: new Set(init.maintainers ?? [owner]),
       maintainerGrants: new Set(init.maintainerGrants ?? []),
       changes: new Map(),

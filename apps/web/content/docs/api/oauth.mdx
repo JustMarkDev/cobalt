@@ -17,17 +17,17 @@ Applications that act for a person sign in with OAuth. The server implements the
 
 These are the rules, each covered by a test.
 
-| It does not allow                                  | Instead                                                                    |
-| -------------------------------------------------- | -------------------------------------------------------------------------- |
-| The implicit flow, the password grant              | Authorization code with PKCE, or the device flow                           |
-| A request without PKCE, or with `plain` PKCE       | `S256` on every request                                                    |
-| A redirect URI that is not an exact match          | Register it; a prefix, a query or another host is refused                  |
-| A redirect that is not `https` or loopback `http`  | A native app's reverse-DNS scheme (`com.example.app:/cb`) is allowed       |
-| Redirecting on a bad `client_id` or `redirect_uri` | An error page. It never redirects until both are known to be good          |
-| Reusing an authorization code                      | The second use fails **and revokes what the first produced**               |
-| Replaying a refresh token                          | The whole grant is revoked, thief and owner both                           |
-| Asking for more than you may delegate              | `invalid_scope`. `tokens:manage` and `secrets:decrypt` are never grantable |
-| A client secret                                    | Clients are public: `token_endpoint_auth_method` must be `none`            |
+| It does not allow                                  | Instead                                                                                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| The implicit flow, the password grant              | Authorization code with PKCE, or the device flow                                                                          |
+| A request without PKCE, or with `plain` PKCE       | `S256` on every request                                                                                                   |
+| A redirect URI that is not an exact match          | Register it; a prefix, a query or another host is refused                                                                 |
+| A redirect that is not `https` or loopback `http`  | A native app's reverse-DNS scheme (`com.example.app:/cb`) is allowed                                                      |
+| Redirecting on a bad `client_id` or `redirect_uri` | An error page. It never redirects until both are known to be good                                                         |
+| Reusing an authorization code                      | The second use fails **and revokes what the first produced**                                                              |
+| Replaying a refresh token                          | The whole grant is revoked, thief and owner both                                                                          |
+| Asking for more than you may delegate              | `invalid_scope`. `tokens:manage` is never grantable; `secrets:decrypt` only to a device login, never to a web application |
+| A client secret                                    | Clients are public: `token_endpoint_auth_method` must be `none`                                                           |
 
 ## Discovery
 

@@ -27,6 +27,7 @@ export const idPrefixes = {
   evidence: 'evd',
   mirror: 'mir',
   grant: 'grt',
+  confirmation: 'cnf',
   team: 'tem',
   run: 'run',
   invitation: 'inv',

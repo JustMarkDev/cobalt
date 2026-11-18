@@ -73,7 +73,6 @@ const full = (r: { owner: string; name: string }) => `${r.owner}/${r.name}`
 export async function hasAccess(ctx: Ctx, repo: Doc<'repos'>, a: Actor) {
   return (
     repo.collaborators.includes(a.handle) ||
-    repo.installs.includes(a.handle) ||
     (await isMember(ctx, repo.owner, a.handle))
   )
 }
@@ -95,6 +94,25 @@ export async function canWrite(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   if (a.repos && !a.repos.includes(full(repo).toLowerCase())) return false
   return (
     (await hasAccess(ctx, repo, a)) ||
+    (await teamLevel(ctx, repo, a.handle)) === 'write'
+  )
+}
+
+/**
+ * Who may have a repository's secret values: its team. That is the account
+ * that owns it (the person, or the organization's members) and teams given
+ * write access. A collaborator, a read-only team or anyone reading a public
+ * repository sees variable names only.
+ */
+export async function inSecretsTeam(
+  ctx: Ctx,
+  repo: Doc<'repos'>,
+  a: Actor | null,
+) {
+  if (!a || a.system) return false
+  if (a.repos && !a.repos.includes(full(repo).toLowerCase())) return false
+  return (
+    (await isMember(ctx, repo.owner, a.handle)) ||
     (await teamLevel(ctx, repo, a.handle)) === 'write'
   )
 }

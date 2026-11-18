@@ -531,7 +531,7 @@ export const provenance = defineOp({
               commit: null,
               change: f.change,
               patch_set: f.patch_set,
-              run: f.run,
+              via: f.via,
             }
           ref = f.on_base
         }
@@ -554,7 +554,7 @@ export const provenance = defineOp({
           },
           change: f.change,
           patch_set: f.patch_set,
-          run: f.run,
+          via: f.via,
         }
       })
     }),

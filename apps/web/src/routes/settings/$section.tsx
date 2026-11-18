@@ -19,7 +19,7 @@ import { Input, field } from '~/components/ui/input'
 import { Chip, SectionLabel, SourceBadge } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
 import { TargetPicker } from '~/components/forge/download-button'
-import { Bots } from '~/components/forge/agents-panels'
+import { MachinesPanel } from '~/components/forge/machines-panel'
 import { IntegrationsPanel } from '~/components/forge/integrations-panel'
 import { Toggle } from '~/components/forge/repo-pages'
 import { Button } from '~/components/ui/button'
@@ -30,7 +30,7 @@ const sections = [
   ['profile', 'Profile', UserIcon],
   ['accounts', 'Linked accounts', LinkIcon],
   ['integrations', 'Integrations', PuzzlePieceIcon],
-  ['agents', 'Agents and tokens', CpuChipIcon],
+  ['agents', 'Machines and tokens', CpuChipIcon],
   ['privacy', 'Privacy', ShieldCheckIcon],
   ['downloads', 'Downloads', ArrowDownTrayIcon],
   ['notifications', 'Notifications', BellIcon],
@@ -86,11 +86,11 @@ function Settings() {
         )}
         {current === 'agents' && (
           <div className="max-w-4xl">
-            <Header id="agents" title="Agents and tokens">
-              Bots are named identities with limited access. A bot can lose
-              access while it is installed, never gain it.
+            <Header id="agents" title="Machines and tokens">
+              Everything that can act as you. Agents use the login of the
+              machine they run on.
             </Header>
-            <Bots />
+            <MachinesPanel />
           </div>
         )}
         {current === 'privacy' && <Privacy />}

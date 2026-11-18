@@ -8,15 +8,10 @@ describe('change guides', () => {
   test('an agent writes the guide, and a newer patch set leaves it behind', async () => {
     const h = harness()
     expect((await h.call('GET', `${C}/guide`)).status).toBe(404)
-    const run = await h.call('POST', `${REPO}/runs`, {
-      body: {
-        task: 'Guide the reviewers',
-        change: 216,
-        scopes: ['repo:read', 'pulls:read', 'pulls:write'],
-      },
-    })
+    const AGENT = { 'sx-tool': 'Claude Code', 'sx-model': 'Claude Opus 5.5' }
     const put = await h.call('PUT', `${C}/guide`, {
-      token: run.json.token,
+      token: h.tokens.scoped,
+      headers: AGENT,
       body: {
         summary: 'Caches missing refs so a lookup reads the disk once.',
         order: [
@@ -34,7 +29,7 @@ describe('change guides', () => {
       object: 'change_guide',
       patch_set: 3,
       current: true,
-      run: run.json.id,
+      via: { machine: 'Laptop', tool: 'Claude Code', model: 'Claude Opus 5.5' },
       order: [
         { path: 'src/refs.rs', risk: 'medium' },
         { path: 'tests/refs_test.rs', risk: 'low' },
@@ -48,8 +43,8 @@ describe('change guides', () => {
     const timeline = (await h.call('GET', `${C}/timeline?limit=200`)).json.data
     expect(
       timeline.some(
-        (e: { kind: string; run: string }) =>
-          e.kind === 'guide' && e.run === run.json.id,
+        (e: { kind: string; via: { model: string | null } | null }) =>
+          e.kind === 'guide' && e.via?.model === 'Claude Opus 5.5',
       ),
     ).toBe(true)
   })

@@ -1,0 +1,888 @@
+---
+icon: PlayIcon
+title: Pipelines
+description: Pipeline runs on your own runners, their jobs, steps and logs.
+---
+
+{/* Generated from the API definitions by scripts/api-docs.ts. Do not edit by hand. */}
+
+<Callout type="warn" title="Preview">
+  Examples are real responses from the sample data the preview serves.
+</Callout>
+
+### `pipelines.list`
+
+`GET /repos/{owner}/{repo}/pipelines`
+
+**Pipeline runs in a repository**
+
+Newest first. Each is a workflow run; a check on a change is the result of one.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `read` pool, 1 unit                        |
+| Success    | `200`, a list of `pipeline_run`            |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Query parameters**
+
+| Name       | Type                                                          | Notes                                                              |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `limit`    | integer (min 1, max 200)                                      | Default `50`. Items per page, 1 to 200. Larger values are clamped. |
+| `cursor`   | string                                                        | `next_cursor` from the previous page, exactly as returned          |
+| `status`   | `queued` or `running` or `success` or `failure` or `canceled` |                                                                    |
+| `workflow` | string (up to 100 characters)                                 |                                                                    |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`cursor_mismatch`](/docs/api/errors#cursor_mismatch), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/repos/dana/gitfs/pipelines?limit=2" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"rep_01m3kkw4m0zvf3zfc9.p8.8.1-EJNiA0vTEF0emhye"
+ratelimit: "read";r=1147;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "pipeline_run",
+      "id": "pip_01m6tcx5c09817nkc9",
+      "number": 1840,
+      "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840",
+      "html_url": "https://source.code/dana/gitfs/pipelines?n=1840",
+      "workflow": "build",
+      "file": ".source/workflows/build.yml",
+      "title": "Add a read-only mount mode",
+      "branch": "kofi/readonly-mount",
+      "sha": "3fd81aa",
+      "status": "running",
+      "trigger": "change",
+      "actor": "kofi",
+      "started_at": "2026-11-07T07:00:00.000Z",
+      "finished_at": null,
+      "duration_ms": null,
+      "jobs": null,
+      "annotations": [
+        {
+          "level": "warn",
+          "text": "warning: unused variable: `hint`",
+          "job": "build (ubuntu)",
+          "step": "Build"
+        }
+      ],
+      "version": 1
+    },
+    {
+      "object": "pipeline_run",
+      "id": "pip_01m6r1c5m0ew850sm5",
+      "number": 1838,
+      "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1838",
+      "html_url": "https://source.code/dana/gitfs/pipelines?n=1838",
+      "workflow": "security",
+      "file": ".source/workflows/security.yml",
+      "title": "Nightly dependency audit",
+      "branch": "main",
+      "sha": "a41c9e2",
+      "status": "success",
+      "trigger": "schedule",
+      "actor": "scheduler",
+      "started_at": "2026-11-06T09:00:00.000Z",
+      "finished_at": "2026-11-06T09:00:48.000Z",
+      "duration_ms": 48000,
+      "jobs": null,
+      "annotations": [
+        {
+          "level": "warn",
+          "text": "warning: unused variable: `hint`",
+          "job": "security (ubuntu)",
+          "step": "Build"
+        },
+        {
+          "level": "warn",
+          "text": "warning: unused variable: `hint`",
+          "job": "security (macos)",
+          "step": "Build"
+        }
+      ],
+      "version": 1
+    }
+  ],
+  "has_more": true,
+  "next_cursor": "c_WzIsInBpcF8wMW02cjFjNW0wZXc4NTBzbTUiLCIxeXFiZHN0Il0"
+}
+```
+
+### `pipelines.start`
+
+`POST /repos/{owner}/{repo}/pipelines`
+
+**Start a workflow**
+
+Queues a run of a workflow that has run before, on the newest commit of `branch` (the default branch if left out), for a runner to claim. Not idempotent by nature: send an `Idempotency-Key` to retry safely.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Dry run    | `?dry_run=true`                     |
+| Success    | `201`, a `pipeline_run`             |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Request body**
+
+| Member     | Type                                      | Notes     |
+| ---------- | ----------------------------------------- | --------- |
+| `workflow` | string (up to 100 characters, at least 1) | Required. |
+| `branch`   | string (up to 200 characters, at least 1) |           |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "idempotency-key: 6d2a9f4b-3c1e-4b7a-8e5d-0f9c2b4a6e13" \
+  -H "Content-Type: application/json" \
+  -d '{"workflow":"build","branch":"main"}'
+```
+
+```http
+HTTP/1.1 201
+ratelimit: "write";r=61;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6tq6r80tbap36zh",
+  "number": 1844,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1844",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "build on main",
+  "branch": "main",
+  "sha": "1b7880d028f90a3eaac9e41bb3c28086691e29ba",
+  "status": "queued",
+  "trigger": "manual",
+  "actor": "dana",
+  "started_at": "2026-11-07T10:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "ubuntu-latest",
+      "status": "queued",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "queued",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "annotations": [],
+  "version": 1
+}
+```
+
+### `pipelines.get`
+
+`GET /repos/{owner}/{repo}/pipelines/{run}`
+
+**One pipeline run, with its jobs and steps**
+
+Each step links to its log.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `read` pool, 1 unit                        |
+| Success    | `200`, a `pipeline_run`                    |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"rep_01m3kkw4m0zvf3zfc9.p8.8.1-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1146;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6jwjqm01gg6cd8d",
+  "number": 1839,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1839",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Windows ARM64 builds",
+  "branch": "yuki/win-arm64",
+  "sha": "be4410c",
+  "status": "failure",
+  "trigger": "change",
+  "actor": "yuki",
+  "started_at": "2026-11-04T09:00:00.000Z",
+  "finished_at": "2026-11-04T09:03:58.000Z",
+  "duration_ms": 238000,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "ubuntu-latest",
+      "status": "success",
+      "duration_ms": 70000,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2000,
+          "lines": 5,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 24000,
+          "lines": 9,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "failure",
+      "duration_ms": 144000,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2000,
+          "lines": 5,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 24000,
+          "lines": 9,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "annotations": [
+    {
+      "level": "warn",
+      "text": "warning: unused variable: `hint`",
+      "job": "build (ubuntu)",
+      "step": "Build"
+    },
+    {
+      "level": "warn",
+      "text": "warning: unused variable: `hint`",
+      "job": "build (macos)",
+      "step": "Build"
+    },
+    "…and 1 more"
+  ],
+  "version": 1
+}
+```
+
+### `pipelines.cancel`
+
+`POST /repos/{owner}/{repo}/pipelines/{run}/cancel`
+
+**Cancel a run**
+
+Only a queued or running one. Steps not yet finished are canceled.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `repo:write`            |
+| Rate limit | `write` pool, 1 unit    |
+| Dry run    | `?dry_run=true`         |
+| Success    | `200`, a `pipeline_run` |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/cancel" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=62;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6tcx5c09817nkc9",
+  "number": 1840,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1840",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Add a read-only mount mode",
+  "branch": "kofi/readonly-mount",
+  "sha": "3fd81aa",
+  "status": "canceled",
+  "trigger": "change",
+  "actor": "kofi",
+  "started_at": "2026-11-07T07:00:00.000Z",
+  "finished_at": "2026-11-07T10:00:00.000Z",
+  "duration_ms": 10800000,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "ubuntu-latest",
+      "status": "canceled",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2000,
+          "lines": 5,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 24000,
+          "lines": 9,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "canceled",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "canceled",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "canceled",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "annotations": [
+    {
+      "level": "warn",
+      "text": "warning: unused variable: `hint`",
+      "job": "build (ubuntu)",
+      "step": "Build"
+    }
+  ],
+  "version": 2
+}
+```
+
+### `pipelines.report`
+
+`POST /repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}`
+
+**Report how a step went, as a runner**
+
+Send `running` when it starts, then `success`, `failure` or `skipped`, with the log lines it wrote (5,000 kept a step). A failure skips the rest of the job. When every step of a job is done the job is, and when every job is done the run is.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `200`, a `pipeline_run`             |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+| `job`   | integer (min 1, max 9007199254740991) |       |
+| `step`  | integer (min 1, max 9007199254740991) |       |
+
+**Request body**
+
+| Member        | Type                                             | Notes     |
+| ------------- | ------------------------------------------------ | --------- |
+| `status`      | `running` or `success` or `failure` or `skipped` | Required. |
+| `lines`       | array of object                                  |           |
+| `duration_ms` | integer (min 0, max 9007199254740991)            |           |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"success","lines":[{"text":"cargo fmt --check","level":"cmd"}],"duration_ms":2140}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=59;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6r1c5m0ftmrqqz5",
+  "number": 1837,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Cache negative lookups",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "status": "running",
+  "trigger": "change",
+  "actor": "dana",
+  "started_at": "2026-11-06T09:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "mac-mini-1",
+      "status": "running",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2140,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "queued",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "annotations": [],
+  "version": 3
+}
+```
+
+### `pipelines.log`
+
+`GET /repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/log`
+
+**The log of one step**
+
+Jobs and steps are numbered from 1, in the order the run lists them.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `heavy` pool, 1 unit                       |
+| Success    | `200`, a `pipeline_log`                    |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+| `job`   | integer (min 1, max 9007199254740991) |       |
+| `step`  | integer (min 1, max 9007199254740991) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"zecNhX9CeaLpQ2Q_"
+ratelimit: "heavy";r=113;t=60
+```
+
+```json
+{
+  "object": "pipeline_log",
+  "run": 1839,
+  "job": "build (ubuntu)",
+  "step": "Build",
+  "status": "success",
+  "lines": [
+    {
+      "text": "$ cargo build --workspace --locked",
+      "level": "cmd"
+    },
+    {
+      "text": "   Compiling libc v0.2.169",
+      "level": "dim"
+    },
+    "…and 7 more"
+  ]
+}
+```
+
+### `pipelines.rerun`
+
+`POST /repos/{owner}/{repo}/pipelines/{run}/rerun`
+
+**Run a workflow again**
+
+A new run of the same workflow on the same commit, queued for a runner. Not idempotent by nature: send an `Idempotency-Key` to retry safely.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Dry run    | `?dry_run=true`                     |
+| Success    | `201`, a `pipeline_run`             |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/rerun" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "idempotency-key: 0b7c2e4f-1a3d-4e6b-9c8a-5d2f7e1b3a90"
+```
+
+```http
+HTTP/1.1 201
+ratelimit: "write";r=63;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6tq6r80gpehqm81",
+  "number": 1843,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1843",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Windows ARM64 builds",
+  "branch": "yuki/win-arm64",
+  "sha": "be4410c",
+  "status": "queued",
+  "trigger": "manual",
+  "actor": "dana",
+  "started_at": "2026-11-07T10:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "ubuntu-latest",
+      "status": "queued",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "queued",
+      "duration_ms": 0,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/1/log"
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/2/log"
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "annotations": [],
+  "version": 1
+}
+```
+
+### `pipelines.claim`
+
+`POST /repos/{owner}/{repo}/pipelines/claim`
+
+**Take the next queued job, as a runner**
+
+The oldest queued job in the repository, now running on `runner`. Answers `204` when nothing is waiting. The runner reads the workflow file at `sha`, runs the job's steps, and reports each one.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `200`, a `pipeline_job`             |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Request body**
+
+| Member   | Type                                      | Notes                                         |
+| -------- | ----------------------------------------- | --------------------------------------------- |
+| `runner` | string (up to 100 characters, at least 1) | Required. The runner's name, shown on the job |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/claim" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"runner":"mac-mini-1"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=60;t=60
+```
+
+```json
+{
+  "object": "pipeline_job",
+  "run": 1837,
+  "job": 1,
+  "name": "build (ubuntu)",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "steps": [
+    {
+      "number": 1,
+      "name": "Set up job"
+    },
+    {
+      "number": 2,
+      "name": "Build"
+    },
+    "…and 2 more"
+  ],
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1"
+}
+```

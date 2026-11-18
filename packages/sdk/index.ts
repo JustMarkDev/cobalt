@@ -61,7 +61,6 @@ export type Actor = {
   /** Starts with acc_ */
   id: string
   handle: string
-  class: 'human' | 'agent' | 'bot'
 }
 
 export type AuditEntry = {
@@ -82,49 +81,14 @@ export type Authorization = {
     id: string
     name: string
   }
+  /** The machine a device login (`sx auth login`) named; null for an application */
+  device: string | null
   scopes: Array<string>
   audience: Array<'api' | 'mcp'>
   url: string
   /** RFC 3339 time, UTC */
   created_at: string
   last_used_at: string | null
-}
-
-export type Automation = {
-  object: 'automation'
-  /** Starts with aut_ */
-  id: string
-  name: string
-  /** The bot it wakes */
-  bot: string
-  triggers: Array<
-    | 'issue.created'
-    | 'change.opened'
-    | 'change.updated'
-    | 'finding.raised'
-    | 'ci.failed'
-    | 'bot.mentioned'
-    | 'repository.pushed'
-    | 'schedule'
-  >
-  /** Such as Claude Code or Codex */
-  runtime: string
-  /** Where it runs, such as T3 Code or E2B */
-  target: string
-  instructions: string
-  enabled: boolean
-  /** Times an event it listens for happened */
-  triggered: number
-  last_triggered_at: string | null
-  /** RFC 3339 time, UTC */
-  created_at: string
-  version: number
-  /** The run the last trigger started; its bot picks it up with runs.claim */
-  last_run: string | null
-  /** How often the `schedule` trigger fires; null without it */
-  every: 'hour' | 'day' | 'week' | null
-  /** When the schedule fires next; null without one */
-  next_run_at: string | null
 }
 
 export type BatchResult = {
@@ -135,39 +99,6 @@ export type BatchResult = {
     headers: Record<string, string>
     body: unknown
   }>
-}
-
-export type Bot = {
-  object: 'bot'
-  /** Its handle, what it acts as */
-  slug: string
-  name: string
-  description: string
-  /** The account that owns it */
-  owner: string
-  class: 'bot' | 'agent'
-  /** What its tokens may do */
-  scopes: Array<string>
-  /** Repositories it is installed on, and so may act in */
-  installs: Array<string>
-  /** Live tokens */
-  tokens: number
-  /** RFC 3339 time, UTC */
-  created_at: string
-}
-
-export type BotToken = {
-  object: 'bot_token'
-  /** Starts with tok_ */
-  id: string
-  bot: string
-  /** Shown once, never again */
-  token: string
-  scopes: Array<string>
-  /** Limited to where it is installed now */
-  repos: Array<string>
-  /** RFC 3339 time, UTC */
-  expires_at: string
 }
 
 export type Change = {
@@ -189,6 +120,8 @@ export type Change = {
     patch_set: number
     sha: string
     tree: string
+    /** How the newest patch set got here: machine, tool and declared model */
+    via: Via | null
   }
   stack: {
     /** Starts with stk_ */
@@ -296,8 +229,8 @@ export type ChangeComment = {
     /** RFC 3339 time, UTC */
     at: string
   } | null
-  /** The agent run that made it; null when no run did */
-  run: string | null
+  /** How it got here; null for old records */
+  via: Via | null
   /** RFC 3339 time, UTC */
   created_at: string
   /** RFC 3339 time, UTC */
@@ -322,8 +255,8 @@ export type ChangeGuide = {
     risk: 'low' | 'medium' | 'high'
   }>
   by: Actor
-  /** The agent run that wrote it, if any */
-  run: string | null
+  /** How it got here; null for old records */
+  via: Via | null
   /** RFC 3339 time, UTC */
   created_at: string
 }
@@ -363,6 +296,29 @@ export type CheckRun = {
   created_at: string
   /** RFC 3339 time, UTC */
   updated_at: string
+}
+
+export type Confirmation = {
+  object: 'confirmation'
+  /** Starts with cnf_ */
+  id: string
+  environment: 'development' | 'preview' | 'production'
+  /** `pending` waits for the person; `active` lets that one login read production values until `expires_at` */
+  state: 'pending' | 'active' | 'revoked' | 'expired'
+  /** Whose login asked; only they can confirm */
+  login: string
+  /** The machine that login was made on */
+  device: string
+  /** What sent the request, as it declared itself */
+  tool: string | null
+  reason: string | null
+  /** RFC 3339 time, UTC */
+  expires_at: string
+  /** Where the person confirms it, signed in, in a browser */
+  confirm_url: string
+  url: string
+  /** RFC 3339 time, UTC */
+  created_at: string
 }
 
 export type Context = {
@@ -430,7 +386,7 @@ export type Dashboard = {
   }>
   activity: Array<{
     who: string
-    class: 'human' | 'agent' | 'bot'
+    via: Via | null
     /** The event type */
     type: string
     repo: string | null
@@ -533,7 +489,8 @@ export type EnvValues = {
   values: Record<string, string>
   /** Which of the names are secret, so a caller can scrub them from output */
   secrets: Array<string>
-  grant: string | null
+  /** The confirmation production values were read under */
+  confirmation: string | null
 }
 
 export type EnvVar = {
@@ -578,6 +535,8 @@ export type Event = {
   repo: string | null
   repo_id: string | null
   actor: Actor
+  /** How the write got here: machine, tool and declared model */
+  via: Via | null
   subject: {
     object: string
     id: string
@@ -627,8 +586,8 @@ export type Finding = {
   suggestion: Suggestion | null
   /** The same fix as instructions for an agent */
   prompt: string | null
-  /** The agent run that made it; null when no run did */
-  run: string | null
+  /** How it got here; null for old records */
+  via: Via | null
   /** RFC 3339 time, UTC */
   created_at: string
 }
@@ -706,25 +665,6 @@ export type GitTree = {
   }>
   /** True when the directory has more than 2,000 entries and the list was cut */
   has_more: boolean
-}
-
-export type Grant = {
-  object: 'grant'
-  /** Starts with grt_ */
-  id: string
-  environment: 'development' | 'preview' | 'production'
-  state: 'pending' | 'active' | 'revoked' | 'expired'
-  /** Names only */
-  variables: Array<string>
-  reason: string | null
-  requested_by: string
-  max_runs: number
-  uses: number
-  /** Null until a person approves it */
-  expires_at: string | null
-  url: string
-  /** RFC 3339 time, UTC */
-  created_at: string
 }
 
 export type Import = {
@@ -1008,8 +948,8 @@ export type PatchSet = {
   author: Actor
   files: number
   url: string
-  /** The agent run that made it; null when no run did */
-  run: string | null
+  /** How it got here; null for old records */
+  via: Via | null
   /** RFC 3339 time, UTC */
   created_at: string
 }
@@ -1261,7 +1201,8 @@ export type Principal = {
   token: string
   login: string
   acting_as: string
-  class: 'human' | 'agent' | 'bot'
+  /** The machine the token was made on; 'browser' for a signed-in page */
+  device: string
   scopes: Array<string>
   repos: Array<string> | null
   /** RFC 3339 time, UTC */
@@ -1368,20 +1309,8 @@ export type Provenance = {
   } | null
   /** The patch set of that change that wrote the line */
   patch_set: number | null
-  /** The agent run that pushed that patch set, with its task, summary, links and transcript */
-  run: Run | null
-}
-
-export type Recipient = {
-  object: 'recipient'
-  id: string
-  kind: string
-  name: string | null
-  /** The public key's short form */
-  fingerprint: string | null
-  environments: Array<'development' | 'preview' | 'production'>
-  added_at: string | null
-  last_used_at: string | null
+  /** How that patch set got here: machine, tool and declared model */
+  via: Via | null
 }
 
 export type Reference = {
@@ -1479,12 +1408,19 @@ export type Repo = {
   website: string | null
   /** The project's documentation */
   docs_url: string | null
-  /** People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. */
+  /** People who can approve changes to the policy file. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. */
   maintainers: Array<string>
-  /** Whether agent runs may attach their transcripts. Off unless an owner turns it on */
-  transcripts: 'off' | 'on'
-  /** Whether commits keep a `Run-Id:` trailer naming the run that made them. `auto` keeps it in private repositories and removes it in public ones */
-  run_trailer: 'auto' | 'on' | 'off'
+  /** Declared models this repository takes no changes from. A change or patch set declared with one is refused with `model_declined` */
+  declined_models: Array<string>
+  /** Whether a change lands by itself once it can, under the account that turned this on */
+  auto_land: boolean
+  /** Accounts the owners trust. Their changes come first */
+  vouched: Array<string>
+  /** Accounts that may not open changes or issues here */
+  denounced: Array<{
+    handle: string
+    reason: string
+  }>
   open_changes: number
   open_issues: number
   url: string
@@ -1504,11 +1440,11 @@ export type RepoInsights = {
     total: number
     /** The last 26 weeks, oldest first */
     by_week: Array<number>
-    by_class: {
-      human: number
-      agent: number
-      bot: number
-    }
+    /** Patch sets by the model their tool declared, most first; null when none was */
+    by_model: Array<{
+      model: string | null
+      count: number
+    }>
   }
   contributors: number
   downloads: {
@@ -1566,8 +1502,8 @@ export type Review = {
   patch_set: number
   carries_to_head: boolean
   body: string
-  /** The agent run that made it; null when no run did */
-  run: string | null
+  /** How it got here; null for old records */
+  via: Via | null
   /** RFC 3339 time, UTC */
   created_at: string
 }
@@ -1578,82 +1514,6 @@ export type Root = {
   version: string
   versions: Array<string>
   links: Record<string, string>
-}
-
-export type Run = {
-  object: 'run'
-  /** Starts with run_ */
-  id: string
-  repo: RepoRef
-  task: string
-  state: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
-  actor: Actor
-  /** The change this run works on, if any */
-  change: number | null
-  /** What the run token may do */
-  scopes: Array<string>
-  /** The run token. Only in the response that starts the run, never again */
-  token: string | null
-  /** Starts with tok_ */
-  token_id: string
-  notes: Array<{
-    /** RFC 3339 time, UTC */
-    at: string
-    text: string
-  }>
-  summary: string | null
-  /** The issue this run works on, if any */
-  issue: number | null
-  /** What drove the agent, such as claude-code, delta or sx */
-  harness: string | null
-  /** Conversations about this run elsewhere, such as a Delta thread */
-  links: Array<string>
-  /** What the agent saw and said, when the repository keeps it */
-  transcript: {
-    /** Bytes, after masking */
-    size: number
-    sha256: string
-    /** How many secrets were masked when it was attached */
-    redactions: number
-    /** Read it here, with the runs:transcripts scope */
-    url: string
-  } | null
-  /** The patch sets this run pushed, oldest first */
-  patch_sets: Array<{
-    change: number
-    patch_set: number
-  }>
-  url: string
-  /** RFC 3339 time, UTC */
-  started_at: string
-  /** RFC 3339 time, UTC */
-  expires_at: string
-  finished_at: string | null
-  version: number
-}
-
-export type RunNote = {
-  object: 'run_note'
-  /** Starts with run_ */
-  run: string
-  task: string
-  text: string
-  /** The run's summary, said when it ended, rather than a note */
-  final: boolean
-}
-
-export type RunTranscript = {
-  object: 'run_transcript'
-  /** Starts with run_ */
-  run: string
-  content_type: 'text/plain' | 'application/json'
-  /** Bytes */
-  size: number
-  sha256: string
-  /** How many secrets were masked when it was attached */
-  redactions: number
-  /** The transcript, secrets masked */
-  content: string
 }
 
 export type SearchResult = {
@@ -1802,14 +1662,13 @@ export type TimelineEntry = {
     | 'check'
     | 'guide'
     | 'evidence'
-    | 'run_note'
     | 'state_change'
     | 'reference'
   /** RFC 3339 time, UTC */
   created_at: string
   actor: Actor | null
-  /** The agent run that made it; null when no run did */
-  run: string | null
+  /** How it got here; null for old records */
+  via: Via | null
   /** One line, for reading the story at a glance */
   summary: string
   /** What happened, as its own object */
@@ -1823,7 +1682,6 @@ export type TimelineEntry = {
     | Evidence
     | IssueEvidence
     | ChangeGuide
-    | RunNote
     | StateChange
     | Reference
 }
@@ -1833,8 +1691,9 @@ export type Token = {
   /** Starts with tok_ */
   id: string
   name: string
-  kind: 'personal' | 'bot' | 'run'
-  class: 'human' | 'agent' | 'bot'
+  kind: 'personal'
+  /** The machine it was made for, as its owner named it */
+  device: string | null
   scopes: Array<string>
   repos: Array<string> | null
   /** The first characters, to recognise a token by */
@@ -1856,7 +1715,7 @@ export type Upload = {
   filename: string
   content_type: string
   size: number
-  purpose: 'evidence' | 'release' | 'transcript'
+  purpose: 'evidence' | 'release'
   state: 'pending' | 'uploaded'
   sha256: string | null
   /** PUT the file here. Needs no token. Once, for an hour */
@@ -1868,6 +1727,15 @@ export type Upload = {
   url: string
   /** RFC 3339 time, UTC */
   created_at: string
+}
+
+export type Via = {
+  /** The machine the login was made on, as its owner named it */
+  machine: string | null
+  /** The tool that sent it, as the tool declared (`Sx-Tool`) */
+  tool: string | null
+  /** The model the tool said it used (`Sx-Model`). Declared, not verified */
+  model: string | null
 }
 
 export type Webhook = {
@@ -2004,188 +1872,6 @@ export interface Operations {
       id: string
     }
     output: void
-  }
-  /** Wake a bot when something happens (`POST /repos/{owner}/{repo}/automations`) */
-  'automations.create': {
-    input: {
-      owner: string
-      repo: string
-      body: {
-        name: string
-        triggers: Array<
-          | 'issue.created'
-          | 'change.opened'
-          | 'change.updated'
-          | 'finding.raised'
-          | 'ci.failed'
-          | 'bot.mentioned'
-          | 'repository.pushed'
-          | 'schedule'
-        >
-        runtime: string
-        target: string
-        instructions: string
-        enabled?: boolean
-        /** How often the `schedule` trigger fires; weekly if left out */
-        every?: 'hour' | 'day' | 'week'
-        /** The bot slug */
-        bot: string
-      }
-    }
-    output: Automation
-  }
-  /** Delete an automation (`DELETE /repos/{owner}/{repo}/automations/{automation}`) */
-  'automations.delete': {
-    input: {
-      owner: string
-      repo: string
-      automation: string
-    }
-    output: void
-  }
-  /** Automations in a repository (`GET /repos/{owner}/{repo}/automations`) */
-  'automations.list': {
-    input: {
-      owner: string
-      repo: string
-    }
-    output: {
-      object: 'list'
-      data: Array<Automation>
-      has_more: false
-      next_cursor: null
-    }
-  }
-  /** Start an automation now (`POST /repos/{owner}/{repo}/automations/{automation}/run`) */
-  'automations.run': {
-    input: {
-      owner: string
-      repo: string
-      automation: string
-    }
-    output: Run
-  }
-  /** Edit an automation, or turn it on or off (`PATCH /repos/{owner}/{repo}/automations/{automation}`) */
-  'automations.update': {
-    input: {
-      owner: string
-      repo: string
-      automation: string
-      body: {
-        name?: string
-        triggers?: Array<
-          | 'issue.created'
-          | 'change.opened'
-          | 'change.updated'
-          | 'finding.raised'
-          | 'ci.failed'
-          | 'bot.mentioned'
-          | 'repository.pushed'
-          | 'schedule'
-        >
-        runtime?: string
-        target?: string
-        instructions?: string
-        enabled?: boolean
-        /** How often the `schedule` trigger fires; weekly if left out */
-        every?: 'hour' | 'day' | 'week'
-      }
-    }
-    output: Automation
-  }
-  /** Make a bot (`POST /accounts/{handle}/bots`) */
-  'bots.create': {
-    input: {
-      handle: string
-      body: {
-        slug: string
-        name: string
-        description?: string
-        class?: 'bot' | 'agent'
-        scopes: Array<
-          | 'repo:read'
-          | 'repo:write'
-          | 'issues:read'
-          | 'issues:comment'
-          | 'issues:write'
-          | 'pulls:read'
-          | 'pulls:comment'
-          | 'pulls:write'
-          | 'pulls:merge'
-          | 'secrets:schema'
-          | 'secrets:write'
-          | 'secrets:decrypt'
-          | 'webhooks:read'
-          | 'webhooks:write'
-          | 'tokens:manage'
-          | 'runs:transcripts'
-        >
-      }
-    }
-    output: Bot
-  }
-  /** Install a bot on a repository, or remove it (`PUT /repos/{owner}/{repo}/bots/{bot}`) */
-  'bots.install': {
-    input: {
-      owner: string
-      repo: string
-      bot: string
-      body: {
-        installed: boolean
-      }
-    }
-    output: Bot
-  }
-  /** Bots an account owns (`GET /accounts/{handle}/bots`) */
-  'bots.list': {
-    input: {
-      handle: string
-    }
-    output: {
-      object: 'list'
-      data: Array<Bot>
-      has_more: false
-      next_cursor: null
-    }
-  }
-  /** Make a token for a bot (`POST /bots/{bot}/tokens`) */
-  'bots.token': {
-    input: {
-      bot: string
-      body: {
-        days?: number
-      }
-    }
-    output: BotToken
-  }
-  /** Rename a bot or change what it may do (`PATCH /bots/{bot}`) */
-  'bots.update': {
-    input: {
-      bot: string
-      body: {
-        name?: string
-        description?: string
-        scopes?: Array<
-          | 'repo:read'
-          | 'repo:write'
-          | 'issues:read'
-          | 'issues:comment'
-          | 'issues:write'
-          | 'pulls:read'
-          | 'pulls:comment'
-          | 'pulls:write'
-          | 'pulls:merge'
-          | 'secrets:schema'
-          | 'secrets:write'
-          | 'secrets:decrypt'
-          | 'webhooks:read'
-          | 'webhooks:write'
-          | 'tokens:manage'
-          | 'runs:transcripts'
-        >
-      }
-    }
-    output: Bot
   }
   /** Say which patch set answers a review thread (`POST /repos/{owner}/{repo}/changes/{number}/comments/{comment}/address`) */
   'change_comments.address': {
@@ -2578,6 +2264,40 @@ export interface Operations {
     }
     output: IssueComment
   }
+  /** Confirm a login may use production values (`POST /repos/{owner}/{repo}/env/confirmations/{confirmation}/confirm`) */
+  'confirmations.confirm': {
+    input: {
+      owner: string
+      repo: string
+      confirmation: string
+      body: {
+        ttl_minutes?: number
+      }
+    }
+    output: Confirmation
+  }
+  /** Your requests to use production values, and their answers (`GET /repos/{owner}/{repo}/env/confirmations`) */
+  'confirmations.list': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: {
+      object: 'list'
+      data: Array<Confirmation>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** End a confirmation, or turn down a request (`POST /repos/{owner}/{repo}/env/confirmations/{confirmation}/revoke`) */
+  'confirmations.revoke': {
+    input: {
+      owner: string
+      repo: string
+      confirmation: string
+    }
+    output: Confirmation
+  }
   /** Your dashboard (`GET /dashboard`) */
   'dashboard.get': {
     input: {
@@ -2585,20 +2305,6 @@ export interface Operations {
       account?: string
     }
     output: Dashboard
-  }
-  /** Encrypt values for one more key (`POST /repos/{owner}/{repo}/env/recipients`) */
-  'env.add_recipient': {
-    input: {
-      owner: string
-      repo: string
-      body: {
-        name: string
-        kind: 'member' | 'deploy' | 'ci' | 'agent' | 'escrow'
-        fingerprint: string
-        environments: Array<'development' | 'preview' | 'production'>
-      }
-    }
-    output: Recipient
   }
   /** Who did what with values (`GET /repos/{owner}/{repo}/env/audit`) */
   'env.audit': {
@@ -2628,28 +2334,6 @@ export interface Operations {
       next_cursor: string | null
     }
   }
-  /** Who values are encrypted for (`GET /repos/{owner}/{repo}/env/recipients`) */
-  'env.recipients': {
-    input: {
-      owner: string
-      repo: string
-    }
-    output: {
-      object: 'list'
-      data: Array<Recipient>
-      has_more: boolean
-      next_cursor: string | null
-    }
-  }
-  /** Stop encrypting values for a key (`DELETE /repos/{owner}/{repo}/env/recipients/{recipient}`) */
-  'env.remove_recipient': {
-    input: {
-      owner: string
-      repo: string
-      recipient: string
-    }
-    output: void
-  }
   /** Set a variable in an environment (`PUT /repos/{owner}/{repo}/env/{name}/{environment}`) */
   'env.set': {
     input: {
@@ -2658,7 +2342,7 @@ export interface Operations {
       name: string
       environment: 'development' | 'preview' | 'production'
       body: {
-        ciphertext: string
+        value: string
       }
     }
     output: EnvVar
@@ -2918,53 +2602,6 @@ export interface Operations {
       recursive?: 'true' | 'false'
     }
     output: GitTree
-  }
-  /** Approve a grant (`POST /repos/{owner}/{repo}/env/grants/{grant}/approve`) */
-  'grants.approve': {
-    input: {
-      owner: string
-      repo: string
-      grant: string
-      body: {
-        ttl_minutes?: number
-      }
-    }
-    output: Grant
-  }
-  /** Grants that let an agent use values (`GET /repos/{owner}/{repo}/env/grants`) */
-  'grants.list': {
-    input: {
-      owner: string
-      repo: string
-    }
-    output: {
-      object: 'list'
-      data: Array<Grant>
-      has_more: boolean
-      next_cursor: string | null
-    }
-  }
-  /** Ask for access to an environment (`POST /repos/{owner}/{repo}/env/grants`) */
-  'grants.request': {
-    input: {
-      owner: string
-      repo: string
-      body: {
-        environment: 'development' | 'preview' | 'production'
-        reason?: string
-        max_runs?: number
-      }
-    }
-    output: Grant
-  }
-  /** Revoke a grant (`POST /repos/{owner}/{repo}/env/grants/{grant}/revoke`) */
-  'grants.revoke': {
-    input: {
-      owner: string
-      repo: string
-      grant: string
-    }
-    output: Grant
   }
   /** Import a repository from another host (`POST /imports`) */
   'imports.create': {
@@ -4134,10 +3771,17 @@ export interface Operations {
         website?: string | null
         docs_url?: string | null
         install?: string | null
-        /** Let agent runs attach their transcripts */
-        transcripts?: 'off' | 'on'
-        /** Keep the `Run-Id:` commit trailer. `auto`: in private repositories only */
-        run_trailer?: 'auto' | 'on' | 'off'
+        /** Declared models to take no changes from, compared without case. Replaces the list */
+        declined_models?: Array<string>
+        /** Land a change by itself once it can. You answer for what lands this way */
+        auto_land?: boolean
+        /** Accounts you trust; their changes come first. Replaces the list */
+        vouched?: Array<string>
+        /** Accounts that may not open changes or issues here. Replaces the list */
+        denounced?: Array<{
+          handle: string
+          reason: string
+        }>
       }
     }
     output: Repo
@@ -4155,152 +3799,6 @@ export interface Operations {
       }
     }
     output: Review
-  }
-  /** Stop a run (`POST /repos/{owner}/{repo}/runs/{id}/cancel`) */
-  'runs.cancel': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-    }
-    output: Run
-  }
-  /** Pick up a run started for you (`POST /repos/{owner}/{repo}/runs/{id}/claim`) */
-  'runs.claim': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-    }
-    output: Run
-  }
-  /** End a run with its outcome (`POST /repos/{owner}/{repo}/runs/{id}/finish`) */
-  'runs.finish': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-      body: {
-        state: 'succeeded' | 'failed'
-        summary?: string
-      }
-    }
-    output: Run
-  }
-  /** One run (`GET /repos/{owner}/{repo}/runs/{id}`) */
-  'runs.get': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-    }
-    output: Run
-  }
-  /** A repository's runs, newest first (`GET /repos/{owner}/{repo}/runs`) */
-  'runs.list': {
-    input: {
-      owner: string
-      repo: string
-      /** Items per page, 1 to 200. Larger values are clamped. */
-      limit?: number
-      /** `next_cursor` from the previous page, exactly as returned */
-      cursor?: string
-      state?: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
-      /** Only runs of this agent or bot, such as the one asking */
-      actor?: string
-    }
-    output: {
-      object: 'list'
-      data: Array<Run>
-      has_more: boolean
-      next_cursor: string | null
-    }
-  }
-  /** Say what the run is doing (`POST /repos/{owner}/{repo}/runs/{id}/notes`) */
-  'runs.note': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-      body: {
-        text: string
-      }
-    }
-    output: Run
-  }
-  /** Start a run and get a token for it (`POST /repos/{owner}/{repo}/runs`) */
-  'runs.start': {
-    input: {
-      owner: string
-      repo: string
-      body: {
-        /** What the run is for, in a sentence */
-        task: string
-        /** The change it works on */
-        change?: number
-        /** Default: read, comment on issues and changes, read the env schema */
-        scopes?: Array<
-          | 'repo:read'
-          | 'repo:write'
-          | 'issues:read'
-          | 'issues:comment'
-          | 'issues:write'
-          | 'pulls:read'
-          | 'pulls:comment'
-          | 'pulls:write'
-          | 'pulls:merge'
-          | 'secrets:schema'
-          | 'secrets:write'
-          | 'secrets:decrypt'
-          | 'webhooks:read'
-          | 'webhooks:write'
-          | 'tokens:manage'
-          | 'runs:transcripts'
-        >
-        ttl_minutes?: number
-      }
-    }
-    output: Run
-  }
-  /** Read a run's transcript (`GET /repos/{owner}/{repo}/runs/{id}/transcript`) */
-  'runs.transcript.get': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-    }
-    output: RunTranscript
-  }
-  /** Attach a run's transcript (`PUT /repos/{owner}/{repo}/runs/{id}/transcript`) */
-  'runs.transcript.put': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-      body: {
-        /** The `upl_` id */
-        upload: string
-        /** What to do with secrets: mask them, or refuse the transcript */
-        mode?: 'mask' | 'block'
-      }
-    }
-    output: Run
-  }
-  /** Say what a run belongs to (`PATCH /repos/{owner}/{repo}/runs/{id}`) */
-  'runs.update': {
-    input: {
-      owner: string
-      repo: string
-      id: string
-      body: {
-        /** The issue the run works on; null to unlink it */
-        issue?: number | null
-        /** Such as claude-code, delta or sx */
-        harness?: string | null
-        links?: Array<string>
-      }
-    }
-    output: Run
   }
   /** Search repositories, changes and issues (`GET /search`) */
   'search.query': {
@@ -4490,11 +3988,12 @@ export interface Operations {
           | 'webhooks:read'
           | 'webhooks:write'
           | 'tokens:manage'
-          | 'runs:transcripts'
         >
         expires_in_days?: 30 | 60 | 90 | 365
         /** `owner/name`. Limits the token to these repositories */
         repos?: Array<string>
+        /** The machine it is for, as you name it. Receipts and production confirmations show it; it is your label, not verified */
+        device?: string
       }
     }
     output: Token
@@ -4549,8 +4048,8 @@ export interface Operations {
           | 'application/zip'
           | 'application/gzip'
         size: number
-        /** `release` for a file of a release; binaries, zip and gzip are only allowed there. `transcript` for a run's transcript */
-        purpose?: 'evidence' | 'release' | 'transcript'
+        /** `release` for a file of a release; binaries, zip and gzip are only allowed there. */
+        purpose?: 'evidence' | 'release'
       }
     }
     output: Upload
@@ -4856,116 +4355,6 @@ const OPERATIONS = {
     idempotent: false,
     secretResponse: false,
     safety: 'destructive',
-  },
-  'automations.create': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/automations',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: false,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'automations.delete': {
-    method: 'DELETE',
-    path: '/repos/{owner}/{repo}/automations/{automation}',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'destructive',
-  },
-  'automations.list': {
-    method: 'GET',
-    path: '/repos/{owner}/{repo}/automations',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'automations.run': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/automations/{automation}/run',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: false,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'automations.update': {
-    method: 'PATCH',
-    path: '/repos/{owner}/{repo}/automations/{automation}',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'bots.create': {
-    method: 'POST',
-    path: '/accounts/{handle}/bots',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'bots.install': {
-    method: 'PUT',
-    path: '/repos/{owner}/{repo}/bots/{bot}',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'bots.list': {
-    method: 'GET',
-    path: '/accounts/{handle}/bots',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'bots.token': {
-    method: 'POST',
-    path: '/bots/{bot}/tokens',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: false,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'bots.update': {
-    method: 'PATCH',
-    path: '/bots/{bot}',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
   },
   'change_comments.address': {
     method: 'POST',
@@ -5275,6 +4664,39 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
+  'confirmations.confirm': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/env/confirmations/{confirmation}/confirm',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'confirmations.list': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/env/confirmations',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'confirmations.revoke': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/env/confirmations/{confirmation}/revoke',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'destructive',
+  },
   'dashboard.get': {
     method: 'GET',
     path: '/dashboard',
@@ -5285,17 +4707,6 @@ const OPERATIONS = {
     idempotent: true,
     secretResponse: false,
     safety: 'read',
-  },
-  'env.add_recipient': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/env/recipients',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
   },
   'env.audit': {
     method: 'GET',
@@ -5319,28 +4730,6 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'read',
   },
-  'env.recipients': {
-    method: 'GET',
-    path: '/repos/{owner}/{repo}/env/recipients',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'env.remove_recipient': {
-    method: 'DELETE',
-    path: '/repos/{owner}/{repo}/env/recipients/{recipient}',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'destructive',
-  },
   'env.set': {
     method: 'PUT',
     path: '/repos/{owner}/{repo}/env/{name}/{environment}',
@@ -5360,7 +4749,7 @@ const OPERATIONS = {
     rawBody: false,
     json: true,
     idempotent: false,
-    secretResponse: false,
+    secretResponse: true,
     safety: 'read',
   },
   'events.list': {
@@ -5560,50 +4949,6 @@ const OPERATIONS = {
     idempotent: true,
     secretResponse: false,
     safety: 'read',
-  },
-  'grants.approve': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/env/grants/{grant}/approve',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'grants.list': {
-    method: 'GET',
-    path: '/repos/{owner}/{repo}/env/grants',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'grants.request': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/env/grants',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'grants.revoke': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/env/grants/{grant}/revoke',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'destructive',
   },
   'imports.create': {
     method: 'POST',
@@ -6529,116 +5874,6 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
-  'runs.cancel': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/runs/{id}/cancel',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'destructive',
-  },
-  'runs.claim': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/runs/{id}/claim',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: false,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'runs.finish': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/runs/{id}/finish',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'runs.get': {
-    method: 'GET',
-    path: '/repos/{owner}/{repo}/runs/{id}',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'runs.list': {
-    method: 'GET',
-    path: '/repos/{owner}/{repo}/runs',
-    query: ['limit', 'cursor', 'state', 'actor'],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'runs.note': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/runs/{id}/notes',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: false,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'runs.start': {
-    method: 'POST',
-    path: '/repos/{owner}/{repo}/runs',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: false,
-    secretResponse: true,
-    safety: 'write',
-  },
-  'runs.transcript.get': {
-    method: 'GET',
-    path: '/repos/{owner}/{repo}/runs/{id}/transcript',
-    query: [],
-    body: false,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'read',
-  },
-  'runs.transcript.put': {
-    method: 'PUT',
-    path: '/repos/{owner}/{repo}/runs/{id}/transcript',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
-  'runs.update': {
-    method: 'PATCH',
-    path: '/repos/{owner}/{repo}/runs/{id}',
-    query: [],
-    body: true,
-    rawBody: false,
-    json: true,
-    idempotent: true,
-    secretResponse: false,
-    safety: 'write',
-  },
   'search.query': {
     method: 'GET',
     path: '/search',
@@ -7087,50 +6322,6 @@ export interface Client extends Core {
       options?: RequestOptions,
     ) => Promise<Operations['authorizations.revoke']['output']>
   }
-  automations: {
-    create: (
-      input: Operations['automations.create']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['automations.create']['output']>
-    delete: (
-      input: Operations['automations.delete']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['automations.delete']['output']>
-    list: (
-      input: Operations['automations.list']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['automations.list']['output']>
-    run: (
-      input: Operations['automations.run']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['automations.run']['output']>
-    update: (
-      input: Operations['automations.update']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['automations.update']['output']>
-  }
-  bots: {
-    create: (
-      input: Operations['bots.create']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['bots.create']['output']>
-    install: (
-      input: Operations['bots.install']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['bots.install']['output']>
-    list: (
-      input: Operations['bots.list']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['bots.list']['output']>
-    token: (
-      input: Operations['bots.token']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['bots.token']['output']>
-    update: (
-      input: Operations['bots.update']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['bots.update']['output']>
-  }
   change_comments: {
     address: (
       input: Operations['change_comments.address']['input'],
@@ -7253,6 +6444,20 @@ export interface Client extends Core {
       options?: RequestOptions,
     ) => Promise<Operations['comments.update']['output']>
   }
+  confirmations: {
+    confirm: (
+      input: Operations['confirmations.confirm']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['confirmations.confirm']['output']>
+    list: (
+      input: Operations['confirmations.list']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['confirmations.list']['output']>
+    revoke: (
+      input: Operations['confirmations.revoke']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['confirmations.revoke']['output']>
+  }
   dashboard: {
     get: (
       input?: Operations['dashboard.get']['input'],
@@ -7260,10 +6465,6 @@ export interface Client extends Core {
     ) => Promise<Operations['dashboard.get']['output']>
   }
   env: {
-    add_recipient: (
-      input: Operations['env.add_recipient']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['env.add_recipient']['output']>
     audit: (
       input: Operations['env.audit']['input'],
       options?: RequestOptions,
@@ -7272,14 +6473,6 @@ export interface Client extends Core {
       input: Operations['env.list']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['env.list']['output']>
-    recipients: (
-      input: Operations['env.recipients']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['env.recipients']['output']>
-    remove_recipient: (
-      input: Operations['env.remove_recipient']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['env.remove_recipient']['output']>
     set: (
       input: Operations['env.set']['input'],
       options?: RequestOptions,
@@ -7370,24 +6563,6 @@ export interface Client extends Core {
       input: Operations['git.tree']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['git.tree']['output']>
-  }
-  grants: {
-    approve: (
-      input: Operations['grants.approve']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['grants.approve']['output']>
-    list: (
-      input: Operations['grants.list']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['grants.list']['output']>
-    request: (
-      input: Operations['grants.request']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['grants.request']['output']>
-    revoke: (
-      input: Operations['grants.revoke']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['grants.revoke']['output']>
   }
   imports: {
     create: (
@@ -7766,50 +6941,6 @@ export interface Client extends Core {
       input: Operations['reviews.create']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['reviews.create']['output']>
-  }
-  runs: {
-    cancel: (
-      input: Operations['runs.cancel']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.cancel']['output']>
-    claim: (
-      input: Operations['runs.claim']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.claim']['output']>
-    finish: (
-      input: Operations['runs.finish']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.finish']['output']>
-    get: (
-      input: Operations['runs.get']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.get']['output']>
-    list: (
-      input: Operations['runs.list']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.list']['output']>
-    note: (
-      input: Operations['runs.note']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.note']['output']>
-    start: (
-      input: Operations['runs.start']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.start']['output']>
-    update: (
-      input: Operations['runs.update']['input'],
-      options?: RequestOptions,
-    ) => Promise<Operations['runs.update']['output']>
-    transcript: {
-      get: (
-        input: Operations['runs.transcript.get']['input'],
-        options?: RequestOptions,
-      ) => Promise<Operations['runs.transcript.get']['output']>
-      put: (
-        input: Operations['runs.transcript.put']['input'],
-        options?: RequestOptions,
-      ) => Promise<Operations['runs.transcript.put']['output']>
-    }
   }
   search: {
     query: (

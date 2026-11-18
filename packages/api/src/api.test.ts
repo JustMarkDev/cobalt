@@ -34,7 +34,6 @@ const SHAPE_PATHS: Record<string, string> = {
   'repos.get': REPO,
   'repos.context': `${REPO}/context`,
   'repos.number': `${REPO}/numbers/216`,
-  'runs.list': `${REPO}/runs`,
   'teams.list': '/accounts/northwind/teams',
   'git.tree': `${REPO}/git/tree`,
   'git.blob': `${REPO}/git/blob?path=README.md`,
@@ -68,10 +67,9 @@ const SHAPE_PATHS: Record<string, string> = {
   'evidence.list': `${REPO}/changes/216/evidence`,
   'mirrors.list': `${REPO}/mirrors`,
   'env.list': `${REPO}/env?environment=development`,
-  'env.recipients': `${REPO}/env/recipients`,
   'env.audit': `${REPO}/env/audit`,
   'env.values': `${REPO}/env/development/values`,
-  'grants.list': `${REPO}/env/grants`,
+  'confirmations.list': `${REPO}/env/confirmations`,
   'api.root': '/',
   'api.errors': '/errors',
   'api.limits': '/limits',
@@ -82,12 +80,10 @@ const SHAPE_PATHS: Record<string, string> = {
   'pipelines.list': `${REPO}/pipelines`,
   'policy.rules': `${REPO}/policy`,
   'integrations.list': '/accounts/dana/integrations',
-  'bots.list': '/accounts/dana/bots',
   'links.list': '/accounts/dana/links',
   'imports.list': '/imports',
   'repos.insights': `${REPO}/insights`,
   'dashboard.get': '/dashboard',
-  'automations.list': `${REPO}/automations`,
   'integrations.repo': `${REPO}/integrations`,
   'pipelines.get': `${REPO}/pipelines/1839`,
   'pipelines.log': `${REPO}/pipelines/1839/jobs/1/steps/2/log`,
@@ -104,7 +100,6 @@ const SHAPE_DYNAMIC = [
   'git.commit',
   'git.diff',
   'teams.get',
-  'runs.get',
 ]
 const SHAPE_CHECKED = new Set([...Object.keys(SHAPE_PATHS), ...SHAPE_DYNAMIC])
 const T = (h: ReturnType<typeof harness>) => h.tokens
@@ -211,7 +206,6 @@ describe('shape', () => {
       'events.stream',
       'git.raw',
       'operations.get',
-      'runs.transcript.get',
       'uploads.content',
     ])
   })
@@ -290,7 +284,7 @@ describe('errors', () => {
   test('a missing scope lists what is needed and what the token has', async () => {
     const h = harness()
     const r = await h.call('POST', `${REPO}/changes`, {
-      token: T(h).triage,
+      token: T(h).issuesOnly,
       body: { branch: 'x' },
     })
     expect(r.status).toBe(403)
@@ -481,8 +475,8 @@ describe('who can see what', () => {
       (await h.call('GET', `${REPO}/context`, { token: null })).json.env,
     ).toEqual([])
     expect(
-      (await h.call('GET', `${REPO}/context`, { token: h.tokens.triage })).json
-        .env,
+      (await h.call('GET', `${REPO}/context`, { token: h.tokens.issuesOnly }))
+        .json.env,
     ).toEqual([])
     expect(
       (await h.call('GET', `${REPO}/context`)).json.env.length,
@@ -544,57 +538,27 @@ describe('who can see what', () => {
     ).toBe(403)
   })
 
-  test('an agent review does not replace the human review from the same handle', async () => {
+  test("someone else's objection holds; an author's own review never counts", async () => {
     const h = harness()
-    await h.call('POST', '/repos', { body: { owner: 'dana', name: 'actors' } })
-    const made = await h.call('POST', '/repos/dana/actors/changes', {
-      body: { branch: 'a' },
+    const made = await h.call('POST', `${REPO}/changes`, {
+      body: { branch: 'objections' },
     })
     const n = made.json.number
-    await h.call('POST', `/repos/dana/actors/changes/${n}/reviews`, {
+    const reviewed = async () =>
+      (
+        await h.call('GET', `${REPO}/changes/${n}/policy`)
+      ).json.requirements.find((r: { id: string }) => r.id === 'reviewed')
+    expect((await reviewed()).detail).toContain('No approval')
+    await h.call('POST', `${REPO}/changes/${n}/reviews`, {
       token: h.tokens.hollis,
       body: { state: 'approved' },
     })
-    expect(
-      (
-        await h.call('POST', `/repos/dana/actors/changes/${n}/reviews`, {
-          body: { state: 'changes' },
-        })
-      ).status,
-    ).toBe(201)
-    const policy = async () =>
-      (
-        await h.call('GET', `/repos/dana/actors/changes/${n}/policy`)
-      ).json.requirements.find((r: { id: string }) => r.id === 'core-paths')
-        .state
-    expect(await policy()).toBe('fail')
-
-    // A run started by dana acts as an agent with dana's handle.
-    const run = await h.call('POST', '/repos/dana/actors/runs', {
-      body: { task: 'comment on this' },
+    expect((await reviewed()).state).toBe('pass')
+    await h.call('POST', `${REPO}/changes/${n}/reviews`, {
+      token: h.tokens.hollis,
+      body: { state: 'changes' },
     })
-    expect(
-      (
-        await h.call('POST', `/repos/dana/actors/changes/${n}/reviews`, {
-          token: run.json.token,
-          body: { state: 'commented' },
-        })
-      ).status,
-    ).toBe(201)
-    expect(await policy()).toBe('fail')
-    const reviewers = (
-      await h.call('GET', `/repos/dana/actors/changes/${n}`)
-    ).json.reviewers.filter(
-      (r: { actor: { handle: string } }) => r.actor.handle === 'dana',
-    )
-    expect(
-      reviewers.map((r: { actor: { class: string } }) => r.actor.class).sort(),
-    ).toEqual(['agent', 'human'])
-    expect(
-      reviewers.find(
-        (r: { actor: { class: string } }) => r.actor.class === 'human',
-      ).state,
-    ).toBe('changes')
+    expect((await reviewed()).detail).toContain('hollis asked for changes')
   })
 
   test('a repository-limited token cannot read team metadata', async () => {
@@ -651,36 +615,6 @@ describe('who can see what', () => {
     expect(
       (await h.call('GET', `/uploads/${up.id}/content`, { token })).status,
     ).toBe(403)
-  })
-
-  test('removing an approving maintainer clears policy before landing', async () => {
-    const h = harness({ seed: (d) => seedStack(d) })
-    const policy = await h.call('GET', '/repos/dana/stacky/changes/1/policy')
-    expect(
-      policy.json.requirements.find(
-        (r: { id: string }) => r.id === 'core-paths',
-      ).state,
-    ).toBe('pass')
-    await h.call('PATCH', '/repos/dana/stacky', {
-      body: { maintainers: ['dana'] },
-    })
-    expect(
-      (
-        await h.call('POST', '/repos/dana/stacky/changes/1/reviews', {
-          token: h.tokens.hollis,
-          body: { state: 'approved' },
-        })
-      ).status,
-    ).toBe(403)
-    const after = await h.call('GET', '/repos/dana/stacky/changes/1/policy')
-    expect(
-      after.json.requirements.find((r: { id: string }) => r.id === 'core-paths')
-        .state,
-    ).toBe('pending')
-    const land = await h.call('POST', '/repos/dana/stacky/changes/1/land', {
-      body: { expected_tree: '1111111' },
-    })
-    expect(land.status).toBe(409)
   })
 
   test('maintainers are people who can review, and the list cannot be empty', async () => {
@@ -804,7 +738,7 @@ describe('who can see what', () => {
       body: { state: 'succeeded' },
     })
     now.advance(8 * 86_400_000)
-    await h.api.port.sweepRunsOperations()
+    await h.api.port.sweepOperations()
     expect((await h.call('GET', `${REPO}/runs/${made.json.id}`)).status).toBe(
       404,
     )
@@ -2500,8 +2434,12 @@ describe('review, policy and landing', () => {
     const byId = Object.fromEntries(
       p.requirements.map((r: { id: string }) => [r.id, r]),
     )
-    expect(byId['core-paths'].state).toBe('pass')
-    expect(byId['agent-authored'].state).toBe('na')
+    // greptile, a model, asked for changes: its objection counts like anyone's.
+    // The rule is a dry run by default, so it shows without blocking.
+    expect(byId.reviewed.state).toBe('na')
+    expect(byId.reviewed.detail).toContain('greptile asked for changes')
+    expect(byId).not.toHaveProperty('core-paths')
+    expect(byId).not.toHaveProperty('agent-authored')
     expect(byId['ci-evidence'].state).toBe('pending')
     expect(byId['ci-evidence'].needs).toMatchObject({
       check: 'ci/test',
@@ -2529,9 +2467,9 @@ describe('review, policy and landing', () => {
     )
     expect(
       noApproval.json.requirements.find(
-        (q: { id: string }) => q.id === 'core-paths',
-      ).state,
-    ).toBe('pass')
+        (q: { id: string }) => q.id === 'reviewed',
+      ).detail,
+    ).toContain('greptile asked for changes')
   })
 
   test('landing is blocked with every requirement, and only waiting is retryable', async () => {
@@ -2543,7 +2481,7 @@ describe('review, policy and landing', () => {
     expect(blocked.json.code).toBe('policy_blocked')
     expect(blocked.json.exit_code).toBe(5)
     expect(blocked.json.retryable).toBe(false)
-    expect(blocked.json.requirements.length).toBe(5)
+    expect(blocked.json.requirements.length).toBe(3)
     // Resolve the finding: only the pending CI result is left.
     await h.call('POST', `${REPO}/changes/216/findings/F-2/resolve`)
     const waiting = await h.call('POST', `${REPO}/changes/216/land`, {
@@ -2571,7 +2509,7 @@ describe('review, policy and landing', () => {
     })
     expect(check.headers.get('sx-outcome')).toBe('updated')
     const agent = await h.call('POST', `${REPO}/changes/216/land`, {
-      token: T(h).fixAgent,
+      token: T(h).scoped,
       body: { expected_tree: '9c4d7e1' },
     })
     expect(agent.status).toBe(403)
@@ -2617,42 +2555,21 @@ describe('review, policy and landing', () => {
   test('nobody approves their own work', async () => {
     const h = harness()
     const agent = await h.call('POST', `${REPO}/changes`, {
-      token: T(h).fixAgent,
+      token: T(h).scoped,
       body: { branch: 'agent-fix' },
     })
     const own = await h.call(
       'POST',
       `${REPO}/changes/${agent.json.number}/reviews`,
-      { token: T(h).fixAgent, body: { state: 'approved' } },
+      { token: T(h).scoped, body: { state: 'approved' } },
     )
+    // Whatever tool sends it, nobody approves their own change.
     expect(own.status).toBe(403)
-    expect(own.json.code).toBe('human_required')
-    expect(own.json.exit_code).toBe(6)
+    expect(own.json.code).toBe('forbidden')
     const person = await h.call('POST', `${REPO}/changes/216/reviews`, {
       body: { state: 'approved' },
     })
     expect(person.json.code).toBe('forbidden')
-  })
-
-  test('agent-authored work needs a person to approve it', async () => {
-    const h = harness()
-    const agent = await h.call('POST', `${REPO}/changes`, {
-      token: T(h).fixAgent,
-      body: { branch: 'agent-fix' },
-    })
-    const n = agent.json.number
-    const before = (
-      await h.call('GET', `${REPO}/changes/${n}/policy`)
-    ).json.requirements.find((r: { id: string }) => r.id === 'agent-authored')
-    expect(before.state).toBe('pending')
-    await h.call('POST', `${REPO}/changes/${n}/reviews`, {
-      token: T(h).hollis,
-      body: { state: 'approved' },
-    })
-    const after = (
-      await h.call('GET', `${REPO}/changes/${n}/policy`)
-    ).json.requirements.find((r: { id: string }) => r.id === 'agent-authored')
-    expect(after.state).toBe('pass')
   })
 
   test('an approval follows a rebase but not a rewrite', async () => {
@@ -2670,10 +2587,12 @@ describe('review, policy and landing', () => {
       body: { sha: 'bbbbbbb2', kind: 'update' },
     })
     expect((await reviewers()).carries_to_head).toBe(false)
-    const core = (
+    // With no approval holding, the review rule is pending, shown as a dry run.
+    const reviewed = (
       await h.call('GET', `${REPO}/changes/216/policy`)
-    ).json.requirements.find((r: { id: string }) => r.id === 'core-paths')
-    expect(core.state).toBe('pending')
+    ).json.requirements.find((r: { id: string }) => r.id === 'reviewed')
+    expect(reviewed.state).toBe('na')
+    expect(reviewed.detail).toContain('Dry run')
   })
 
   test('comparing patch sets shows only what is new', async () => {

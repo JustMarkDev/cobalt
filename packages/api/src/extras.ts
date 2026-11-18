@@ -2,13 +2,13 @@ import { newId } from './ids'
 
 /**
  * Per-repository things beyond code and review: mirrors on other hosts, the
- * environment schema with its encrypted values, and the grants that let an
- * agent use them.
+ * environment schema with its sealed values, and the confirmations that
+ * let a login use production values.
  *
- * Values are the point of care here. Names and kinds are ordinary data. A value
- * leaves only through `values()`, which needs a person, or an agent holding an
- * unexpired grant for a development environment, writes an audit entry, and is
- * never cached. The values in the sample are stand-ins.
+ * Values are the point of care here. Names and kinds are ordinary data.
+ * Values are kept sealed (`secret-box.ts`) and opened only in `env.values`,
+ * for the repository's team, with production confirmed from a signed-in page
+ * first; every read is audited and none is cached.
  */
 import type { GrantState } from './lifecycles'
 
@@ -39,27 +39,27 @@ export type EnvVarRec = {
   rotated?: { at: number; by: string }
 }
 
-export type RecipientRec = {
-  id: string
-  kind: string
-  name?: string
-  /** The public key's short form, to tell keys apart. */
-  fingerprint?: string
-  environments?: Array<Environment>
-  added?: number
-  lastUsed?: number
-}
-
-export type GrantRec = {
+/**
+ * A request to use production values from one login, and the person's
+ * answer. Production values never leave on a token alone: the person who
+ * owns the token confirms from a signed-in page, for a while, for that one
+ * token. Other environments need no confirmation for the team.
+ */
+export type ConfirmationRec = {
   id: string
   environment: Environment
   state: GrantState
-  variables: Array<string>
+  /** Whose token asked; only they can confirm it. */
+  handle: string
+  /** The login it covers: an OAuth authorization (it outlives the hourly tokens it mints) or a personal token. Another login asks again. */
+  tokenId: string
+  /** The machine the token was made on, so the person knows what they confirm. */
+  device: string
+  /** What sent the request, as it declared itself. */
+  tool: string | null
   reason: string | null
-  requestedBy: string
-  maxRuns: number
-  uses: number
-  expires: number | null
+  /** Until when it holds, once confirmed; a pending request lapses after ten minutes. */
+  expires: number
   created: number
 }
 
@@ -72,48 +72,40 @@ export type AuditRec = {
   kind?: AuditKind
 }
 
-/** Stand-ins for decrypted values. */
-const SAMPLE_VALUES: Record<string, string> = {
-  DATABASE_URL: 'postgres://dev:hunter2-dev-only@localhost:5432/gitfs',
-  STRIPE_KEY: 'sk_test_51MockMockMockMock9x',
-  API_PORT: '8080',
-}
+/** How long an unanswered production request waits. */
+export const PENDING_MS = 10 * 60_000
 
 export class RepoExtras {
   readonly mirrors: Array<MirrorRec> = []
   readonly env: Array<EnvVarRec> = []
-  readonly recipients: Array<RecipientRec> = [
-    { id: 'owner', kind: 'person' },
-    { id: 'recovery', kind: 'recovery' },
-  ]
-  readonly grants: Array<GrantRec> = []
+  /** Sealed values (`secret-box.ts`), by variable, then environment. */
+  readonly sealed: Record<string, Partial<Record<Environment, string>>> = {}
+  readonly confirmations: Array<ConfirmationRec> = []
   readonly audit: Array<AuditRec> = []
 
   constructor(private readonly now: () => number) {}
 
-  /** The plain data, for keeping elsewhere. */
+  /** The plain data, for keeping elsewhere. Values stay sealed. */
   toJSON() {
     return {
       mirrors: this.mirrors,
       env: this.env,
-      recipients: this.recipients,
-      grants: this.grants,
+      sealed: this.sealed,
+      confirmations: this.confirmations,
       audit: this.audit,
     }
   }
 
-  static from(now: () => number, data: ReturnType<RepoExtras['toJSON']>) {
+  static from(
+    now: () => number,
+    data: Partial<ReturnType<RepoExtras['toJSON']>>,
+  ) {
     const x = new RepoExtras(now)
-    for (const k of [
-      'mirrors',
-      'env',
-      'recipients',
-      'grants',
-      'audit',
-    ] as const) {
+    for (const k of ['mirrors', 'env', 'confirmations', 'audit'] as const) {
       const list = x[k] as Array<unknown>
-      list.splice(0, list.length, ...data[k])
+      list.splice(0, list.length, ...((data[k] ?? []) as Array<unknown>))
     }
+    Object.assign(x.sealed, data.sealed ?? {})
     return x
   }
 
@@ -126,78 +118,89 @@ export class RepoExtras {
     if (this.audit.length > 1000) this.audit.length = 1000
   }
 
-  activeGrant(environment: Environment): GrantRec | undefined {
+  /** A confirmation in force for this token and environment. */
+  confirmed(
+    tokenId: string,
+    environment: Environment,
+  ): ConfirmationRec | undefined {
     const t = this.now()
-    return this.grants.find(
-      (g) =>
-        g.state === 'active' &&
-        g.environment === environment &&
-        g.expires !== null &&
-        g.expires > t &&
-        g.uses < g.maxRuns,
+    return this.confirmations.find(
+      (c) =>
+        c.state === 'active' &&
+        c.tokenId === tokenId &&
+        c.environment === environment &&
+        c.expires > t,
     )
   }
 
-  /** Reads values. The caller has already been checked; this applies the grant. */
-  values(opts: {
+  /**
+   * A pending request for this token, made now if there is none. A request
+   * that lapsed is left as it was; a fresh one takes its place.
+   */
+  requestConfirmation(input: {
     environment: Environment
-    names?: Array<string>
-    who: string
-    agent: boolean
-  }) {
-    const grant = opts.agent ? this.activeGrant(opts.environment) : undefined
-    const vars = this.env.filter(
-      (v) =>
-        v.set.includes(opts.environment) &&
-        (!opts.names || opts.names.includes(v.name)) &&
-        (!grant || grant.variables.includes(v.name)),
-    )
-    const values: Record<string, string> = {}
-    for (const v of vars)
-      if (v.name in SAMPLE_VALUES) values[v.name] = SAMPLE_VALUES[v.name]
-    if (grant) grant.uses++
-    this.note(
-      opts.who,
-      `read ${vars.length} variable${vars.length === 1 ? '' : 's'} (${opts.environment})${grant ? ` under ${grant.id}` : ''}`,
-    )
-    return {
-      values,
-      secrets: vars.filter((v) => v.secret).map((v) => v.name),
-      grant: grant?.id ?? null,
-      grantRec: grant,
-    }
-  }
-
-  requestGrant(opts: {
-    environment: Environment
+    handle: string
+    tokenId: string
+    device: string
+    tool: string | null
     reason: string | null
-    maxRuns: number
-    who: string
   }) {
-    const existing = this.grants.find(
-      (g) => g.state === 'pending' && g.environment === opts.environment,
+    const t = this.now()
+    const pending = this.confirmations.find(
+      (c) =>
+        c.state === 'pending' &&
+        c.tokenId === input.tokenId &&
+        c.environment === input.environment &&
+        c.expires > t,
     )
-    if (existing) return { grant: existing, created: false }
-    const g: GrantRec = {
-      id: newId('grant', this.now()),
-      environment: opts.environment,
+    if (pending) return { rec: pending, created: false }
+    const rec: ConfirmationRec = {
+      id: newId('confirmation', t),
+      ...input,
       state: 'pending',
-      variables: this.env
-        .filter((v) => v.set.includes(opts.environment))
-        .map((v) => v.name),
-      reason: opts.reason,
-      requestedBy: opts.who,
-      maxRuns: opts.maxRuns,
-      uses: 0,
-      expires: null,
-      created: this.now(),
+      expires: t + PENDING_MS,
+      created: t,
     }
-    this.grants.unshift(g)
+    this.confirmations.unshift(rec)
+    // Old answers are only history; keep the list short.
+    if (this.confirmations.length > 200) this.confirmations.length = 200
     this.note(
-      opts.who,
-      `requested ${opts.environment} access: ${opts.reason ?? 'no reason given'}`,
+      input.handle,
+      `asked for ${input.environment} values from ${input.device}`,
+      { target: input.environment, kind: 'grant' },
     )
-    return { grant: g, created: true }
+    return { rec, created: true }
+  }
+
+  /**
+   * Forgets every value and confirmation, the old team's audit log and its
+   * mirrors, as when the repository changes hands. Names stay. Whether there
+   * was anything to forget.
+   */
+  clearValues() {
+    const had =
+      Object.keys(this.sealed).length > 0 ||
+      this.confirmations.length > 0 ||
+      this.audit.length > 0 ||
+      this.mirrors.length > 0
+    this.mirrors.length = 0
+    for (const k of Object.keys(this.sealed)) delete this.sealed[k]
+    for (const v of this.env) v.set = []
+    this.confirmations.length = 0
+    this.audit.length = 0
+    return had
+  }
+
+  /** The sealed values set for an environment, by name. */
+  sealedFor(environment: Environment, names?: ReadonlyArray<string>) {
+    const out: Array<{ name: string; secret: boolean; sealed: string }> = []
+    for (const v of this.env) {
+      if (!v.set.includes(environment)) continue
+      if (names && !names.includes(v.name)) continue
+      const sealed = this.sealed[v.name]?.[environment]
+      if (sealed) out.push({ name: v.name, secret: v.secret, sealed })
+    }
+    return out
   }
 }
 

@@ -15,7 +15,7 @@ const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
  *  - Files are served with `nosniff`, a sandboxing CSP, and as downloads unless
  *    they are images or video.
  */
-export type Purpose = 'evidence' | 'release' | 'transcript'
+export type Purpose = 'evidence' | 'release'
 
 export const ALLOWED: Record<
   string,

@@ -3,11 +3,13 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { newId, randomSource } from './ids'
 
 /**
- * Who a request is. A token maps to a principal: the account it acts as, what
- * kind of actor it is (policies read that), the scopes it holds and, for a bot
- * or run token, the repositories it is limited to.
+ * Who a request is. A token maps to a principal: the account it belongs to,
+ * the account it acts as, the scopes it holds, the repositories it may be
+ * limited to, and the machine it was created on. There is one kind of actor:
+ * an account. Whether a person or the agent they run typed a request is not
+ * the server's business; every write records the machine, the tool and the
+ * declared model instead (see `receipt.ts`).
  */
-export type ActorClass = 'human' | 'agent' | 'bot'
 
 export const allScopes = [
   'repo:read',
@@ -25,7 +27,6 @@ export const allScopes = [
   'webhooks:read',
   'webhooks:write',
   'tokens:manage',
-  'runs:transcripts',
 ] as const
 export type Scope = (typeof allScopes)[number]
 
@@ -34,8 +35,17 @@ export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
   (s) => s !== 'tokens:manage' && s !== 'secrets:decrypt',
 )
 
+/**
+ * What a device login may also ask for: secret values. A device login is a
+ * person signing in their own machine (`sx auth login`), approved on a page
+ * that names the machine and says so; a web application never gets values.
+ */
+export const deviceScopes: ReadonlyArray<Scope> = allScopes.filter(
+  (s) => s !== 'tokens:manage',
+)
+
 export type Audience = 'api' | 'mcp'
-export type TokenKind = 'personal' | 'bot' | 'run' | 'oauth'
+export type TokenKind = 'personal' | 'oauth'
 
 export type TokenRecord = {
   id: string
@@ -45,10 +55,11 @@ export type TokenRecord = {
   handle: string
   /** The account the request acts as. Usually the same as `handle`. */
   actingAs: string
-  class: ActorClass
   scopes: ReadonlyArray<Scope>
   /** `owner/name` list when the token is limited to repositories. */
   repos: ReadonlyArray<string> | null
+  /** The machine it was created on, as its owner named it. Receipts show it. */
+  device?: string | null
   audience: ReadonlyArray<Audience>
   prefix: string
   createdAt: number
@@ -59,21 +70,30 @@ export type TokenRecord = {
   authorizationId?: string
   /** A stable key for shared limits, when this token is a short bridge identity. */
   limitKey?: string
+  /** The login a short bridge token stands for, so confirmations follow it. */
+  loginId?: string
 }
 
 export type Principal = {
   tokenId: string
+  /**
+   * The login this token belongs to: its OAuth authorization, which outlives
+   * the hourly access tokens it mints, or the token itself. What a production
+   * confirmation is bound to.
+   */
+  loginId: string
   limitKey: string
   /**
-   * Whose budget a request draws from. A person's tokens (personal, OAuth and
-   * the MCP bridge) all share one budget per login, so minting more tokens or
-   * acting as an organization never buys more requests. Agents, bots and runs
-   * keep a budget of their own, so a runaway loop cannot starve its owner.
+   * Whose budget a request draws from: one per login, so minting more tokens
+   * or acting as an organization never buys more requests.
    */
   budgetKey: string
   handle: string
   actingAs: string
-  class: ActorClass
+  /** The machine the token was created on; `browser` for a signed-in page. */
+  device: string
+  /** A signed-in page, not a token: the only place a person can confirm production access. */
+  session: boolean
   scopes: ReadonlySet<Scope>
   repos: ReadonlyArray<string> | null
   expiresAt: number
@@ -114,12 +134,10 @@ export interface TokenStore {
 export const hashToken = (token: string) =>
   bytesToHex(sha256(utf8ToBytes(token)))
 
-export const tokenShape = /^sx[pbrof]_[A-Za-z0-9_-]{8,}$/
+export const tokenShape = /^sx[pof]_[A-Za-z0-9_-]{8,}$/
 
 const prefixes: Record<TokenKind, string> = {
   personal: 'sxp',
-  bot: 'sxb',
-  run: 'sxr',
   oauth: 'sxo',
 }
 
@@ -149,19 +167,18 @@ export function principalOf(record: TokenRecord): Principal {
     const scopes = new Set(record.scopes)
     p = {
       tokenId: record.id,
+      loginId: record.loginId ?? record.authorizationId ?? record.id,
       limitKey: record.limitKey ?? record.id,
-      budgetKey:
-        record.class === 'human'
-          ? `acct:${record.handle}`
-          : (record.limitKey ?? record.id),
+      budgetKey: `acct:${record.handle}`,
       handle: record.handle,
       actingAs: record.actingAs,
-      class: record.class,
+      device: record.device ?? record.name,
+      session: false,
       scopes,
       repos: record.repos,
       expiresAt: record.expiresAt,
       // Everything that can change what this caller sees or may do.
-      capabilityKey: `${record.class}:${record.handle}:${record.actingAs}:${[...scopes].sort().join(',')}:${record.repos?.join(',') ?? '*'}`,
+      capabilityKey: `${record.handle}:${record.actingAs}:${[...scopes].sort().join(',')}:${record.repos?.join(',') ?? '*'}`,
       capId: '',
     }
     p.capId = internCapability(p.capabilityKey)
@@ -176,14 +193,16 @@ export function principalOf(record: TokenRecord): Principal {
  */
 export function personPrincipal(handle: string, now: number): Principal {
   const scopes = new Set<Scope>(allScopes)
-  const capabilityKey = `human:${handle}:${handle}:${[...scopes].sort().join(',')}:*`
+  const capabilityKey = `${handle}:${handle}:${[...scopes].sort().join(',')}:*`
   return {
     tokenId: `web:${handle}`,
+    loginId: `web:${handle}`,
     limitKey: `web:${handle}`,
     budgetKey: `acct:${handle}`,
     handle,
     actingAs: handle,
-    class: 'human',
+    device: 'browser',
+    session: true,
     scopes,
     repos: null,
     expiresAt: now + 60_000,
@@ -199,6 +218,8 @@ export type Authorization = {
   handle: string
   scopes: ReadonlyArray<Scope>
   audience: ReadonlyArray<Audience>
+  /** The machine a device login named; receipts carry it. */
+  device?: string | null
   createdAt: number
   lastUsedAt: number | null
   revokedAt: number | null
@@ -209,13 +230,15 @@ export type CreateToken = {
   kind: TokenKind
   handle: string
   actingAs?: string
-  class: ActorClass
   scopes: ReadonlyArray<Scope>
   repos?: ReadonlyArray<string> | null
+  device?: string | null
   audience?: ReadonlyArray<Audience>
   ttlMs: number
   authorizationId?: string
   limitKey?: string
+  /** For a bridge token: the login it stands for. */
+  loginId?: string
 }
 
 type MaybePromise<T> = T | Promise<T>
@@ -275,9 +298,9 @@ export class AuthStore implements TokenService {
       kind: input.kind,
       handle: input.handle,
       actingAs: input.actingAs ?? input.handle,
-      class: input.class,
       scopes: [...input.scopes],
       repos: input.repos ? input.repos.map((r) => r.toLowerCase()) : null,
+      device: input.device ?? null,
       audience: input.audience ?? ['api', 'mcp'],
       prefix: secret.slice(0, 8),
       createdAt: at,
@@ -286,6 +309,7 @@ export class AuthStore implements TokenService {
       revokedAt: null,
       authorizationId: input.authorizationId,
       limitKey: input.limitKey,
+      ...(input.loginId ? { loginId: input.loginId } : {}),
     }
     const hash = hashToken(secret)
     this.byHash.set(hash, record)

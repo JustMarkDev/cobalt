@@ -252,73 +252,20 @@ describe('mcp', () => {
   })
 })
 
-describe('agent access to secrets', () => {
+describe('secrets through your login', () => {
+  // dana's agent on her laptop: her login, a narrower token, the same team.
   const asAgent = async <T>(fn: () => Promise<T>) => {
-    process.env.SX_ACTOR = 'agent'
+    process.env.SX_SAMPLE_TOKEN = 'scoped'
+    process.env.SX_MODEL = 'Claude Opus 5.5'
     try {
       return await fn()
     } finally {
-      delete process.env.SX_ACTOR
+      delete process.env.SX_SAMPLE_TOKEN
+      delete process.env.SX_MODEL
     }
   }
 
-  test('an agent with no grant is stopped with exit 6 and told what to run', async () => {
-    const r = await asAgent(() =>
-      sx('env', 'run', '-R', 'dana/gitfs', '--', 'echo', 'hi'),
-    )
-    expect(r.code).toBe(6)
-    const e = JSON.parse(r.err).error
-    expect(e.code).toBe('grant_required')
-    expect(e.hint).toContain('sx env grant request')
-  })
-
-  test('production is never available to an agent, even with a grant', async () => {
-    const r = await asAgent(() =>
-      sx(
-        'env',
-        'run',
-        '--env',
-        'production',
-        '-R',
-        'dana/gitfs',
-        '--',
-        'echo',
-        'hi',
-      ),
-    )
-    expect(r.code).toBe(6)
-    expect(JSON.parse(r.err).error.code).toBe('human_required')
-  })
-
-  test('request, approve by a person, run: values are injected and scrubbed from output', async () => {
-    const req = await asAgent(() =>
-      sx('env', 'grant', 'request', '-R', 'dana/gitfs', '--reason', 'tests'),
-    )
-    expect(req.code).toBe(6)
-    const id =
-      /grt_[0-9a-z]+/.exec(JSON.parse(req.err).error.message)?.[0] ?? ''
-    // An agent cannot approve its own request.
-    const self = await asAgent(() =>
-      sx('env', 'grant', 'approve', id, '-R', 'dana/gitfs'),
-    )
-    // The agent's token has no secrets:write, and an agent could not approve anyway.
-    expect(JSON.parse(self.err).error.code).toBe('insufficient_scope')
-    // A person can.
-    expect(
-      (
-        await sx(
-          'env',
-          'grant',
-          'approve',
-          id,
-          '-R',
-          'dana/gitfs',
-          '--ttl',
-          '15m',
-        )
-      ).code,
-    ).toBe(0)
-
+  test("an agent on a team member's machine runs with values, scrubbed from what it sees", async () => {
     const ran = await asAgent(() =>
       sx(
         'env',
@@ -346,15 +293,43 @@ describe('agent access to secrets', () => {
     expect(out.redacted).toContain('DATABASE_URL')
   })
 
-  test('revoking ends access immediately', async () => {
-    const list = JSON.parse(
-      (await sx('env', 'grant', 'list', '-R', 'dana/gitfs')).out,
-    ) as Array<{ id: string }>
-    await sx('env', 'grant', 'revoke', list[0].id, '-R', 'dana/gitfs')
+  test('production waits for the person to confirm this login, and says where', async () => {
     const r = await asAgent(() =>
-      sx('env', 'run', '-R', 'dana/gitfs', '--', 'echo', 'hi'),
+      sx(
+        'env',
+        'run',
+        '--env',
+        'production',
+        '-R',
+        'dana/gitfs',
+        '--',
+        'echo',
+        'hi',
+      ),
     )
-    expect(JSON.parse(r.err).error.code).toBe('grant_required')
+    expect(r.code).toBe(6)
+    const e = JSON.parse(r.err).error
+    expect(e.code).toBe('confirmation_required')
+    expect(e.hint).toContain('confirm=cnf_')
+    const list = JSON.parse(
+      (await asAgent(() => sx('env', 'confirmations', '-R', 'dana/gitfs'))).out,
+    ) as Array<{ state: string; device: string }>
+    expect(list[0]).toMatchObject({ state: 'pending', device: 'Laptop' })
+  })
+
+  test('no plaintext file unless asked for by name', async () => {
+    const r = await sx('env', 'pull', '-R', 'dana/gitfs', '--dry-run')
+    expect(r.code).toBe(2)
+    expect(JSON.parse(r.err).error.code).toBe('plaintext_refused')
+    const ok = await sx(
+      'env',
+      'pull',
+      '-R',
+      'dana/gitfs',
+      '--plaintext',
+      '--dry-run',
+    )
+    expect(ok.code).toBe(0)
   })
 })
 
@@ -550,5 +525,23 @@ describe('accounts', () => {
         (x) => x.handle,
       ),
     ).toContain('northwind')
+  })
+})
+
+describe('hand-off', () => {
+  test('an issue, a change or a failing pipeline run, never a value', async () => {
+    for (const [subject, type] of [
+      ['216', 'change'],
+      ['run:1839', 'pipeline'],
+    ] as const) {
+      const r = await sx('handoff', subject, '-R', 'dana/gitfs', '--to', 'boat')
+      expect(r.code).toBe(0)
+      const out = JSON.parse(r.out)
+      expect(out.type).toBe(type)
+      expect(out.command).toContain('boat')
+      expect(r.out).not.toContain('hunter2')
+    }
+    const missing = await sx('handoff', 'run:999999', '-R', 'dana/gitfs')
+    expect(JSON.parse(missing.err).error.code).toBe('not_found')
   })
 })

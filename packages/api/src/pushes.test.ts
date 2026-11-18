@@ -93,36 +93,13 @@ test('a wrong, missing or stale signature is refused', async () => {
   expect((await post(signed(body))).status).toBe(200)
 })
 
-test("a push whose commit names a run in its Run-Id trailer is that run's", async () => {
+test('a push keeps a receipt: git push, and the model its commit declares', async () => {
   const { t, storeId, change } = await setup()
-  const runId = await t.run(async (ctx) => {
-    const repo = (await ctx.db
-      .query('repos')
-      .withIndex('by_storeId', (q) => q.eq('storeId', storeId))
-      .unique())!
-    await ctx.db.insert('runs', {
-      publicId: 'run_trailer0001',
-      repoId: repo._id,
-      repo: `${repo.owner}/${repo.name}`,
-      task: 'Push from a run',
-      state: 'running',
-      handle: 'dana',
-      change: change.number,
-      scopes: ['repo:read'],
-      tokenId: 'tok_trailer0001',
-      notes: [],
-      summary: null,
-      started: Date.now(),
-      expires: Date.now() + 3_600_000,
-      finished: null,
-      version: 1,
-    })
-    return 'run_trailer0001'
-  })
   const body = JSON.stringify({
     ...JSON.parse(push(storeId, `refs/heads/${change.branch}`, 'c'.repeat(40))),
     head_commit: {
-      message: `Fix it\n\nChange-Id: I1234\nRun-Id: ${runId}\n`,
+      message:
+        'Fix it\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n',
     },
   })
   const res = await t.fetch('/hooks/code-storage', {
@@ -131,15 +108,86 @@ test("a push whose commit names a run in its Run-Id trailer is that run's", asyn
     body,
   })
   expect(await res.text()).toBe('patch_set_added')
-  const rows = await t.run(async (ctx) => {
-    const run = (await ctx.db
-      .query('runs')
-      .withIndex('by_publicId', (q) => q.eq('publicId', runId))
+  const via = await t.run(async (ctx) => {
+    const repo = (await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', storeId))
       .unique())!
-    return await ctx.db
-      .query('runPatchSets')
-      .withIndex('by_runId', (q) => q.eq('runId', run._id))
-      .take(10)
+    const doc = (await ctx.db
+      .query('changes')
+      .withIndex('by_repoId_and_number', (q) =>
+        q.eq('repoId', repo._id).eq('number', change.number),
+      )
+      .unique())!
+    const parts = await ctx.db
+      .query('changeParts')
+      .withIndex('by_changeId_and_kind_and_seq', (q) =>
+        q.eq('changeId', doc._id).eq('kind', 'patchSet'),
+      )
+      .take(100)
+    return (JSON.parse(parts.at(-1)!.json) as { via?: unknown }).via
   })
-  expect(rows.map((r) => r.patchSet)).toEqual([change.patchSets.length + 1])
+  expect(via).toEqual({
+    machine: null,
+    tool: 'git push',
+    model: 'Claude Opus 5.5',
+  })
+})
+
+test('a push declaring a declined model moves the branch, not the change', async () => {
+  const { t, storeId, change } = await setup()
+  await t.run(async (ctx) => {
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', storeId))
+      .unique()
+    await ctx.db.patch('repos', repo!._id, {
+      declinedModels: ['Claude Haiku 5.5'],
+    })
+  })
+  const body = JSON.stringify({
+    ...JSON.parse(push(storeId, `refs/heads/${change.branch}`, 'c'.repeat(40))),
+    head_commit: {
+      message: 'Fix it\n\nAssisted-by: claude-code:claude haiku 5.5',
+    },
+  })
+  const res = await t.fetch('/hooks/code-storage', {
+    method: 'POST',
+    headers: { 'x-pierre-signature': signed(body), 'x-pierre-event': 'push' },
+    body,
+  })
+  expect(await res.text()).toBe('model_declined')
+  const head = await t.run(async (ctx) => {
+    const c = await ctx.db
+      .query('changes')
+      .withIndex('by_publicId', (q) => q.eq('publicId', change.id))
+      .unique()
+    return c!.headSha
+  })
+  expect(head).not.toBe('c'.repeat(40))
+})
+
+test('a push to a change whose author is denounced does not become a patch set', async () => {
+  const { t, storeId, change } = await setup()
+  await t.run(async (ctx) => {
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', storeId))
+      .unique()
+    const c = await ctx.db
+      .query('changes')
+      .withIndex('by_publicId', (q) => q.eq('publicId', change.id))
+      .unique()
+    const author = c!.author.handle
+    await ctx.db.patch('repos', repo!._id, {
+      denounced: [{ handle: author, reason: 'testing' }],
+    })
+  })
+  const body = push(storeId, `refs/heads/${change.branch}`, 'd'.repeat(40))
+  const res = await t.fetch('/hooks/code-storage', {
+    method: 'POST',
+    headers: { 'x-pierre-signature': signed(body), 'x-pierre-event': 'push' },
+    body,
+  })
+  expect(await res.text()).toBe('denounced')
 })

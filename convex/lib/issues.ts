@@ -51,12 +51,12 @@ export async function knownActor(
   h: string,
 ): Promise<ActorRef | null> {
   const account = await accountByHandle(ctx, h)
-  if (account) return { id: account.publicId, handle: h, class: 'human' }
+  if (account) return { id: account.publicId, handle: h }
   const row = await ctx.db
     .query('actors')
     .withIndex('by_key', (q) => q.eq('key', h))
     .unique()
-  return row ? { id: row.publicId, handle: h, class: row.class } : null
+  return row ? { id: row.publicId, handle: h } : null
 }
 
 /**
@@ -76,7 +76,6 @@ export async function assignable(
       (repo.visibility === 'public' ||
         (await isMember(ctx, repo.owner, h)) ||
         repo.collaborators.includes(h) ||
-        repo.installs.includes(h) ||
         (await teamLevel(ctx, repo, h)) !== null)
     if (!a || !can)
       fail('invalid_request', `${h} cannot be assigned here.`, {

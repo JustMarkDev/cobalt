@@ -94,11 +94,11 @@ export function toRelease(r: ApiRelease): Release {
   }
 }
 
-/** Who wrote a commit: a person, an agent or a bot. */
+/** Who wrote a commit: an account, or a name git knows and we do not. */
 export type Committer = { name: string; kind: 'human' | 'agent' | 'bot' }
 
 /** Who wrote a commit, as the history screens show them. */
 export function committerOf(c: GitCommit): Committer {
   if (!c.actor) return { name: c.author.name, kind: 'human' }
-  return { name: c.actor.handle, kind: c.actor.class }
+  return { name: c.actor.handle, kind: 'human' }
 }

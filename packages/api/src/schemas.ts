@@ -18,7 +18,26 @@ export const Actor = named(
     object: z.literal('actor'),
     id: id('acc'),
     handle: z.string(),
-    class: z.enum(['human', 'agent', 'bot']),
+  }),
+)
+
+export const Via = named(
+  'Via',
+  obj({
+    machine: z
+      .string()
+      .nullable()
+      .describe('The machine the login was made on, as its owner named it'),
+    tool: z
+      .string()
+      .nullable()
+      .describe('The tool that sent it, as the tool declared (`Sx-Tool`)'),
+    model: z
+      .string()
+      .nullable()
+      .describe(
+        'The model the tool said it used (`Sx-Model`). Declared, not verified',
+      ),
   }),
 )
 
@@ -121,18 +140,24 @@ export const Repo = named(
     maintainers: z
       .array(z.string())
       .describe(
-        'People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant.',
+        'People who can approve changes to the policy file. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant.',
       ),
-    transcripts: z
-      .enum(['off', 'on'])
+    declined_models: z
+      .array(z.string())
       .describe(
-        'Whether agent runs may attach their transcripts. Off unless an owner turns it on',
+        'Declared models this repository takes no changes from. A change or patch set declared with one is refused with `model_declined`',
       ),
-    run_trailer: z
-      .enum(['auto', 'on', 'off'])
+    auto_land: z
+      .boolean()
       .describe(
-        'Whether commits keep a `Run-Id:` trailer naming the run that made them. `auto` keeps it in private repositories and removes it in public ones',
+        'Whether a change lands by itself once it can, under the account that turned this on',
       ),
+    vouched: z
+      .array(z.string())
+      .describe('Accounts the owners trust. Their changes come first'),
+    denounced: z
+      .array(obj({ handle: z.string(), reason: z.string() }))
+      .describe('Accounts that may not open changes or issues here'),
     open_changes: z.number().int(),
     open_issues: z.number().int(),
     url: z.string(),
@@ -250,9 +275,7 @@ export const Finding = named(
       .string()
       .nullable()
       .describe('The same fix as instructions for an agent'),
-    run: id('run')
-      .nullable()
-      .describe('The agent run that made it; null when no run did'),
+    via: Via.nullable().describe('How it got here; null for old records'),
     created_at: ts,
   }),
 )
@@ -286,9 +309,7 @@ export const Review = named(
     patch_set: z.number().int(),
     carries_to_head: z.boolean(),
     body: z.string(),
-    run: id('run')
-      .nullable()
-      .describe('The agent run that made it; null when no run did'),
+    via: Via.nullable().describe('How it got here; null for old records'),
     created_at: ts,
   }),
 )
@@ -313,6 +334,9 @@ export const Change = named(
       patch_set: z.number().int(),
       sha: z.string(),
       tree: z.string(),
+      via: Via.nullable().describe(
+        'How the newest patch set got here: machine, tool and declared model',
+      ),
     }),
     stack: obj({
       id: id('stk'),
@@ -386,9 +410,7 @@ export const PatchSet = named(
     author: Actor,
     files: z.number().int(),
     url: z.string(),
-    run: id('run')
-      .nullable()
-      .describe('The agent run that made it; null when no run did'),
+    via: Via.nullable().describe('How it got here; null for old records'),
     created_at: ts,
   }),
 )
@@ -572,9 +594,7 @@ export const ChangeComment = named(
       .describe(
         'On the comment that starts a thread: the fix that answers it. Addressed is not resolved; someone still settles the thread',
       ),
-    run: id('run')
-      .nullable()
-      .describe('The agent run that made it; null when no run did'),
+    via: Via.nullable().describe('How it got here; null for old records'),
     created_at: ts,
     updated_at: ts,
     version: z.number().int(),
@@ -921,83 +941,6 @@ export const RepoIntegration = named(
   }),
 )
 
-export const Bot = named(
-  'Bot',
-  obj({
-    object: z.literal('bot'),
-    slug: z.string().describe('Its handle, what it acts as'),
-    name: z.string(),
-    description: z.string(),
-    owner: z.string().describe('The account that owns it'),
-    class: z.enum(['bot', 'agent']),
-    scopes: z.array(z.string()).describe('What its tokens may do'),
-    installs: z
-      .array(z.string())
-      .describe('Repositories it is installed on, and so may act in'),
-    tokens: z.number().int().describe('Live tokens'),
-    created_at: ts,
-  }),
-)
-
-export const BotToken = named(
-  'BotToken',
-  obj({
-    object: z.literal('bot_token'),
-    id: id('tok'),
-    bot: z.string(),
-    token: z.string().describe('Shown once, never again'),
-    scopes: z.array(z.string()),
-    repos: z.array(z.string()).describe('Limited to where it is installed now'),
-    expires_at: ts,
-  }),
-)
-
-export const automationTriggers = [
-  'issue.created',
-  'change.opened',
-  'change.updated',
-  'finding.raised',
-  'ci.failed',
-  'bot.mentioned',
-  'repository.pushed',
-  'schedule',
-] as const
-
-export const Automation = named(
-  'Automation',
-  obj({
-    object: z.literal('automation'),
-    id: id('aut'),
-    name: z.string(),
-    bot: z.string().describe('The bot it wakes'),
-    triggers: z.array(z.enum(automationTriggers)),
-    runtime: z.string().describe('Such as Claude Code or Codex'),
-    target: z.string().describe('Where it runs, such as T3 Code or E2B'),
-    instructions: z.string(),
-    enabled: z.boolean(),
-    triggered: z
-      .number()
-      .int()
-      .describe('Times an event it listens for happened'),
-    last_triggered_at: ts.nullable(),
-    created_at: ts,
-    version: z.number().int(),
-    last_run: z
-      .string()
-      .nullable()
-      .describe(
-        'The run the last trigger started; its bot picks it up with runs.claim',
-      ),
-    every: z
-      .enum(['hour', 'day', 'week'])
-      .nullable()
-      .describe('How often the `schedule` trigger fires; null without it'),
-    next_run_at: ts
-      .nullable()
-      .describe('When the schedule fires next; null without one'),
-  }),
-)
-
 const hostEnum = z.enum(['github', 'gitlab', 'codeberg', 'gitea'])
 
 export const LinkedAccount = named(
@@ -1053,11 +996,11 @@ export const RepoInsights = named(
       by_week: z
         .array(z.number().int())
         .describe('The last 26 weeks, oldest first'),
-      by_class: obj({
-        human: z.number().int(),
-        agent: z.number().int(),
-        bot: z.number().int(),
-      }),
+      by_model: z
+        .array(obj({ model: z.string().nullable(), count: z.number().int() }))
+        .describe(
+          'Patch sets by the model their tool declared, most first; null when none was',
+        ),
     }),
     contributors: z.number().int(),
     downloads: downloadsShape,
@@ -1103,7 +1046,7 @@ export const Dashboard = named(
     activity: z.array(
       obj({
         who: z.string(),
-        class: z.enum(['human', 'agent', 'bot']),
+        via: Via.nullable(),
         type: z.string().describe('The event type'),
         repo: z.string().nullable(),
         subject: z.number().int().nullable(),
@@ -1396,6 +1339,9 @@ export const Event = named(
     repo: z.string().nullable(),
     repo_id: z.string().nullable(),
     actor: Actor,
+    via: Via.nullable().describe(
+      'How the write got here: machine, tool and declared model',
+    ),
     subject: obj({
       object: z.string(),
       id: z.string(),
@@ -1462,7 +1408,11 @@ export const Principal = named(
     token: id('tok'),
     login: z.string(),
     acting_as: z.string(),
-    class: z.enum(['human', 'agent', 'bot']),
+    device: z
+      .string()
+      .describe(
+        "The machine the token was made on; 'browser' for a signed-in page",
+      ),
     scopes: z.array(z.string()),
     repos: z.array(z.string()).nullable(),
     expires_at: ts,
@@ -1519,85 +1469,6 @@ export const Team = named(
     created_at: ts,
     updated_at: ts,
     version: z.number().int(),
-  }),
-)
-
-// ---------------------------------------------------------------------------
-// Runs
-
-export const Run = named(
-  'Run',
-  obj({
-    object: z.literal('run'),
-    id: id('run'),
-    repo: RepoRef,
-    task: z.string(),
-    state: z.enum(['running', 'succeeded', 'failed', 'cancelled', 'expired']),
-    actor: Actor,
-    change: z
-      .number()
-      .int()
-      .nullable()
-      .describe('The change this run works on, if any'),
-    scopes: z.array(z.string()).describe('What the run token may do'),
-    token: z
-      .string()
-      .nullable()
-      .describe(
-        'The run token. Only in the response that starts the run, never again',
-      ),
-    token_id: id('tok'),
-    notes: z.array(obj({ at: ts, text: z.string() })),
-    summary: z.string().nullable(),
-    issue: z
-      .number()
-      .int()
-      .nullable()
-      .describe('The issue this run works on, if any'),
-    harness: z
-      .string()
-      .nullable()
-      .describe('What drove the agent, such as claude-code, delta or sx'),
-    links: z
-      .array(z.string())
-      .describe(
-        'Conversations about this run elsewhere, such as a Delta thread',
-      ),
-    transcript: obj({
-      size: z.number().int().describe('Bytes, after masking'),
-      sha256: z.string(),
-      redactions: z
-        .number()
-        .int()
-        .describe('How many secrets were masked when it was attached'),
-      url: z.string().describe('Read it here, with the runs:transcripts scope'),
-    })
-      .nullable()
-      .describe('What the agent saw and said, when the repository keeps it'),
-    patch_sets: z
-      .array(obj({ change: z.number().int(), patch_set: z.number().int() }))
-      .describe('The patch sets this run pushed, oldest first'),
-    url: z.string(),
-    started_at: ts,
-    expires_at: ts,
-    finished_at: ts.nullable(),
-    version: z.number().int(),
-  }),
-)
-
-export const RunTranscript = named(
-  'RunTranscript',
-  obj({
-    object: z.literal('run_transcript'),
-    run: id('run'),
-    content_type: z.enum(['text/plain', 'application/json']),
-    size: z.number().int().describe('Bytes'),
-    sha256: z.string(),
-    redactions: z
-      .number()
-      .int()
-      .describe('How many secrets were masked when it was attached'),
-    content: z.string().describe('The transcript, secrets masked'),
   }),
 )
 
@@ -1663,8 +1534,8 @@ export const Provenance = named(
       .int()
       .nullable()
       .describe('The patch set of that change that wrote the line'),
-    run: Run.nullable().describe(
-      'The agent run that pushed that patch set, with its task, summary, links and transcript',
+    via: Via.nullable().describe(
+      'How that patch set got here: machine, tool and declared model',
     ),
   }),
 )
@@ -1815,8 +1686,11 @@ export const Token = named(
     object: z.literal('token'),
     id: id('tok'),
     name: z.string(),
-    kind: z.enum(['personal', 'bot', 'run']),
-    class: z.enum(['human', 'agent', 'bot']),
+    kind: z.enum(['personal']),
+    device: z
+      .string()
+      .nullable()
+      .describe('The machine it was made for, as its owner named it'),
     scopes: z.array(z.string()),
     repos: z.array(z.string()).nullable(),
     prefix: z
@@ -1841,6 +1715,12 @@ export const Authorization = named(
     object: z.literal('authorization'),
     id: id('atz'),
     client: obj({ id: z.string(), name: z.string() }),
+    device: z
+      .string()
+      .nullable()
+      .describe(
+        'The machine a device login (`sx auth login`) named; null for an application',
+      ),
     scopes: z.array(z.string()),
     audience: z.array(z.enum(['api', 'mcp'])),
     url: z.string(),
@@ -1942,7 +1822,7 @@ export const Upload = named(
     filename: z.string(),
     content_type: z.string(),
     size: z.number().int(),
-    purpose: z.enum(['evidence', 'release', 'transcript']),
+    purpose: z.enum(['evidence', 'release']),
     state: z.enum(['pending', 'uploaded']),
     sha256: z.string().nullable(),
     upload_url: z
@@ -2105,33 +1985,28 @@ export const EnvVar = named(
   }),
 )
 
-export const Recipient = named(
-  'Recipient',
+export const Confirmation = named(
+  'Confirmation',
   obj({
-    object: z.literal('recipient'),
-    id: z.string(),
-    kind: z.string(),
-    name: z.string().nullable(),
-    fingerprint: z.string().nullable().describe("The public key's short form"),
-    environments: z.array(z.enum(['development', 'preview', 'production'])),
-    added_at: ts.nullable(),
-    last_used_at: ts.nullable(),
-  }),
-)
-
-export const Grant = named(
-  'Grant',
-  obj({
-    object: z.literal('grant'),
-    id: id('grt'),
+    object: z.literal('confirmation'),
+    id: id('cnf'),
     environment: z.enum(['development', 'preview', 'production']),
-    state: z.enum(['pending', 'active', 'revoked', 'expired']),
-    variables: z.array(z.string()).describe('Names only'),
+    state: z
+      .enum(['pending', 'active', 'revoked', 'expired'])
+      .describe(
+        '`pending` waits for the person; `active` lets that one login read production values until `expires_at`',
+      ),
+    login: z.string().describe('Whose login asked; only they can confirm'),
+    device: z.string().describe('The machine that login was made on'),
+    tool: z
+      .string()
+      .nullable()
+      .describe('What sent the request, as it declared itself'),
     reason: z.string().nullable(),
-    requested_by: z.string(),
-    max_runs: z.number().int(),
-    uses: z.number().int(),
-    expires_at: ts.nullable().describe('Null until a person approves it'),
+    expires_at: ts,
+    confirm_url: z
+      .string()
+      .describe('Where the person confirms it, signed in, in a browser'),
     url: z.string(),
     created_at: ts,
   }),
@@ -2148,7 +2023,9 @@ export const EnvValues = named(
       .describe(
         'Which of the names are secret, so a caller can scrub them from output',
       ),
-    grant: id('grt').nullable(),
+    confirmation: id('cnf')
+      .nullable()
+      .describe('The confirmation production values were read under'),
   }),
 )
 
@@ -2175,23 +2052,9 @@ export const timelineKinds = [
   'check',
   'guide',
   'evidence',
-  'run_note',
   'state_change',
   'reference',
 ] as const
-
-export const RunNote = named(
-  'RunNote',
-  obj({
-    object: z.literal('run_note'),
-    run: id('run'),
-    task: z.string(),
-    text: z.string(),
-    final: z
-      .boolean()
-      .describe("The run's summary, said when it ended, rather than a note"),
-  }),
-)
 
 export const StateChange = named(
   'StateChange',
@@ -2234,7 +2097,7 @@ export const ChangeGuide = named(
       )
       .describe('The files in the order to read them'),
     by: Actor,
-    run: id('run').nullable().describe('The agent run that wrote it, if any'),
+    via: Via.nullable().describe('How it got here; null for old records'),
     created_at: ts,
   }),
 )
@@ -2247,9 +2110,7 @@ export const TimelineEntry = named(
     kind: z.enum(timelineKinds),
     created_at: ts,
     actor: Actor.nullable(),
-    run: id('run')
-      .nullable()
-      .describe('The agent run that made it; null when no run did'),
+    via: Via.nullable().describe('How it got here; null for old records'),
     summary: z.string().describe('One line, for reading the story at a glance'),
     item: z
       .union([
@@ -2262,7 +2123,6 @@ export const TimelineEntry = named(
         Evidence,
         IssueEvidence,
         ChangeGuide,
-        RunNote,
         StateChange,
         Reference,
       ])

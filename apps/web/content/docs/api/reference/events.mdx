@@ -52,7 +52,7 @@ curl "https://api.source.code/v1/events?repo=dana/gitfs&type=issue.*&limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.18.1-gpPeN3Jfo5Lv87mz"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.17.1-VH9LypuFfBssB6Hk"
 ratelimit: "read";r=1179;t=60
 ```
 
@@ -71,8 +71,12 @@ ratelimit: "read";r=1179;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
+      },
+      "via": {
+        "machine": "Laptop",
+        "tool": null,
+        "model": null
       },
       "subject": {
         "object": "issue",
@@ -98,8 +102,7 @@ ratelimit: "read";r=1179;t=60
         "author": {
           "object": "actor",
           "id": "acc_01m203xrm0bw4d69nd",
-          "handle": "dana",
-          "class": "human"
+          "handle": "dana"
         },
         "labels": ["bug"],
         "assignees": [],
@@ -112,8 +115,8 @@ ratelimit: "read";r=1179;t=60
     },
     {
       "object": "event",
-      "id": "evt_01m6tq6r80k2tnz0f2",
-      "sequence": 13,
+      "id": "evt_01m6tq6r80vnq3w9a3",
+      "sequence": 12,
       "created_at": "2026-11-07T10:00:00.000Z",
       "type": "issue.closed",
       "repo": "dana/gitfs",
@@ -121,8 +124,12 @@ ratelimit: "read";r=1179;t=60
       "actor": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
+      },
+      "via": {
+        "machine": "Laptop",
+        "tool": null,
+        "model": null
       },
       "subject": {
         "object": "issue",
@@ -148,16 +155,14 @@ ratelimit: "read";r=1179;t=60
         "author": {
           "object": "actor",
           "id": "acc_01m203xrm064yg2dad",
-          "handle": "mira",
-          "class": "human"
+          "handle": "mira"
         },
         "labels": ["bug"],
         "assignees": [
           {
             "object": "actor",
             "id": "acc_01m203xrm0bw4d69nd",
-            "handle": "dana",
-            "class": "human"
+            "handle": "dana"
           }
         ],
         "comments": 2,
@@ -169,7 +174,7 @@ ratelimit: "read";r=1179;t=60
     }
   ],
   "has_more": true,
-  "next_cursor": "c_WzEzLCIxMyIsIjFrNzBiZmwiXQ"
+  "next_cursor": "c_WzEyLCIxMiIsIjFrNzBiZmwiXQ"
 }
 ```
 
@@ -236,20 +241,20 @@ Poll it, or add ?wait=20 with If-None-Match to hold the request until it changes
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/operations/op_01m6tq6r80tgf8fc46" \
+curl "https://api.source.code/v1/operations/op_01m6tq6r80p8s3577q" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"op_01m6tq6r80tgf8fc46.succeeded.3-H0-WMK_Fak9BZoPj"
-ratelimit: "read";r=1115;t=60
+etag: W/"op_01m6tq6r80p8s3577q.succeeded.3-CbQyQWEAkyCueSNT"
+ratelimit: "read";r=1121;t=60
 ```
 
 ```json
 {
   "object": "operation",
-  "id": "op_01m6tq6r80tgf8fc46",
+  "id": "op_01m6tq6r80p8s3577q",
   "kind": "stack.land",
   "state": "succeeded",
   "progress": {
@@ -262,7 +267,7 @@ ratelimit: "read";r=1115;t=60
     "url": "https://api.source.code/v1/repos/dana/stacky/stacks/stk_stacky000000000000"
   },
   "error": null,
-  "url": "https://api.source.code/v1/operations/op_01m6tq6r80tgf8fc46",
+  "url": "https://api.source.code/v1/operations/op_01m6tq6r80p8s3577q",
   "created_at": "2026-11-07T10:00:00.000Z",
   "finished_at": "2026-11-07T10:00:00.000Z",
   "steps": [
@@ -326,14 +331,14 @@ curl "https://api.source.code/v1/sync?repo=dana/tinyqueue" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m4dbvam0dtex0we7.1.0.0.8.0.1-j9piAO8gS3HyW04O"
+etag: W/"rep_01m4dbvam0dtex0we7.1.0.0.8.0.1-lSE2jXRE-uMuD57T"
 ratelimit: "read";r=1178;t=60
 ```
 
 ```json
 {
   "object": "sync",
-  "cursor": "e_rep_01m4dbvam0dtex0we7_18",
+  "cursor": "e_rep_01m4dbvam0dtex0we7_17",
   "objects": [
     {
       "object": "repo",
@@ -368,8 +373,10 @@ ratelimit: "read";r=1178;t=60
       "website": null,
       "docs_url": null,
       "maintainers": ["dana"],
-      "transcripts": "off",
-      "run_trailer": "auto",
+      "declined_models": [],
+      "auto_land": false,
+      "vouched": [],
+      "denounced": [],
       "open_changes": 0,
       "open_issues": 5,
       "url": "https://api.source.code/v1/repos/dana/tinyqueue",
@@ -396,8 +403,7 @@ ratelimit: "read";r=1178;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0ph3gx9cd",
-        "handle": "kofi",
-        "class": "human"
+        "handle": "kofi"
       },
       "labels": ["bug"],
       "assignees": [],

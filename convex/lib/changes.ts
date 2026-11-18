@@ -1,3 +1,8 @@
+import {
+  approvalsOf,
+  policyRules,
+  reviewedRequirement,
+} from '@source-code/api/policy-builtins'
 import { currentPosition, presentAnchor } from '@source-code/api/anchors'
 import { DEFAULT_LANDING, policyFileCheck } from '@source-code/api/policy-file'
 import type { FileError, Landing } from '@source-code/api/policy-file'
@@ -5,7 +10,6 @@ import { fail } from './errors'
 import { canWrite } from './access'
 import { counters } from './events'
 import { iso, presentRepo, repoRef, repoUrl, urls } from './present'
-import { knownActor } from './issues'
 import type { Actor } from './actor'
 import type {
   ActorRec,
@@ -35,50 +39,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 /** Over this many lines added and removed, a change is large. */
 export const BIG_CHANGE = 400
 
-/** The rules a repository's policy is made of, and what each starts as. */
-export const policyRules: ReadonlyArray<{
-  id: string
-  name: string
-  mode: RuleMode
-  when: string
-  requires: Array<string>
-}> = [
-  {
-    id: 'core-paths',
-    name: 'Core paths need a maintainer',
-    mode: 'enforce',
-    when: 'paths src/**',
-    requires: ['1 approval, human, a maintainer'],
-  },
-  {
-    id: 'agent-authored',
-    name: 'Agent-authored changes need a human',
-    mode: 'enforce',
-    when: 'author class is agent or bot',
-    requires: ['1 approval, human', 'approver is not the author'],
-  },
-  {
-    id: 'ci-evidence',
-    name: 'Tests pass on the tree that will land',
-    mode: 'enforce',
-    when: 'any change',
-    requires: ['ci/test passed, bound to the landing tree'],
-  },
-  {
-    id: 'findings',
-    name: 'No open high-severity findings',
-    mode: 'enforce',
-    when: 'any change',
-    requires: ['every high finding resolved or dismissed with a reason'],
-  },
-  {
-    id: 'big-change',
-    name: 'Large changes need two reviewers',
-    mode: 'dry-run',
-    when: `additions + deletions > ${BIG_CHANGE}`,
-    requires: ['2 approvals, at least 1 human'],
-  },
-]
+export { policyRules } from '@source-code/api/policy-builtins'
 
 /** A path glob as a pattern: `**` crosses folders, `*` does not. */
 export function globToRegExp(glob: string) {
@@ -442,7 +403,6 @@ export class ChangeView {
     readonly stacks: Map<string, Array<number>>,
     readonly branchOwnerOf: (branch: string) => Doc<'changes'> | null,
     readonly viewerCanWrite: boolean,
-    readonly actorClass: (handle: string) => ActorRec['class'] | undefined,
     readonly repoShown: unknown,
   ) {}
 
@@ -451,7 +411,6 @@ export class ChangeView {
       object: 'actor' as const,
       id: a.id,
       handle: a.handle,
-      class: a.class,
     }
   }
 
@@ -529,60 +488,10 @@ export class ChangeView {
       fresh && r.patchSet !== head.n ? { ...r, carries: false } : r,
     )
     const maintainers = new Set(this.repo.maintainers)
-    const humanApprovals = new Set<string>()
-    for (const r of reviews)
-      if (
-        r.state === 'approved' &&
-        r.carries &&
-        r.actor.class === 'human' &&
-        r.actor.handle !== c.author.handle
-      )
-        humanApprovals.add(r.actor.handle)
-    for (const h of assume.approve ?? [])
-      if (this.actorClass(h) === 'human' && h !== c.author.handle)
-        humanApprovals.add(h)
-    const humanObjections = reviews.filter(
-      (r) => r.state === 'changes' && r.actor.class === 'human',
+    const approvals = approvalsOf(reviews, c.author.handle, assume.approve)
+    const objections = reviews.filter(
+      (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
     )
-    const maintainerApprovals = [...humanApprovals].filter(
-      (h) => maintainers.has(h) || !!this.exceptionFor('core-paths', h),
-    )
-    out.push({
-      id: 'core-paths',
-      rule: 'Core paths need a maintainer',
-      state: humanObjections.length
-        ? 'fail'
-        : maintainerApprovals.length
-          ? 'pass'
-          : 'pending',
-      detail: humanObjections.length
-        ? `${humanObjections.map((r) => r.actor.handle).join(', ')} asked for changes.`
-        : maintainerApprovals.length
-          ? `${maintainerApprovals.join(', ')} approved, and the approval holds for patch set ${head.n}.`
-          : 'src/** needs 1 human approval from a maintainer.',
-      needs: { approval: { min: 1, class: 'human', from: 'maintainers' } },
-      blocking: humanObjections.map((r) => r.id),
-    })
-    if (c.author.class === 'human')
-      out.push({
-        id: 'agent-authored',
-        rule: 'Agent-authored changes need a human',
-        state: 'na',
-        detail: 'The author is a person.',
-        needs: null,
-        blocking: [],
-      })
-    else
-      out.push({
-        id: 'agent-authored',
-        rule: 'Agent-authored changes need a human',
-        state: humanApprovals.size ? 'pass' : 'pending',
-        detail: humanApprovals.size
-          ? `${[...humanApprovals].join(', ')} approved.`
-          : `${c.author.handle} is ${c.author.class === 'agent' ? 'an agent' : 'a bot'}; a person has to approve.`,
-        needs: { approval: { min: 1, class: 'human' }, not_author: true },
-        blocking: [],
-      })
     const runs = c.checks.filter(
       (k) => k.name === 'ci/test' && k.tree === head.tree,
     )
@@ -609,27 +518,6 @@ export class ChangeView {
       (n, f) => n + f.add + f.del,
       0,
     )
-    const approvals = new Set(
-      reviews
-        .filter((r) => r.state === 'approved' && r.carries)
-        .map((r) => r.actor.handle),
-    )
-    for (const h of assume.approve ?? []) approvals.add(h)
-    const big = lines > BIG_CHANGE
-    out.push({
-      id: 'big-change',
-      rule: 'Large changes need two reviewers',
-      state: !big
-        ? 'na'
-        : approvals.size >= 2 && humanApprovals.size >= 1
-          ? 'pass'
-          : 'pending',
-      detail: !big
-        ? `${lines} lines changed.`
-        : `${lines} lines changed, needs 2 approvals with at least 1 person, has ${approvals.size}.`,
-      needs: big ? { approval: { min: 2, human_min: 1 } } : null,
-      blocking: [],
-    })
     const open = c.findings.filter(
       (f) =>
         f.severity === 'high' &&
@@ -646,20 +534,22 @@ export class ChangeView {
       needs: open.length ? { resolve: open.map((f) => f.label) } : null,
       blocking: open.map((f) => f.id),
     })
+    // reviewed: someone other than the author approved. A model's review
+    // counts as much as a person's; who presses Land is the one responsible.
+    out.push(reviewedRequirement(approvals, objections))
     for (const r of this.policy.customRules)
-      out.push(this.evaluateCustomRule(r, c, assume, humanApprovals, lines))
+      out.push(this.evaluateCustomRule(r, c, assume, approvals, lines))
     // The rules protect themselves: a change to the policy folder needs a
     // maintainer, and a file that reads. Not a rule a repository can turn off.
     const policy = policyFileCheck(
       head,
       policyRules,
       (h) => maintainers.has(h),
-      [...humanApprovals],
+      [...approvals],
     )
     if (policy) out.push(policy)
     return out.map((r) => {
-      if (r.id === 'core-paths' || r.state === 'pass' || r.state === 'na')
-        return r
+      if (r.state === 'pass' || r.state === 'na') return r
       const e = this.exceptionFor(r.id, c.author.handle)
       return e
         ? {
@@ -677,7 +567,7 @@ export class ChangeView {
     r: CustomRuleRec,
     c: ChangeRec,
     assume: Assume,
-    humanApprovals: Set<string>,
+    approvals: Set<string>,
     lines: number,
   ): Requirement {
     const head = this.head(c)
@@ -729,18 +619,17 @@ export class ChangeView {
       }
     const need = r.approvals ?? 1
     const from = r.from?.length ? new Set(r.from) : null
-    const got = [...humanApprovals].filter((h) => !from || from.has(h))
+    const got = [...approvals].filter((h) => !from || from.has(h))
     return {
       ...base,
       state: got.length >= need ? 'pass' : 'pending',
       detail:
         got.length >= need
           ? `${got.join(', ')} approved ${touched.length} file${touched.length === 1 ? '' : 's'} in ${(r.paths ?? []).join(', ')}.`
-          : `${touched[0]}${touched.length > 1 ? ` and ${touched.length - 1} more` : ''} need ${need} human approval${need === 1 ? '' : 's'}${from ? ` from ${[...from].join(', ')}` : ''}, ${got.length} so far.`,
+          : `${touched[0]}${touched.length > 1 ? ` and ${touched.length - 1} more` : ''} need ${need} approval${need === 1 ? '' : 's'}${from ? ` from ${[...from].join(', ')}` : ''}, ${got.length} so far.`,
       needs: {
         approval: {
           min: need,
-          class: 'human',
           ...(from ? { from: [...from] } : {}),
         },
         paths: touched,
@@ -828,7 +717,7 @@ export class ChangeView {
       url: `${repoUrl(this.repo)}/changes/${c.number}/findings/${f.id}`,
       suggestion: f.suggestion ?? null,
       prompt: f.prompt ?? null,
-      run: f.via?.run ?? null,
+      via: f.via ?? null,
       created_at: iso(f.created),
     }
   }
@@ -859,7 +748,7 @@ export class ChangeView {
       author: this.actor(ps.author),
       files: Object.keys(ps.files).length,
       url: `${repoUrl(this.repo)}/changes/${c.number}/patch-sets/${ps.n}`,
-      run: ps.via?.run ?? null,
+      via: ps.via ?? null,
       created_at: iso(ps.created),
     }
   }
@@ -873,7 +762,7 @@ export class ChangeView {
       patch_set: r.patchSet,
       carries_to_head: r.carries,
       body: r.body,
-      run: r.via?.run ?? null,
+      via: r.via ?? null,
       created_at: iso(r.created),
     }
   }
@@ -904,7 +793,7 @@ export class ChangeView {
             at: iso(x.addressed.at),
           }
         : null,
-      run: x.via?.run ?? null,
+      via: x.via ?? null,
       created_at: iso(x.created),
       updated_at: iso(x.updated),
       version: x.version,
@@ -973,7 +862,12 @@ export class ChangeView {
       base: c.base,
       branch: c.branch,
       patch_set_count: c.patchSets.length,
-      head: { patch_set: head.n, sha: head.sha, tree: head.tree },
+      head: {
+        patch_set: head.n,
+        sha: head.sha,
+        tree: head.tree,
+        via: head.via ?? null,
+      },
       stack: c.stackId
         ? {
             id: c.stackId,
@@ -1032,9 +926,6 @@ export async function viewFor(
   const owners = new Map<string, Doc<'changes'> | null>()
   for (const b of new Set(changes.map((c) => c.branch)))
     owners.set(b, await branchOwner(ctx, repo, b))
-  const classes = new Map<string, ActorRec['class'] | undefined>()
-  for (const h of opts.assume?.approve ?? [])
-    classes.set(h, (await knownActor(ctx, h))?.class)
   return new ChangeView(
     repo,
     policy,
@@ -1043,7 +934,6 @@ export async function viewFor(
     stacks,
     (b) => owners.get(b) ?? null,
     viewer ? await canWrite(ctx, repo, viewer) : false,
-    (h) => classes.get(h),
     opts.expandRepo ? await presentRepo(ctx, repo, now) : null,
   )
 }

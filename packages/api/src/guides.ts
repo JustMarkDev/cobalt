@@ -24,8 +24,12 @@ type GuideLike = {
   patchSet: number
   summary: string
   order: GuideBody['order']
-  by: { id: string; handle: string; class: 'human' | 'agent' | 'bot' }
-  run: string | null
+  by: { id: string; handle: string }
+  via?: {
+    machine: string | null
+    tool: string | null
+    model: string | null
+  } | null
   created: number
 }
 
@@ -90,7 +94,7 @@ export function presentGuide<TActor>(
     summary: g.summary,
     order: g.order,
     by: actor(g.by),
-    run: g.run,
+    via: g.via ?? null,
     created_at: iso(g.created),
   }
 }

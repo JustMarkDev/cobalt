@@ -1,3 +1,5 @@
+import type { SecretBox } from '../secret-box'
+import type { Receipt } from '../via'
 import type { LandingStepRec } from '../landing'
 import type { FileError, Landing } from '../policy-file'
 import type { Addressed, Anchor, Placement } from '../anchors'
@@ -23,8 +25,7 @@ export class Moved extends Error {
   }
 }
 
-export type ActorClass = 'human' | 'agent' | 'bot'
-export type ActorRec = { id: string; handle: string; class: ActorClass }
+export type ActorRec = { id: string; handle: string }
 export type Role = 'owner' | 'admin' | 'member'
 
 export type AccountRec = {
@@ -53,34 +54,6 @@ export type InviteRec = {
   expires: number
 }
 
-export type RunRec = {
-  id: string
-  repo: string
-  task: string
-  state: 'running' | 'succeeded' | 'failed' | 'cancelled'
-  handle: string
-  change: number | null
-  scopes: Array<string>
-  tokenId: string
-  notes: Array<{ at: number; text: string }>
-  summary: string | null
-  issue?: number | null
-  harness?: string | null
-  links?: Array<string>
-  transcript?: {
-    uploadId: string
-    size: number
-    sha256: string
-    redactions: number
-  } | null
-  /** The patch sets this run pushed, oldest first. */
-  patchSets?: Array<{ change: number; patchSet: number }>
-  started: number
-  expires: number
-  finished: number | null
-  version: number
-}
-
 export type TeamRec = {
   id: string
   org: string
@@ -99,11 +72,8 @@ export type FileStat = { hash: string; add: number; del: number }
  * Which run made a part, and with what kind of token. Filled in from the
  * caller's token, never sent by a client. Older parts have none.
  */
-export type ViaRec = {
-  run: string | null
-  /** `push` when it came as a git push rather than through the API. */
-  tokenKind: 'personal' | 'bot' | 'run' | 'oauth' | 'session' | 'push'
-}
+/** How a write got here: the receipt (`receipt.ts`). */
+export type ViaRec = Receipt
 export type PatchSetRec = {
   n: number
   sha: string
@@ -221,7 +191,7 @@ export type GuideRec = {
   summary: string
   order: Array<{ path: string; why: string; risk: 'low' | 'medium' | 'high' }>
   by: ActorRec
-  run: string | null
+  via?: ViaRec | null
   created: number
 }
 export type ReviewCommentRec = {
@@ -349,10 +319,14 @@ export type RepoRec = {
   license: string | null
   website: string | null
   docsUrl: string | null
-  /** Whether runs may attach transcripts. Off when absent. */
-  transcripts?: 'off' | 'on'
-  /** The `Run-Id:` commit trailer. `auto` when absent. */
-  runTrailer?: 'auto' | 'on' | 'off'
+  /** Declared models this repository takes no changes from, lowercase. */
+  declinedModels?: Array<string>
+  /** Land a change by itself once it can land, under this account's name. */
+  autoLand?: { by: string } | null
+  /** Accounts the owners trust: their changes come first. */
+  vouched?: Array<string>
+  /** Accounts that may not open changes or issues here, with why. */
+  denounced?: Array<{ handle: string; reason: string }>
   created: number
   updated: number
   version: number
@@ -363,7 +337,6 @@ export type RepoRec = {
   issueRev: number
   nextNumber: number
   collaborators: Set<string>
-  installs: Set<string>
   maintainers: Set<string>
   /** Collaborators granted only because they were maintainers, so removal revokes them. */
   maintainerGrants: Set<string>
@@ -487,6 +460,11 @@ export type Attached = {
   search: SearchIndex
   uploads: UploadPort
   extras: ExtrasPort
+  /**
+   * Seals and opens secret values (`secret-box.ts`). Null when the server has
+   * no `SX_SECRETS_KEY`: then no value is kept or given out at all.
+   */
+  secrets: Promise<SecretBox | null>
   git: GitData
   mail: Mailer
   /** What the API measured about its own requests, for the status page. */

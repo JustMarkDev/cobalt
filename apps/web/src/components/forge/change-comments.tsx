@@ -2,7 +2,7 @@ import * as React from 'react'
 import { cn } from 'cn'
 import { MultiFileDiff } from '@pierre/diffs/react'
 import { ChatBubbleLeftIcon, WrenchIcon } from '@heroicons/react/24/outline'
-import { Chip, EmptyState, Panel } from './bits'
+import { Chip, EmptyState, Panel, ReceiptNote } from './bits'
 import type { ChangeComment } from '@source-code/sdk'
 import { Button } from '~/components/ui/button'
 import { Select, SelectItem } from '~/components/ui/select'
@@ -217,7 +217,7 @@ function Thread({
               <span className="font-medium text-foreground">
                 {c.author.handle}
               </span>
-              {c.author.class !== 'human' && <span>{c.author.class}</span>}
+              <ReceiptNote via={c.via} />
               <span>{timeAgo(c.created_at)}</span>
             </div>
             <p className="mt-0.5 whitespace-pre-wrap">{c.body}</p>

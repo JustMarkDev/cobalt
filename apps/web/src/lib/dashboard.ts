@@ -111,7 +111,8 @@ export function toDashboardData(
           where: a.repo ?? undefined,
           when: timeAgo(a.at, now),
           day: dayOf(a.at, now),
-          kind: a.class === 'human' ? w.kind : 'agent',
+          kind: w.kind,
+          model: a.via?.model ?? undefined,
         }
       }),
     repos: repos.map((r) => toRepo(r)),

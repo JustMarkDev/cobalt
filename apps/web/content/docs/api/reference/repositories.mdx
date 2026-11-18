@@ -40,7 +40,7 @@ curl "https://api.source.code/v1/imports" \
 ```http
 HTTP/1.1 200
 etag: W/"5oyWwZ9tk8dor04o"
-ratelimit: "read";r=1135;t=60
+ratelimit: "read";r=1140;t=60
 ```
 
 ```json
@@ -118,13 +118,13 @@ curl -X POST "https://api.source.code/v1/imports" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=37;t=60
+ratelimit: "write";r=50;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80wct1za5z",
+  "id": "rep_01m6tq6r809qd3c51t",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -146,8 +146,10 @@ ratelimit: "write";r=37;t=60
   "website": null,
   "docs_url": null,
   "maintainers": ["dana"],
-  "transcripts": "off",
-  "run_trailer": "auto",
+  "declined_models": [],
+  "auto_land": false,
+  "vouched": [],
+  "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
   "url": "https://api.source.code/v1/repos/dana/dotfiles",
@@ -195,7 +197,7 @@ curl "https://api.source.code/v1/repos?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"u522JCwGHaZpKTF8"
+etag: W/"_-EfjJn-0TdotZ9K"
 ratelimit: "read";r=1197;t=60
 ```
 
@@ -224,8 +226,10 @@ ratelimit: "read";r=1197;t=60
       "website": null,
       "docs_url": null,
       "maintainers": ["dana", "hollis"],
-      "transcripts": "off",
-      "run_trailer": "auto",
+      "declined_models": [],
+      "auto_land": false,
+      "vouched": [],
+      "denounced": [],
       "open_changes": 3,
       "open_issues": 0,
       "url": "https://api.source.code/v1/repos/dana/stacky",
@@ -255,8 +259,10 @@ ratelimit: "read";r=1197;t=60
       "website": null,
       "docs_url": null,
       "maintainers": ["dana"],
-      "transcripts": "off",
-      "run_trailer": "auto",
+      "declined_models": [],
+      "auto_land": false,
+      "vouched": [],
+      "denounced": [],
       "open_changes": 0,
       "open_issues": 0,
       "url": "https://api.source.code/v1/repos/dana/notes",
@@ -321,13 +327,13 @@ curl -X POST "https://api.source.code/v1/repos" \
 HTTP/1.1 201
 location: https://api.source.code/v1/repos/dana/notes2
 sx-outcome: created
-ratelimit: "write";r=80;t=60
+ratelimit: "write";r=79;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80d97cf0ge",
+  "id": "rep_01m6tq6r80amymmd6d",
   "owner": "dana",
   "name": "notes2",
   "full_name": "dana/notes2",
@@ -346,8 +352,10 @@ ratelimit: "write";r=80;t=60
   "website": null,
   "docs_url": null,
   "maintainers": ["dana"],
-  "transcripts": "off",
-  "run_trailer": "auto",
+  "declined_models": [],
+  "auto_land": false,
+  "vouched": [],
+  "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
   "url": "https://api.source.code/v1/repos/dana/notes2",
@@ -402,7 +410,7 @@ curl -X DELETE "https://api.source.code/v1/repos/northwind/scratch2?confirm=nort
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=17;t=60
+ratelimit: "write";r=30;t=60
 ```
 
 ### `repos.get`
@@ -448,7 +456,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-KO3isrAOBKaFndKd"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1196;t=60
 ```
 
@@ -484,8 +492,10 @@ ratelimit: "read";r=1196;t=60
   "website": "https://gitfs.dev",
   "docs_url": "https://gitfs.dev/docs",
   "maintainers": ["dana", "hollis"],
-  "transcripts": "off",
-  "run_trailer": "auto",
+  "declined_models": [],
+  "auto_land": false,
+  "vouched": ["hollis", "ines"],
+  "denounced": [],
   "open_changes": 5,
   "open_issues": 2,
   "url": "https://api.source.code/v1/repos/dana/gitfs",
@@ -528,19 +538,21 @@ Owners of the account and admins of the organization only. Send `If-Match` with 
 
 **Request body**
 
-| Member           | Type                                                                   | Notes                                                                                                                                                                                                                      |
-| ---------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`           | string (pattern)                                                       |                                                                                                                                                                                                                            |
-| `description`    | string (up to 500 characters)                                          |                                                                                                                                                                                                                            |
-| `visibility`     | `public` or `private`                                                  |                                                                                                                                                                                                                            |
-| `default_branch` | string (up to 200 characters, at least 1)                              |                                                                                                                                                                                                                            |
-| `maintainers`    | array of string                                                        | People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. |
-| `category`       | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
-| `website`        | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `docs_url`       | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `install`        | string (up to 200 characters, at least 1) or null                      |                                                                                                                                                                                                                            |
-| `transcripts`    | `off` or `on`                                                          | Let agent runs attach their transcripts                                                                                                                                                                                    |
-| `run_trailer`    | `auto` or `on` or `off`                                                | Keep the `Run-Id:` commit trailer. `auto`: in private repositories only                                                                                                                                                    |
+| Member            | Type                                                                   | Notes                                                                                                                                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | string (pattern)                                                       |                                                                                                                                                                                                                            |
+| `description`     | string (up to 500 characters)                                          |                                                                                                                                                                                                                            |
+| `visibility`      | `public` or `private`                                                  |                                                                                                                                                                                                                            |
+| `default_branch`  | string (up to 200 characters, at least 1)                              |                                                                                                                                                                                                                            |
+| `maintainers`     | array of string                                                        | People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. |
+| `category`        | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
+| `website`         | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
+| `docs_url`        | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
+| `install`         | string (up to 200 characters, at least 1) or null                      |                                                                                                                                                                                                                            |
+| `declined_models` | array of string (up to 80 characters, at least 1)                      | Declared models to take no changes from, compared without case. Replaces the list                                                                                                                                          |
+| `auto_land`       | boolean                                                                | Land a change by itself once it can. You answer for what lands this way                                                                                                                                                    |
+| `vouched`         | array of string (pattern)                                              | Accounts you trust; their changes come first. Replaces the list                                                                                                                                                            |
+| `denounced`       | array of object                                                        | Accounts that may not open changes or issues here. Replaces the list                                                                                                                                                       |
 
 **Errors**
 
@@ -557,13 +569,13 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=19;t=60
+ratelimit: "write";r=32;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80d97cf0ge",
+  "id": "rep_01m6tq6r80amymmd6d",
   "owner": "dana",
   "name": "scratch2",
   "full_name": "dana/scratch2",
@@ -582,8 +594,10 @@ ratelimit: "write";r=19;t=60
   "website": null,
   "docs_url": null,
   "maintainers": ["dana"],
-  "transcripts": "off",
-  "run_trailer": "auto",
+  "declined_models": [],
+  "auto_land": false,
+  "vouched": [],
+  "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
   "url": "https://api.source.code/v1/repos/dana/scratch2",
@@ -639,7 +653,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/context" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-KO3isrAOBKaFndKd"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1195;t=60
 ```
 
@@ -677,8 +691,10 @@ ratelimit: "read";r=1195;t=60
     "website": "https://gitfs.dev",
     "docs_url": "https://gitfs.dev/docs",
     "maintainers": ["dana", "hollis"],
-    "transcripts": "off",
-    "run_trailer": "auto",
+    "declined_models": [],
+    "auto_land": false,
+    "vouched": ["hollis", "ines"],
+    "denounced": [],
     "open_changes": 5,
     "open_issues": 2,
     "url": "https://api.source.code/v1/repos/dana/gitfs",
@@ -695,12 +711,11 @@ ratelimit: "read";r=1195;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "checks": "none",
       "policy": "pending",
-      "blocking": ["core-paths:pending", "ci-evidence:pending"]
+      "blocking": ["ci-evidence:pending"]
     },
     {
       "number": 217,
@@ -709,12 +724,11 @@ ratelimit: "read";r=1195;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm07rgvmjza",
-        "handle": "claude-t3",
-        "class": "agent"
+        "handle": "claude-t3"
       },
       "checks": "pass",
-      "policy": "pending",
-      "blocking": ["core-paths:pending", "agent-authored:pending"]
+      "policy": "met",
+      "blocking": []
     },
     "…and 3 more"
   ],
@@ -788,7 +802,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/contributors" \
 ```http
 HTTP/1.1 200
 etag: W/"YD5gJfyTTo4mR31w"
-ratelimit: "read";r=1150;t=60
+ratelimit: "read";r=1153;t=60
 ```
 
 ```json
@@ -852,7 +866,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/insights" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.ins30.19.8.2406.20764.1-cLCI7RmKurcgvlGP"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.ins22.19.8.2406.20764.1-7pElIC77C7_aUa4w"
 ratelimit: "heavy";r=115;t=60
 ```
 
@@ -863,11 +877,12 @@ ratelimit: "heavy";r=115;t=60
   "commits": {
     "total": 60,
     "by_week": [0, 0, "…and 24 more"],
-    "by_class": {
-      "human": 45,
-      "agent": 5,
-      "bot": 10
-    }
+    "by_model": [
+      {
+        "model": null,
+        "count": 12
+      }
+    ]
   },
   "contributors": 7,
   "downloads": {
@@ -986,8 +1001,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/provenance?path=src/refs.rs&li
 
 ```http
 HTTP/1.1 200
-etag: W/"6ZftKQO-to6Gqzaz"
-ratelimit: "read";r=1122;t=60
+etag: W/"cZT0HblWb3YD4kYf"
+ratelimit: "read";r=1127;t=60
 ```
 
 ```json
@@ -1007,7 +1022,7 @@ ratelimit: "read";r=1122;t=60
   },
   "change": null,
   "patch_set": null,
-  "run": null
+  "via": null
 }
 ```
 
@@ -1055,8 +1070,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/releases?limit=1" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.r3.3.1-SVu2WbIeNMnyppub"
-ratelimit: "read";r=1142;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.r3.3.1-26Jh1l153BimF7kC"
+ratelimit: "read";r=1145;t=60
 ```
 
 ```json
@@ -1109,8 +1124,7 @@ ratelimit: "read";r=1142;t=60
       "author": {
         "object": "actor",
         "id": "acc_01m203xrm0bw4d69nd",
-        "handle": "dana",
-        "class": "human"
+        "handle": "dana"
       },
       "published_at": "2026-10-29T00:00:00.000Z",
       "version": 1
@@ -1179,13 +1193,13 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=53;t=60
+ratelimit: "write";r=58;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r800ngr8qx1",
+  "id": "rel_01m6tq6r80jb3b4psr",
   "tag": "v0.9.1",
   "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://source.code/dana/gitfs/releases",
@@ -1214,8 +1228,7 @@ ratelimit: "write";r=53;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "published_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -1257,8 +1270,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0" \
 
 ```http
 HTTP/1.1 200
-etag: W/"iPUfK4MAx2wv21u4"
-ratelimit: "read";r=1141;t=60
+etag: W/"Xw_hF8guRecTZnyS"
+ratelimit: "read";r=1144;t=60
 ```
 
 ```json
@@ -1309,8 +1322,7 @@ ratelimit: "read";r=1141;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "published_at": "2026-10-20T00:00:00.000Z",
   "version": 1
@@ -1371,13 +1383,13 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=52;t=60
+ratelimit: "write";r=57;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r800ngr8qx1",
+  "id": "rel_01m6tq6r80jb3b4psr",
   "tag": "v0.9.1",
   "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://source.code/dana/gitfs/releases",
@@ -1409,8 +1421,7 @@ ratelimit: "write";r=52;t=60
   "author": {
     "object": "actor",
     "id": "acc_01m203xrm0bw4d69nd",
-    "handle": "dana",
-    "class": "human"
+    "handle": "dana"
   },
   "published_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -1455,7 +1466,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0/assets
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=51;t=60
+ratelimit: "write";r=56;t=60
 ```
 
 ```json
@@ -1514,7 +1525,7 @@ curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/star" \
 ```http
 HTTP/1.1 200
 sx-outcome: updated
-ratelimit: "write";r=68;t=60
+ratelimit: "write";r=73;t=60
 ```
 
 ```json
@@ -1562,8 +1573,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/star" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.3.30.7.5.1.dana-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1151;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.2.22.7.5.1.dana-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1154;t=60
 ```
 
 ```json
@@ -1619,7 +1630,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/star" \
 ```http
 HTTP/1.1 200
 sx-outcome: updated
-ratelimit: "write";r=69;t=60
+ratelimit: "write";r=74;t=60
 ```
 
 ```json
@@ -1637,7 +1648,7 @@ ratelimit: "write";r=69;t=60
 
 **Give a repository to another account**
 
-Owners and admins of the repository, into an account where they are an owner or admin. Send `confirm` with the current `owner/name`. The old address answers `308` with the new one, and webhooks, mirrors, variables and agent grants move with it. Teams of the account it leaves lose their access.
+Owners and admins of the repository, into an account where they are an owner or admin. Send `confirm` with the current `owner/name`. The old address answers `308` with the new one. Within the same account it is a rename and everything stays. To another account, only the code, its history and its changes and issues go: secret values, production confirmations, the secrets audit log, webhooks, mirrors, integrations, collaborators, maintainers, team grants, auto-land, declined models, vouched and denounced accounts stay behind, and tokens limited to it stop reaching it. Variable names stay; the new owner sets values.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1684,13 +1695,13 @@ curl -X POST "https://api.source.code/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=18;t=60
+ratelimit: "write";r=31;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80d97cf0ge",
+  "id": "rep_01m6tq6r80amymmd6d",
   "owner": "northwind",
   "name": "scratch2",
   "full_name": "northwind/scratch2",
@@ -1708,9 +1719,11 @@ ratelimit: "write";r=18;t=60
   "license": null,
   "website": null,
   "docs_url": null,
-  "maintainers": ["dana"],
-  "transcripts": "off",
-  "run_trailer": "auto",
+  "maintainers": [],
+  "declined_models": [],
+  "auto_land": false,
+  "vouched": [],
+  "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
   "url": "https://api.source.code/v1/repos/northwind/scratch2",

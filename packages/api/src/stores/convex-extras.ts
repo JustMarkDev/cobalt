@@ -45,11 +45,20 @@ export class ConvexExtras implements ExtrasPort {
     for (const o of scope) {
       const json = JSON.stringify(o.x)
       if (json === o.json) continue
+      // Sent with what it started from and the audit entries it added, so a
+      // save that raced only other audit entries (two reads at once) merges
+      // instead of failing, and no entry is lost.
       await run(
         this.call,
         'mutation',
         'forge/extras:put',
-        { full: o.repo, version: o.version, json },
+        {
+          full: o.repo,
+          version: o.version,
+          json,
+          base: withoutAudit(o.json),
+          added: JSON.stringify(addedAudit(o.json, json)),
+        },
         'system',
       )
       o.json = json
@@ -72,4 +81,20 @@ export class ConvexExtras implements ExtrasPort {
 
   /** Deleting the repository deletes its extras with it. */
   drop() {}
+}
+
+/** The document without its audit log: what a concurrent read never changes. */
+export function withoutAudit(json: string) {
+  const { audit: _audit, ...rest } = JSON.parse(json) as Record<string, unknown>
+  return JSON.stringify(rest)
+}
+
+/** The audit entries `after` has that `before` did not; new ones come first. */
+export function addedAudit(before: string, after: string): Array<unknown> {
+  const a0 = (JSON.parse(before) as { audit?: Array<unknown> }).audit ?? []
+  const a1 = (JSON.parse(after) as { audit?: Array<unknown> }).audit ?? []
+  if (a0.length === 0) return a1
+  const first = JSON.stringify(a0[0])
+  const k = a1.findIndex((e) => JSON.stringify(e) === first)
+  return k < 0 ? a1 : a1.slice(0, k)
 }

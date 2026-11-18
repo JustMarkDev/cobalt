@@ -25,7 +25,7 @@ export async function accounts(ctx: Ctx): Promise<Array<Account>> {
 /** Who the token is. */
 export async function whoami(ctx: Ctx): Promise<{
   login: string
-  class: 'human' | 'agent' | 'bot'
+  device: string
   scopes: Array<string>
 }> {
   const r = await ctx.api().once('/auth/principal')

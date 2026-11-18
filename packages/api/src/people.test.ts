@@ -22,16 +22,12 @@ describe('follows', () => {
     ).toBe(before.followers)
   })
 
-  test('not yourself, and not as a bot', async () => {
+  test('not yourself, from any of your logins', async () => {
     const h = harness()
-    expect((await h.call('PUT', '/user/following/dana')).status).toBe(400)
-    expect(
-      (
-        await h.call('PUT', '/user/following/dana', {
-          token: sampleTokens.triage,
-        })
-      ).status,
-    ).toBe(403)
+    for (const token of [sampleTokens.dana, sampleTokens.issuesOnly])
+      expect(
+        (await h.call('PUT', '/user/following/dana', { token })).status,
+      ).toBe(400)
   })
 })
 

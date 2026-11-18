@@ -13,17 +13,27 @@ export const role = v.union(
   v.literal('member'),
 )
 
-export const actorClass = v.union(
-  v.literal('human'),
-  v.literal('agent'),
-  v.literal('bot'),
+/**
+ * Legacy: actors once had a class (human, agent, bot). Nothing writes it any
+ * more and nothing reads it; old documents may still carry it until a
+ * migration drops it.
+ */
+const legacyClass = v.optional(
+  v.union(v.literal('human'), v.literal('agent'), v.literal('bot')),
 )
+
+/** How a write got here: machine, tool and declared model. */
+export const viaRef = v.object({
+  machine: v.union(v.null(), v.string()),
+  tool: v.union(v.null(), v.string()),
+  model: v.union(v.null(), v.string()),
+})
 
 /** Who did something, as events and records show it. */
 export const actorRef = v.object({
   id: v.string(),
   handle: v.string(),
-  class: actorClass,
+  class: legacyClass,
 })
 
 export default defineSchema({
@@ -61,14 +71,14 @@ export default defineSchema({
     .index('by_authId', ['authId'])
     .index('by_publicId', ['publicId']),
 
-  // Agents and bots, and a person acting as another class (a run token).
-  // People and organizations are accounts; their actor id is the account's.
+  // Handles that act without an account of their own here, such as a review
+  // service. People and organizations are accounts; their actor id is the
+  // account's.
   actors: defineTable({
-    // `handle`, or `handle~class` when the same handle acts as another class.
     key: v.string(),
     publicId: v.string(),
     handle: v.string(),
-    class: actorClass,
+    class: legacyClass,
   }).index('by_key', ['key']),
 
   // Who belongs to which organization, and what they may do there. An
@@ -139,7 +149,8 @@ export default defineSchema({
     website: v.union(v.null(), v.string()),
     docsUrl: v.union(v.null(), v.string()),
     collaborators: v.array(v.string()),
-    installs: v.array(v.string()),
+    // Legacy: bot installs. Never read.
+    installs: v.optional(v.array(v.string())),
     maintainers: v.array(v.string()),
     maintainerGrants: v.array(v.string()),
     env: v.array(
@@ -151,11 +162,23 @@ export default defineSchema({
     ),
     // Sample data only: invent believable facts for commits no change landed.
     sampleFacts: v.optional(v.boolean()),
-    // Whether agent runs may attach transcripts. Off when absent.
+    // Legacy: run transcripts and the `Run-Id:` trailer. Never read.
     transcripts: v.optional(v.union(v.literal('off'), v.literal('on'))),
-    // The `Run-Id:` commit trailer: `auto` (private only) when absent.
     runTrailer: v.optional(
       v.union(v.literal('auto'), v.literal('on'), v.literal('off')),
+    ),
+    // Declared models this repository takes no changes from.
+    declinedModels: v.optional(v.array(v.string())),
+    // Land a change by itself once it can, under this account's name.
+    autoLand: v.optional(v.union(v.null(), v.object({ by: v.string() }))),
+    // When it last changed hands. A token limited to it from before then
+    // no longer reaches it: it was given by the old owner.
+    ownerSince: v.optional(v.number()),
+    // Accounts the owners trust: their changes come first.
+    vouched: v.optional(v.array(v.string())),
+    // Accounts that may not open changes or issues here.
+    denounced: v.optional(
+      v.array(v.object({ handle: v.string(), reason: v.string() })),
     ),
     created: v.number(),
     updated: v.number(),
@@ -290,6 +313,7 @@ export default defineSchema({
     at: v.number(),
     eventId: v.string(),
     actor: actorRef,
+    via: v.optional(viaRef),
   }).index('by_repoId_and_subject_and_at', ['repoId', 'subject', 'at']),
 
   // The issues a change names (`Fixes #4`, `Refs #4`), kept on every write
@@ -528,70 +552,6 @@ export default defineSchema({
     .index('by_publicId', ['publicId'])
     .index('by_finished', ['finished']),
 
-  // ---- Runs --------------------------------------------------------------------
-
-  // An agent's run: a task, a short token limited to one repository, notes.
-  runs: defineTable({
-    publicId: v.string(),
-    repoId: v.id('repos'),
-    // `owner/name` when it started, shown if the repository is gone.
-    repo: v.string(),
-    task: v.string(),
-    state: v.union(
-      v.literal('running'),
-      v.literal('succeeded'),
-      v.literal('failed'),
-      v.literal('cancelled'),
-      // Written when its token runs out without anyone finishing it.
-      v.literal('expired'),
-    ),
-    handle: v.string(),
-    change: v.union(v.null(), v.number()),
-    scopes: v.array(v.string()),
-    tokenId: v.string(),
-    notes: v.array(v.object({ at: v.number(), text: v.string() })),
-    summary: v.union(v.null(), v.string()),
-    // Absent on runs from before these were kept; read as null and [].
-    issue: v.optional(v.union(v.null(), v.number())),
-    harness: v.optional(v.union(v.null(), v.string())),
-    links: v.optional(v.array(v.string())),
-    transcript: v.optional(
-      v.union(
-        v.null(),
-        v.object({
-          uploadId: v.string(),
-          size: v.number(),
-          sha256: v.string(),
-          redactions: v.number(),
-        }),
-      ),
-    ),
-    started: v.number(),
-    expires: v.number(),
-    finished: v.union(v.null(), v.number()),
-    version: v.number(),
-  })
-    .index('by_repoId_and_started_and_publicId', [
-      'repoId',
-      'started',
-      'publicId',
-    ])
-    .index('by_publicId', ['publicId'])
-    .index('by_tokenId', ['tokenId'])
-    .index('by_handle_and_state_and_expires', ['handle', 'state', 'expires'])
-    .index('by_state_and_expires', ['state', 'expires'])
-    .index('by_finished', ['finished']),
-
-  // The patch sets a run pushed, so a line of code leads back to the run
-  // that wrote it, and a run lists what it produced.
-  runPatchSets: defineTable({
-    runId: v.id('runs'),
-    changeId: v.id('changes'),
-    patchSet: v.number(),
-  })
-    .index('by_runId', ['runId'])
-    .index('by_changeId_and_patchSet', ['changeId', 'patchSet']),
-
   // ---- Pipelines ---------------------------------------------------------------
   // A pipeline run, its jobs and steps, as JSON text without the logs. Each
   // step's log is its own document, written once per report, never per line.
@@ -619,48 +579,6 @@ export default defineSchema({
     lines: v.string(),
     count: v.number(),
   }).index('by_runId_and_job_and_step', ['runId', 'job', 'step']),
-
-  // ---- Bots and automations ------------------------------------------------------
-
-  bots: defineTable({
-    slug: v.string(),
-    name: v.string(),
-    description: v.string(),
-    // The account that owns it.
-    owner: v.string(),
-    class: v.union(v.literal('bot'), v.literal('agent')),
-    scopes: v.array(v.string()),
-    // Where it is installed, by repository id. A repository's own `installs`
-    // is what access reads; this is what showing the bot reads.
-    installs: v.array(v.id('repos')),
-    created: v.number(),
-  })
-    .index('by_slug', ['slug'])
-    .index('by_owner', ['owner']),
-
-  automations: defineTable({
-    repoId: v.id('repos'),
-    publicId: v.string(),
-    name: v.string(),
-    bot: v.string(),
-    triggers: v.array(v.string()),
-    runtime: v.string(),
-    target: v.string(),
-    instructions: v.string(),
-    enabled: v.boolean(),
-    triggered: v.number(),
-    lastTriggered: v.union(v.null(), v.number()),
-    lastRun: v.union(v.null(), v.string()),
-    every: v.optional(v.string()),
-    lastScheduled: v.optional(v.number()),
-    // When its schedule fires next; null without one. The tick reads this.
-    nextRun: v.union(v.null(), v.number()),
-    created: v.number(),
-    version: v.number(),
-  })
-    .index('by_repoId', ['repoId'])
-    .index('by_publicId', ['publicId'])
-    .index('by_nextRun', ['nextRun']),
 
   // ---- Releases ----------------------------------------------------------------
 
@@ -928,7 +846,10 @@ export default defineSchema({
     ),
     handle: v.string(),
     actingAs: v.string(),
-    class: actorClass,
+    // Legacy: a token's class. Never read.
+    class: legacyClass,
+    // The machine it was made on, as its owner named it; receipts show it.
+    device: v.optional(v.union(v.null(), v.string())),
     scopes: v.array(v.string()),
     repos: v.union(v.null(), v.array(v.string())),
     audience: v.array(v.union(v.literal('api'), v.literal('mcp'))),
@@ -939,6 +860,7 @@ export default defineSchema({
     revokedAt: v.union(v.null(), v.number()),
     authorizationId: v.optional(v.string()),
     limitKey: v.optional(v.string()),
+    loginId: v.optional(v.string()),
   })
     .index('by_hash', ['hash'])
     .index('by_publicId', ['publicId'])
@@ -953,6 +875,7 @@ export default defineSchema({
     handle: v.string(),
     scopes: v.array(v.string()),
     audience: v.array(v.union(v.literal('api'), v.literal('mcp'))),
+    device: v.optional(v.union(v.null(), v.string())),
     createdAt: v.number(),
     lastUsedAt: v.union(v.null(), v.number()),
     revokedAt: v.union(v.null(), v.number()),

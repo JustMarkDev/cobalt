@@ -1,3 +1,8 @@
+import {
+  approvalsOf,
+  policyRules,
+  reviewedRequirement,
+} from '../policy-builtins'
 import { Pre } from '../registry'
 import type { UploadRec } from '../uploads'
 import type { z } from 'zod'
@@ -29,49 +34,7 @@ import { DomainAccess } from './access'
 export const BIG_CHANGE = 400
 
 /** The rules a repository's policy is made of, and what each starts as. */
-export const policyRules: ReadonlyArray<{
-  id: string
-  name: string
-  mode: RuleMode
-  when: string
-  requires: Array<string>
-}> = [
-  {
-    id: 'core-paths',
-    name: 'Core paths need a maintainer',
-    mode: 'enforce',
-    when: 'paths src/**',
-    requires: ['1 approval, human, a maintainer'],
-  },
-  {
-    id: 'agent-authored',
-    name: 'Agent-authored changes need a human',
-    mode: 'enforce',
-    when: 'author class is agent or bot',
-    requires: ['1 approval, human', 'approver is not the author'],
-  },
-  {
-    id: 'ci-evidence',
-    name: 'Tests pass on the tree that will land',
-    mode: 'enforce',
-    when: 'any change',
-    requires: ['ci/test passed, bound to the landing tree'],
-  },
-  {
-    id: 'findings',
-    name: 'No open high-severity findings',
-    mode: 'enforce',
-    when: 'any change',
-    requires: ['every high finding resolved or dismissed with a reason'],
-  },
-  {
-    id: 'big-change',
-    name: 'Large changes need two reviewers',
-    mode: 'dry-run',
-    when: `additions + deletions > ${BIG_CHANGE}`,
-    requires: ['2 approvals, at least 1 human'],
-  },
-]
+export { policyRules } from '../policy-builtins'
 
 /** A path glob as a pattern: `**` crosses folders, `*` does not. */
 export function globToRegExp(glob: string) {
@@ -111,7 +74,7 @@ export function describeCustomRule(r: CustomRuleRec) {
 
 export abstract class DomainPresent extends DomainAccess {
   protected actor(a: ActorRec): z.infer<typeof S.Actor> {
-    return { object: 'actor', id: a.id, handle: a.handle, class: a.class }
+    return { object: 'actor', id: a.id, handle: a.handle }
   }
 
   protected repoRef(r: RepoRec): z.infer<typeof S.RepoRef> {
@@ -158,8 +121,13 @@ export abstract class DomainPresent extends DomainAccess {
       website: r.website,
       docs_url: r.docsUrl,
       maintainers: [...r.maintainers].sort(),
-      transcripts: r.transcripts ?? 'off',
-      run_trailer: r.runTrailer ?? 'auto',
+      declined_models: [...(r.declinedModels ?? [])],
+      auto_land: !!r.autoLand,
+      vouched: [...(r.vouched ?? [])].sort(),
+      denounced: (r.denounced ?? []).map((d) => ({
+        handle: d.handle,
+        reason: d.reason,
+      })),
       open_changes: openChanges,
       open_issues: openIssues,
       url: this.repoUrl(r),
@@ -285,66 +253,10 @@ export abstract class DomainPresent extends DomainAccess {
     const reviews = this.latestReviews(c).map((r) =>
       fresh && r.patchSet !== head.n ? { ...r, carries: false } : r,
     )
-    const humanApprovals = new Set<string>()
-    for (const r of reviews)
-      if (
-        r.state === 'approved' &&
-        r.carries &&
-        r.actor.class === 'human' &&
-        r.actor.handle !== c.author.handle
-      )
-        humanApprovals.add(r.actor.handle)
-    for (const h of assume.approve ?? [])
-      if (this.actors.get(h)?.class === 'human' && h !== c.author.handle)
-        humanApprovals.add(h)
-    const humanObjections = reviews.filter(
-      (r) => r.state === 'changes' && r.actor.class === 'human',
+    const approvals = approvalsOf(reviews, c.author.handle, assume.approve)
+    const objections = reviews.filter(
+      (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
     )
-
-    // core-paths: a maintainer has to approve. Someone with an exception to
-    // it counts as one while the exception lasts.
-    const maintainerApprovals = [...humanApprovals].filter(
-      (h) =>
-        repo.maintainers.has(h) || !!this.exceptionFor(repo, 'core-paths', h),
-    )
-    out.push({
-      id: 'core-paths',
-      rule: 'Core paths need a maintainer',
-      state: humanObjections.length
-        ? 'fail'
-        : maintainerApprovals.length
-          ? 'pass'
-          : 'pending',
-      detail: humanObjections.length
-        ? `${humanObjections.map((r) => r.actor.handle).join(', ')} asked for changes.`
-        : maintainerApprovals.length
-          ? `${maintainerApprovals.join(', ')} approved, and the approval holds for patch set ${head.n}.`
-          : 'src/** needs 1 human approval from a maintainer.',
-      needs: { approval: { min: 1, class: 'human', from: 'maintainers' } },
-      blocking: humanObjections.map((r) => r.id),
-    })
-
-    // agent-authored: a person has to approve work an agent or bot wrote.
-    if (c.author.class === 'human')
-      out.push({
-        id: 'agent-authored',
-        rule: 'Agent-authored changes need a human',
-        state: 'na',
-        detail: 'The author is a person.',
-        needs: null,
-        blocking: [],
-      })
-    else
-      out.push({
-        id: 'agent-authored',
-        rule: 'Agent-authored changes need a human',
-        state: humanApprovals.size ? 'pass' : 'pending',
-        detail: humanApprovals.size
-          ? `${[...humanApprovals].join(', ')} approved.`
-          : `${c.author.handle} is ${c.author.class === 'agent' ? 'an agent' : 'a bot'}; a person has to approve.`,
-        needs: { approval: { min: 1, class: 'human' }, not_author: true },
-        blocking: [],
-      })
 
     // ci-evidence: tests passed on the tree that will land.
     const runs = c.checks.filter(
@@ -370,32 +282,10 @@ export abstract class DomainPresent extends DomainAccess {
       blocking: ciState === 'fail' && run ? [run.id] : [],
     })
 
-    // big-change: a large change needs two approvals, one of them a person.
     const lines = Object.values(head.files).reduce(
       (n, f) => n + f.add + f.del,
       0,
     )
-    const approvals = new Set(
-      reviews
-        .filter((r) => r.state === 'approved' && r.carries)
-        .map((r) => r.actor.handle),
-    )
-    for (const h of assume.approve ?? []) approvals.add(h)
-    const big = lines > BIG_CHANGE
-    out.push({
-      id: 'big-change',
-      rule: 'Large changes need two reviewers',
-      state: !big
-        ? 'na'
-        : approvals.size >= 2 && humanApprovals.size >= 1
-          ? 'pass'
-          : 'pending',
-      detail: !big
-        ? `${lines} lines changed.`
-        : `${lines} lines changed, needs 2 approvals with at least 1 person, has ${approvals.size}.`,
-      needs: big ? { approval: { min: 2, human_min: 1 } } : null,
-      blocking: [],
-    })
 
     // findings: nothing high is left open.
     const open = c.findings.filter(
@@ -415,8 +305,12 @@ export abstract class DomainPresent extends DomainAccess {
       blocking: open.map((f) => f.id),
     })
 
+    // reviewed: someone other than the author approved. A model's review
+    // counts as much as a person's; who presses Land is the one responsible.
+    out.push(reviewedRequirement(approvals, objections))
+
     for (const r of repo.customRules ?? [])
-      out.push(this.evaluateCustomRule(r, c, assume, humanApprovals, lines))
+      out.push(this.evaluateCustomRule(r, c, assume, approvals, lines))
 
     // The rules protect themselves: a change to the policy folder needs a
     // maintainer, and a file that reads. Not a rule a repository can turn off.
@@ -424,14 +318,13 @@ export abstract class DomainPresent extends DomainAccess {
       head,
       policyRules,
       (h) => repo.maintainers.has(h),
-      [...humanApprovals],
+      [...approvals],
     )
     if (policy) out.push(policy)
 
     // An exception for the author lets their change through a rule.
     return out.map((r) => {
-      if (r.id === 'core-paths' || r.state === 'pass' || r.state === 'na')
-        return r
+      if (r.state === 'pass' || r.state === 'na') return r
       const e = this.exceptionFor(repo, r.id, c.author.handle)
       return e
         ? {
@@ -450,7 +343,7 @@ export abstract class DomainPresent extends DomainAccess {
     r: CustomRuleRec,
     c: ChangeRec,
     assume: Assume,
-    humanApprovals: Set<string>,
+    approvals: Set<string>,
     lines: number,
   ): Requirement {
     const head = this.head(c)
@@ -504,18 +397,17 @@ export abstract class DomainPresent extends DomainAccess {
       }
     const need = r.approvals ?? 1
     const from = r.from?.length ? new Set(r.from) : null
-    const got = [...humanApprovals].filter((h) => !from || from.has(h))
+    const got = [...approvals].filter((h) => !from || from.has(h))
     return {
       ...base,
       state: got.length >= need ? 'pass' : 'pending',
       detail:
         got.length >= need
           ? `${got.join(', ')} approved ${touched.length} file${touched.length === 1 ? '' : 's'} in ${(r.paths ?? []).join(', ')}.`
-          : `${touched[0]}${touched.length > 1 ? ` and ${touched.length - 1} more` : ''} need ${need} human approval${need === 1 ? '' : 's'}${from ? ` from ${[...from].join(', ')}` : ''}, ${got.length} so far.`,
+          : `${touched[0]}${touched.length > 1 ? ` and ${touched.length - 1} more` : ''} need ${need} approval${need === 1 ? '' : 's'}${from ? ` from ${[...from].join(', ')}` : ''}, ${got.length} so far.`,
       needs: {
         approval: {
           min: need,
-          class: 'human',
           ...(from ? { from: [...from] } : {}),
         },
         paths: touched,
@@ -604,7 +496,7 @@ export abstract class DomainPresent extends DomainAccess {
       url: `${this.repoUrl(repo)}/changes/${c.number}/findings/${f.id}`,
       suggestion: f.suggestion ?? null,
       prompt: f.prompt ?? null,
-      run: f.via?.run ?? null,
+      via: f.via ?? null,
       created_at: iso(f.created),
     }
   }
@@ -710,7 +602,12 @@ export abstract class DomainPresent extends DomainAccess {
       base: c.base,
       branch: c.branch,
       patch_set_count: c.patchSets.length,
-      head: { patch_set: head.n, sha: head.sha, tree: head.tree },
+      head: {
+        patch_set: head.n,
+        sha: head.sha,
+        tree: head.tree,
+        via: head.via ?? null,
+      },
       stack: c.stackId
         ? {
             id: c.stackId,

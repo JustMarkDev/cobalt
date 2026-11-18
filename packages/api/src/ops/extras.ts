@@ -3,15 +3,21 @@ import { Effect } from 'effect'
 import { z } from 'zod'
 import { ENVIRONMENTS } from '../extras'
 import { apiError } from '../problem'
+import { receiptFor } from '../receipt'
 import { Domain, defineOp, reply } from '../registry'
 import { iso } from '../domain'
 import * as S from '../schemas'
 import { repoParams } from './common'
-import type { GrantRec, MirrorRec, RecipientRec } from '../extras'
+import type {
+  ConfirmationRec,
+  Environment,
+  MirrorRec,
+  RepoExtras,
+} from '../extras'
+import type { Principal } from '../auth'
 import type { DomainPort } from '../domain'
 
 const environment = z.enum(ENVIRONMENTS)
-const MAX_GRANT_MINUTES = 8 * 60
 
 // ---------------------------------------------------------------------------
 // Repositories
@@ -338,36 +344,125 @@ export const deleteMirror = defineOp({
 })
 
 // ---------------------------------------------------------------------------
-// Environment variables and grants
+// Environment variables, their values, and production confirmations
 
-const presentGrant = (
+/** How long a production confirmation may be given for. */
+const MAX_CONFIRM_MINUTES = 8 * 60
+
+const confirmUrl = (d: DomainPort, full: string, id: string) =>
+  `${d.urls.html}/${full}/settings?section=secrets&confirm=${id}`
+
+const presentConfirmation = (
   d: DomainPort,
   full: string,
-  g: GrantRec,
+  c: ConfirmationRec,
   now: number,
-): z.infer<typeof S.Grant> => ({
-  object: 'grant',
-  id: g.id,
-  environment: g.environment,
-  // A grant with no expiry yet (a pending request) is not expired; an active
-  // grant is expired only once its deadline has passed or its uses are gone.
+): z.infer<typeof S.Confirmation> => ({
+  object: 'confirmation',
+  id: c.id,
+  environment: c.environment,
+  // A request nobody answered in time, or an answer past its time, is over.
   state:
-    g.state === 'active' &&
-    ((g.expires !== null && g.expires <= now) || g.uses >= g.maxRuns)
+    (c.state === 'pending' || c.state === 'active') && c.expires <= now
       ? 'expired'
-      : g.state,
-  variables: g.variables,
-  reason: g.reason,
-  requested_by: g.requestedBy,
-  max_runs: g.maxRuns,
-  uses: g.uses,
-  expires_at: g.expires ? iso(g.expires) : null,
-  url: `${d.urls.api}/repos/${full}/env/grants/${g.id}`,
-  created_at: iso(g.created),
+      : c.state,
+  login: c.handle,
+  device: c.device,
+  tool: c.tool,
+  reason: c.reason,
+  expires_at: iso(c.expires),
+  confirm_url: confirmUrl(d, full, c.id),
+  url: `${d.urls.api}/repos/${full}/env/confirmations/${c.id}`,
+  created_at: iso(c.created),
 })
 
-const grantParams = repoParams.extend({
-  grant: z.string().describe('The grant `grt_` id'),
+/** Who did something with a value, as the audit log says it. */
+const whoOf = (p: Principal) => {
+  if (p.session) return `${p.handle} in the browser`
+  const r = receiptFor(p)
+  return `${p.handle} on ${r.machine ?? 'an unnamed machine'}${r.tool ? ` via ${r.tool}` : ''}${r.model ? ` (${r.model})` : ''}`
+}
+
+/** The box that seals values, or `secrets_unavailable` when the server has none. */
+async function boxOf(d: DomainPort) {
+  const box = await d.svc.secrets
+  if (!box)
+    throw apiError(
+      'secrets_unavailable',
+      'This server keeps no secret values: it has no secrets key.',
+    )
+  return box
+}
+
+/** The caller must be in the repository's team to touch values at all. */
+async function teamOf(
+  d: DomainPort,
+  owner: string,
+  name: string,
+  p: Principal,
+) {
+  const access = await d.secretsAccess(owner, name, p)
+  if (!access.team)
+    throw apiError(
+      'forbidden',
+      "Only the repository's team can use its secret values.",
+      {
+        hint: 'The team is the owner (every member, for an organization) and teams with write access. Collaborators see names only.',
+      },
+    )
+  return access
+}
+
+/**
+ * Production values need a confirmation for this very login, given from a
+ * signed-in page. Without one the request waits, and the caller gets a link
+ * to confirm it.
+ */
+async function requireConfirmed(
+  d: DomainPort,
+  x: RepoExtras,
+  full: string,
+  p: Principal,
+  env: Environment,
+  now: number,
+  ask = true,
+): Promise<ConfirmationRec | null> {
+  if (env !== 'production' || p.session) return null
+  const ok = x.confirmed(p.loginId, env)
+  if (ok) return ok
+  // A dry run says it would be refused, and queues nothing for the person.
+  if (!ask)
+    throw apiError(
+      'confirmation_required',
+      `Production values need you to confirm this login (${p.device}) first.`,
+      { hint: 'Run it for real to ask; sx prints where to confirm.' },
+    )
+  const { rec } = x.requestConfirmation({
+    environment: env,
+    handle: p.handle,
+    tokenId: p.loginId,
+    device: p.device,
+    tool: receiptFor(p).tool,
+    reason: null,
+  })
+  // The request is refused, but the question it asked must be kept, so the
+  // person can answer it: saved before the refusal unwinds the request.
+  await d.svc.extras.flush?.()
+  throw apiError(
+    'confirmation_required',
+    `Production values need you to confirm this login (${p.device}) first.`,
+    {
+      hint: `Open ${confirmUrl(d, full, rec.id)} where you are signed in, confirm, then retry.`,
+      extra: {
+        confirmation: presentConfirmation(d, full, rec, now),
+        confirm_url: confirmUrl(d, full, rec.id),
+      },
+    },
+  )
+}
+
+const confirmationParams = repoParams.extend({
+  confirmation: z.string().describe('The confirmation `cnf_` id'),
 })
 const schemaRead = {
   auth: 'required' as const,
@@ -431,7 +526,7 @@ export const setEnv = defineOp({
   id: 'env.set',
   summary: 'Set a variable in an environment',
   description:
-    'The value is encrypted on your machine and sent as `ciphertext`; a plaintext value never reaches the server. The name must already be in the schema, so reviewers can see it exists. The response never contains the value.',
+    "Sealed the moment it arrives (AES-256-GCM, under a key that belongs to this repository and bound to this variable and environment) and never answered back. Only the repository's team may set values. Setting a production value from a token needs the same confirmation as reading one. The name must already be in the schema, so reviewers can see it exists. Takes no Idempotency-Key, since the body is a secret; setting the same value twice is harmless.",
   tags: ['secrets'],
   method: 'PUT',
   path: '/repos/{owner}/{repo}/env/{name}/{environment}',
@@ -445,30 +540,30 @@ export const setEnv = defineOp({
   safety: 'write',
   idempotent: true,
   dryRun: true,
-  body: z.strictObject({ ciphertext: z.string().min(1).max(65536) }),
+  secretRequest: true,
+  body: z.strictObject({ value: z.string().min(1).max(65536) }),
   response: S.EnvVar,
   errors: [
     'not_found',
     'forbidden',
     'invalid_request',
-    'human_required',
+    'confirmation_required',
+    'secrets_unavailable',
     'moved',
   ],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      if (ctx.principal!.class !== 'human')
-        throw apiError(
-          'human_required',
-          'Only a person can set an environment variable.',
-        )
       return yield* run(async (d) => {
+        const p = ctx.principal!
         const full = await d.repoAccess(
           ctx.params.owner,
           ctx.params.repo,
-          ctx.principal,
+          p,
           'write',
         )
+        const box = await boxOf(d)
+        const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
         const x = await d.svc.extras.open(full)
         const v = x.env.find((e) => e.name === ctx.params.name)
         if (!v)
@@ -486,20 +581,45 @@ export const setEnv = defineOp({
               ],
             },
           )
+        await requireConfirmed(
+          d,
+          x,
+          full,
+          p,
+          ctx.params.environment,
+          ctx.now(),
+          !ctx.dryRun,
+        )
         if (!ctx.dryRun) {
           const first = !v.set.includes(ctx.params.environment)
+          const sealed = await box.seal(
+            {
+              repoId: access.repoId,
+              environment: ctx.params.environment,
+              name: v.name,
+            },
+            ctx.body.value,
+          )
+          // Sealing waited: if the repository changed hands meanwhile, the
+          // value is the old team's, and must not land in the new owner's.
+          const still = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
+          if (still.repoId !== access.repoId || still.full !== access.full)
+            throw apiError(
+              'invalid_state',
+              'The repository moved while the value was being set. Nothing was kept.',
+            )
+          ;(x.sealed[v.name] ??= {})[ctx.params.environment] = sealed
           if (first) v.set.push(ctx.params.environment)
-          v.rotated = { at: ctx.now(), by: ctx.principal!.handle }
+          v.rotated = { at: ctx.now(), by: p.handle }
           x.note(
-            ctx.principal!.handle,
+            whoOf(p),
             `${first ? 'set' : 'rotated'} ${v.name} (${ctx.params.environment})`,
             {
               target: `${v.name} in ${ctx.params.environment}`,
               kind: 'rotate',
             },
           )
-          if (first)
-            await d.bumpRepo(ctx.params.owner, ctx.params.repo, ctx.principal)
+          if (first) await d.bumpRepo(ctx.params.owner, ctx.params.repo, p)
         }
         return {
           object: 'env_var' as const,
@@ -520,156 +640,11 @@ export const setEnv = defineOp({
     }),
 })
 
-export const listRecipients = defineOp({
-  ...schemaRead,
-  id: 'env.recipients',
-  summary: 'Who values are encrypted for',
-  method: 'GET',
-  path: '/repos/{owner}/{repo}/env/recipients',
-  params: repoParams,
-  response: S.listOf(S.Recipient),
-  errors: ['not_found', 'moved'],
-  handler: (ctx) =>
-    Effect.gen(function* () {
-      const { run } = yield* Domain
-      const data = yield* run(async (d) => {
-        const full = await d.repoAccessStrict(
-          ctx.params.owner,
-          ctx.params.repo,
-          ctx.principal,
-          'read',
-        )
-        return (await d.svc.extras.open(full)).recipients.map(presentRecipient)
-      })
-      return {
-        object: 'list' as const,
-        data,
-        has_more: false,
-        next_cursor: null,
-      }
-    }),
-})
-
-const presentRecipient = (r: RecipientRec) => ({
-  object: 'recipient' as const,
-  id: r.id,
-  kind: r.kind,
-  name: r.name ?? null,
-  fingerprint: r.fingerprint ?? null,
-  environments: [...(r.environments ?? [])],
-  added_at: r.added ? iso(r.added) : null,
-  last_used_at: r.lastUsed ? iso(r.lastUsed) : null,
-})
-
-export const addRecipient = defineOp({
-  id: 'env.add_recipient',
-  summary: 'Encrypt values for one more key',
-  description:
-    'A person, a deploy target, CI, an agent or a recovery key. Values are re-encrypted to it on your machine the next time they are set.',
-  tags: ['secrets'],
-  method: 'POST',
-  path: '/repos/{owner}/{repo}/env/recipients',
-  auth: 'required',
-  scopes: ['secrets:write'],
-  pool: 'write',
-  safety: 'write',
-  idempotent: true,
-  params: repoParams,
-  body: z.strictObject({
-    name: z.string().min(1).max(100),
-    kind: z.enum(['member', 'deploy', 'ci', 'agent', 'escrow']),
-    fingerprint: z.string().min(4).max(200),
-    environments: z
-      .array(z.enum(['development', 'preview', 'production']))
-      .min(1),
-  }),
-  response: S.Recipient,
-  status: 201,
-  errors: ['not_found', 'forbidden', 'moved'],
-  handler: (ctx) =>
-    Effect.gen(function* () {
-      const { run } = yield* Domain
-      const r = yield* run(async (d) => {
-        const full = await d.repoAccessStrict(
-          ctx.params.owner,
-          ctx.params.repo,
-          ctx.principal,
-          'write',
-        )
-        const x = await d.svc.extras.open(full)
-        const same = x.recipients.find(
-          (y) => y.fingerprint === ctx.body.fingerprint,
-        )
-        if (same) return { rec: same, created: false }
-        const rec: RecipientRec = {
-          id: `rcp_${ctx.now().toString(36)}${x.recipients.length}`,
-          kind: ctx.body.kind,
-          name: ctx.body.name,
-          fingerprint: ctx.body.fingerprint,
-          environments: ctx.body.environments,
-          added: ctx.now(),
-        }
-        x.recipients.push(rec)
-        x.note(ctx.principal!.handle, `added recipient ${rec.name}`, {
-          target: `${rec.name} for ${rec.environments!.join(', ')}`,
-          kind: 'grant',
-        })
-        return { rec, created: true }
-      })
-      return reply(presentRecipient(r.rec), { status: r.created ? 201 : 200 })
-    }),
-})
-
-export const removeRecipient = defineOp({
-  id: 'env.remove_recipient',
-  summary: 'Stop encrypting values for a key',
-  description:
-    'It can still read what it already has: rotate the values it could decrypt.',
-  tags: ['secrets'],
-  method: 'DELETE',
-  path: '/repos/{owner}/{repo}/env/recipients/{recipient}',
-  auth: 'required',
-  scopes: ['secrets:write'],
-  pool: 'write',
-  safety: 'destructive',
-  idempotent: true,
-  params: repoParams.extend({ recipient: z.string() }),
-  response: z.null(),
-  status: 204,
-  errors: ['not_found', 'forbidden', 'moved'],
-  handler: (ctx) =>
-    Effect.gen(function* () {
-      const { run } = yield* Domain
-      yield* run(async (d) => {
-        const full = await d.repoAccessStrict(
-          ctx.params.owner,
-          ctx.params.repo,
-          ctx.principal,
-          'write',
-        )
-        const x = await d.svc.extras.open(full)
-        const k = x.recipients.findIndex((y) => y.id === ctx.params.recipient)
-        if (k < 0)
-          throw apiError('not_found', `No recipient ${ctx.params.recipient}.`)
-        const [gone] = x.recipients.splice(k, 1)
-        x.note(
-          ctx.principal!.handle,
-          `removed recipient ${gone.name ?? gone.id}`,
-          {
-            target: gone.name ?? gone.id,
-            kind: 'revoke',
-          },
-        )
-      })
-      return reply(null, { status: 204 })
-    }),
-})
-
 export const envValues = defineOp({
   id: 'env.values',
   summary: 'Read values',
   description:
-    'The only place a value leaves. A person with `secrets:decrypt` may read any environment. An agent needs an unexpired grant for a development or preview environment, may only read the names the grant covers, and each read counts against the grant. Production is never available to an agent. Every read is written to the audit log. The answer is never cached.',
+    "The only place a value leaves. Only the repository's team may read values: the account that owns it and teams with write access. Production values need a confirmation for this very login, given from a signed-in page (`confirmation_required` says where); other environments need none. A signed-in page never gets values, only tokens do, so a script running in a page cannot read them. Every read is written to the audit log with the machine, tool and model of the request. The answer is never cached or kept.",
   tags: ['secrets'],
   method: 'GET',
   path: '/repos/{owner}/{repo}/env/{environment}/values',
@@ -687,6 +662,7 @@ export const envValues = defineOp({
   auth: 'required',
   scopes: ['secrets:decrypt'],
   conditional: false,
+  secretResponse: true,
   pool: 'write',
   safety: 'read',
   idempotent: false,
@@ -694,8 +670,8 @@ export const envValues = defineOp({
   errors: [
     'not_found',
     'forbidden',
-    'grant_required',
-    'human_required',
+    'confirmation_required',
+    'secrets_unavailable',
     'moved',
   ],
   handler: (ctx) =>
@@ -703,63 +679,96 @@ export const envValues = defineOp({
       const { run } = yield* Domain
       const out = yield* run(async (d) => {
         const p = ctx.principal!
+        if (p.session)
+          throw apiError(
+            'forbidden',
+            'Values are never given to a page in a browser.',
+            {
+              hint: 'Use sx env run or a token on the machine that needs them.',
+            },
+          )
         const full = await d.repoAccessStrict(
           ctx.params.owner,
           ctx.params.repo,
           p,
           'read',
         )
+        const box = await boxOf(d)
+        const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
         const x = await d.svc.extras.open(full)
-        const agent = p.class !== 'human'
-        if (agent && ctx.params.environment === 'production')
-          throw apiError(
-            'human_required',
-            'Agents cannot use production values.',
-            { hint: 'Ask a person to run this, or use development values.' },
-          )
-        const grant = agent ? x.activeGrant(ctx.params.environment) : undefined
-        if (agent && !grant)
-          throw apiError(
-            'grant_required',
-            `No active grant for ${ctx.params.environment}.`,
-            {
-              hint: `POST /v1/repos/${full}/env/grants to request one. A person approves it, then retry.`,
-            },
-          )
+        const confirmed = await requireConfirmed(
+          d,
+          x,
+          full,
+          p,
+          ctx.params.environment,
+          ctx.now(),
+          ctx.query.check_only !== 'true',
+        )
         if (ctx.query.check_only === 'true')
           return {
             object: 'env_values' as const,
             environment: ctx.params.environment,
             values: {},
             secrets: [],
-            grant: grant?.id ?? null,
+            confirmation: confirmed?.id ?? null,
           }
-        const r = x.values({
-          environment: ctx.params.environment,
-          names: ctx.query.names?.split(','),
-          who: `${p.handle} (${p.class})`,
-          agent,
-        })
+        const names = ctx.query.names?.split(',').filter(Boolean)
+        const values: Record<string, string> = {}
+        const secrets: Array<string> = []
+        let unopened = 0
+        for (const v of x.sealedFor(ctx.params.environment, names)) {
+          const value = await box.open(
+            {
+              repoId: access.repoId,
+              environment: ctx.params.environment,
+              name: v.name,
+            },
+            v.sealed,
+          )
+          // A seal that does not open here (moved, tampered with, or sealed
+          // under another key) is left out, never guessed at.
+          if (value === null) {
+            unopened++
+            continue
+          }
+          values[v.name] = value
+          if (v.secret) secrets.push(v.name)
+        }
+        x.note(
+          whoOf(p),
+          `read ${Object.keys(values).length} variable${Object.keys(values).length === 1 ? '' : 's'} (${ctx.params.environment})${confirmed ? ` under ${confirmed.id}` : ''}`,
+          { target: ctx.params.environment, kind: 'read' },
+        )
+        if (unopened)
+          x.note(
+            whoOf(p),
+            `${unopened} sealed value${unopened === 1 ? '' : 's'} in ${ctx.params.environment} did not open and were left out`,
+            { target: ctx.params.environment, kind: 'reject' },
+          )
         return {
           object: 'env_values' as const,
           environment: ctx.params.environment,
-          values: r.values,
-          secrets: r.secrets,
-          grant: r.grant,
+          values,
+          secrets,
+          confirmation: confirmed?.id ?? null,
         }
       })
       return reply(out, { headers: { 'cache-control': 'no-store' } })
     }),
 })
 
-export const listGrants = defineOp({
+export const listConfirmations = defineOp({
   ...schemaRead,
-  id: 'grants.list',
-  summary: 'Grants that let an agent use values',
+  id: 'confirmations.list',
+  summary: 'Your requests to use production values, and their answers',
+  description:
+    'Only your own: whose login asked, from which machine, and until when an answer holds.',
   method: 'GET',
-  path: '/repos/{owner}/{repo}/env/grants',
+  path: '/repos/{owner}/{repo}/env/confirmations',
   params: repoParams,
-  response: S.listOf(S.Grant),
+  conditional: false,
+  response: S.listOf(S.Confirmation),
   errors: ['not_found', 'moved'],
   handler: (ctx) =>
     Effect.gen(function* () {
@@ -771,9 +780,9 @@ export const listGrants = defineOp({
           ctx.principal,
           'read',
         )
-        return (await d.svc.extras.open(full)).grants.map((g) =>
-          presentGrant(d, full, g, ctx.now()),
-        )
+        return (await d.svc.extras.open(full)).confirmations
+          .filter((c) => c.handle === ctx.principal!.handle)
+          .map((c) => presentConfirmation(d, full, c, ctx.now()))
       })
       return {
         object: 'list' as const,
@@ -784,110 +793,14 @@ export const listGrants = defineOp({
     }),
 })
 
-export const requestGrant = defineOp({
-  id: 'grants.request',
-  summary: 'Ask for access to an environment',
-  description:
-    'A request is not access: a person has to approve it, so the next step for an agent is to stop and wait. Asking again for the same environment returns the pending request. Production cannot be requested by an agent.',
+export const confirmConfirmation = defineOp({
+  id: 'confirmations.confirm',
+  summary: 'Confirm a login may use production values',
+  description: `Only from a signed-in page, and only by the person whose login asked: a token can confirm nothing, not even its own request, so an agent holding your token cannot let itself in. Holds for up to ${MAX_CONFIRM_MINUTES / 60} hours, for that one login.`,
   tags: ['secrets'],
   method: 'POST',
-  path: '/repos/{owner}/{repo}/env/grants',
-  params: repoParams,
-  auth: 'required',
-  scopes: ['secrets:schema'],
-  pool: 'write',
-  safety: 'write',
-  idempotent: true,
-  dryRun: true,
-  body: z.strictObject({
-    environment,
-    reason: z.string().max(300).optional(),
-    max_runs: z.number().int().min(1).max(200).default(20),
-  }),
-  response: S.Grant,
-  status: 201,
-  errors: ['not_found', 'forbidden', 'human_required', 'moved'],
-  handler: (ctx) =>
-    Effect.gen(function* () {
-      const { run } = yield* Domain
-      const out = yield* run(async (d) => {
-        const p = ctx.principal!
-        const full = await d.repoAccess(
-          ctx.params.owner,
-          ctx.params.repo,
-          p,
-          'write',
-        )
-        if (p.class !== 'human' && ctx.body.environment === 'production')
-          throw apiError(
-            'human_required',
-            'Agents cannot be granted production values.',
-            { hint: 'Use development, or ask a person to run the command.' },
-          )
-        const x = await d.svc.extras.open(full)
-        if (ctx.dryRun) {
-          const pending = x.grants.find(
-            (g) =>
-              g.environment === ctx.body.environment && g.state === 'pending',
-          )
-          if (pending)
-            return {
-              g: presentGrant(d, full, pending, ctx.now()),
-              created: false,
-            }
-          const variables = x.env
-            .filter((v) => v.set.includes(ctx.body.environment))
-            .map((v) => v.name)
-          return {
-            g: presentGrant(
-              d,
-              full,
-              {
-                id: 'grt_dryrun',
-                environment: ctx.body.environment,
-                state: 'pending',
-                variables,
-                reason: ctx.body.reason ?? null,
-                requestedBy: p.handle,
-                maxRuns: ctx.body.max_runs,
-                uses: 0,
-                expires: null,
-                created: ctx.now(),
-              },
-              ctx.now(),
-            ),
-            created: true,
-          }
-        }
-        const r = x.requestGrant({
-          environment: ctx.body.environment,
-          reason: ctx.body.reason ?? null,
-          maxRuns: ctx.body.max_runs,
-          who: p.handle,
-        })
-        return {
-          g: presentGrant(d, full, r.grant, ctx.now()),
-          created: r.created,
-        }
-      })
-      return reply(out.g, {
-        status: out.created ? 201 : 200,
-        headers: {
-          'sx-outcome': out.created ? 'created' : 'unchanged',
-          location: out.g.url,
-        },
-      })
-    }),
-})
-
-export const approveGrant = defineOp({
-  id: 'grants.approve',
-  summary: 'Approve a grant',
-  description: `A person approves, for up to ${MAX_GRANT_MINUTES / 60} hours. An agent cannot approve a grant, least of all its own.`,
-  tags: ['secrets'],
-  method: 'POST',
-  path: '/repos/{owner}/{repo}/env/grants/{grant}/approve',
-  params: grantParams,
+  path: '/repos/{owner}/{repo}/env/confirmations/{confirmation}/confirm',
+  params: confirmationParams,
   auth: 'required',
   scopes: ['secrets:write'],
   pool: 'write',
@@ -895,13 +808,13 @@ export const approveGrant = defineOp({
   idempotent: true,
   dryRun: true,
   body: z.strictObject({
-    ttl_minutes: z.number().int().min(1).max(MAX_GRANT_MINUTES).default(60),
+    ttl_minutes: z.number().int().min(1).max(MAX_CONFIRM_MINUTES).default(60),
   }),
-  response: S.Grant,
+  response: S.Confirmation,
   errors: [
     'not_found',
     'forbidden',
-    'human_required',
+    'session_required',
     'invalid_state',
     'moved',
   ],
@@ -910,78 +823,105 @@ export const approveGrant = defineOp({
       const { run } = yield* Domain
       return yield* run(async (d) => {
         const p = ctx.principal!
-        const full = await d.repoAccess(
+        if (!p.session)
+          throw apiError(
+            'session_required',
+            'A token cannot confirm production access, not even its own.',
+          )
+        const full = await d.repoAccessStrict(
           ctx.params.owner,
           ctx.params.repo,
           p,
-          'write',
+          'read',
         )
-        if (p.class !== 'human')
-          throw apiError('human_required', 'An agent cannot approve a grant.', {
-            hint: 'Ask a person to approve it.',
-          })
+        await teamOf(d, ctx.params.owner, ctx.params.repo, p)
         const x = await d.svc.extras.open(full)
-        const g = x.grants.find((e) => e.id === ctx.params.grant)
-        if (!g) throw apiError('not_found', `No grant ${ctx.params.grant}.`)
-        if (g.state === 'active') return presentGrant(d, full, g, ctx.now())
-        if (!canMove(grantLifecycle, g.state, 'active'))
-          throw apiError('invalid_state', 'That grant was revoked.')
+        const c = x.confirmations.find(
+          (e) => e.id === ctx.params.confirmation && e.handle === p.handle,
+        )
+        // Someone else's request answers 404: only its owner may see or confirm it.
+        if (!c)
+          throw apiError(
+            'not_found',
+            `No confirmation ${ctx.params.confirmation}.`,
+          )
+        const now = ctx.now()
+        if (c.state === 'active' && c.expires > now)
+          return presentConfirmation(d, full, c, now)
+        if (c.state !== 'pending' || c.expires <= now)
+          throw apiError(
+            'invalid_state',
+            'That request is over. Ask again from the machine that needs the values.',
+          )
+        if (!canMove(grantLifecycle, c.state, 'active'))
+          throw apiError('invalid_state', 'That request was revoked.')
+        const answered = {
+          ...c,
+          state: 'active' as const,
+          expires: now + ctx.body.ttl_minutes * 60_000,
+        }
         if (!ctx.dryRun) {
-          g.state = 'active'
-          g.expires = ctx.now() + ctx.body.ttl_minutes * 60_000
+          Object.assign(c, answered)
           x.note(
-            p.handle,
-            `approved ${g.id} for ${g.environment} (${ctx.body.ttl_minutes} minutes)`,
+            whoOf(p),
+            `confirmed ${c.environment} values for ${c.device} (${ctx.body.ttl_minutes} minutes)`,
+            { target: c.environment, kind: 'grant' },
           )
         }
-        const granted = ctx.dryRun
-          ? {
-              ...g,
-              state: 'active' as const,
-              expires: ctx.now() + ctx.body.ttl_minutes * 60_000,
-            }
-          : g
-        return presentGrant(d, full, granted, ctx.now())
+        return presentConfirmation(d, full, answered, now)
       })
     }),
 })
 
-export const revokeGrant = defineOp({
-  id: 'grants.revoke',
-  summary: 'Revoke a grant',
+export const revokeConfirmation = defineOp({
+  id: 'confirmations.revoke',
+  summary: 'End a confirmation, or turn down a request',
+  description:
+    'Takes effect at once, from anywhere. Only the person whose login it is: to cut off a machine entirely, sign it out in settings.',
   tags: ['secrets'],
   method: 'POST',
-  path: '/repos/{owner}/{repo}/env/grants/{grant}/revoke',
-  params: grantParams,
+  path: '/repos/{owner}/{repo}/env/confirmations/{confirmation}/revoke',
+  params: confirmationParams,
   auth: 'required',
   scopes: ['secrets:write'],
   pool: 'write',
   safety: 'destructive',
   idempotent: true,
   dryRun: true,
-  response: S.Grant,
-  errors: ['not_found', 'forbidden', 'human_required', 'moved'],
+  response: S.Confirmation,
+  errors: ['not_found', 'forbidden', 'moved'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      if (ctx.principal!.class !== 'human')
-        throw apiError('human_required', 'Only a person can revoke a grant.')
       return yield* run(async (d) => {
-        const full = await d.repoAccess(
+        const p = ctx.principal!
+        const full = await d.repoAccessStrict(
           ctx.params.owner,
           ctx.params.repo,
-          ctx.principal,
-          'write',
+          p,
+          'read',
         )
         const x = await d.svc.extras.open(full)
-        const g = x.grants.find((e) => e.id === ctx.params.grant)
-        if (!g) throw apiError('not_found', `No grant ${ctx.params.grant}.`)
-        if (!ctx.dryRun && canMove(grantLifecycle, g.state, 'revoked')) {
-          g.state = 'revoked'
-          x.note(ctx.principal!.handle, `revoked ${g.id}`)
+        // Only the person whose login it is: anyone else's is not there. Any of
+        // their own logins may end it (one machine can cut off another of
+        // theirs), which only ever takes access away.
+        const c = x.confirmations.find(
+          (e) => e.id === ctx.params.confirmation && e.handle === p.handle,
+        )
+        if (!c)
+          throw apiError(
+            'not_found',
+            `No confirmation ${ctx.params.confirmation}.`,
+          )
+        const revoked = { ...c, state: 'revoked' as const }
+        if (!ctx.dryRun && canMove(grantLifecycle, c.state, 'revoked')) {
+          c.state = 'revoked'
+          x.note(whoOf(p), `ended ${c.id} (${c.device})`, {
+            target: c.environment,
+            kind: 'revoke',
+          })
         }
-        const revoked = ctx.dryRun ? { ...g, state: 'revoked' as const } : g
-        return presentGrant(d, full, revoked, ctx.now())
+        return presentConfirmation(d, full, ctx.dryRun ? revoked : c, ctx.now())
       })
     }),
 })
@@ -990,7 +930,8 @@ export const envAudit = defineOp({
   ...schemaRead,
   id: 'env.audit',
   summary: 'Who did what with values',
-  description: 'Newest first, the last 200 entries.',
+  description:
+    'Newest first, the last 200 entries, each with the machine, tool and model of the request.',
   method: 'GET',
   path: '/repos/{owner}/{repo}/env/audit',
   params: repoParams,
@@ -1006,6 +947,8 @@ export const envAudit = defineOp({
           ctx.principal,
           'write',
         )
+        // Who read which values, from where: the team's business only.
+        await teamOf(d, ctx.params.owner, ctx.params.repo, ctx.principal!)
         return (await d.svc.extras.open(full)).audit.slice(0, 200).map((a) => ({
           object: 'audit_entry' as const,
           at: iso(a.at),
@@ -1033,13 +976,9 @@ export const extrasOps = [
   deleteMirror,
   listEnv,
   setEnv,
-  listRecipients,
-  addRecipient,
-  removeRecipient,
   envValues,
-  listGrants,
-  requestGrant,
-  approveGrant,
-  revokeGrant,
+  listConfirmations,
+  confirmConfirmation,
+  revokeConfirmation,
   envAudit,
 ]

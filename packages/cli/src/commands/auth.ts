@@ -1,3 +1,4 @@
+import { platform } from 'node:os'
 import { SxError, exit, print } from '../output'
 import { activeAccount, whoami } from '../account'
 import { resolve } from '../config'
@@ -122,10 +123,23 @@ export async function signIn(
   const scope =
     typeof flags.scope === 'string'
       ? flags.scope
-      : 'repo:read repo:write issues:read issues:write pulls:read pulls:write pulls:comment pulls:merge secrets:schema secrets:write'
+      : 'repo:read repo:write issues:read issues:write issues:comment pulls:read pulls:write pulls:comment pulls:merge secrets:schema secrets:write secrets:decrypt'
+  // The machine's name goes on every receipt this login writes (public in a
+  // public repository) and on the approval page. Not the hostname, which is
+  // often a person's name: the system, unless you name it with --device.
+  const device =
+    typeof flags.device === 'string'
+      ? flags.device
+      : ((
+          {
+            darwin: 'Mac',
+            win32: 'Windows PC',
+            linux: 'Linux machine',
+          } as Record<string, string>
+        )[platform()] ?? 'Computer')
   const started = await post(
     '/oauth/device_authorization',
-    form({ client_id: clientId, scope }),
+    form({ client_id: clientId, scope, device_name: device }),
   )
   if (started.status !== 200)
     throw new SxError(

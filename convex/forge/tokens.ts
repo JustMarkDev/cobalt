@@ -20,13 +20,7 @@ import type { QueryCtx } from '../_generated/server'
  */
 
 const audience = v.array(v.union(v.literal('api'), v.literal('mcp')))
-const tokenKind = v.union(
-  v.literal('personal'),
-  v.literal('bot'),
-  v.literal('run'),
-  v.literal('oauth'),
-)
-const cls = v.union(v.literal('human'), v.literal('agent'), v.literal('bot'))
+const tokenKind = v.union(v.literal('personal'), v.literal('oauth'))
 
 const byPublicId = (ctx: QueryCtx, id: string) =>
   ctx.db
@@ -55,7 +49,9 @@ export const find = query({
       .withIndex('by_hash', (q) => q.eq('hash', args.hash))
       .unique()
     if (!t) return out({ ok: false, reason: 'unknown' })
-    if (t.revokedAt !== null) return out({ ok: false, reason: 'revoked' })
+    // Bot and run tokens no longer exist: one left over from before stops working.
+    if (t.revokedAt !== null || t.kind === 'bot' || t.kind === 'run')
+      return out({ ok: false, reason: 'revoked' })
     if (args.at !== undefined && t.expiresAt <= args.at)
       return out({ ok: false, reason: 'expired' })
     if (!t.audience.includes(args.audience))
@@ -85,13 +81,14 @@ export const create = mutation({
     kind: tokenKind,
     handle: v.string(),
     actingAs: v.optional(v.string()),
-    class: cls,
+    device: v.optional(v.union(v.null(), v.string())),
     scopes: v.array(v.string()),
     repos: v.optional(v.union(v.null(), v.array(v.string()))),
     audience: v.optional(audience),
     ttlMs: v.number(),
     authorizationId: v.optional(v.string()),
     limitKey: v.optional(v.string()),
+    loginId: v.optional(v.string()),
     // A secret that already exists (sample data); otherwise one is made here.
     secret: v.optional(v.string()),
   },
@@ -123,7 +120,10 @@ export const list = query({
       .order('desc')
       .take(2000)
     const live = rows.filter(
-      (t) => kinds.includes(t.kind) && t.revokedAt === null,
+      (t) =>
+        (t.kind === 'personal' || t.kind === 'oauth') &&
+        kinds.includes(t.kind) &&
+        t.revokedAt === null,
     )
     return out(await Promise.all(live.map((t) => record(ctx, t))))
   },
@@ -165,6 +165,7 @@ function authorization(a: Doc<'authorizations'>) {
     handle: a.handle,
     scopes: a.scopes,
     audience: a.audience,
+    device: a.device ?? null,
     createdAt: a.createdAt,
     lastUsedAt: a.lastUsedAt,
     revokedAt: a.revokedAt,
@@ -194,6 +195,7 @@ export const createAuthorization = mutation({
     handle: v.string(),
     scopes: v.array(v.string()),
     audience,
+    device: v.optional(v.union(v.null(), v.string())),
   },
   returns: v.string(),
   handler: async (ctx, args) => {

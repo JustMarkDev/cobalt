@@ -80,10 +80,12 @@ export const convexFactory: DomainFactory = ({
     batchWorker.schema,
     batchWorker.modules,
   )
-  const world = exportWorld(memory, sample)
   // Convex never lets time go backwards: a function runs at the later of
   // the clock and the last commit. So the seed commits at the test clock too.
   const ready = exclusive(async () => {
+    // Sample values are sealed asynchronously; export once they are.
+    await memory.svc.secrets
+    const world = exportWorld(memory, sample)
     setSystemTime(new Date(now()))
     try {
       await t.run(async (ctx) => {

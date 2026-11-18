@@ -29,7 +29,6 @@ const CLAIM_MS = 60_000
 const WEBHOOKS_ACTOR = {
   id: 'acc_webhooks000000000',
   handle: 'webhooks',
-  class: 'bot' as const,
 }
 
 async function hookView(ctx: QueryCtx, h: Doc<'webhooks'>) {

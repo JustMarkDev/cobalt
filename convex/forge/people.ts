@@ -120,7 +120,8 @@ export async function contributionsFrom(
     number?: number
     title?: string
     tag?: string
-    author?: { handle: string; class: string }
+    author?: { handle: string }
+    head?: { via?: { model?: string | null } | null }
     reviewers?: Array<{ actor: { handle: string }; state: string }>
   }
   if (e.type === 'change.opened')
@@ -140,7 +141,7 @@ export async function contributionsFrom(
       at,
       title: `Reviewed #${d.number} ${d.title}`,
       repoId: repo._id,
-      agent: d.author?.class !== 'human' && mine?.state === 'approved',
+      agent: !!d.head?.via?.model && mine?.state === 'approved',
     })
   }
   if (e.type === 'issue.created')
@@ -215,7 +216,6 @@ export const follow = mutation({
     const target = await person(ctx, a.handle)
     if (target.handle === p.handle)
       fail('invalid_request', 'You cannot follow yourself.')
-    if (p.class !== 'human') fail('forbidden', 'Only people follow accounts.')
     const row = await ctx.db
       .query('follows')
       .withIndex('by_who_and_whom', (q) =>

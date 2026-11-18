@@ -33,12 +33,12 @@ export function buildWorld(
       kind: 'personal',
       // Not dana: dana is limited to 100 active tokens, and the token benchmark needs room.
       handle: 'hollis',
-      class: 'human',
       scopes: ['repo:read', 'issues:read', 'pulls:read'],
       ttlMs: 365 * 86_400_000,
     })
   const huge = { limit: 1e12, windowMs: 60_000 }
   const api = createSampleApi({
+    ephemeralSecrets: true,
     mount: '/v1',
     base: `http://127.0.0.1:${port}/v1`,
     htmlBase: `http://127.0.0.1:${port}`,

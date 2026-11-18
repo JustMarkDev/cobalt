@@ -54,7 +54,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/policy" \
 
 ```http
 HTTP/1.1 200
-etag: W/"chg_01m6dqs9m0g7q74420.1.3.chg_01m6dqs9m0g7q74420.1.0-KO3isrAOBKaFndKd"
+etag: W/"chg_01m6dqs9m0g7q74420.1.3.chg_01m6dqs9m0g7q74420.1.0-XXOZRe1tchpBajOB"
 ratelimit: "read";r=1187;t=60
 ```
 
@@ -66,28 +66,28 @@ ratelimit: "read";r=1187;t=60
   "state": "blocked",
   "requirements": [
     {
-      "id": "core-paths",
-      "rule": "Core paths need a maintainer",
-      "state": "pass",
-      "detail": "hollis approved, and the approval holds for patch set 3.",
+      "id": "ci-evidence",
+      "rule": "Tests pass on the tree that will land",
+      "state": "pending",
+      "detail": "ci/test is running on tree 9c4d7e1.",
       "needs": {
-        "approval": {
-          "min": 1,
-          "class": "human",
-          "from": "maintainers"
-        }
+        "check": "ci/test",
+        "bound_to": "tree",
+        "tree": "9c4d7e1"
       },
       "blocking": []
     },
     {
-      "id": "agent-authored",
-      "rule": "Agent-authored changes need a human",
-      "state": "na",
-      "detail": "The author is a person.",
-      "needs": null,
-      "blocking": []
+      "id": "findings",
+      "rule": "No open high-severity findings",
+      "state": "fail",
+      "detail": "1 open: F-2 from greptile.",
+      "needs": {
+        "resolve": ["F-2"]
+      },
+      "blocking": ["fnd_01m6rf3m40a9zg92n0"]
     },
-    "…and 3 more"
+    "…and 1 more"
   ],
   "assumed": []
 }
@@ -151,28 +151,26 @@ ratelimit: "read";r=1186;t=60
   "state": "met",
   "requirements": [
     {
-      "id": "core-paths",
-      "rule": "Core paths need a maintainer",
+      "id": "ci-evidence",
+      "rule": "Tests pass on the tree that will land",
       "state": "pass",
-      "detail": "hollis approved, and the approval holds for patch set 3.",
+      "detail": "ci/test passed on tree 9c4d7e1, the tree that lands.",
       "needs": {
-        "approval": {
-          "min": 1,
-          "class": "human",
-          "from": "maintainers"
-        }
+        "check": "ci/test",
+        "bound_to": "tree",
+        "tree": "9c4d7e1"
       },
       "blocking": []
     },
     {
-      "id": "agent-authored",
-      "rule": "Agent-authored changes need a human",
-      "state": "na",
-      "detail": "The author is a person.",
+      "id": "findings",
+      "rule": "No open high-severity findings",
+      "state": "pass",
+      "detail": "No open high-severity findings.",
       "needs": null,
       "blocking": []
     },
-    "…and 3 more"
+    "…and 1 more"
   ],
   "assumed": ["check:ci/test=pass", "resolve:F-2"]
 }
@@ -214,8 +212,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/policy" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.pol0.19.1-cLCI7RmKurcgvlGP"
-ratelimit: "read";r=1145;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.pol0.19.1-7pElIC77C7_aUa4w"
+ratelimit: "read";r=1148;t=60
 ```
 
 ```json
@@ -226,34 +224,34 @@ ratelimit: "read";r=1145;t=60
   "yaml": "# .source/policy/main.yml\n# The rules changes in this repository land under. Edit it in a change;\n# policy owners review it. https://source.code/docs/referen…",
   "rules": [
     {
-      "id": "core-paths",
-      "name": "Core paths need a maintainer",
+      "id": "ci-evidence",
+      "name": "Tests pass on the tree that will land",
       "mode": "enforce",
-      "when": "paths src/**",
-      "requires": ["1 approval, human, a maintainer"],
+      "when": "any change",
+      "requires": ["ci/test passed, bound to the landing tree"],
       "evaluated": 7,
-      "blocked": 6,
+      "blocked": 5,
       "custom": false,
       "would_block": []
     },
     {
-      "id": "agent-authored",
-      "name": "Agent-authored changes need a human",
+      "id": "findings",
+      "name": "No open high-severity findings",
       "mode": "enforce",
-      "when": "author class is agent or bot",
-      "requires": ["1 approval, human", "approver is not the author"],
-      "evaluated": 3,
-      "blocked": 3,
+      "when": "any change",
+      "requires": ["every high finding resolved or dismissed with a reason"],
+      "evaluated": 7,
+      "blocked": 0,
       "custom": false,
       "would_block": []
     },
-    "…and 3 more"
+    "…and 1 more"
   ],
   "exceptions": [
     {
       "object": "policy_exception",
       "id": "pex_01m6nezem00mc3ms9c",
-      "rule": "core-paths",
+      "rule": "reviewed",
       "who": "ines",
       "reason": "Release week, covering for hollis",
       "created_by": "dana",
@@ -329,19 +327,19 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/exceptions" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "idempotency-key: 3c9d1f6e-8b2a-4e7c-a1d5-6f0b9e2c4a77" \
   -H "Content-Type: application/json" \
-  -d '{"rule":"core-paths","who":"hollis","reason":"On call this week","expires_at":"2026-11-14T09:00:00Z"}'
+  -d '{"rule":"reviewed","who":"hollis","reason":"On call this week","expires_at":"2026-11-14T09:00:00Z"}'
 ```
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=61;t=60
+ratelimit: "write";r=66;t=60
 ```
 
 ```json
 {
   "object": "policy_exception",
-  "id": "pex_01m6tq6r804m95tdj3",
-  "rule": "core-paths",
+  "id": "pex_01m6tq6r804sgncbs4",
+  "rule": "reviewed",
   "who": "hollis",
   "reason": "On call this week",
   "created_by": "dana",
@@ -389,13 +387,13 @@ When the policy lives in the repository, this proposes instead of applying: it a
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/policy/exceptions/pex_01m6tq6r804m95tdj3" \
+curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/policy/exceptions/pex_01m6tq6r804sgncbs4" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=60;t=60
+ratelimit: "write";r=65;t=60
 ```
 
 ### `policy.proposals.create`
@@ -445,13 +443,13 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/proposals" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "idempotency-key: 7a1e3c9b-2d4f-4b6a-8e0c-1f5d7b9a3c62" \
   -H "Content-Type: application/json" \
-  -d '{"edits":[{"op":"set_mode","rule":"big-change","mode":"enforce"},{"op":"set_landing","fresh_approvals":true,"steps":[{"wait_checks":["ci/test"]}]}]}'
+  -d '{"edits":[{"op":"set_mode","rule":"reviewed","mode":"enforce"},{"op":"set_landing","fresh_approvals":true,"steps":[{"wait_checks":["ci/test"]}]}]}'
 ```
 
 ```http
 HTTP/1.1 202
 location: https://api.source.code/v1/repos/dana/gitfs/changes/222
-ratelimit: "write";r=59;t=60
+ratelimit: "write";r=64;t=60
 ```
 
 ```json
@@ -464,7 +462,7 @@ ratelimit: "write";r=59;t=60
   "edits": [
     {
       "op": "set_mode",
-      "rule": "big-change",
+      "rule": "reviewed",
       "mode": "enforce"
     },
     {
@@ -542,7 +540,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/rules" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=63;t=60
+ratelimit: "write";r=68;t=60
 ```
 
 ```json
@@ -604,7 +602,7 @@ curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/policy/rules/docs-ow
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=62;t=60
+ratelimit: "write";r=67;t=60
 ```
 
 ### `policy.update_rule`
@@ -652,7 +650,7 @@ Every open change's requirements are worked out again, so a change can become la
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/policy/rules/big-change" \
+curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/policy/rules/reviewed" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"mode":"enforce"}'
@@ -660,18 +658,18 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/policy/rules/big-chan
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=64;t=60
+ratelimit: "write";r=69;t=60
 ```
 
 ```json
 {
-  "id": "big-change",
-  "name": "Large changes need two reviewers",
+  "id": "reviewed",
+  "name": "Reviewed by someone other than the author",
   "mode": "enforce",
-  "when": "additions + deletions > 400",
-  "requires": ["2 approvals, at least 1 human"],
-  "evaluated": 0,
-  "blocked": 0,
+  "when": "any change",
+  "requires": ["1 approval from an account other than the author"],
+  "evaluated": 7,
+  "blocked": 4,
   "custom": false,
   "would_block": []
 }

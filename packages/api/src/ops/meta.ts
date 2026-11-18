@@ -126,7 +126,7 @@ export const principalOp = defineOp({
       token: p.tokenId,
       login: p.handle,
       acting_as: p.actingAs,
-      class: p.class,
+      device: p.device,
       scopes: [...p.scopes].sort(),
       repos: p.repos ? [...p.repos] : null,
       expires_at: new Date(p.expiresAt).toISOString(),

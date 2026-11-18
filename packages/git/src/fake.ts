@@ -202,9 +202,7 @@ function baseFiles(name: string, s: Sample): Record<string, string> {
     '.env.schema':
       '# @defaultSensitive=true\n# ---\n# @required @type=url\nDATABASE_URL=\n\n# @public @type=port\nAPI_PORT=8080\n',
     '.source/policy/main.yml':
-      'rules:\n  - id: core-paths\n    when: { paths: ["src/**"] }\n    require:\n      - approval: { min: 1, class: human }\n',
-    '.source/secrets/production.env':
-      'DATABASE_URL=enc:age:AGE-1q8xk…:Zmx1c2gtc2VjcmV0\nAPI_PORT=8080\n',
+      'rules:\n  - id: src-review\n    name: Source changes get a second look\n    when: { paths: ["src/**"] }\n    require:\n      - approval: { min: 1 }\n',
     '.github/workflows/ci.yml':
       'name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: make test\n',
     'docs/retries.md':
