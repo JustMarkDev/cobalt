@@ -57,16 +57,13 @@ describe('line comments', () => {
 
   test('the change author hears about it', async () => {
     const h = harness()
-    const author = (await h.call('GET', '/repos/dana/gitfs/changes/216')).json
-      .author.handle
+    // dana wrote #216.
     await h.call('POST', C, {
       ...hollis,
       body: { body: 'A question on the whole change.' },
     })
-    if (author === 'dana') {
-      const inbox = (await h.call('GET', '/notifications')).json.data
-      expect(inbox[0].title).toContain('hollis commented on #216')
-    }
+    const inbox = (await h.call('GET', '/notifications')).json.data
+    expect(inbox[0].title).toContain('hollis commented on #216')
   })
 
   test('refuses a file the change does not touch, or a line past the end', async () => {

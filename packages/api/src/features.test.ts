@@ -338,7 +338,6 @@ describe('webhooks: deliveries', () => {
     expect(h.transport.sent[0].headers['sx-event']).toBe('webhook.ping')
     expect(verify(made.secret, h.transport.sent[0])).toBe(true)
 
-    const head = (await h.call('GET', '/events?limit=1')).json
     const before = h.api.events.head
     await h.call('POST', `${REPO}/issues`, { body: { title: 'A' } })
     await h.call('POST', `${REPO}/issues`, { body: { title: 'B' } })
@@ -368,7 +367,6 @@ describe('webhooks: deliveries', () => {
     expect(replay.json).toMatchObject({ object: 'replay', queued: 2 })
     await h.settle()
     expect(h.transport.sent.length).toBe(sentBefore + 1 + 2)
-    void head
   })
 
   test('rotating signs with both secrets for a day, then only the new one', async () => {
@@ -924,7 +922,6 @@ describe('uploads', () => {
 
   test('a file is checked against what it claims to be', async () => {
     const h = harness()
-    const made = (await start(h)).json
     const script = new TextEncoder().encode('<script>alert(1)</script>')
     const m2 = (await start(h, { size: script.length })).json
     const r = await put(h, m2.upload_url, script)
@@ -932,7 +929,6 @@ describe('uploads', () => {
     expect((await r.json()).errors[0].message).toContain(
       'not a valid image/png',
     )
-    expect(made.id).toBeTruthy()
     const bad = await h.call('POST', '/uploads', {
       body: { filename: 'x.svg', content_type: 'image/svg+xml', size: 10 },
     })

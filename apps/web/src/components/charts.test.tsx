@@ -27,10 +27,12 @@ describe('charts render on the server', () => {
   })
 
   test('trend without axes draws no grid', () => {
-    const html = renderToString(
-      <TrendChart data={[{ label: 'a', value: 1 }]} axes={false} />,
-    )
-    expect(html).not.toContain('border-t border-border')
+    const grid = 'border-t border-border'
+    const data = [{ label: 'a', value: 1 }]
+    expect(renderToString(<TrendChart data={data} />)).toContain(grid)
+    expect(
+      renderToString(<TrendChart data={data} axes={false} />),
+    ).not.toContain(grid)
   })
 
   test('trend with nothing to show says so', () => {

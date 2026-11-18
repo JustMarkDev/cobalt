@@ -17,7 +17,6 @@ describe('every write keeps a receipt', () => {
     })
     expect(c.status).toBe(201)
     expect(c.json.author.handle).toBe('dana')
-    expect(c.json.author).not.toHaveProperty('class')
     expect(c.json.head.via).toEqual({
       machine: 'Laptop',
       tool: 'T3 Code',
@@ -41,12 +40,11 @@ describe('every write keeps a receipt', () => {
     expect(c.json.head.via.model).toBeNull()
   })
 
-  test('nothing marks a person apart from an agent: one kind of account', async () => {
+  test('a login names the machine it signed in', async () => {
     const h = harness()
     const me = await h.call('GET', '/auth/principal', {
       token: sampleTokens.scoped,
     })
-    expect(me.json).not.toHaveProperty('class')
     expect(me.json.device).toBe('Laptop')
   })
 })

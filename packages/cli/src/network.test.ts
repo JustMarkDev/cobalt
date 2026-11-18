@@ -104,9 +104,7 @@ describe('over the network', () => {
     }
     expect(over.code).toBe(0)
     expect(JSON.parse(over.out).blockers.length).toBeGreaterThan(0)
-    expect(JSON.parse(strip(over.out)).number).toBe(
-      JSON.parse(strip(local.out)).number,
-    )
+    expect(JSON.parse(strip(over.out))).toEqual(JSON.parse(strip(local.out)))
   })
 
   test('errors keep their code, hint and exit code over the wire', async () => {

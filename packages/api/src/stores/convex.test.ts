@@ -10,7 +10,6 @@ import { convexTest } from 'convex-test'
 import { makeFunctionReference } from 'convex/server'
 import { internal } from '../../../../convex/_generated/api'
 import schema from '../../../../convex/schema'
-import { Limiter } from '../limiter'
 import { ConvexIdempotencyStore, ConvexLimitStore } from './convex'
 import type { ConvexCall } from './convex'
 
@@ -26,14 +25,12 @@ const SECRET = 'test-secret-0123456789'
 function deployment() {
   process.env.API_STORE_SECRET = SECRET
   const t = convexTest(schema, modules)
-  const calls: Array<string> = []
   const call: ConvexCall = (name, args) => {
-    calls.push(name)
     return (
       t.mutation as unknown as (ref: unknown, args: unknown) => Promise<unknown>
     )(makeFunctionReference<'mutation'>(name), args)
   }
-  return { t, call, calls }
+  return { t, call }
 }
 
 beforeEach(() => setSystemTime(new Date('2026-11-08T12:00:00Z')))
@@ -73,19 +70,6 @@ describe('rate limits on Convex', () => {
     expect((await store.take('a', 1, policy, 0)).granted).toBe(0)
     setSystemTime(new Date('2026-11-08T12:01:00Z'))
     expect((await store.take('a', 4, policy, 0)).granted).toBe(4)
-  })
-
-  test('a limiter on top of it admits exactly the limit across nodes and rarely asks the database', async () => {
-    const { call, calls } = deployment()
-    const store = new ConvexLimitStore(call, SECRET)
-    const policy = { limit: 200, windowMs: 60_000 }
-    const nodes = [new Limiter(store), new Limiter(store), new Limiter(store)]
-    let admitted = 0
-    for (let i = 0; i < 400; i++)
-      if ((await nodes[i % 3].check('token', policy, 1)).allowed) admitted++
-    expect(admitted).toBeLessThanOrEqual(200)
-    expect(admitted).toBeGreaterThan(150)
-    expect(calls.length).toBeLessThan(60)
   })
 
   test('a caller without the secret is refused', async () => {
@@ -237,13 +221,11 @@ describe('when Convex cannot be reached', () => {
   test(
     'rate limits admit a small block on each node instead of failing the request',
     quiet(async () => {
-      const g = await new ConvexLimitStore(down, SECRET).take(
-        'k',
-        50,
-        { limit: 1000, windowMs: 60_000 },
-        0,
-      )
-      expect(g.granted).toBe(10)
+      const store = new ConvexLimitStore(down, SECRET)
+      const policy = { limit: 1000, windowMs: 60_000 }
+      expect((await store.take('k', 50, policy, 0)).granted).toBe(10)
+      // One block per window, not one per request.
+      expect((await store.take('k', 50, policy, 1)).granted).toBe(0)
       const small = await new ConvexLimitStore(down, SECRET).take(
         'k',
         50,

@@ -227,9 +227,8 @@ describe('a screen reads what the API answers', () => {
     await same('dana', 'pipelines.list', { ...at, limit: 100 })
     const run = runs.data[0].number
     const one = await same('dana', 'pipelines.get', { ...at, run })
-    const job = one.jobs?.[0]
-    if (job)
-      await same('dana', 'pipelines.log', { ...at, run, job: 1, step: 1 })
+    expect(one.jobs?.length).toBeGreaterThan(0)
+    await same('dana', 'pipelines.log', { ...at, run, job: 1, step: 1 })
   })
 
   test('notifications', async () => {
@@ -422,9 +421,8 @@ describe('a screen writes what the API writes', () => {
     await same('dana', 'pipelines.rerun', { ...at, run: finished.number })
     const going = runs.data.find(
       (r) => r.status === 'running' || r.status === 'queued',
-    )
-    if (going)
-      await same('dana', 'pipelines.cancel', { ...at, run: going.number })
+    )!
+    await same('dana', 'pipelines.cancel', { ...at, run: going.number })
   })
 
   test('accounts, links and integrations', async () => {

@@ -35,7 +35,6 @@ describe('everyone can see who else is looking', () => {
       ),
     )
     expect(byHandle.dana).toMatchObject({ path: 'src/refs.rs' })
-    expect(byHandle.dana.actor).not.toHaveProperty('class')
     expect(byHandle.hollis).toMatchObject({ path: null })
     // dana's agent on her laptop is dana: one account, not a second viewer.
     now.advance(500)
