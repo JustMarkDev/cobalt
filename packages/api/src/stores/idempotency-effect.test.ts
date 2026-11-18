@@ -153,7 +153,6 @@ test('the API signs the held key into each call, and only while the request hold
   const principal = {
     handle: 'dana',
     tokenId: 'tok',
-    class: 'human',
     actingAs: 'dana',
     scopes: new Set(['repo:read']),
     repos: null,

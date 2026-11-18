@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { guarded, storeStats } from './guarded'
+import { guarded } from './guarded'
 import type { GitRepo } from './index'
 
 const refusal = (retryAfter?: string) =>
@@ -23,7 +23,7 @@ test('a refused read waits as told and tries again; a refused write is not retri
       return Promise.reject(refusal('1'))
     },
   } as unknown as GitRepo & { merge: () => Promise<unknown> }
-  const g = guarded('rep_1', repo, (ms) => {
+  const g = guarded(repo, (ms) => {
     waited.push(ms)
     return Promise.resolve()
   }) as typeof repo
@@ -31,8 +31,4 @@ test('a refused read waits as told and tries again; a refused write is not retri
   expect(waited).toEqual([2000, 2000])
   await expect(g.merge()).rejects.toThrow('slow down')
   expect(writes).toBe(1)
-  const s = storeStats.get('rep_1')!
-  expect(s.refused).toBe(3)
-  expect(s.calls).toBe(4)
-  expect(s.latencies.length).toBe(4)
 })

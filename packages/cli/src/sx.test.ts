@@ -67,12 +67,19 @@ describe('scrub', () => {
 
 describe('sx', () => {
   test('never prompts: a missing repo is an error with a hint', async () => {
-    const r = await sx('change', 'list')
     // Outside a clone with no -R the repo cannot be known.
-    if (r.code !== 0) {
+    const cwd = process.cwd()
+    const repo = process.env.SX_REPO
+    delete process.env.SX_REPO
+    process.chdir(mkdtempSync(join(tmpdir(), 'sx-')))
+    try {
+      const r = await sx('change', 'list')
       expect(r.code).toBe(2)
       expect(JSON.parse(r.err).error.code).toBe('repo_unknown')
       expect(JSON.parse(r.err).error.hint).toContain('-R')
+    } finally {
+      process.chdir(cwd)
+      if (repo !== undefined) process.env.SX_REPO = repo
     }
   })
 

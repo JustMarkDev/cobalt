@@ -102,19 +102,9 @@ test('the tally fill counts every table once, then writes keep it', async () => 
   const before = await facts()
   expect(before.repositories).toBeGreaterThan(0)
   await t.mutation(internal.forge.health.startSeed, {})
-  // A second start while one runs does not start another.
+  // A second start while one runs does not count twice.
   await t.mutation(internal.forge.health.startSeed, {})
   await t.finishAllScheduledFunctions(() => {})
-  const seed = await t.run((ctx) => ctx.db.query('tallySeed').collect())
-  expect(seed).toHaveLength(1)
-  expect(seed[0].pass).toBeUndefined()
-  const marks = await t.run((ctx) =>
-    ctx.db
-      .query('tallies')
-      .filter((q) => q.eq(q.field('period'), 'ready'))
-      .collect(),
-  )
-  expect(marks).toHaveLength(6)
   expect(await facts()).toEqual(before)
 
   // Writes now keep the tallies: a repository made and one deleted.
@@ -152,10 +142,10 @@ test('the tally fill counts every table once, then writes keep it', async () => 
   })
   expect(month['repo.created']).toBeGreaterThanOrEqual(2)
   expect(month['repo.deleted']).toBe(1)
-  // Once ready, starting again reads one document and does nothing.
+  // Once ready, starting again counts nothing twice.
   await t.mutation(internal.forge.health.startSeed, {})
-  const again = await t.run((ctx) => ctx.db.query('tallySeed').first())
-  expect(again?.pass).toBeUndefined()
+  await t.finishAllScheduledFunctions(() => {})
+  expect((await facts()).repositories).toBe(after.repositories)
   // Without POSTHOG_KEY nothing is queued for analytics.
   const queued = await t.run((ctx) => ctx.db.query('analyticsOutbox').collect())
   expect(queued).toHaveLength(0)

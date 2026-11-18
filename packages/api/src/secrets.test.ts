@@ -343,9 +343,8 @@ describe('values are sealed, and never leave any other way', () => {
     },
   )
 
-  test('without a secrets key the server keeps and gives out nothing', async () => {
-    const h = harness()
-    h.api.port.svc.secrets = Promise.resolve(null)
+  test('without a secrets key the server keeps and gives out nothing, even in the sample', async () => {
+    const h = harness({ ephemeralSecrets: false })
     const read = await h.call('GET', `${E}/development/values`, {
       token: sampleTokens.scoped,
     })
@@ -479,14 +478,6 @@ describe('values stay with the team that set them', () => {
     ])
     const r = await h.call('GET', `${E}/audit`, { token: hollis })
     expect(r.status).toBe(403)
-  })
-
-  test('without a master key the server keeps no values, even in the sample', async () => {
-    const h = harness({ ephemeralSecrets: false })
-    const r = await h.call('GET', `${E}/development/values`, {
-      token: sampleTokens.scoped,
-    })
-    expect(r.json.code).toBe('secrets_unavailable')
   })
 
   test('a dry run says production would wait, and asks the person nothing', async () => {
