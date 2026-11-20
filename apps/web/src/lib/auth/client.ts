@@ -37,18 +37,6 @@ export type Session = { user: AuthUser; session: { id: string } }
 export type AuthError = { code: string; message: string }
 export type AuthResult = { data: Session | null; error: AuthError | null }
 
-/**
- * The demo account every screen in the mock data belongs to. It only exists
- * where someone has pressed the demo button on a development deployment.
- */
-export const demoUser: AuthUser = {
-  id: 'usr_dana',
-  name: 'Dana Okafor',
-  email: 'dana@source.code',
-  handle: 'dana',
-}
-const DEMO_PASSWORD = 'source-code-demo'
-
 const client = createAuthClient({
   plugins: [usernameClient(), convexClient()],
 })
@@ -177,19 +165,6 @@ export const authClient = {
         password: input.password,
       })
       return error ? { data: null, error: toError(error) } : current()
-    },
-    /**
-     * One click into the demo account, on a development deployment. The
-     * first press creates it; the server lets it take the sample address
-     * `dana` only when the site is this machine.
-     */
-    async demo(): Promise<AuthResult> {
-      const login = { email: demoUser.email, password: DEMO_PASSWORD }
-      const { error } = await client.signIn.email(login)
-      if (!error) return current()
-      if (error.code !== 'INVALID_EMAIL_OR_PASSWORD')
-        return { data: null, error: toError(error) }
-      return signUp({ ...login, name: demoUser.name, handle: demoUser.handle })
     },
   },
 

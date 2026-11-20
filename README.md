@@ -26,7 +26,7 @@ bunx convex env set SITE_URL http://localhost:3000
 bunx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
 ```
 
-Until they are set, sign-in answers that it is not configured. Accounts use email and password. No email is sent yet: a password reset link is written to the Convex log. The "demo account" button on the sign-in page creates `dana` on a local deployment.
+Until they are set, sign-in answers that it is not configured. Accounts use email and password. No email is sent yet: a password reset link is written to the Convex log.
 
 Open http://localhost:3000/dana.
 

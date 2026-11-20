@@ -6,7 +6,6 @@ import {
   PasswordInput,
   SubmitButton,
 } from '~/components/forge/auth'
-import { Button } from '~/components/ui/button'
 import { Callout } from '~/components/ui/callout'
 import { Input } from '~/components/ui/input'
 import { authClient, safeRedirect } from '~/lib/auth/client'
@@ -39,7 +38,7 @@ function SignIn() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [tried, setTried] = React.useState(false)
-  const [busy, setBusy] = React.useState<'email' | 'demo' | null>(null)
+  const [busy, setBusy] = React.useState<'email' | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const submitted = React.useRef(false)
 
@@ -59,7 +58,7 @@ function SignIn() {
   const passwordError = tried && !password ? 'Enter your password.' : null
 
   const finish = async (
-    run: () => ReturnType<typeof authClient.signIn.demo>,
+    run: () => ReturnType<typeof authClient.signIn.email>,
     as: typeof busy,
   ) => {
     setError(null)
@@ -150,21 +149,6 @@ function SignIn() {
           {busy === 'email' ? 'Signing in' : 'Sign in'}
         </SubmitButton>
       </form>
-      {/* The demo account only exists on a development deployment. */}
-      {import.meta.env.DEV ? (
-        <div className="border-t pt-4 text-center text-sm text-muted-foreground">
-          Just looking?{' '}
-          <Button
-            type="button"
-            variant="link"
-            disabled={disabled}
-            onClick={() => void finish(() => authClient.signIn.demo(), 'demo')}
-            className="text-sm"
-          >
-            Use the demo account
-          </Button>
-        </div>
-      ) : null}
     </AuthShell>
   )
 }
