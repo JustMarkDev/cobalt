@@ -14,15 +14,15 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "@source-code/git": "workspace:*",
-    "convex": "^1.49.0",
-    "effect": "^4.1.2",
-    "jose": "^6.2.17",
+    "convex": "^1.51.0",
+    "effect": "^4.1.5",
+    "jose": "^6.2.18",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@source-code/sdk": "workspace:*",
-    "convex-test": "^0.0.67",
-    "oxfmt": "0.78.0"
+    "convex-test": "^0.0.73",
+    "oxfmt": "0.79.0"
   }
 }

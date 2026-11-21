@@ -12,6 +12,7 @@ const sections: Array<[string, string]> = [
   ['who', 'Who we are'],
   ['collect', 'What we collect'],
   ['use', 'What we do with it'],
+  ['where', 'Where it lives and who handles it'],
   ['see', 'Who can see it'],
   ['control', 'Your choices and your data'],
   ['changes', 'Changes to this policy'],
@@ -22,7 +23,7 @@ function Privacy() {
   return (
     <LegalPage
       title="Privacy policy"
-      updated="Draft of November 5, 2026"
+      updated="Draft of November 21, 2026"
       intro="What source.code collects, why, who can see it, and how to take it with you. It is written in plain words on purpose."
       sections={sections}
     >
@@ -69,13 +70,24 @@ function Privacy() {
             secrets.
           </li>
           <li>
-            <b>Payment.</b> A card is needed to start a trial. Card details are
-            handled by a payment provider and we do not keep full card numbers.
+            <b>Payment.</b> The Free plan needs no card. A card is needed only
+            to pay for a plan. Card details are handled by a payment provider
+            and we do not keep full card numbers.
           </li>
           <li>
             <b>Basics of every visit.</b> A cookie that keeps you signed in,
             your theme choice stored in your browser, and the ordinary records
-            any server keeps of a request.
+            any server keeps of a request. Both are strictly needed to run the
+            site, so there is no cookie banner: nothing else is stored in your
+            browser.
+          </li>
+          <li>
+            <b>Product analytics.</b> Our servers record which features are
+            used, such as an account being created, and send those events to our
+            analytics provider. An event carries your address on the site (your
+            handle), not your email, and it is sent from our servers, so there
+            are no analytics cookies or scripts in your browser. The provider
+            builds no profile of you.
           </li>
         </ul>
         <p>The app does not use advertising or cross-site tracking.</p>
@@ -97,6 +109,41 @@ function Privacy() {
           We do not sell your personal data. We do not resell compute or tokens
           either: the runner, model and agent you use are between you and the
           provider you chose.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="where" title="Where it lives and who handles it">
+        <p>
+          source.code is hosted in the United States. These companies process
+          data for us, only to run the service:
+        </p>
+        <ul>
+          <li>
+            <b>Convex</b>: the database and backend (United States).
+          </li>
+          <li>
+            <b>Railway</b>: the web servers (United States).
+          </li>
+          <li>
+            <b>Pierre, code.storage</b>: git storage (United States).
+          </li>
+          <li>
+            <b>PostHog</b>: product analytics (European Union).
+          </li>
+          <li>
+            <b>Axiom</b>: logs and traces of how the service performs (European
+            Union).
+          </li>
+        </ul>
+        <p>
+          If you are in the European Economic Area, the United Kingdom or
+          Switzerland, your data is transferred to the United States. We rely on
+          the EU&ndash;US Data Privacy Framework where a processor is certified,
+          and on standard contractual clauses where the processor&rsquo;s
+          agreement includes them. We have a data processing agreement with each
+          processor. Companies that need their data kept in a given region can
+          ask about it for the Enterprise plan, where it would run as a separate
+          deployment.
         </p>
       </LegalSection>
 
@@ -152,9 +199,31 @@ function Privacy() {
             Removing a mirror never deletes anything here.
           </li>
           <li>
-            If you stop paying, your history stays readable and downloadable for
-            90 days. Going over your limits pauses new pushes and never deletes
-            anything.
+            If you stop paying, your account moves to the Free plan and your
+            history stays readable, cloneable and downloadable for 90 days. We
+            tell you before anything is deleted. Going over your limits pauses
+            new pushes and never deletes anything by itself.
+          </li>
+          <li>
+            <b>Download your data.</b> In Settings, Plan and data, one click
+            gives you a file with your profile, preferences, organizations,
+            follows and the list of your repositories.
+          </li>
+          <li>
+            <b>Delete your account.</b> From the same page, by typing your
+            address. Your account and your repositories then only read for 30
+            days, in which you can clone everything, download your data and
+            change your mind with one click. After the 30 days your account, the
+            repositories it owns, your preferences, tokens, sealed secrets and
+            linked accounts are erased and cannot be brought back. What you
+            wrote in other people&rsquo;s repositories, such as issues, comments
+            and changes, stays under the name &ldquo;ghost&rdquo;, and git
+            commits keep the author line they were made with, as git requires.
+            The public activity feed keeps a count, not your name. An
+            organization you are the only owner of must be handed over or
+            deleted first. Your address stays reserved so nobody else can pose
+            as you. Invoices are kept by our payment provider for as long as tax
+            law requires, usually ten years.
           </li>
           <li>
             You can leave an organization at any time. What it owns stays with
@@ -182,18 +251,12 @@ function Privacy() {
         </p>
         <ul>
           <li>The contact address for privacy questions and requests.</li>
+          <li>How long backups and server logs are kept.</li>
           <li>
-            How account deletion works, and how long backups and server logs are
-            kept.
+            The payment provider and the email provider, which are not chosen
+            yet and will be added to the list above.
           </li>
-          <li>
-            The payment provider, and any other companies that process data for
-            us.
-          </li>
-          <li>
-            Where data is stored, the country whose law applies, and how data
-            moves between countries.
-          </li>
+          <li>The country whose law applies.</li>
           <li>The minimum age to use the service.</li>
         </ul>
       </LegalSection>

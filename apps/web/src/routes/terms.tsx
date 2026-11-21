@@ -138,17 +138,22 @@ function Terms() {
         </p>
         <ul>
           <li>
-            A trial needs a card, and nothing is charged until it ends. Cancel
-            before then and you pay nothing, and your data stays downloadable.
+            Every account starts on the Free plan: public repositories, a small
+            allowance, no card and no end date. There is no trial of the paid
+            plans. If you pay and change your mind, the right of withdrawal the
+            law gives you where you live applies, and we refund it.
           </li>
           <li>
-            Going over your limits never breaks anything. Extra storage and
-            transfer are billed after the month, and you can set a cap.
+            On a paid plan, going over your limits never breaks anything. Extra
+            storage and transfer are billed after the month, and you can set a
+            cap.
           </li>
           <li>
-            If you stop paying, your history stays readable and downloadable for
-            90 days. Going over your limits pauses new pushes and never deletes
-            anything. Mirrors on other hosts keep their copy.
+            If you stop paying, your account moves to the Free plan. Your
+            history stays readable, cloneable and downloadable for 90 days, and
+            we tell you before anything is deleted. Going over the Free limits
+            pauses new pushes and never deletes anything by itself. Mirrors on
+            other hosts keep their copy.
           </li>
           <li>
             Agents use the same seats as people, and their use of storage and
@@ -191,8 +196,9 @@ function Terms() {
             and tell you before where we reasonably can.
           </li>
           <li>
-            After an account ends, history stays readable and downloadable for
-            90 days.
+            When you stop paying, history stays readable and downloadable for 90
+            days. When you delete your account, everything only reads for 30
+            days, and then it is erased; you can change your mind until then.
           </li>
         </ul>
       </LegalSection>

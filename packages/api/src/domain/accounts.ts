@@ -160,6 +160,8 @@ export abstract class DomainAccounts extends DomainEvents {
       at,
     )
     rec.bio = fields.bio
+    // Like every account that is made here, it starts on Free.
+    rec.plan = 'free'
     this.accessRevision++
     this.svc.search.reset()
     return { account: this.presentAccount(rec, p), created: true }

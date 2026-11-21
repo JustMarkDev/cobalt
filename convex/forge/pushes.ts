@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { tally } from '../lib/stats'
 import { internalMutation } from '../_generated/server'
+import { markStale } from '../lib/usage'
 import { emit } from '../lib/events'
 import { branchOwner, hydrate, saveChange } from '../lib/changes'
 import { counters } from '../lib/events'
@@ -43,6 +44,7 @@ export const recordPush = internalMutation({
       .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
       .unique()
     if (!repo) return 'unknown_repository'
+    await markStale(ctx, repo)
     const branch = a.ref.startsWith('refs/heads/')
       ? a.ref.slice('refs/heads/'.length)
       : null

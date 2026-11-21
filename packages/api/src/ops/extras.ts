@@ -59,7 +59,7 @@ export const createRepo = defineOp({
   }),
   response: S.Repo,
   status: 201,
-  errors: ['forbidden', 'not_found'],
+  errors: ['forbidden', 'not_found', 'plan_required', 'read_only'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain

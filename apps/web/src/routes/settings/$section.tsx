@@ -5,6 +5,7 @@ import {
   ArrowDownTrayIcon,
   BellIcon,
   CpuChipIcon,
+  CreditCardIcon,
   LinkIcon,
   PuzzlePieceIcon,
   ShieldCheckIcon,
@@ -20,6 +21,7 @@ import { Chip, SectionLabel, SourceBadge } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
 import { TargetPicker } from '~/components/forge/download-button'
 import { MachinesPanel } from '~/components/forge/machines-panel'
+import { PlanAndData } from '~/components/forge/account-data'
 import { IntegrationsPanel } from '~/components/forge/integrations-panel'
 import { Toggle } from '~/components/forge/repo-pages'
 import { Button } from '~/components/ui/button'
@@ -34,6 +36,7 @@ const sections = [
   ['privacy', 'Privacy', ShieldCheckIcon],
   ['downloads', 'Downloads', ArrowDownTrayIcon],
   ['notifications', 'Notifications', BellIcon],
+  ['plan', 'Plan and data', CreditCardIcon],
 ] as const
 
 type SectionId = (typeof sections)[number][0]
@@ -96,6 +99,15 @@ function Settings() {
         {current === 'privacy' && <Privacy />}
         {current === 'downloads' && <Downloads />}
         {current === 'notifications' && <Notifications />}
+        {current === 'plan' && (
+          <>
+            <Header id="plan" title="Plan and data">
+              What your account is on, a copy of your data, and deleting the
+              account.
+            </Header>
+            <PlanAndData />
+          </>
+        )}
       </div>
     </div>
   )

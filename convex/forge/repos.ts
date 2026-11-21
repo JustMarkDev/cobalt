@@ -31,6 +31,7 @@ import { knownActor } from '../lib/issues'
 import { bumpAcl } from './accounts'
 import { bumpAccess } from '../lib/acl'
 import { syncGrants } from '../lib/grants'
+import { assertMayHavePrivate, assertNotPendingDeletion } from '../lib/plan'
 import { dropRepoHooks } from './webhooks'
 import type { Actor } from '../lib/actor'
 import type { Doc } from '../_generated/dataModel'
@@ -135,6 +136,9 @@ export const create = mutation({
     const existing = await repoByKey(ctx, `${owner}/${args.name}`)
     if (existing)
       return out({ repo: await presentRepo(ctx, existing, at), created: false })
+    // The Free plan is for public repositories.
+    if (args.visibility === 'private') await assertMayHavePrivate(ctx, acct)
+    else assertNotPendingDeletion(acct)
     const publicId = newId('repo', at)
     const list = [...maintainers]
     await tally(ctx, 'repo.created')
@@ -271,8 +275,13 @@ export const update = mutation({
     // Checked as the API checks it: a page can call this directly.
     const body = await bodyOf(ctx, 'repos.update', given)
     const at = Date.now()
-    const repo = await resolve(ctx, owner, name, p, 'write')
+    const repo = await resolve(ctx, owner, name, p, 'manage')
     await assertAdmin(ctx, repo, p)
+    // Making it private is a paid feature: the Free plan is for public ones.
+    if (body.visibility === 'private' && repo.visibility !== 'private') {
+      const owning = await ctx.db.get('accounts', repo.ownerId)
+      if (owning) await assertMayHavePrivate(ctx, owning)
+    }
     const current = await presentRepo(ctx, repo, at)
     assertMatch(ifMatch, `${repo.publicId}.${repo.version}`, () => current)
     const renaming = body.name !== undefined && body.name !== repo.name
@@ -416,7 +425,7 @@ export const transfer = mutation({
   handler: async (ctx, args) => {
     const p = await signedIn(ctx)
     const at = Date.now()
-    const repo = await resolve(ctx, args.owner, args.name, p, 'write')
+    const repo = await resolve(ctx, args.owner, args.name, p, 'manage')
     await assertAdmin(ctx, repo, p)
     const from = `${repo.owner}/${repo.name}`
     if (p.repos)
@@ -446,6 +455,9 @@ export const transfer = mutation({
           hint: 'Ask an owner or admin of that account to do it.',
         },
       )
+    // A private repository only goes to an account that may have one.
+    if (repo.visibility === 'private' && repo.owner !== acct.handle)
+      await assertMayHavePrivate(ctx, acct)
     const toName = args.toName ?? repo.name
     const to = `${acct.handle}/${toName}`
     if (to === from) return out(await presentRepo(ctx, repo, at))
@@ -538,7 +550,7 @@ export const remove = mutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     const p = await signedIn(ctx)
-    const repo = await resolve(ctx, args.owner, args.name, p, 'write')
+    const repo = await resolve(ctx, args.owner, args.name, p, 'manage')
     await assertAdmin(ctx, repo, p)
     const full = `${repo.owner}/${repo.name}`
     if (p.repos)

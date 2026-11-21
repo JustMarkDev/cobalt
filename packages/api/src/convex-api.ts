@@ -24,6 +24,9 @@ import {
   convexCaller,
 } from './stores/convex'
 import { blobStoreFromEnv } from './stores/blobs'
+import { StoreWorker } from './stores/store-worker'
+import { codeStorageAdmin } from '@source-code/git/admin'
+import type { GitAdmin } from '@source-code/git/admin'
 import type { Attached } from './domain/records'
 import type { SessionResolver } from './oauth'
 import type { Scope } from './auth'
@@ -56,6 +59,12 @@ export type ConvexApiOptions = {
   seedSample?: () => string
   /** Where uploaded files go when no bucket is configured. */
   blobFolder: string
+  /**
+   * What the store worker uses to delete and measure git stores. Default:
+   * code.storage, when `CODE_STORAGE_NAME` and `CODE_STORAGE_KEY` are set;
+   * without either, git deletions wait in the queue.
+   */
+  gitAdmin?: GitAdmin
   env?: Record<string, string | undefined>
   allowPrivateWebhooks?: boolean
 }
@@ -65,6 +74,7 @@ export function createConvexApi(o: ConvexApiOptions) {
   const env = o.env ?? process.env
   const urls = { api: o.base, html: o.htmlBase }
   const call = convexHttpCall(o.convexUrl, o.jwt)
+  const blobs = blobStoreFromEnv(env, o.blobFolder)
   const events = new EventLog(now)
   const svc = {
     auth: new ConvexTokens(call),
@@ -73,7 +83,7 @@ export function createConvexApi(o: ConvexApiOptions) {
     secrets: SecretBox.fromBase64(env.SX_SECRETS_KEY),
     uploads: new ConvexUploads(
       call,
-      blobStoreFromEnv(env, o.blobFolder),
+      blobs,
       new UploadSigner(Buffer.from(o.uploadSecret)),
       now,
     ),
@@ -108,6 +118,25 @@ export function createConvexApi(o: ConvexApiOptions) {
       )
       if (seeded)
         console.log('[api] seeded the Convex deployment with the sample')
+    }
+    // What an erasure leaves in the bucket and in code.storage, and the size
+    // of repositories after a push (`convex/storeWorker.ts`).
+    if (o.storeSecret) {
+      const git =
+        o.gitAdmin ??
+        (env.CODE_STORAGE_NAME && env.CODE_STORAGE_KEY
+          ? codeStorageAdmin({
+              name: env.CODE_STORAGE_NAME,
+              key: env.CODE_STORAGE_KEY,
+            })
+          : undefined)
+      new StoreWorker({
+        call: convexCaller(o.convexUrl),
+        secret: o.storeSecret,
+        ...(git ? { git } : {}),
+        blobs,
+        onError: (e) => console.error('[store-worker]', e),
+      }).start()
     }
     await feed.start()
     await d.refreshSearch()

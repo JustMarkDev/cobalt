@@ -30,6 +30,10 @@ const app = defineApp({
     // Signs code.storage's push webhooks (`http.ts`). Set it to the secret
     // code.storage shows for the webhook. Without it every webhook is refused.
     CODE_STORAGE_WEBHOOK_SECRET: v.optional(v.string()),
+    // Signs Polar's subscription webhooks (`http.ts`, `/hooks/polar`). Set it
+    // to the secret Polar shows for the webhook endpoint. Without it every
+    // webhook is refused.
+    POLAR_WEBHOOK_SECRET: v.optional(v.string()),
     MAIL_FROM: v.optional(v.string()),
     // Product analytics (`analytics.ts`): events go to PostHog when the
     // project key is set, and are not even queued when it is not.
@@ -37,6 +41,14 @@ const app = defineApp({
     // https://us.i.posthog.com (use https://eu.i.posthog.com for the EU).
     POSTHOG_KEY: v.optional(v.string()),
     POSTHOG_HOST: v.optional(v.string()),
+    // Erasing an account also asks PostHog to delete what it holds under that
+    // address (`deletion.ts`). It needs a personal API key with the
+    // `person:write` scope and the project id. Without them the request is
+    // skipped and the events age out with the project's retention setting.
+    POSTHOG_PERSONAL_KEY: v.optional(v.string()),
+    POSTHOG_PROJECT_ID: v.optional(v.string()),
+    // The API host, when it is not the ingest host with `.i.` taken out.
+    POSTHOG_API_HOST: v.optional(v.string()),
   },
 })
 

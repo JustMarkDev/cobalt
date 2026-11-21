@@ -19964,6 +19964,7 @@
           "moved",
           "not_found",
           "payload_too_large",
+          "plan_required",
           "rate_limited",
           "request_in_progress",
           "token_expired",
@@ -21821,6 +21822,7 @@
           "moved",
           "not_found",
           "payload_too_large",
+          "plan_required",
           "rate_limited",
           "request_in_progress",
           "token_expired",
@@ -22097,7 +22099,9 @@
           "invalid_request",
           "not_found",
           "payload_too_large",
+          "plan_required",
           "rate_limited",
+          "read_only",
           "request_in_progress",
           "token_expired",
           "token_invalid",
@@ -31269,6 +31273,16 @@
       "exit_code": 5
     },
     "limit_reached": {
+      "status": 409,
+      "retryable": false,
+      "exit_code": 5
+    },
+    "plan_required": {
+      "status": 402,
+      "retryable": false,
+      "exit_code": 5
+    },
+    "read_only": {
       "status": 409,
       "retryable": false,
       "exit_code": 5

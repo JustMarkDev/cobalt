@@ -220,6 +220,20 @@ Delete one you no longer need. `GET /v1/limits` lists the numbers.
 
 PUT the bytes to the `upload_url` from the upload, then use it.
 
+## Plans and read-only
+
+### `plan_required`
+
+**402.** This needs a paid plan. Not retryable. CLI exit code 5.
+
+Upgrade the account that owns it. Private repositories are on the paid plans; the Free plan is for public ones.
+
+### `read_only`
+
+**409.** This only reads for now. Not retryable. CLI exit code 5.
+
+The account is on the Free plan with a private repository, or is waiting to be deleted. Clones, fetches and exports still work.
+
 ## Retries
 
 ### `idempotency_key_reused`

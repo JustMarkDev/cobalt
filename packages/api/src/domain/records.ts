@@ -1,3 +1,4 @@
+import type { PlanId } from '../plans'
 import type { SecretBox } from '../secret-box'
 import type { Receipt } from '../via'
 import type { LandingStepRec } from '../landing'
@@ -41,6 +42,11 @@ export type AccountRec = {
   members: Map<string, Role>
   /** Invitations by email that were not accepted yet, by id. */
   invites: Map<string, InviteRec>
+  /**
+   * The plan, when it is not the sample's: an account made here starts on
+   * Free. The sample accounts have none and hold every feature.
+   */
+  plan?: PlanId
 }
 
 export type InviteRec = {

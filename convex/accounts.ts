@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { internalQuery } from './_generated/server'
+import { retiredHash } from './deletion'
 
 /**
  * Who holds an address, if anyone. People and organizations share one
@@ -20,6 +21,14 @@ export const handleHolder = internalQuery({
         authId: account.authId ?? null,
         alias: false,
       }
+    // The address of an account that was deleted stays taken: as far as
+    // sign-up is concerned it is held by a login that no longer exists.
+    const retired = await ctx.db
+      .query('retiredHandles')
+      .withIndex('by_hash', (q) => q.eq('hash', retiredHash(handle)))
+      .unique()
+    if (retired)
+      return { kind: 'person' as const, authId: 'retired', alias: false }
     const alias = await ctx.db
       .query('handleAliases')
       .withIndex('by_handle', (q) => q.eq('handle', handle))

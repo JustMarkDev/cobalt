@@ -6,6 +6,7 @@ import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { actorOf, signedIn } from '../lib/actor'
 import { accessStamp, resolve } from '../lib/access'
+import { assertPushAllowed } from '../lib/plan'
 import { fail, finish, out } from '../lib/errors'
 import { actorFor, emit } from '../lib/events'
 import { actorOut, iso, repoUrl, urls } from '../lib/present'
@@ -231,6 +232,7 @@ export const create = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await assertPushAllowed(ctx, repo)
     const same = await ctx.db
       .query('releases')
       .withIndex('by_repoId_and_tag', (q) =>

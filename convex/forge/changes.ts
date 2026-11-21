@@ -14,6 +14,7 @@ import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
 import { actorOf, signedIn, system } from '../lib/actor'
 import { repoByKey } from '../lib/access'
+import { assertPushAllowed } from '../lib/plan'
 import {
   accessStamp,
   assertMatch,
@@ -1597,6 +1598,7 @@ export const land = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await assertPushAllowed(ctx, repo)
     const l = await loadChange(ctx, repo, a.ref)
     const view = await viewFor(ctx, repo, p, Date.now(), [l.rec])
     checkLandable(view, l.rec, p, a.expectedTree)
@@ -1700,6 +1702,7 @@ export const landStack = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await assertPushAllowed(ctx, repo)
     const members = await stackMembers(ctx, repo, a.stackId)
     if (!members.length) fail('not_found', `No stack ${a.stackId}.`)
     const open = members.filter((c) => c.state === 'open')

@@ -3,8 +3,10 @@ import { receiptFor } from '../receipt'
 import { newId } from '../ids'
 import { pageSorted } from '../cursor'
 import { apiError } from '../problem'
+import { allowsPrivate } from '../plans'
 import type { CursorPosition, Page } from '../cursor'
 import type { Principal } from '../auth'
+import type { PlanId } from '../plans'
 import type { z } from 'zod'
 import type * as S from '../schemas'
 import { recId } from './records'
@@ -19,6 +21,21 @@ import { DomainAccounts } from './accounts'
 
 /** Accounts and repositories. */
 export abstract class DomainRepos extends DomainAccounts {
+  /** Private repositories are a paid feature: an account on Free has none. */
+  private assertPrivateAllowed(
+    acct: { handle: string; plan?: PlanId } | undefined,
+  ) {
+    if (acct && !allowsPrivate(acct.plan ?? 'business'))
+      throw apiError(
+        'plan_required',
+        `${acct.handle} is on the Free plan, which is for public repositories.`,
+        {
+          hint: 'Upgrade the account that owns the repository to keep it private. See /pricing.',
+          extra: { plan: acct.plan },
+        },
+      )
+  }
+
   async createRepo(
     p: Principal,
     input: {
@@ -48,6 +65,7 @@ export abstract class DomainRepos extends DomainAccounts {
         'forbidden',
         'A token limited to repositories cannot create new ones.',
       )
+    if (input.visibility === 'private') this.assertPrivateAllowed(acct)
     const maintainers = new Set(input.maintainers ?? [])
     if (input.maintainers) {
       if (input.maintainers.length === 0)
@@ -269,6 +287,8 @@ export abstract class DomainRepos extends DomainAccounts {
       changed.push('description')
     }
     if (body.visibility !== undefined && body.visibility !== repo.visibility) {
+      if (body.visibility === 'private')
+        this.assertPrivateAllowed(this.accounts.get(repo.owner))
       repo.visibility = body.visibility
       changed.push('visibility')
     }

@@ -3,12 +3,12 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { CheckIcon } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import type { BrandId } from '~/components/brand'
-import type { Plan } from '~/lib/pricing'
+import type { FreePlan, Plan } from '~/lib/pricing'
 import { BrandLogo, brandName } from '~/components/brand'
 import { ContactSales } from '~/components/forge/contact-sales'
 import { Button } from '~/components/ui/button'
 import { Segmented } from '~/components/ui/tabs'
-import { overage, perMonth, perYear, plans, trial } from '~/lib/pricing'
+import { freePlan, overage, perMonth, perYear, plans } from '~/lib/pricing'
 
 export const Route = createFileRoute('/pricing')({
   head: () => ({ meta: [{ title: 'Pricing · source.code' }] }),
@@ -36,11 +36,11 @@ const own: Array<{ title: string; body: string; names: Array<BrandId> }> = [
 const questions: Array<[string, string]> = [
   [
     'Is there a free plan?',
-    'No. Hosting git repositories, with replication and every clone, costs real money for each repository, so every plan is paid. You can try any plan for 14 days first.',
+    `Yes, and it does not expire. Free is for public repositories: ${size(freePlan.limits.storageGb)} of storage, ${size(freePlan.limits.transferGb)} of transfer a month and unlimited mirrors, with no card. Private repositories, agent access to secrets and more room need a paid plan.`,
   ],
   [
-    'What does the trial include?',
-    `${trial.days} days of any plan, limited to ${trial.storageGb} GB of storage and ${trial.transferGb} GB of transfer. A card is required and nothing is charged until the trial ends. Cancel before then and you pay nothing, and your data stays downloadable.`,
+    'Is there a trial of the paid plans?',
+    'No. Free is how you try source.code. If you pay and it is not for you, you have the withdrawal period the law gives you where you live, and we refund it.',
   ],
   [
     'Why are there no CI minutes or AI credits?',
@@ -56,7 +56,7 @@ const questions: Array<[string, string]> = [
   ],
   [
     'What happens to my history if I stop paying?',
-    'It stays readable and downloadable for 90 days. Going over your limits pauses new pushes; it never deletes anything. Mirrors on other hosts keep their copy.',
+    'Your account moves to Free. Your history stays readable, cloneable and exportable for 90 days, and we tell you before anything is deleted. Over the Free limits, pushes pause; going over never deletes anything. Mirrors on other hosts keep their copy.',
   ],
   [
     'Is there a self-hosted version?',
@@ -68,13 +68,20 @@ const questions: Array<[string, string]> = [
   ],
 ]
 
-function limitLines(plan: Plan): Array<[string, string]> {
+/** 0.25 GB reads as 250 MB. */
+function size(gb: number): string {
+  return gb < 1 ? `${Math.round(gb * 1000)} MB` : `${gb} GB`
+}
+
+const isPaid = (p: Plan | FreePlan): p is Plan => p.id !== 'free'
+
+function limitLines(plan: Plan | FreePlan): Array<[string, string]> {
   const l = plan.limits
-  const unit = plan.perSeat ? ' per seat' : ''
+  const unit = isPaid(plan) && plan.perSeat ? ' per seat' : ''
   return [
-    ['Storage', `${l.storageGb} GB${unit}`],
-    ['Transfer out', `${l.transferGb} GB a month${unit}`],
-    ['Mirrors', l.mirrors === 'unlimited' ? 'Unlimited' : String(l.mirrors)],
+    ['Storage', `${size(l.storageGb)}${unit}`],
+    ['Transfer out', `${size(l.transferGb)} a month${unit}`],
+    ['Mirrors', 'Unlimited'],
   ]
 }
 
@@ -107,8 +114,8 @@ function Pricing() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        {plans.map((p) => (
+      <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        {[freePlan, ...plans].map((p) => (
           <article
             key={p.id}
             className={cn(
@@ -116,7 +123,7 @@ function Pricing() {
               // The plan we suggest gets a brand border, not an outline
               // (outlines mean keyboard focus) and not a ring (the elevation
               // would erase it). The padding gives back the extra 1px.
-              p.featured
+              isPaid(p) && p.featured
                 ? 'border-2 border-brand-ink p-[calc(1.75rem-1px)] dark:border-brand/45'
                 : 'border p-7',
             )}
@@ -127,24 +134,26 @@ function Pricing() {
             </div>
             <div>
               <span className="text-4xl font-semibold tracking-tight tabular-nums">
-                ${perMonth(p, billing)}
+                ${isPaid(p) ? perMonth(p, billing) : 0}
               </span>
               <span className="ml-1.5 text-sm text-muted-foreground">
-                {p.perSeat ? 'per seat, per month' : 'per month'}
+                {isPaid(p) && p.perSeat ? 'per seat, per month' : 'per month'}
               </span>
               <p className="mt-1 text-xs text-muted-foreground">
-                {billing === 'year'
-                  ? `Billed yearly, $${perYear(p)}${p.perSeat ? ' per seat' : ''}`
-                  : 'Billed monthly'}
+                {!isPaid(p)
+                  ? 'Free, with no card'
+                  : billing === 'year'
+                    ? `Billed yearly, $${perYear(p)}${p.perSeat ? ' per seat' : ''}`
+                    : 'Billed monthly'}
               </p>
             </div>
             <Button
               size="lg"
-              variant={p.featured ? 'brand' : 'outline'}
-              render={<Link to="/new" />}
+              variant={isPaid(p) && p.featured ? 'brand' : 'outline'}
+              render={<Link to={isPaid(p) ? '/new' : '/sign-up'} />}
               nativeButton={false}
             >
-              Start {trial.days}-day trial
+              {isPaid(p) ? `Choose ${p.name}` : 'Sign up free'}
             </Button>
             <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
               {limitLines(p).map(([k, v]) => (

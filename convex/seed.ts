@@ -39,6 +39,17 @@ export async function load(ctx: MutationCtx, w: World) {
       }),
     )
   }
+  // Sample accounts are not real customers: they hold every feature, so what
+  // the sample shows is not limited by a plan. The grant ends in 100 years.
+  for (const [handle, accountId] of accountIds)
+    await ctx.db.insert('planGrants', {
+      accountId,
+      plan: 'business',
+      reason: `Sample account ${handle}`,
+      grantedBy: 'seed',
+      created: Date.now(),
+      expires: Date.now() + 100 * 366 * 86_400_000,
+    })
   for (const a of w.accounts) {
     const orgId = accountIds.get(a.handle)!
     for (const [handle, role] of a.members) {

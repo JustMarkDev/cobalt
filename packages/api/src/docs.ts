@@ -1400,6 +1400,7 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
       'upload_incomplete',
     ],
   ],
+  ['Plans and read-only', ['plan_required', 'read_only']],
   [
     'Retries',
     [

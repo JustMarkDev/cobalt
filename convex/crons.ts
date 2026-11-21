@@ -32,6 +32,14 @@ crons.interval(
   {},
 )
 
+// Accounts whose 30 days after asking to be deleted are over are erased.
+crons.interval(
+  'purge deleted accounts',
+  { hours: 1 },
+  internal.deletion.purgeDue,
+  {},
+)
+
 // Product events to PostHog, in batches. Does nothing without POSTHOG_KEY.
 crons.interval('send analytics', { minutes: 1 }, internal.analytics.send, {})
 

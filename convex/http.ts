@@ -1,7 +1,12 @@
+import { ConvexError } from 'convex/values'
 import { httpRouter } from 'convex/server'
 import { internal } from './_generated/api'
 import { env, httpAction } from './_generated/server'
 import { authComponent, createAuth } from './auth'
+import {
+  subscriptionChange,
+  verifyStandardWebhook,
+} from '@source-code/api/polar'
 import { verifyPierre } from './lib/pierre'
 
 const http = httpRouter()
@@ -61,6 +66,57 @@ http.route({
         : {}),
     })
     return new Response(result, { status: 200 })
+  }),
+})
+
+// Polar tells us a subscription began, changed or ended. Checked, then written
+// as the account's plan. Events that name no account or plan are acknowledged
+// and ignored, so Polar does not retry them for ever.
+http.route({
+  path: '/hooks/polar',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const body = await req.text()
+    const problem = await verifyStandardWebhook(
+      body,
+      {
+        id: req.headers.get('webhook-id'),
+        timestamp: req.headers.get('webhook-timestamp'),
+        signature: req.headers.get('webhook-signature'),
+      },
+      env.POLAR_WEBHOOK_SECRET,
+      Date.now(),
+    )
+    if (problem) return new Response(problem, { status: 401 })
+    let e: unknown
+    try {
+      e = JSON.parse(body)
+    } catch {
+      return new Response('The body is not JSON.', { status: 400 })
+    }
+    const change = subscriptionChange(e)
+    if (!change) return new Response('ignored', { status: 202 })
+    try {
+      await ctx.runMutation(internal.plans.setSubscription, {
+        handle: change.handle,
+        plan: change.plan,
+        status: change.status,
+        ...(change.seats === undefined ? {} : { seats: change.seats }),
+        ...(change.periodEnd === undefined
+          ? {}
+          : { periodEnd: change.periodEnd }),
+        provider: 'polar',
+        providerRef: change.providerRef,
+        at: change.at,
+      })
+    } catch (err) {
+      // No such account (a typo in the checkout's metadata): a retry cannot fix
+      // it. Anything else is ours to fix, and Polar should retry.
+      if (err instanceof ConvexError)
+        return new Response('unknown_account', { status: 202 })
+      throw err
+    }
+    return new Response('ok', { status: 200 })
   }),
 })
 

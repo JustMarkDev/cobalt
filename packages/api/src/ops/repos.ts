@@ -211,6 +211,7 @@ export const updateRepo = defineOp({
     'version_mismatch',
     'invalid_state',
     'moved',
+    'plan_required',
   ],
   handler: (ctx) =>
     Effect.gen(function* () {
@@ -270,7 +271,7 @@ export const transferRepo = defineOp({
     confirm: z.string().describe('The current `owner/name`'),
   }),
   response: S.Repo,
-  errors: ['not_found', 'forbidden', 'invalid_state', 'moved'],
+  errors: ['not_found', 'forbidden', 'invalid_state', 'moved', 'plan_required'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain

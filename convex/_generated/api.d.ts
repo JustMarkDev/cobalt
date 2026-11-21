@@ -13,6 +13,7 @@ import type * as analytics from "../analytics.js";
 import type * as apiStores from "../apiStores.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as deletion from "../deletion.js";
 import type * as forge_accounts from "../forge/accounts.js";
 import type * as forge_changes from "../forge/changes.js";
 import type * as forge_events from "../forge/events.js";
@@ -58,15 +59,20 @@ import type * as lib_issues from "../lib/issues.js";
 import type * as lib_mail from "../lib/mail.js";
 import type * as lib_paginate from "../lib/paginate.js";
 import type * as lib_pierre from "../lib/pierre.js";
+import type * as lib_plan from "../lib/plan.js";
 import type * as lib_policyFile from "../lib/policyFile.js";
 import type * as lib_present from "../lib/present.js";
 import type * as lib_stats from "../lib/stats.js";
+import type * as lib_sweeps from "../lib/sweeps.js";
 import type * as lib_time from "../lib/time.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_uploads from "../lib/uploads.js";
+import type * as lib_usage from "../lib/usage.js";
 import type * as mail from "../mail.js";
+import type * as plans from "../plans.js";
 import type * as profiles from "../profiles.js";
 import type * as seed from "../seed.js";
+import type * as storeWorker from "../storeWorker.js";
 
 import type {
   ApiFromModules,
@@ -80,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   apiStores: typeof apiStores;
   auth: typeof auth;
   crons: typeof crons;
+  deletion: typeof deletion;
   "forge/accounts": typeof forge_accounts;
   "forge/changes": typeof forge_changes;
   "forge/events": typeof forge_events;
@@ -125,15 +132,20 @@ declare const fullApi: ApiFromModules<{
   "lib/mail": typeof lib_mail;
   "lib/paginate": typeof lib_paginate;
   "lib/pierre": typeof lib_pierre;
+  "lib/plan": typeof lib_plan;
   "lib/policyFile": typeof lib_policyFile;
   "lib/present": typeof lib_present;
   "lib/stats": typeof lib_stats;
+  "lib/sweeps": typeof lib_sweeps;
   "lib/time": typeof lib_time;
   "lib/tokens": typeof lib_tokens;
   "lib/uploads": typeof lib_uploads;
+  "lib/usage": typeof lib_usage;
   mail: typeof mail;
+  plans: typeof plans;
   profiles: typeof profiles;
   seed: typeof seed;
+  storeWorker: typeof storeWorker;
 }>;
 
 /**

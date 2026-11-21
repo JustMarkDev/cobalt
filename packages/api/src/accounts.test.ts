@@ -113,9 +113,15 @@ describe('creating an organization', () => {
       'harbor-tools',
     )
     const repo = await h.call('POST', '/repos', {
-      body: { owner: 'harbor-tools', name: 'cli', visibility: 'private' },
+      body: { owner: 'harbor-tools', name: 'cli', visibility: 'public' },
     })
     expect(repo.status).toBe(201)
+    // A new account starts on the Free plan, which is for public repositories.
+    const closed = await h.call('POST', '/repos', {
+      body: { owner: 'harbor-tools', name: 'secret', visibility: 'private' },
+    })
+    expect(closed.status).toBe(402)
+    expect(closed.json.code).toBe('plan_required')
   })
 
   test('a handle is one namespace: a person, another organization or a page of the site has it', async () => {

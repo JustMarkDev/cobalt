@@ -1,4 +1,5 @@
 import { fail, moved } from './errors'
+import { assertRepoWritable } from './plan'
 import type { Actor } from './actor'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
@@ -145,13 +146,19 @@ export async function repoByPublicId(ctx: Ctx, id: string) {
  * The repository at `owner/name` (or `rep_.../~`), if the caller may read it,
  * and write it when `need` says so. An old address of a repository the caller
  * can read answers `moved`.
+ *
+ * `write` is a change to what is in the repository, and a repository that
+ * only reads (a private one on the Free plan, or one of an account waiting to
+ * be deleted) refuses it. `manage` is the permission to write without that
+ * check, for what has to stay possible on a read-only repository: making it
+ * public, moving it, deleting it.
  */
 export async function resolve(
   ctx: Ctx,
   owner: string,
   name: string,
   a: Actor | null,
-  need: 'read' | 'write' = 'read',
+  need: 'read' | 'write' | 'manage' = 'read',
 ): Promise<Doc<'repos'>> {
   let repo: Doc<'repos'> | null
   if (name === '~' && owner.startsWith('rep_'))
@@ -180,8 +187,9 @@ export async function resolve(
   }
   if (!repo || !(await canRead(ctx, repo, a)))
     fail('not_found', `No repository ${owner}/${name}.`)
-  if (need === 'write' && !(await canWrite(ctx, repo, a)))
+  if (need !== 'read' && !(await canWrite(ctx, repo, a)))
     fail('forbidden', 'You can read this repository but not change it.')
+  if (need === 'write') await assertRepoWritable(ctx, repo)
   return repo
 }
 

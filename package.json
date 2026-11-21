@@ -21,37 +21,37 @@
     "prepare": "vp config"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.13.0",
+    "@convex-dev/better-auth": "^0.13.1",
     "@convex-dev/presence": "^0.4.0",
     "@noble/hashes": "^2.4.0",
     "@source-code/api": "workspace:*",
-    "better-auth": "~1.7.16",
-    "convex": "^1.49.0",
-    "jose": "^6.2.17"
+    "better-auth": "~1.7.27",
+    "convex": "^1.51.0",
+    "jose": "^6.2.18"
   },
   "devDependencies": {
     "@source-code/sdk": "workspace:*",
     "@convex-dev/eslint-plugin": "^5.0.1",
-    "@types/bun": "^1.4.4",
+    "@types/bun": "^1.4.5",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "convex-test": "^0.0.67",
-    "oxfmt": "0.78.0",
+    "convex-test": "^0.0.73",
+    "oxfmt": "0.79.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
-    "vite-plus": "1.5.1"
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+    "vite-plus": "1.7.0"
   },
   "overrides": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0",
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
     "minimatch": "^11.0.5"
   },
   "devEngines": {
     "packageManager": {
       "name": "bun",
-      "version": "1.4.4",
+      "version": "1.4.5",
       "onFail": "download"
     }
   },
   "patchedDependencies": {
-    "convex-test@0.0.67": "patches/convex-test@0.0.67.patch"
+    "convex-test@0.0.73": "patches/convex-test@0.0.73.patch"
   }
 }

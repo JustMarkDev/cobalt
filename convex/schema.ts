@@ -66,10 +66,87 @@ export default defineSchema({
     // a repository's visibility or collaborators. Versions of what the
     // account owns include it, so a cached answer cannot outlive access.
     aclRev: v.number(),
+    // Set when the person asked to delete this account. Until `purgeAt` the
+    // account is read-only and the request can be taken back; after it the
+    // account and what it owns are erased (`deletion.ts`).
+    deletionRequested: v.optional(v.number()),
+    purgeAt: v.optional(v.number()),
   })
     .index('by_handle', ['handle'])
     .index('by_authId', ['authId'])
-    .index('by_publicId', ['publicId']),
+    .index('by_publicId', ['publicId'])
+    .index('by_purgeAt', ['purgeAt']),
+
+  // The paid plan of an account. One row per account, written by the payment
+  // provider's webhook (`plans.ts`). A row that ended stays, as `lapsed`, so
+  // the 90 days history is kept from the moment it ended can be counted.
+  subscriptions: defineTable({
+    accountId: v.id('accounts'),
+    plan: v.union(v.literal('solo'), v.literal('team'), v.literal('business')),
+    status: v.union(v.literal('active'), v.literal('lapsed')),
+    seats: v.optional(v.number()),
+    // The end of the period paid for, as the provider reports it.
+    periodEnd: v.optional(v.number()),
+    lapsedAt: v.optional(v.number()),
+    provider: v.optional(v.string()),
+    providerRef: v.optional(v.string()),
+    // The provider's own time for the event that wrote this row.
+    eventAt: v.optional(v.number()),
+    updated: v.number(),
+  }).index('by_accountId', ['accountId']),
+
+  // A plan given to one account by hand, to try the product. It always has
+  // an end. Only an operator makes one, from the command line.
+  planGrants: defineTable({
+    accountId: v.id('accounts'),
+    plan: v.union(v.literal('solo'), v.literal('team'), v.literal('business')),
+    reason: v.string(),
+    grantedBy: v.string(),
+    created: v.number(),
+    expires: v.number(),
+    revoked: v.optional(v.number()),
+  }).index('by_accountId', ['accountId']),
+
+  // Addresses of deleted accounts, as a hash, so nobody can sign up as
+  // someone who was here. The address itself is not kept.
+  retiredHandles: defineTable({ hash: v.string(), retired: v.number() }).index(
+    'by_hash',
+    ['hash'],
+  ),
+
+  // How big a repository's git store is, as the store reports it. Kept
+  // apart from `repos` so a repository's own writes never touch it. `stale`
+  // means a push landed since it was measured.
+  repoSizes: defineTable({
+    repoId: v.id('repos'),
+    storeId: v.string(),
+    bytes: v.number(),
+    measured: v.number(),
+    stale: v.boolean(),
+  })
+    .index('by_repoId', ['repoId'])
+    .index('by_storeId', ['storeId'])
+    .index('by_stale_and_measured', ['stale', 'measured']),
+
+  // What an account moved this month, for the plan's transfer allowance.
+  // One row per account and month.
+  accountUsage: defineTable({
+    accountId: v.id('accounts'),
+    month: v.string(),
+    transferBytes: v.number(),
+    pushBytes: v.number(),
+  }).index('by_accountId_and_month', ['accountId', 'month']),
+
+  // Things outside Convex that must be deleted, queued by an account or
+  // repository erasure and taken by the store worker on the API server
+  // (`storeWorker.ts`). `key` is an opaque store or upload id, never a name.
+  // `lease` is until when a worker holds it; 0 is free.
+  sweeps: defineTable({
+    kind: v.union(v.literal('git'), v.literal('blob')),
+    key: v.string(),
+    created: v.number(),
+    lease: v.number(),
+  }).index('by_kind_and_lease', ['kind', 'lease']),
 
   // Handles that act without an account of their own here, such as a review
   // service. People and organizations are accounts; their actor id is the

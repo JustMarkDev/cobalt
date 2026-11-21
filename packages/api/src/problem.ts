@@ -118,6 +118,20 @@ export const errorCatalog = {
     exit: 5,
     hint: 'Delete one you no longer need. GET /v1/limits lists the numbers.',
   },
+  plan_required: {
+    status: 402,
+    title: 'This needs a paid plan',
+    retryable: false,
+    exit: 5,
+    hint: 'Upgrade the account that owns it. Private repositories are on the paid plans; the Free plan is for public ones.',
+  },
+  read_only: {
+    status: 409,
+    title: 'This only reads for now',
+    retryable: false,
+    exit: 5,
+    hint: 'The account is on the Free plan with a private repository, or is waiting to be deleted. Clones, fetches and exports still work.',
+  },
   upload_incomplete: {
     status: 409,
     title: 'The file has not been uploaded yet',

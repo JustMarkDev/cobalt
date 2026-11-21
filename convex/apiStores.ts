@@ -29,7 +29,7 @@ const stateValidator = v.union(
   }),
 )
 
-function assertSecret(secret: string) {
+export function assertSecret(secret: string) {
   const want = env.API_STORE_SECRET
   // Compared in full whatever the length, so the answer does not leak how much matched.
   let diff = want === undefined || want.length < 16 ? 1 : 0

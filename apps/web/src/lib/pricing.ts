@@ -4,20 +4,16 @@
  * and a test fails if a price here stops covering them.
  */
 
-export type PlanId = 'solo' | 'team' | 'business'
+import { planLimits } from '@source-code/api/plans'
+import type { PaidPlanId, PlanLimits } from '@source-code/api/plans'
 
-export type Limits = {
-  /** Git storage included, per seat. */
-  storageGb: number
-  /** Data transferred out (clones, fetches, mirror pushes), per seat per month. */
-  transferGb: number
-  /** Data pushed in, per seat per month. */
-  pushGb: number
-  mirrors: number | 'unlimited'
-}
+export type { PaidPlanId, PlanId } from '@source-code/api/plans'
+
+/** The numbers are in `@source-code/api/plans`, where the code that enforces them reads them. */
+export type Limits = PlanLimits
 
 export type Plan = {
-  id: PlanId
+  id: PaidPlanId
   name: string
   blurb: string
   /** USD per seat per month, billed monthly. */
@@ -32,15 +28,34 @@ export type Plan = {
 /** Yearly billing is 10 months for 12, then rounded down to a whole dollar a month. */
 export const YEARLY_MONTHS = 10
 
-export const trial = {
-  days: 14,
-  cardRequired: true,
-  storageGb: 1,
-  transferGb: 3,
-}
-
 /** Beyond a plan, billed in arrears at published rates. */
 export const overage = { storagePerGbMonth: 3.5, transferPerGb: 0.3 }
+
+/**
+ * The plan every account starts on, forever and without a card. Public
+ * repositories only: a private repository, or agent access to secrets, needs a
+ * paid plan. There is no trial of a paid plan: you pay, and the withdrawal
+ * period the law gives you applies.
+ */
+export type FreePlan = Omit<Plan, 'id' | 'monthly' | 'perSeat' | 'featured'> & {
+  id: 'free'
+  monthly: 0
+}
+
+export const freePlan: FreePlan = {
+  id: 'free',
+  name: 'Free',
+  blurb: 'For open source, and for trying it out.',
+  monthly: 0,
+  limits: planLimits.free,
+  lead: 'Includes',
+  features: [
+    'Public repositories, with no card',
+    'Import history from the hosts you use',
+    'Unlimited mirrors',
+    'The CLI, the MCP server and the agent skill',
+  ],
+}
 
 export const plans: Array<Plan> = [
   {
@@ -50,11 +65,11 @@ export const plans: Array<Plan> = [
     monthly: 15,
     perSeat: false,
     lead: 'Includes',
-    limits: { storageGb: 4, transferGb: 20, pushGb: 4, mirrors: 3 },
+    limits: planLimits.solo,
     features: [
       'Public and private repositories',
       'Import history from the hosts you use',
-      '3 mirrors, so a copy lives elsewhere too',
+      'Unlimited mirrors, so a copy lives elsewhere too',
       'Changes, policies and secrets in git',
       'The CLI, the MCP server and the agent skill',
       'Agent access to development secrets, with grants',
@@ -66,7 +81,7 @@ export const plans: Array<Plan> = [
     blurb: 'For groups that review each other’s work.',
     monthly: 25,
     perSeat: true,
-    limits: { storageGb: 8, transferGb: 32, pushGb: 8, mirrors: 10 },
+    limits: planLimits.team,
     lead: 'Everything in Solo, plus',
     features: [
       'Teams as approvers, and approver classes for agents',
@@ -84,10 +99,10 @@ export const plans: Array<Plan> = [
     blurb: 'For larger codebases and heavier agent use.',
     monthly: 50,
     perSeat: true,
-    limits: { storageGb: 20, transferGb: 80, pushGb: 20, mirrors: 'unlimited' },
+    limits: planLimits.business,
     lead: 'Everything in Team, plus',
     features: [
-      'Unlimited mirrors with sync alerts',
+      'Sync alerts for every mirror',
       'Policy dry runs and expiring exceptions',
       'Spend caps and token history for agents',
       'Five years of audit log',

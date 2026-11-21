@@ -197,7 +197,7 @@ type Confirmation = {
 function Confirmations({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const write = useWrite()
-  const { confirm } = useSearch({ strict: false }) as { confirm?: string }
+  const { confirm }: { confirm?: string } = useSearch({ strict: false })
   const list = useOp('confirmations.list', at).data as Array<Confirmation>
   const [hours, setHours] = React.useState(1)
   const [error, setError] = React.useState('')
