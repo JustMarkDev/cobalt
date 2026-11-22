@@ -23,8 +23,7 @@ export default defineRailway(() => {
     build: {
       builder: 'RAILPACK',
       buildEnvironment: 'V3',
-      buildCommand:
-        "bunx convex deploy --cmd 'bun run --cwd apps/web build' --cmd-url-env-var-name VITE_CONVEX_URL",
+      buildCommand: 'bun run build:deploy',
     },
     start: 'bun run start',
     // Answers without calling Convex, so a slow Convex never fails a deploy.

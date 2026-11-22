@@ -13,6 +13,7 @@
     "check": "vp check && bun run typecheck",
     "typecheck": "bun check --no-script",
     "build": "bun run typecheck && bun run --cwd apps/web build",
+    "build:deploy": "convex deploy --cmd 'bun run --cwd apps/web build' --cmd-url-env-var-name VITE_CONVEX_URL",
     "start": "bun run --cwd apps/web start",
     "format": "vp fmt .",
     "lint": "vp lint",
