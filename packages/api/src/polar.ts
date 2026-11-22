@@ -67,10 +67,29 @@ export function subscriptionChange(event: unknown): SubscriptionChange | null {
 }
 
 /**
+ * The keys a secret may sign with. Polar's secrets look like `whsec_<base64>`.
+ * Those made since September 2026 follow the Standard Webhooks spec: the key
+ * is the base64 part, decoded. Older ones signed with the whole text as bytes.
+ * Both are tried, so a secret of either age works.
+ */
+function signingKeys(secret: string): Array<Uint8Array<ArrayBuffer>> {
+  const keys: Array<Uint8Array<ArrayBuffer>> = []
+  const encoded = secret.startsWith('whsec_') ? secret.slice(6) : secret
+  try {
+    const bin = atob(encoded)
+    keys.push(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
+  } catch {
+    // Not base64: only the text itself can be the key.
+  }
+  keys.push(new TextEncoder().encode(secret))
+  return keys
+}
+
+/**
  * Standard Webhooks (what Polar signs with): headers `webhook-id`,
  * `webhook-timestamp` and `webhook-signature` (`v1,<base64>` , several may be
- * listed), an HMAC-SHA256 of `<id>.<timestamp>.<body>` with the secret. Five
- * minutes either way. Returns what is wrong, or null.
+ * listed), an HMAC-SHA256 of `<id>.<timestamp>.<body>` with the secret's key
+ * (`signingKeys`). Five minutes either way. Returns what is wrong, or null.
  */
 export async function verifyStandardWebhook(
   body: string,
@@ -89,33 +108,36 @@ export async function verifyStandardWebhook(
   if (Number.isNaN(ts)) return 'The timestamp is not valid.'
   if (Math.abs(Math.floor(nowMs / 1000) - ts) > 300)
     return 'The webhook is too old or from the future.'
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
+  const message = new TextEncoder().encode(
+    `${headers.id}.${headers.timestamp}.${body}`,
   )
-  const mac = new Uint8Array(
-    await crypto.subtle.sign(
-      'HMAC',
-      key,
-      new TextEncoder().encode(`${headers.id}.${headers.timestamp}.${body}`),
-    ),
-  )
-  let bin = ''
-  for (const b of mac) bin += String.fromCharCode(b)
-  const want = btoa(bin)
-  for (const part of headers.signature.split(' ')) {
-    const [version, sig] = part.split(',', 2)
-    if (version !== 'v1' || !sig) continue
-    // Compared in full, so the answer does not leak how much matched.
-    let diff = want.length ^ sig.length
-    for (let i = 0; i < Math.max(want.length, sig.length); i++)
-      diff |= (want.charCodeAt(i) || 0) ^ (sig.charCodeAt(i) || 0)
-    if (diff === 0) return null
+  const sent = headers.signature
+    .split(' ')
+    .map((part) => part.split(',', 2))
+    .filter(([version, sig]) => version === 'v1' && sig)
+    .map(([, sig]) => sig)
+  let ok = false
+  for (const raw of signingKeys(secret)) {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      raw,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
+    const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, message))
+    let bin = ''
+    for (const b of mac) bin += String.fromCharCode(b)
+    const want = btoa(bin)
+    for (const sig of sent) {
+      // Compared in full, so the answer does not leak how much matched.
+      let diff = want.length ^ sig.length
+      for (let i = 0; i < Math.max(want.length, sig.length); i++)
+        diff |= (want.charCodeAt(i) || 0) ^ (sig.charCodeAt(i) || 0)
+      if (diff === 0) ok = true
+    }
   }
-  return 'The signature does not match.'
+  return ok ? null : 'The signature does not match.'
 }
 
 /**

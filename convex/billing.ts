@@ -35,6 +35,9 @@ export const payerOf = internalQuery({
     handle: v.string(),
     members: v.number(),
     subscribed: v.boolean(),
+    // The signed-in person's own, so the checkout does not ask for it again.
+    email: v.union(v.string(), v.null()),
+    name: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, { account: handle }) => {
     const p = await signedIn(ctx)
@@ -68,11 +71,14 @@ export const payerOf = internalQuery({
               .take(1000)
           ).length
         : 1
+    const who = await ctx.auth.getUserIdentity()
     return {
       id: account._id,
       handle: account.handle,
       members,
       subscribed: sub?.status === 'active',
+      email: who?.email ?? null,
+      name: who?.name ?? null,
     }
   },
 })
@@ -89,6 +95,11 @@ function site(): string {
   return s.replace(/\/$/, '')
 }
 
+/**
+ * Polar's answer, or null when it refused the request (a 4xx), after logging
+ * which fields it did not like (never their values: they can be an email).
+ * An outage or a server error is not a refusal: that one ends the call.
+ */
 async function polar(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`${POLAR}${path}`, {
     method: 'POST',
@@ -101,13 +112,21 @@ async function polar(path: string, body: unknown): Promise<unknown> {
     console.error('[billing] Polar is not reachable', e)
     return null
   })
-  if (!res?.ok) {
-    console.error(
-      `[billing] Polar answered ${res?.status ?? 'nothing'} on ${path}`,
-    )
-    fail('unavailable', 'Payments are not available right now. Try again soon.')
+  if (res?.ok) return await res.json()
+  if (res && res.status >= 400 && res.status < 500) {
+    const why = (await res.json().catch(() => null)) as {
+      detail?: Array<{ loc?: Array<unknown>; type?: string }>
+    } | null
+    const fields = Array.isArray(why?.detail)
+      ? why.detail.map((d) => `${String(d.loc?.at(-1))}: ${d.type}`).join(', ')
+      : ''
+    console.error(`[billing] Polar refused ${path} (${res.status}) ${fields}`)
+    return null
   }
-  return await res.json()
+  console.error(
+    `[billing] Polar answered ${res?.status ?? 'nothing'} on ${path}`,
+  )
+  fail('unavailable', 'Payments are not available right now. Try again soon.')
 }
 
 const payer = (ctx: ActionCtx, account: string | undefined) =>
@@ -143,7 +162,7 @@ export const checkout = action({
     const seats = perSeat(a.plan)
       ? Math.min(10_000, Math.max(1, Math.floor(a.seats ?? who.members)))
       : undefined
-    const made = (await polar('/checkouts/', {
+    const session = {
       products: [polarProducts[a.plan][a.cycle]],
       metadata: { account: who.handle, plan: a.plan },
       external_customer_id: who.id,
@@ -152,7 +171,17 @@ export const checkout = action({
       ...(a.currency === undefined ? {} : { currency: a.currency }),
       success_url: `${site()}/settings/plan?billing=done`,
       return_url: `${site()}/pricing`,
-    })) as { url?: unknown }
+    }
+    // The person's email and name save typing. Polar checks that the email's
+    // domain takes mail, and refuses one that does not: then the checkout
+    // asks for it instead of failing.
+    const prefill = {
+      ...(who.email === null ? {} : { customer_email: who.email }),
+      ...(who.name === null ? {} : { customer_name: who.name }),
+    }
+    const made = ((await polar('/checkouts/', { ...session, ...prefill })) ??
+      (await polar('/checkouts/', session)) ??
+      {}) as { url?: unknown }
     if (typeof made.url !== 'string')
       fail(
         'unavailable',
@@ -173,8 +202,8 @@ export const portal = action({
     const made = (await polar('/customer-sessions/', {
       external_customer_id: who.id,
       return_url: `${site()}/settings/plan`,
-    })) as { customer_portal_url?: unknown }
-    if (typeof made.customer_portal_url !== 'string')
+    })) as { customer_portal_url?: unknown } | null
+    if (typeof made?.customer_portal_url !== 'string')
       fail(
         'unavailable',
         'Payments are not available right now. Try again soon.',

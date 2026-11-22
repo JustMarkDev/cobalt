@@ -76,10 +76,15 @@ describe('what a Polar event means', () => {
 
 describe('the signature', () => {
   const NOW = Date.parse('2026-11-21T12:00:00Z')
-  const sign = async (body: string, id: string, ts: string, secret: string) => {
+  const sign = async (
+    body: string,
+    id: string,
+    ts: string,
+    secret: string | Uint8Array<ArrayBuffer>,
+  ) => {
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(secret),
+      typeof secret === 'string' ? new TextEncoder().encode(secret) : secret,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign'],
@@ -114,6 +119,32 @@ describe('the signature', () => {
         NOW,
       ),
     ).toBeNull()
+  })
+
+  test('a whsec_ secret signs with its decoded key, as the Standard Webhooks spec says', async () => {
+    const raw = Uint8Array.from({ length: 32 }, (_, i) => i * 7 + 1)
+    const secret = `whsec_${btoa(String.fromCharCode(...raw))}`
+    const sig = await sign('{}', 'm1', ts, raw)
+    const h = { id: 'm1', timestamp: ts, signature: `v1,${sig}` }
+    expect(await verifyStandardWebhook('{}', h, secret, NOW)).toBeNull()
+    // Signed with the secret's own text, as older secrets were, also passes.
+    const legacy = await sign('{}', 'm1', ts, secret)
+    expect(
+      await verifyStandardWebhook(
+        '{}',
+        { ...h, signature: `v1,${legacy}` },
+        secret,
+        NOW,
+      ),
+    ).toBeNull()
+    expect(
+      await verifyStandardWebhook(
+        '{}',
+        h,
+        `whsec_${btoa('x'.repeat(32))}`,
+        NOW,
+      ),
+    ).not.toBeNull()
   })
 
   test('a changed body, a wrong secret, a stale time and missing headers are refused', async () => {

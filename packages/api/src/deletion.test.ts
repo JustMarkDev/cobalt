@@ -63,7 +63,12 @@ async function world() {
   const alice = await person('alice', 'user_alice')
   const bob = await person('bob', 'user_bob')
   // A browser session: no API claim, the subject is the sign-in user.
-  const as = (authId: string) => t.withIdentity({ subject: authId })
+  const as = (authId: string) =>
+    t.withIdentity({
+      subject: authId,
+      email: `${authId.replace('user_', '')}@mail.test`,
+      name: authId.replace('user_', ''),
+    })
   return { t, alice, bob, as }
 }
 
@@ -754,7 +759,8 @@ describe('the store worker', () => {
 })
 
 describe('Polar tells us about a subscription', () => {
-  const POLAR = 'polar-secret-0123456789'
+  // Shaped like Polar's: whsec_ and base64; the signing key is what it decodes to.
+  const POLAR = `whsec_${btoa('0123456789abcdef0123456789abcdef')}`
 
   async function signedPost(
     t: ReturnType<typeof convexTest>,
@@ -766,7 +772,7 @@ describe('Polar tells us about a subscription', () => {
     const ts = String(Math.floor(Date.now() / 1000))
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(secret),
+      Uint8Array.from(atob(secret.slice(6)), (c) => c.charCodeAt(0)),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign'],
@@ -853,7 +859,7 @@ describe('Polar tells us about a subscription', () => {
         await signedPost(
           t,
           event('subscription.active', {}),
-          'another-secret-xx',
+          `whsec_${btoa('another-secret-0123456789abcdef')}`,
         )
       ).status,
     ).toBe(401)
@@ -963,10 +969,42 @@ describe('paying for a plan', () => {
     expect(calls[0].body).toMatchObject({
       products: ['8ffab6ad-9379-4480-abed-4cfaa9f1a86f'],
       metadata: { account: 'alice', plan: 'team' },
+      customer_email: 'alice@mail.test',
       seats: 3,
       currency: 'eur',
       success_url: 'https://example.test/settings/plan?billing=done',
     })
+  })
+
+  test('when Polar refuses the email, the checkout asks for it instead of failing', async () => {
+    const { as } = await world()
+    const answer = globalThis.fetch
+    globalThis.fetch = ((url: string | URL, init?: RequestInit) => {
+      const body = JSON.parse(init?.body as string) as Record<string, unknown>
+      if ('customer_email' in body) {
+        calls.push({ url: String(url), auth: null, body })
+        return Promise.resolve(
+          Response.json(
+            {
+              detail: [
+                { loc: ['body', 'customer_email'], type: 'value_error' },
+              ],
+            },
+            { status: 422 },
+          ),
+        )
+      }
+      return (
+        answer as (u: string | URL, i?: RequestInit) => Promise<Response>
+      )(url, init)
+    }) as unknown as typeof fetch
+    const url = await as('user_alice').action(api.billing.checkout, {
+      plan: 'solo',
+      cycle: 'month',
+    })
+    expect(url).toBe('https://polar.sh/checkout/c_1')
+    expect(calls).toHaveLength(2)
+    expect(calls[1].body).not.toHaveProperty('customer_email')
   })
 
   test('a plan for one person has no seats', async () => {
