@@ -15,11 +15,16 @@ export default defineRailway(() => {
       branch: 'main',
       checkSuites: true,
     }),
-    // Railpack runs `bun install --frozen-lockfile` before this.
+    // Railpack runs `bun install --frozen-lockfile` before this. The Convex
+    // functions ship with the web app that calls them: `convex deploy` builds
+    // the app first and pushes the functions only if the build passed, so the
+    // two never drift apart. CONVEX_DEPLOY_KEY (a production deploy key) is a
+    // dashboard variable.
     build: {
       builder: 'RAILPACK',
       buildEnvironment: 'V3',
-      buildCommand: 'bun run --cwd apps/web build',
+      buildCommand:
+        "bunx convex deploy --cmd 'bun run --cwd apps/web build' --cmd-url-env-var-name VITE_CONVEX_URL",
     },
     start: 'bun run start',
     // Answers without calling Convex, so a slow Convex never fails a deploy.
