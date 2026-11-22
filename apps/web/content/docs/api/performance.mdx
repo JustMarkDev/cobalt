@@ -86,7 +86,7 @@ What changed:
 - **Revoked tokens are limited** to the newest 50,000; older ones answer `token_invalid` instead of `token_revoked`, and still do not work. Tokens are indexed by owner, so listing yours no longer reads everyone's.
 - **Uploads that were announced and never sent are forgotten** when their hour is up, and counting a person's pending uploads is a lookup, not a scan.
 
-Resident memory sits above the heap because the runtime hands pages back slowly: 100,000 requests' worth of garbage is released over a few seconds. Setting `BUN_JSC_forceRAMSize` to the container's memory limit makes it collect earlier; in our test it lowered the peak from 547 MB to 414 MB for the same work. On Railway set it to the service's memory limit in bytes.
+Resident memory sits above the heap because the runtime hands pages back slowly: 100,000 requests' worth of garbage is released over a few seconds. Setting `BUN_JSC_forceRAMSize` to the container's memory limit makes it collect earlier; in our test it lowered the peak from 547 MB to 414 MB for the same work. `bun run start` (`apps/web/start.sh`) sets it from the container's memory limit (`/sys/fs/cgroup/memory.max`) on every start, so it follows the limit when the service is resized.
 
 ### Where the time went
 

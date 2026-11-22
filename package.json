@@ -30,12 +30,13 @@
     "jose": "^6.2.18"
   },
   "devDependencies": {
-    "@source-code/sdk": "workspace:*",
     "@convex-dev/eslint-plugin": "^5.0.1",
+    "@source-code/sdk": "workspace:*",
     "@types/bun": "^1.4.5",
     "@typescript/native": "npm:typescript@^7.0.2",
     "convex-test": "^0.0.73",
     "oxfmt": "0.79.0",
+    "railway": "^3.17.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
     "vite-plus": "1.7.0"
