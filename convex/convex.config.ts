@@ -34,6 +34,9 @@ const app = defineApp({
     // to the secret Polar shows for the webhook endpoint. Without it every
     // webhook is refused.
     POLAR_WEBHOOK_SECRET: v.optional(v.string()),
+    // Paying (`billing.ts`): an organization access token from Polar, with
+    // the checkouts and customer sessions scopes. Only this deployment reads it.
+    POLAR_ACCESS_TOKEN: v.optional(v.string()),
     MAIL_FROM: v.optional(v.string()),
     // Product analytics (`analytics.ts`): events go to PostHog when the
     // project key is set, and are not even queued when it is not.

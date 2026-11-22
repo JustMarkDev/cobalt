@@ -8,7 +8,9 @@ import { readFileSync } from 'node:fs'
  * it may answer anyone. A function the API calls "as the system" must say so
  * itself with `system(ctx)`; the API calling it that way protects nothing.
  */
-const guard = /\b(signedIn|actorOf|system|resolve|who|assertSecret|bodyOf)\(/
+// `payer` is an action's way to ask: it runs a query that calls `signedIn`.
+const guard =
+  /\b(signedIn|actorOf|system|resolve|who|assertSecret|bodyOf|payer)\(/
 
 const PUBLIC: Record<string, string> = {
   'profiles.ts:get': 'A profile page: name, bio and status are public.',

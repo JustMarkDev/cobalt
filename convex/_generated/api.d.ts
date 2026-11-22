@@ -12,6 +12,7 @@ import type * as accounts from "../accounts.js";
 import type * as analytics from "../analytics.js";
 import type * as apiStores from "../apiStores.js";
 import type * as auth from "../auth.js";
+import type * as billing from "../billing.js";
 import type * as crons from "../crons.js";
 import type * as deletion from "../deletion.js";
 import type * as forge_accounts from "../forge/accounts.js";
@@ -85,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   apiStores: typeof apiStores;
   auth: typeof auth;
+  billing: typeof billing;
   crons: typeof crons;
   deletion: typeof deletion;
   "forge/accounts": typeof forge_accounts;

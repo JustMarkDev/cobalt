@@ -117,3 +117,30 @@ export async function verifyStandardWebhook(
   }
   return 'The signature does not match.'
 }
+
+/**
+ * The products in Polar, one per plan and billing cycle. Each has a price in
+ * dollars and the same number in euros: Polar shows the customer the euro
+ * price in Europe and the dollar price elsewhere. Team and Business are
+ * priced per seat. The ids are not secret.
+ */
+export const polarProducts: Record<
+  PaidPlanId,
+  { month: string; year: string }
+> = {
+  solo: {
+    month: '547cfbcd-f154-4bca-9733-238a2b98bbe2',
+    year: '6f9ec21f-f79c-4d39-ae7c-a545aea7310c',
+  },
+  team: {
+    month: 'f7efe543-12aa-4a72-8338-e9264fa5762d',
+    year: '8ffab6ad-9379-4480-abed-4cfaa9f1a86f',
+  },
+  business: {
+    month: '994cba1f-480e-4f9c-9cc1-6f52c77c5685',
+    year: '31e5dd1b-5120-4d58-8139-37b321101261',
+  },
+}
+
+/** Whether the plan is charged per seat. */
+export const perSeat = (plan: PaidPlanId): boolean => plan !== 'solo'

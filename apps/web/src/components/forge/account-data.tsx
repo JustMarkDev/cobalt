@@ -1,8 +1,9 @@
 import * as React from 'react'
-import { useConvex, useMutation, useQuery } from 'convex/react'
+import { useAction, useConvex, useMutation, useQuery } from 'convex/react'
 import { ConvexError } from 'convex/values'
 import { Link } from '@tanstack/react-router'
 import { api } from '../../../../../convex/_generated/api'
+import { billingMessage } from '~/components/forge/checkout-button'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 
@@ -84,14 +85,18 @@ function Plan({ mine }: { mine: Mine }) {
                 : 'Free, with no end date. Public repositories.'}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          render={<Link to="/pricing" />}
-          nativeButton={false}
-        >
-          See plans
-        </Button>
+        {mine.source === 'subscription' ? (
+          <Billing />
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link to="/pricing" />}
+            nativeButton={false}
+          >
+            See plans
+          </Button>
+        )}
       </div>
       <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
         {(
@@ -128,6 +133,36 @@ function Plan({ mine }: { mine: Mine }) {
         </p>
       )}
     </Card>
+  )
+}
+
+/** Card, invoices and cancelling live on Polar's page for the customer. */
+function Billing() {
+  const portal = useAction(api.billing.portal)
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState('')
+  const open = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      window.location.assign(await portal({}))
+    } catch (e) {
+      setError(billingMessage(e))
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="space-y-1 text-right">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={() => void open()}
+      >
+        {busy ? 'Opening…' : 'Manage billing'}
+      </Button>
+      {error && <p className="text-sm text-danger">{error}</p>}
+    </div>
   )
 }
 

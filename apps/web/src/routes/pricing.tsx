@@ -5,6 +5,7 @@ import { cn } from 'cn'
 import type { BrandId } from '~/components/brand'
 import type { FreePlan, Plan } from '~/lib/pricing'
 import { BrandLogo, brandName } from '~/components/brand'
+import { CheckoutButton, useEurope } from '~/components/forge/checkout-button'
 import { ContactSales } from '~/components/forge/contact-sales'
 import { Button } from '~/components/ui/button'
 import { Segmented } from '~/components/ui/tabs'
@@ -87,6 +88,8 @@ function limitLines(plan: Plan | FreePlan): Array<[string, string]> {
 
 function Pricing() {
   const [billing, setBilling] = React.useState<'month' | 'year'>('year')
+  // Polar charges in euros in Europe, the same number as in dollars.
+  const money = useEurope() ? '€' : '$'
   return (
     <div className="space-y-20">
       <header className="mx-auto max-w-2xl space-y-4 text-center">
@@ -134,7 +137,8 @@ function Pricing() {
             </div>
             <div>
               <span className="text-4xl font-semibold tracking-tight tabular-nums">
-                ${isPaid(p) ? perMonth(p, billing) : 0}
+                {money}
+                {isPaid(p) ? perMonth(p, billing) : 0}
               </span>
               <span className="ml-1.5 text-sm text-muted-foreground">
                 {isPaid(p) && p.perSeat ? 'per seat, per month' : 'per month'}
@@ -143,18 +147,28 @@ function Pricing() {
                 {!isPaid(p)
                   ? 'Free, with no card'
                   : billing === 'year'
-                    ? `Billed yearly, $${perYear(p)}${p.perSeat ? ' per seat' : ''}`
+                    ? `Billed yearly, ${money}${perYear(p)}${p.perSeat ? ' per seat' : ''}`
                     : 'Billed monthly'}
               </p>
             </div>
-            <Button
-              size="lg"
-              variant={isPaid(p) && p.featured ? 'brand' : 'outline'}
-              render={<Link to={isPaid(p) ? '/new' : '/sign-up'} />}
-              nativeButton={false}
-            >
-              {isPaid(p) ? `Choose ${p.name}` : 'Sign up free'}
-            </Button>
+            {isPaid(p) ? (
+              <CheckoutButton
+                plan={p.id}
+                cycle={billing}
+                variant={p.featured ? 'brand' : 'outline'}
+              >
+                Choose {p.name}
+              </CheckoutButton>
+            ) : (
+              <Button
+                size="lg"
+                variant="outline"
+                render={<Link to="/sign-up" />}
+                nativeButton={false}
+              >
+                Sign up free
+              </Button>
+            )}
             <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
               {limitLines(p).map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4">
@@ -181,7 +195,8 @@ function Pricing() {
       <p className="-mt-12 text-center text-sm text-muted-foreground">
         Beyond a plan: ${overage.storagePerGbMonth.toFixed(2)} per extra GB of
         storage a month, ${overage.transferPerGb.toFixed(2)} per extra GB
-        transferred. Prices are in USD and exclude tax.
+        transferred, in dollars. Plans are charged in euros in Europe, at the
+        same number as in dollars, and in dollars elsewhere. Prices exclude tax.
       </p>
 
       <section className="surface rounded-2xl border bg-card p-8 md:p-10">

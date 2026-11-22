@@ -919,3 +919,126 @@ describe('asking PostHog to forget', () => {
     expect(jobs.some((j) => j.state.kind === 'pending')).toBe(true)
   })
 })
+
+describe('paying for a plan', () => {
+  const real = globalThis.fetch
+  type Call = { url: string; auth: string | null; body: unknown }
+  let calls: Array<Call>
+
+  beforeEach(() => {
+    calls = []
+    process.env.POLAR_ACCESS_TOKEN = 'polar_oat_secret'
+    process.env.SITE_URL = 'https://example.test'
+    globalThis.fetch = ((url: string | URL, init?: RequestInit) => {
+      calls.push({
+        url: String(url),
+        auth: new Headers(init?.headers).get('authorization'),
+        body: JSON.parse(init?.body as string),
+      })
+      return Promise.resolve(
+        Response.json({
+          url: 'https://polar.sh/checkout/c_1',
+          customer_portal_url: 'https://polar.sh/portal/p_1',
+        }),
+      )
+    }) as unknown as typeof fetch
+  })
+  afterEach(() => {
+    globalThis.fetch = real
+    delete process.env.POLAR_ACCESS_TOKEN
+  })
+
+  test('opens a checkout with the plan, the paying address and the currency', async () => {
+    const { as } = await world()
+    const url = await as('user_alice').action(api.billing.checkout, {
+      plan: 'team',
+      cycle: 'year',
+      seats: 3,
+      currency: 'eur',
+    })
+    expect(url).toBe('https://polar.sh/checkout/c_1')
+    expect(calls).toHaveLength(1)
+    expect(calls[0].url).toBe('https://api.polar.sh/v1/checkouts/')
+    expect(calls[0].auth).toBe('Bearer polar_oat_secret')
+    expect(calls[0].body).toMatchObject({
+      products: ['8ffab6ad-9379-4480-abed-4cfaa9f1a86f'],
+      metadata: { account: 'alice', plan: 'team' },
+      seats: 3,
+      currency: 'eur',
+      success_url: 'https://example.test/settings/plan?billing=done',
+    })
+  })
+
+  test('a plan for one person has no seats', async () => {
+    const { as } = await world()
+    await as('user_alice').action(api.billing.checkout, {
+      plan: 'solo',
+      cycle: 'month',
+    })
+    expect(calls[0].body).not.toHaveProperty('seats')
+  })
+
+  test('only the signed-in owner can pay for an account', async () => {
+    const { as } = await world()
+    expect(
+      await codeOf(
+        as('user_bob').action(api.billing.checkout, {
+          plan: 'solo',
+          cycle: 'month',
+          account: 'alice',
+        }),
+      ),
+    ).toBe('forbidden')
+    expect(
+      await codeOf(
+        convexTest(schema, modules).action(api.billing.checkout, {
+          plan: 'solo',
+          cycle: 'month',
+        }),
+      ),
+    ).toBe('unauthenticated')
+    expect(calls).toHaveLength(0)
+  })
+
+  test('an account that already pays is sent to its billing page, not a second checkout', async () => {
+    const { t, as } = await world()
+    await t.mutation(internal.plans.setSubscription, {
+      handle: 'alice',
+      plan: 'solo',
+      status: 'active',
+    })
+    expect(
+      await codeOf(
+        as('user_alice').action(api.billing.checkout, {
+          plan: 'team',
+          cycle: 'month',
+        }),
+      ),
+    ).toBe('conflict')
+    expect(await as('user_alice').action(api.billing.portal, {})).toBe(
+      'https://polar.sh/portal/p_1',
+    )
+    expect(calls[0].url).toBe('https://api.polar.sh/v1/customer-sessions/')
+  })
+
+  test('there is no billing page for an account that pays nothing', async () => {
+    const { as } = await world()
+    expect(await codeOf(as('user_alice').action(api.billing.portal, {}))).toBe(
+      'not_found',
+    )
+  })
+
+  test('without a token it says it is not set up, and sends nothing', async () => {
+    const { as } = await world()
+    delete process.env.POLAR_ACCESS_TOKEN
+    expect(
+      await codeOf(
+        as('user_alice').action(api.billing.checkout, {
+          plan: 'solo',
+          cycle: 'month',
+        }),
+      ),
+    ).toBe('unavailable')
+    expect(calls).toHaveLength(0)
+  })
+})
