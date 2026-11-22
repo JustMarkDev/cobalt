@@ -147,7 +147,9 @@ export function buildOpenApi(
   // collected separately and only then combined.
   const inputDefs: Json = {}
   const outputDefs: Json = {}
-  const paths: Json = {}
+  // A Map, not an object: a path is a key, never a property of the
+  // prototype (`__proto__` would otherwise reach Object.prototype).
+  const paths = new Map<string, Json>()
   const problemRef = { $ref: '#/components/schemas/Problem' }
   for (const op of [...ops].sort((a, b) =>
     (a.path + a.method).localeCompare(b.path + b.method),
@@ -258,7 +260,8 @@ export function buildOpenApi(
       'x-sx-secret-response': !!op.secretResponse,
       'x-sx-secret-request': !!op.secretRequest,
     }
-    const item = (paths[op.path] ??= {}) as Json
+    let item = paths.get(op.path)
+    if (!item) paths.set(op.path, (item = {}))
     item[op.method.toLowerCase()] = entry
   }
   const problem = jsonSchema(Problem, 'output', outputDefs)
@@ -277,7 +280,7 @@ export function buildOpenApi(
       },
     },
     servers: [{ url: base }],
-    paths,
+    paths: Object.fromEntries(paths),
     components: {
       schemas,
       securitySchemes: {
