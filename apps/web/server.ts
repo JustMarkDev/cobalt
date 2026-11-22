@@ -73,4 +73,20 @@ const server = Bun.serve({
   },
 })
 
-console.log(`source.code is listening on ${server.url}`)
+// A deploy or a scale-down sends SIGTERM, then SIGKILL after the platform's
+// draining time. Stop taking new connections and let the requests already in
+// flight finish, so a deploy never cuts a response short.
+let stopping = false
+for (const signal of ['SIGTERM', 'SIGINT'] as const)
+  process.on(signal, () => {
+    if (stopping) return
+    stopping = true
+    console.log(`${signal}: finishing open requests, then exiting`)
+    void server.stop().then(() => process.exit(0))
+  })
+
+const ram = process.env.BUN_JSC_forceRAMSize
+console.log(
+  `source.code is listening on ${server.url}` +
+    (ram ? ` (heap sized for ${Math.round(Number(ram) / 2 ** 20)} MiB)` : ''),
+)
