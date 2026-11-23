@@ -24,6 +24,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
  */
 
 export const defaultPrefs: Record<string, boolean> = {
+  handoff: true,
   review: true,
   mention: true,
   release: true,

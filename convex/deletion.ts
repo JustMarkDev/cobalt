@@ -101,6 +101,8 @@ export const TABLES: Record<TableNames, string> = {
   notifications: 'wipe: by handle',
   inboxes: 'wipe: by handle',
   tokens: 'wipe: by handle',
+  runners: 'wipe: by account',
+  runnerSeen: 'wipe: with its runner',
   authorizations: 'wipe: by handle',
   oauthState: 'none: expires on its own',
   outbox: 'none: expires on its own',
@@ -345,6 +347,23 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
         .take(BATCH),
     ),
   )
+  // Its runners, with when each was last seen. Their tokens went with `tokens`.
+  const runners = await ctx.db
+    .query('runners')
+    .withIndex('by_account_and_name', (q) => q.eq('account', h))
+    .take(BATCH)
+  for (const r of runners)
+    await add(
+      drop(
+        ctx,
+        'runnerSeen',
+        await ctx.db
+          .query('runnerSeen')
+          .withIndex('by_runnerId', (q) => q.eq('runnerId', r._id))
+          .take(BATCH),
+      ),
+    )
+  await add(drop(ctx, 'runners', runners))
   await add(
     drop(
       ctx,

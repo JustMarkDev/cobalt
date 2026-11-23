@@ -1,4 +1,5 @@
 import { receiptFor } from '../receipt'
+import { runsOnOf } from '../workflow'
 import { ConvexError } from 'convex/values'
 import { apiError } from '../problem'
 import { Pre } from '../registry'
@@ -50,6 +51,8 @@ export function claimsOf(who: Principal | 'system') {
   if (via.model) claims.sx_model = via.model
   if (who.session) claims.sx_ses = 'true'
   if (who.repos) claims.sx_rep = who.repos.join(',')
+  if (who.paths) claims.sx_pth = JSON.stringify(who.paths)
+  if (who.runnerId) claims.sx_run = who.runnerId
   // A write under an Idempotency-Key marks the key in its own transaction.
   const held = heldKey.getStore()
   if (held) claims.sx_idem = JSON.stringify([held.scope, held.key, held.lease])
@@ -1039,7 +1042,35 @@ export class ConvexDomain implements DomainPort {
     } catch {
       // No history in the store: it starts on the commit it last ran on.
     }
-    return this.m('pipelines:start', { owner, name, ...body, sha, dry }, p)
+    // What the workflow file at the branch says about runs-on, when it is there.
+    let runsOn:
+      | { jobs: Record<string, Array<string>>; warnings: Array<string> }
+      | undefined
+    const file = await this.q<string | null>(
+      'pipelines:lastFile',
+      { owner, name, workflow: body.workflow },
+      p,
+    )
+    if (file) {
+      let bytes: Uint8Array | null = null
+      try {
+        bytes = await this.svc.git.blob(full, file, body.branch)
+      } catch {
+        bytes = null
+      }
+      if (bytes) {
+        const read = runsOnOf(new TextDecoder().decode(bytes))
+        runsOn = {
+          jobs: Object.fromEntries(read.jobs),
+          warnings: read.warnings,
+        }
+      }
+    }
+    return this.m(
+      'pipelines:start',
+      { owner, name, ...body, sha, runsOn, dry },
+      p,
+    )
   }
   claimPipelineJob: Port['claimPipelineJob'] = (owner, name, p, body) =>
     this.m('pipelines:claim', { owner, name, runner: body.runner }, p)
@@ -1054,6 +1085,46 @@ export class ConvexDomain implements DomainPort {
   ) => this.m('pipelines:report', { owner, name, n, job, step, ...body }, p)
   cancelPipeline: Port['cancelPipeline'] = (owner, name, n, p, dry) =>
     this.m('pipelines:cancel', { owner, name, n, dry }, p)
+  waitPipelineStep: Port['waitPipelineStep'] = (
+    owner,
+    name,
+    n,
+    job,
+    step,
+    p,
+    body,
+    dry,
+  ) => this.m('pipelines:wait', { owner, name, n, job, step, ...body, dry }, p)
+  resumePipelineStep: Port['resumePipelineStep'] = (
+    owner,
+    name,
+    n,
+    job,
+    step,
+    p,
+    body,
+    dry,
+  ) =>
+    this.m('pipelines:resume', { owner, name, n, job, step, ...body, dry }, p)
+
+  // ---- runners ---------------------------------------------------------------------
+
+  createRunner: Port['createRunner'] = (p, body, dry) =>
+    this.m('runners:create', { ...body, dry }, p)
+  listRunners: Port['listRunners'] = (p, account) =>
+    this.q('runners:list', { account, now: this.now() }, p)
+  getRunner: Port['getRunner'] = (p, id) =>
+    this.q('runners:get', { id, now: this.now() }, p)
+  updateRunner: Port['updateRunner'] = (p, id, body, dry) =>
+    this.m('runners:update', { id, ...body, dry }, p)
+  deleteRunner: Port['deleteRunner'] = (p, id, dry) =>
+    this.m('runners:remove', { id, dry }, p)
+  runnerHeartbeat: Port['runnerHeartbeat'] = (p) =>
+    this.m('runners:heartbeat', {}, p)
+  runnerClaim: Port['runnerClaim'] = (p) => this.m('runners:claim', {}, p)
+  runnerReport: Port['runnerReport'] = (p, body) =>
+    this.m('runners:report', { ...body }, p)
+  runnerJobs: Port['runnerJobs'] = (p, id) => this.q('runners:jobs', { id }, p)
 
   // ---- policy rules -------------------------------------------------------------
 

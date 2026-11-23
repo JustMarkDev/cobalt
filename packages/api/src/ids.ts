@@ -37,6 +37,8 @@ export const idPrefixes = {
   pipeline: 'pip',
   exception: 'pex',
   automation: 'aut',
+  runner: 'rnr',
+  accessRule: 'acr',
 } as const
 
 export type IdKind = keyof typeof idPrefixes

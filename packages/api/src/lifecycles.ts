@@ -101,14 +101,21 @@ export const landingStepLifecycle = machine<StepState>('landing step', {
 export type PipelineStatus =
   | 'queued'
   | 'running'
+  | 'waiting'
   | 'success'
   | 'failure'
   | 'canceled'
 
-/** A pipeline run and each of its jobs. */
+/**
+ * A pipeline run and each of its jobs. `waiting` is a run paused on a person
+ * or an outside agent: it keeps its runner, no runner claims it again, and it
+ * resumes, is canceled, or fails when the wait runs out.
+ */
 export const pipelineLifecycle = machine<PipelineStatus>('pipeline', {
   queued: ['running', 'canceled'],
-  running: ['success', 'failure', 'canceled'],
+  // Back to `queued` only when its runner's lease ran out.
+  running: ['queued', 'waiting', 'success', 'failure', 'canceled'],
+  waiting: ['running', 'canceled', 'failure'],
   success: [],
   failure: [],
   canceled: [],
@@ -121,7 +128,8 @@ export const pipelineStepLifecycle = machine<PipelineStepStatus>(
   'pipeline step',
   {
     queued: ['running', 'success', 'failure', 'skipped', 'canceled'],
-    running: ['running', 'success', 'failure', 'canceled'],
+    running: ['queued', 'running', 'waiting', 'success', 'failure', 'canceled'],
+    waiting: ['running', 'success', 'failure', 'canceled'],
     success: [],
     failure: [],
     skipped: [],
@@ -132,7 +140,11 @@ export const pipelineStepLifecycle = machine<PipelineStepStatus>(
 export const pipelineDone = (s: string) =>
   s === 'success' || s === 'failure' || s === 'canceled' || s === 'skipped'
 
-type StepLike = { status: string; duration: number }
+type StepLike = {
+  status: string
+  duration: number
+  wait?: PipelineWait | null
+}
 type JobLike = { status: string; duration: number; steps: Array<StepLike> }
 
 /**
@@ -213,9 +225,193 @@ export function cancelPipeline(
   r.finished = at
   for (const j of r.jobs) {
     if (!pipelineDone(j.status)) j.status = 'canceled'
-    for (const s of j.steps) if (!pipelineDone(s.status)) s.status = 'canceled'
+    for (const s of j.steps)
+      if (!pipelineDone(s.status)) {
+        s.status = 'canceled'
+        if ('wait' in s) (s as { wait?: unknown }).wait = null
+      }
   }
 }
+
+/** What a waiting step waits for. Kept on the step; the job shows its waiting step's. */
+export type PipelineWait = {
+  kind: 'person' | 'agent' | 'approval'
+  reason: string
+  target: string | null
+  /** Milliseconds since the epoch. */
+  expires: number
+}
+
+type WaitStep = StepLike & { wait?: PipelineWait | null }
+type WaitJob = JobLike & { steps: Array<WaitStep> }
+type WaitRun = {
+  number: number
+  status: string
+  finished: number | null
+  jobs: Array<WaitJob>
+}
+
+/** The run is waiting when no job of it is still running and one waits. */
+function runStatusAfterWait(r: WaitRun) {
+  if (r.jobs.some((j) => j.status === 'running')) return 'running'
+  if (r.jobs.some((j) => j.status === 'waiting')) return 'waiting'
+  return r.status
+}
+
+/**
+ * Pause a running step: the step, its job and (when nothing else of it runs)
+ * the run wait. Returns a refusal, or null once applied.
+ */
+export function waitStep(
+  r: WaitRun,
+  job: number,
+  step: number,
+  wait: PipelineWait,
+): { refusal: string } | null {
+  const j = r.jobs.at(job - 1)
+  const s = j?.steps.at(step - 1)
+  if (!j || !s || job < 1 || step < 1)
+    return { refusal: `Run ${r.number} has no job ${job} step ${step}.` }
+  if (pipelineDone(r.status))
+    return { refusal: `Run ${r.number} has already finished.` }
+  if (
+    !canMove(
+      pipelineStepLifecycle,
+      s.status as PipelineStepStatus,
+      'waiting',
+    ) ||
+    s.status !== 'running'
+  )
+    return {
+      refusal: `Step ${step} of job ${job} is ${s.status}; only a running step can wait.`,
+    }
+  if (!canMove(pipelineLifecycle, j.status as PipelineStatus, 'waiting'))
+    return { refusal: `Job ${job} of run ${r.number} is ${j.status}.` }
+  s.status = 'waiting'
+  s.wait = wait
+  j.status = 'waiting'
+  const to = runStatusAfterWait(r)
+  if (to !== r.status) {
+    if (!canMove(pipelineLifecycle, r.status as PipelineStatus, to as never))
+      return { refusal: `Run ${r.number} is ${r.status}.` }
+    r.status = to
+  }
+  return null
+}
+
+/**
+ * Resume a waiting step with how it ended, in one write: it runs again and
+ * finishes. A failure skips the rest of its job. Returns a refusal, or null.
+ */
+export function resumeStep(
+  r: WaitRun,
+  job: number,
+  step: number,
+  to: 'success' | 'failure',
+  at: number,
+): { refusal: string } | null {
+  const j = r.jobs.at(job - 1)
+  const s = j?.steps.at(step - 1)
+  if (!j || !s || job < 1 || step < 1)
+    return { refusal: `Run ${r.number} has no job ${job} step ${step}.` }
+  if (s.status !== 'waiting')
+    return {
+      refusal: `Step ${step} of job ${job} is ${s.status}; only a waiting step resumes.`,
+    }
+  // waiting -> running -> success|failure, each move checked.
+  for (const [m, from, next] of [
+    [pipelineStepLifecycle, s.status, 'running'],
+    [pipelineStepLifecycle, 'running', to],
+    [pipelineLifecycle, j.status, 'running'],
+  ] as const)
+    if (!canMove(m as Machine<string>, from, next))
+      return { refusal: `Step ${step} of job ${job} cannot become ${to}.` }
+  s.status = to
+  s.wait = null
+  j.status = 'running'
+  if (r.status === 'waiting') {
+    if (!canMove(pipelineLifecycle, 'waiting', 'running'))
+      return { refusal: `Run ${r.number} cannot resume.` }
+    r.status = 'running'
+  }
+  if (to === 'failure')
+    for (const rest of j.steps.slice(step))
+      if (rest.status === 'queued') rest.status = 'skipped'
+  settlePipeline(r, at)
+  return null
+}
+
+/**
+ * A wait that ran out: the step fails, its job fails, and the run fails with
+ * every job that was not over. Null when the step is no longer waiting on
+ * that same wait, so a late timer does nothing.
+ */
+export function expireWait(
+  r: WaitRun,
+  job: number,
+  step: number,
+  expires: number,
+  at: number,
+): boolean {
+  const j = r.jobs.at(job - 1)
+  const s = j?.steps.at(step - 1)
+  if (!j || !s || s.status !== 'waiting' || s.wait?.expires !== expires)
+    return false
+  if (!canMove(pipelineLifecycle, r.status as PipelineStatus, 'failure'))
+    return false
+  s.status = 'failure'
+  s.wait = null
+  for (const rest of j.steps.slice(step))
+    if (rest.status === 'queued') rest.status = 'skipped'
+  j.status = 'failure'
+  j.duration = j.steps.reduce((t, x) => t + x.duration, 0)
+  for (const other of r.jobs) {
+    if (!pipelineDone(other.status)) other.status = 'canceled'
+    for (const x of other.steps)
+      if (!pipelineDone(x.status)) x.status = 'canceled'
+  }
+  r.status = 'failure'
+  r.finished = at
+  return true
+}
+
+/**
+ * A running job whose runner stopped answering goes back to the queue: its
+ * unfinished steps start over, and the run is queued again when nothing else
+ * of it runs. False when the job is not running.
+ */
+export function requeueJob(
+  r: { status: string; jobs: Array<JobLike> },
+  job: number,
+): boolean {
+  const j = r.jobs.at(job - 1)
+  if (!j || !canMove(pipelineLifecycle, j.status as PipelineStatus, 'queued'))
+    return false
+  if (j.status !== 'running') return false
+  j.status = 'queued'
+  for (const s of j.steps)
+    if (
+      s.status === 'running' &&
+      canMove(pipelineStepLifecycle, 'running', 'queued')
+    )
+      s.status = 'queued'
+  if (
+    r.status === 'running' &&
+    !r.jobs.some((x) => x.status === 'running' || x.status === 'waiting') &&
+    !r.jobs.some((x) => pipelineDone(x.status))
+  )
+    r.status = 'queued'
+  return true
+}
+
+/** The wait a job shows: its waiting step's, if any. */
+export function jobWait(j: { steps: Array<{ wait?: PipelineWait | null }> }) {
+  return j.steps.find((s) => s.wait)?.wait ?? null
+}
+
+/** Default and longest wait. */
+export const WAIT_DEFAULT_MS = 7 * 86_400_000
+export const WAIT_MAX_MS = 30 * 86_400_000
 
 // ---- Webhook deliveries ---------------------------------------------------------
 

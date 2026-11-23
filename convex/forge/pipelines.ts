@@ -1,20 +1,31 @@
 import {
+  WAIT_DEFAULT_MS,
+  WAIT_MAX_MS,
   canMove,
   cancelPipeline,
+  expireWait,
+  jobWait,
   pipelineLifecycle,
   reportStep,
+  requeueJob,
+  resumeStep,
   settlePipeline,
+  waitStep,
 } from '@source-code/api/lifecycles'
-import type { PipelineStatus } from '@source-code/api/lifecycles'
+import type { PipelineStatus, PipelineWait } from '@source-code/api/lifecycles'
+import { LEASE_MS, waitingForLabels } from '@source-code/api/runners'
+import type { RunnerLike } from '@source-code/api/runners'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
-import { query } from '../_generated/server'
+import { internal } from '../_generated/api'
+import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { actorOf, signedIn } from '../lib/actor'
-import { accessStamp, resolve } from '../lib/access'
+import { accessStamp, repoByPublicId, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { counters } from '../lib/events'
 import { repoUrl, urls } from '../lib/present'
+import { notify } from './notifications'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
@@ -23,6 +34,8 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
  * log each step wrote. Starting a run queues its jobs; a runner claims the
  * oldest queued job and reports each step, which finishes the job and then
  * the run. Claiming is one transaction, so two runners never take one job.
+ * A step may wait on a person or an outside agent; a scheduled function
+ * fails it when the wait runs out.
  */
 
 type Status = PipelineStatus
@@ -32,12 +45,16 @@ type Step = {
   status: string
   duration: number
   lines: Array<Line>
+  wait?: PipelineWait | null
 }
 type Job = {
   name: string
   runner: string
   status: string
   duration: number
+  runsOn?: Array<string>
+  runnerId?: string | null
+  lease?: number | null
   steps: Array<Step>
 }
 export type PipelineRun = {
@@ -63,8 +80,10 @@ export type PipelineRun = {
   version: number
 }
 
+const iso = (t: number) => new Date(t).toISOString()
+
 /** A run as stored: lines come back only when asked for. */
-async function load(
+export async function load(
   ctx: QueryCtx,
   doc: Doc<'pipelineRuns'>,
   withLines = false,
@@ -160,7 +179,7 @@ async function writeLog(
     })
 }
 
-async function save(
+export async function save(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
   doc: Doc<'pipelineRuns'>,
@@ -176,13 +195,56 @@ async function save(
   })
 }
 
-function present(
+/** An account's runners as routing reads them: labels and repository names. */
+export async function runnersOf(
+  ctx: QueryCtx,
+  account: string,
+): Promise<Array<RunnerLike & { doc: Doc<'runners'> }>> {
+  const docs = await ctx.db
+    .query('runners')
+    .withIndex('by_account_and_name', (q) => q.eq('account', account))
+    .take(200)
+  const found: Array<RunnerLike & { doc: Doc<'runners'> }> = []
+  for (const d of docs) {
+    let repos: Array<string> | null = null
+    if (d.repos) {
+      repos = []
+      for (const id of d.repos) {
+        const r = await repoByPublicId(ctx, id)
+        if (r && r.owner === d.account)
+          repos.push(`${r.owner}/${r.name}`.toLowerCase())
+      }
+    }
+    found.push({
+      account: d.account,
+      labels: d.labels,
+      repos,
+      concurrency: d.concurrency,
+      disabled: d.status === 'disabled',
+      lastSeen: null,
+      doc: d,
+    })
+  }
+  return found
+}
+
+const presentWait = (w: PipelineWait | null | undefined) =>
+  w
+    ? {
+        kind: w.kind,
+        reason: w.reason,
+        target: w.target,
+        expires_at: iso(w.expires),
+      }
+    : null
+
+export function present(
   repo: Doc<'repos'>,
   r: PipelineRun,
   detail: boolean,
   counts?: Map<string, number>,
+  runners: Array<RunnerLike> = [],
 ) {
-  const iso = (t: number) => new Date(t).toISOString()
   const base = `${repoUrl(repo)}/pipelines/${r.number}`
   return {
     object: 'pipeline_run' as const,
@@ -207,12 +269,21 @@ function present(
           runner: j.runner,
           status: j.status,
           duration_ms: j.duration,
+          runs_on: [...(j.runsOn ?? [])],
+          runner_id: j.runnerId ?? null,
+          lease_expires_at: j.lease ? iso(j.lease) : null,
+          waiting_for_labels:
+            j.status === 'queued'
+              ? waitingForLabels(j.runsOn ?? [], runners, repo.owner, repo.name)
+              : null,
+          wait: presentWait(jobWait(j)),
           steps: j.steps.map((s, si) => ({
             name: s.name,
             status: s.status,
             duration_ms: s.duration,
             lines: counts?.get(`${ji + 1}/${si + 1}`) ?? s.lines.length,
             log_url: `${base}/jobs/${ji + 1}/steps/${si + 1}/log`,
+            wait: presentWait(s.wait),
           })),
         }))
       : null,
@@ -221,7 +292,7 @@ function present(
   }
 }
 
-async function runOf(ctx: QueryCtx, repo: Doc<'repos'>, n: number) {
+export async function runOf(ctx: QueryCtx, repo: Doc<'repos'>, n: number) {
   const doc = await ctx.db
     .query('pipelineRuns')
     .withIndex('by_repoId_and_number', (q) =>
@@ -233,18 +304,46 @@ async function runOf(ctx: QueryCtx, repo: Doc<'repos'>, n: number) {
   return doc
 }
 
-const shown = async (
+export const shown = async (
   ctx: QueryCtx,
   repo: Doc<'repos'>,
   doc: Doc<'pipelineRuns'>,
   r: PipelineRun,
-) => present(repo, r, true, await lineCounts(ctx, doc))
+) =>
+  present(
+    repo,
+    r,
+    true,
+    await lineCounts(ctx, doc),
+    await runnersOf(ctx, repo.owner),
+  )
+
+export function claimedJob(repo: Doc<'repos'>, r: PipelineRun, ji: number) {
+  const j = r.jobs[ji]
+  return {
+    object: 'pipeline_job' as const,
+    run: r.number,
+    job: ji + 1,
+    name: j.name,
+    workflow: r.workflow,
+    file: r.file,
+    branch: r.branch,
+    sha: r.sha,
+    steps: j.steps.map((s, si) => ({ number: si + 1, name: s.name })),
+    url: `${repoUrl(repo)}/pipelines/${r.number}/jobs/${ji + 1}`,
+    runs_on: [...(j.runsOn ?? [])],
+    runner_id: j.runnerId ?? null,
+    lease_expires_at: j.lease ? iso(j.lease) : null,
+  }
+}
+
+const statusArg = v.optional(v.string())
 
 export const list = query({
   args: {
     owner: v.string(),
     name: v.string(),
-    status: v.optional(v.string()),
+    status: statusArg,
     workflow: v.optional(v.string()),
     after: v.union(
       v.null(),
@@ -292,9 +391,44 @@ export const version = query({
   handler: async (ctx, a) => {
     const repo = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
     const c = await counters(ctx, repo)
-    return out(
-      `${repo.publicId}.p${c.pipelines ?? 0}.${c.pipelineRev ?? 0}.${await accessStamp(ctx, repo)}`,
+    // A runner registered or changed moves what a queued job waits for.
+    const stamp = (
+      await ctx.db
+        .query('runners')
+        .withIndex('by_account_and_name', (q) => q.eq('account', repo.owner))
+        .take(200)
     )
+      .map(
+        (r) =>
+          `${r.publicId}:${r.status}:${r.labels.join(',')}:${r.repos?.join(',') ?? '*'}`,
+      )
+      .join('|')
+    return out(
+      `${repo.publicId}.p${c.pipelines ?? 0}.${c.pipelineRev ?? 0}.${hash(stamp)}.${await accessStamp(ctx, repo)}`,
+    )
+  },
+})
+
+/** A short, stable stand-in for a long string. */
+function hash(s: string) {
+  let h = 0
+  for (let i = 0; i < s.length; i++)
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
+  return (h >>> 0).toString(36)
+}
+
+/** The file a workflow last ran from, so the API can read its runs-on. */
+export const lastFile = query({
+  args: { owner: v.string(), name: v.string(), workflow: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const repo = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
+    for await (const d of ctx.db
+      .query('pipelineRuns')
+      .withIndex('by_repoId_and_started', (q) => q.eq('repoId', repo._id))
+      .order('desc'))
+      if (d.workflow === a.workflow) return out((await load(ctx, d)).file)
+    return out(null)
   },
 })
 
@@ -357,19 +491,24 @@ async function queuedFrom(
     jobs: from.jobs.map((j) => ({
       ...j,
       status: 'queued',
+      runner: '',
+      runnerId: null,
+      lease: null,
+      runsOn: [...(j.runsOn ?? [])],
       duration: 0,
       steps: j.steps.map((s) => ({
         ...s,
         status: 'queued',
         duration: 0,
         lines: [],
+        wait: null,
       })),
     })),
     version: 1,
   }
 }
 
-/** Run a workflow again on the same commit. It is queued for a runner. */
+/** Run a workflow again on the same commit. It is queued for a runner, asking for the same labels. */
 export const rerun = mutation({
   args: {
     owner: v.string(),
@@ -384,11 +523,25 @@ export const rerun = mutation({
     const from = await load(ctx, await runOf(ctx, repo, a.n))
     const r = await queuedFrom(ctx, repo, from, p.handle)
     await insertRun(ctx, repo, r)
-    return finish(a.dry, present(repo, r, true))
+    return finish(
+      a.dry,
+      present(repo, r, true, undefined, await runnersOf(ctx, repo.owner)),
+    )
   },
 })
 
-/** Start a workflow on a branch, from its last run's jobs. The API passes the branch's newest commit. */
+const runsOnArg = v.optional(
+  v.object({
+    jobs: v.record(v.string(), v.array(v.string())),
+    warnings: v.array(v.string()),
+  }),
+)
+
+/**
+ * Start a workflow on a branch, from its last run's jobs. The API passes the
+ * branch's newest commit and what the workflow file there says about
+ * `runs-on`.
+ */
 export const start = mutation({
   args: {
     owner: v.string(),
@@ -396,6 +549,7 @@ export const start = mutation({
     workflow: v.string(),
     branch: v.optional(v.string()),
     sha: v.optional(v.string()),
+    runsOn: runsOnArg,
     dry: v.optional(v.boolean()),
   },
   returns: v.string(),
@@ -403,17 +557,29 @@ export const start = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const r = await startWorkflow(ctx, repo, a.workflow, p.handle, a)
-    return finish(a.dry, present(repo, r, true))
+    return finish(
+      a.dry,
+      present(repo, r, true, undefined, await runnersOf(ctx, repo.owner)),
+    )
   },
 })
 
-/** Queues a workflow from its last run's jobs. A landing's `run_pipeline` step starts one too. */
+/**
+ * Queues a workflow from its last run's jobs. A landing's `run_pipeline`
+ * step starts one too, and so does a trigger (`trigger: 'event'`): then the
+ * labels are the last run's, and the run says they may be stale.
+ */
 export async function startWorkflow(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
   workflow: string,
   actor: string,
-  at: { branch?: string; sha?: string } = {},
+  at: {
+    branch?: string
+    sha?: string
+    runsOn?: { jobs: Record<string, Array<string>>; warnings: Array<string> }
+    trigger?: 'event'
+  } = {},
 ) {
   let last: PipelineRun | null = null
   for await (const d of ctx.db
@@ -427,7 +593,9 @@ export async function startWorkflow(
   if (!last)
     fail(
       'not_found',
-      `No workflow ${workflow} in ${repo.owner}/${repo.name}.`,
+      at.trigger === 'event'
+        ? `No workflow ${workflow} in ${repo.owner}/${repo.name}: it has never run, so there are no jobs to start.`
+        : `No workflow ${workflow} in ${repo.owner}/${repo.name}.`,
       {
         hint: 'GET the pipelines list to see which workflows have run.',
       },
@@ -437,11 +605,30 @@ export async function startWorkflow(
   r.branch = branch
   r.sha = at.sha ?? last.sha
   r.title = `${workflow} on ${branch}`
+  if (at.runsOn) {
+    for (const j of r.jobs) j.runsOn = at.runsOn.jobs[j.name] ?? []
+    for (const w of at.runsOn.warnings)
+      r.annotations.push({ level: 'warn', text: w, job: '', step: '' })
+  }
+  if (at.trigger === 'event') {
+    r.trigger = 'event'
+    if (r.jobs.some((j) => j.runsOn?.length))
+      r.annotations.push({
+        level: 'warn',
+        text: `runs-on was copied from run #${last.number}; it may be stale if the workflow changed since.`,
+        job: '',
+        step: '',
+      })
+  }
   await insertRun(ctx, repo, r)
   return r
 }
 
-/** A runner asks for work: the oldest queued job in the repository, now running on it. */
+/**
+ * A runner asks for work by name: the oldest queued job in the repository
+ * that asks for no labels, now running on it. A job with `runs-on` waits for
+ * a registered runner with those labels (`runners.claim`).
+ */
 export const claim = mutation({
   args: { owner: v.string(), name: v.string(), runner: v.string() },
   returns: v.string(),
@@ -461,7 +648,9 @@ export const claim = mutation({
     candidates.sort((x, y) => x.started - y.started)
     for (const doc of candidates) {
       const r = await load(ctx, doc)
-      const ji = r.jobs.findIndex((j) => j.status === 'queued')
+      const ji = r.jobs.findIndex(
+        (j) => j.status === 'queued' && !j.runsOn?.length,
+      )
       if (ji < 0) continue
       const j = r.jobs[ji]
       j.status = 'running'
@@ -469,22 +658,64 @@ export const claim = mutation({
       if (r.status === 'queued') r.status = 'running'
       r.version++
       await save(ctx, repo, doc, r)
-      return out({
-        object: 'pipeline_job',
-        run: r.number,
-        job: ji + 1,
-        name: j.name,
-        workflow: r.workflow,
-        file: r.file,
-        branch: r.branch,
-        sha: r.sha,
-        steps: j.steps.map((s, si) => ({ number: si + 1, name: s.name })),
-        url: `${repoUrl(repo)}/pipelines/${r.number}/jobs/${ji + 1}`,
-      })
+      return out(claimedJob(repo, r, ji))
     }
     return out(null)
   },
 })
+
+const lineArg = v.array(
+  v.object({
+    text: v.string(),
+    level: v.optional(v.union(v.null(), v.string())),
+  }),
+)
+
+/** The report itself, once the caller may make it. Shared with `runners.report`. */
+export async function applyReport(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  doc: Doc<'pipelineRuns'>,
+  a: {
+    n: number
+    job: number
+    step: number
+    status: 'running' | 'success' | 'failure' | 'skipped'
+    lines?: Array<{ text: string; level?: string | null }>
+    duration_ms?: number
+  },
+) {
+  const r = await load(ctx, doc, true)
+  const j = r.jobs.at(a.job - 1)
+  const s = j?.steps.at(a.step - 1)
+  if (!j || !s || a.job < 1 || a.step < 1)
+    fail('not_found', `Run ${a.n} has no job ${a.job} step ${a.step}.`)
+  const moved = reportStep(r, a.job, a.step, a.status)
+  if ('refusal' in moved) fail('invalid_state', moved.refusal)
+  // The same report again (a runner's retry) changes nothing.
+  if (moved.repeated) return r
+  if (a.duration_ms !== undefined) s.duration = a.duration_ms
+  for (const l of a.lines ?? [])
+    s.lines.push({ t: l.text, level: l.level ?? null })
+  if (a.lines?.length) await writeLog(ctx, doc._id, a.job, a.step, s.lines)
+  if (a.status === 'failure') {
+    const last = [...(a.lines ?? [])].reverse().find((l) => l.level === 'error')
+    r.annotations.push({
+      level: 'error',
+      text: last?.text ?? `${s.name} failed`,
+      job: j.name,
+      step: s.name,
+    })
+  }
+  const now = Date.now()
+  // A report is a sign of life: the lease runs from now.
+  if (j.runnerId && j.status === 'running') j.lease = now + LEASE_MS
+  settlePipeline(r, now)
+  if (j.status !== 'running') j.lease = null
+  r.version++
+  await save(ctx, repo, doc, r)
+  return r
+}
 
 /** A runner says how a step went, with the lines it wrote. One call per step. */
 export const report = mutation({
@@ -500,14 +731,7 @@ export const report = mutation({
       v.literal('failure'),
       v.literal('skipped'),
     ),
-    lines: v.optional(
-      v.array(
-        v.object({
-          text: v.string(),
-          level: v.optional(v.union(v.null(), v.string())),
-        }),
-      ),
-    ),
+    lines: v.optional(lineArg),
     duration_ms: v.optional(v.number()),
   },
   returns: v.string(),
@@ -515,34 +739,8 @@ export const report = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     const doc = await runOf(ctx, repo, a.n)
-    const r = await load(ctx, doc, true)
-    const j = r.jobs.at(a.job - 1)
-    const s = j?.steps.at(a.step - 1)
-    if (!j || !s || a.job < 1 || a.step < 1)
-      fail('not_found', `Run ${a.n} has no job ${a.job} step ${a.step}.`)
-    const moved = reportStep(r, a.job, a.step, a.status)
-    if ('refusal' in moved) fail('invalid_state', moved.refusal)
-    // The same report again (a runner's retry) changes nothing.
-    if (moved.repeated) return out(present(repo, r, true))
-    if (a.duration_ms !== undefined) s.duration = a.duration_ms
-    for (const l of a.lines ?? [])
-      s.lines.push({ t: l.text, level: l.level ?? null })
-    if (a.lines?.length) await writeLog(ctx, doc._id, a.job, a.step, s.lines)
-    if (a.status === 'failure') {
-      const last = [...(a.lines ?? [])]
-        .reverse()
-        .find((l) => l.level === 'error')
-      r.annotations.push({
-        level: 'error',
-        text: last?.text ?? `${s.name} failed`,
-        job: j.name,
-        step: s.name,
-      })
-    }
-    settlePipeline(r, Date.now())
-    r.version++
-    await save(ctx, repo, doc, r)
-    return out(present(repo, r, true))
+    const r = await applyReport(ctx, repo, doc, a)
+    return out(await shown(ctx, repo, doc, r))
   },
 })
 
@@ -562,8 +760,226 @@ export const cancel = mutation({
     if (!canMove(pipelineLifecycle, r.status, 'canceled'))
       fail('invalid_state', `Run ${a.n} has already finished.`)
     cancelPipeline(r, Date.now())
+    for (const j of r.jobs) j.lease = null
     r.version++
     await save(ctx, repo, doc, r)
     return finish(a.dry, await shown(ctx, repo, doc, r))
+  },
+})
+
+// ---- waiting -------------------------------------------------------------------
+
+/** When a wait ends: `expires_at` if given, else in 7 days; never past 30. */
+function waitUntil(expiresAt: string | undefined) {
+  const now = Date.now()
+  if (expiresAt === undefined) return now + WAIT_DEFAULT_MS
+  const t = Date.parse(expiresAt)
+  if (!Number.isFinite(t) || t <= now || t > now + WAIT_MAX_MS)
+    fail(
+      'invalid_request',
+      'A wait ends in the future, at most 30 days from now.',
+      {
+        errors: [
+          {
+            pointer: '/body/expires_at',
+            code: 'out_of_range',
+            message: 'An RFC 3339 time after now and within 30 days.',
+          },
+        ],
+      },
+    )
+  return t
+}
+
+/** Pause a running step for a person or an outside agent. */
+export const wait = mutation({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    n: v.number(),
+    job: v.number(),
+    step: v.number(),
+    kind: v.union(
+      v.literal('person'),
+      v.literal('agent'),
+      v.literal('approval'),
+    ),
+    reason: v.string(),
+    target: v.optional(v.union(v.null(), v.string())),
+    expires_at: v.optional(v.string()),
+    dry: v.optional(v.boolean()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const p = await signedIn(ctx)
+    const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    const doc = await runOf(ctx, repo, a.n)
+    const r = await load(ctx, doc)
+    const w: PipelineWait = {
+      kind: a.kind,
+      reason: a.reason,
+      target: a.target ?? null,
+      expires: waitUntil(a.expires_at),
+    }
+    const refused = waitStep(r, a.job, a.step, w)
+    if (refused) fail('invalid_state', refused.refusal)
+    r.jobs[a.job - 1].lease = null
+    r.version++
+    await save(ctx, repo, doc, r)
+    await ctx.scheduler.runAt(w.expires, internal.forge.pipelines.expire, {
+      runId: doc._id,
+      job: a.job,
+      step: a.step,
+      expires: w.expires,
+    })
+    if (w.kind !== 'agent') {
+      const full = `${repo.owner}/${repo.name}`
+      const who = w.target ?? r.actor
+      if (w.target || who !== p.handle)
+        await notify(ctx, who, {
+          kind: 'handoff',
+          title: `${r.workflow} #${r.number} waits on you: ${w.reason}`,
+          repo: full,
+          path: `/${full}/pipelines?n=${r.number}&job=${a.job}`,
+        })
+    }
+    return finish(a.dry, await shown(ctx, repo, doc, r))
+  },
+})
+
+/** Resume a waiting step with how it ended, in one write. */
+export const resume = mutation({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    n: v.number(),
+    job: v.number(),
+    step: v.number(),
+    status: v.union(v.literal('success'), v.literal('failure')),
+    summary: v.optional(v.string()),
+    lines: v.optional(lineArg),
+    dry: v.optional(v.boolean()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const p = await signedIn(ctx)
+    const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    const doc = await runOf(ctx, repo, a.n)
+    const r = await load(ctx, doc, true)
+    const now = Date.now()
+    const refused = resumeStep(r, a.job, a.step, a.status, now)
+    if (refused) fail('invalid_state', refused.refusal)
+    const j = r.jobs[a.job - 1]
+    const s = j.steps[a.step - 1]
+    for (const l of a.lines ?? [])
+      s.lines.push({ t: l.text, level: l.level ?? null })
+    if (a.summary)
+      s.lines.push({
+        t: `Resumed by ${p.handle}: ${a.summary}`,
+        level: a.status === 'failure' ? 'error' : 'ok',
+      })
+    if (a.lines?.length || a.summary)
+      await writeLog(ctx, doc._id, a.job, a.step, s.lines)
+    if (a.status === 'failure')
+      r.annotations.push({
+        level: 'error',
+        text: a.summary ?? `${s.name} failed while it waited`,
+        job: j.name,
+        step: s.name,
+      })
+    // The runner that holds the job carries on from here.
+    if (j.runnerId && j.status === 'running') j.lease = now + LEASE_MS
+    r.version++
+    await save(ctx, repo, doc, r)
+    return finish(a.dry, await shown(ctx, repo, doc, r))
+  },
+})
+
+/**
+ * A wait ran out: the step and the run fail. Nothing happens when the step
+ * was resumed, canceled or waits on a later wait, or the run is gone.
+ */
+export const expire = internalMutation({
+  args: {
+    runId: v.id('pipelineRuns'),
+    job: v.number(),
+    step: v.number(),
+    expires: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    const doc = await ctx.db.get('pipelineRuns', a.runId)
+    if (!doc) return null
+    const repo = await ctx.db.get('repos', doc.repoId)
+    if (!repo) return null
+    const r = await load(ctx, doc)
+    const s = r.jobs.at(a.job - 1)?.steps.at(a.step - 1)
+    const why = s?.wait?.reason ?? ''
+    if (!expireWait(r, a.job, a.step, a.expires, Date.now())) return null
+    for (const j of r.jobs) j.lease = null
+    r.annotations.push({
+      level: 'error',
+      text: `Nobody resumed ${s!.name} before its wait ran out: ${why}`,
+      job: r.jobs[a.job - 1].name,
+      step: s!.name,
+    })
+    r.version++
+    await save(ctx, repo, doc, r)
+    return null
+  },
+})
+
+/**
+ * Jobs whose runner stopped answering go back to the queue. Run every minute,
+ * and by a runner's claim for its own account first, so a lease that ran out
+ * never keeps a job from the next runner.
+ */
+export async function requeueExpired(
+  ctx: MutationCtx,
+  limit: number,
+  only?: (repo: Doc<'repos'>) => boolean,
+) {
+  const now = Date.now()
+  let moved = 0
+  for (const status of ['running', 'waiting'] as const)
+    for (const doc of await ctx.db
+      .query('pipelineRuns')
+      .withIndex('by_status_and_started', (q) => q.eq('status', status))
+      .take(limit)) {
+      const repo = await ctx.db.get('repos', doc.repoId)
+      if (!repo || (only && !only(repo))) continue
+      const r = await load(ctx, doc)
+      let changed = false
+      for (const [ji, j] of r.jobs.entries())
+        if (j.status === 'running' && j.lease && j.lease <= now) {
+          const who = j.runner
+          if (requeueJob(r, ji + 1)) {
+            j.runner = ''
+            j.runnerId = null
+            j.lease = null
+            r.annotations.push({
+              level: 'warn',
+              text: `Runner ${who} stopped answering, so the job went back to the queue.`,
+              job: j.name,
+              step: '',
+            })
+            changed = true
+            moved++
+          }
+        }
+      if (changed) {
+        r.version++
+        await save(ctx, repo, doc, r)
+      }
+    }
+  return moved
+}
+
+export const sweepLeases = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requeueExpired(ctx, 500)
+    return null
   },
 })

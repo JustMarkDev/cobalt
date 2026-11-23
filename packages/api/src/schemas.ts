@@ -650,6 +650,23 @@ export const Release = named(
   }),
 )
 
+export const PipelineWait = named(
+  'PipelineWait',
+  obj({
+    kind: z
+      .enum(['person', 'agent', 'approval'])
+      .describe('What the step waits for'),
+    reason: z.string(),
+    target: z
+      .string()
+      .nullable()
+      .describe(
+        'Who it waits on: a handle, or an agent as its caller named it',
+      ),
+    expires_at: ts.describe('When the step fails if nobody resumed it'),
+  }),
+)
+
 export const PipelineJob = named(
   'PipelineJob',
   obj({
@@ -663,6 +680,18 @@ export const PipelineJob = named(
     sha: z.string(),
     steps: z.array(obj({ number: z.number().int(), name: z.string() })),
     url: z.string(),
+    runs_on: z
+      .array(z.string())
+      .describe('The labels the job asked for; empty takes any runner'),
+    runner_id: z
+      .string()
+      .nullable()
+      .describe('The registered runner that took it; null for a named one'),
+    lease_expires_at: ts
+      .nullable()
+      .describe(
+        'When the job goes back to the queue unless the runner reports or sends a heartbeat',
+      ),
   }),
 )
 
@@ -687,6 +716,7 @@ export const Download = named(
 const pipelineStatus = z.enum([
   'queued',
   'running',
+  'waiting',
   'success',
   'failure',
   'canceled',
@@ -694,6 +724,7 @@ const pipelineStatus = z.enum([
 const stepStatus = z.enum([
   'queued',
   'running',
+  'waiting',
   'success',
   'failure',
   'canceled',
@@ -714,7 +745,7 @@ export const PipelineRun = named(
     branch: z.string(),
     sha: z.string(),
     status: pipelineStatus,
-    trigger: z.enum(['push', 'change', 'tag', 'schedule', 'manual']),
+    trigger: z.enum(['push', 'change', 'tag', 'schedule', 'manual', 'event']),
     actor: z.string().describe('Handle of who or what started it'),
     started_at: ts,
     finished_at: ts.nullable(),
@@ -726,6 +757,23 @@ export const PipelineRun = named(
           runner: z.string(),
           status: stepStatus,
           duration_ms: z.number().int(),
+          runs_on: z
+            .array(z.string())
+            .describe('The labels it asked for; empty takes any runner'),
+          runner_id: z
+            .string()
+            .nullable()
+            .describe('The registered runner that took it'),
+          lease_expires_at: ts.nullable(),
+          waiting_for_labels: z
+            .array(z.string())
+            .nullable()
+            .describe(
+              'While queued: the labels no runner that may serve this repository has. Null when one can take it',
+            ),
+          wait: PipelineWait.nullable().describe(
+            'What its waiting step waits for',
+          ),
           steps: z.array(
             obj({
               name: z.string(),
@@ -733,6 +781,7 @@ export const PipelineRun = named(
               duration_ms: z.number().int(),
               lines: z.number().int().describe('Lines in its log'),
               log_url: z.string(),
+              wait: PipelineWait.nullable(),
             }),
           ),
         }),
@@ -767,6 +816,65 @@ export const PipelineLog = named(
         level: z.enum(['cmd', 'info', 'dim', 'ok', 'warn', 'error']).nullable(),
       }),
     ),
+  }),
+)
+
+export const Runner = named(
+  'Runner',
+  obj({
+    object: z.literal('runner'),
+    id: id('rnr'),
+    name: z.string(),
+    account: z.string().describe('The account the runner serves'),
+    kind: z.enum(['self-hosted', 'hosted']),
+    provider: z
+      .string()
+      .nullable()
+      .describe(
+        'Null for your own machine; the provider for a hosted one (`blacksmith`, `depot`)',
+      ),
+    labels: z
+      .array(z.string())
+      .describe(
+        'Lowercase. A job runs here when every label it asks for is in this list. Declared, not verified',
+      ),
+    repos: z
+      .array(z.string())
+      .nullable()
+      .describe(
+        '`owner/name` it may serve; null for every repository of the account',
+      ),
+    concurrency: z.number().int().describe('Jobs it runs at once'),
+    status: z.enum(['online', 'busy', 'offline', 'disabled']),
+    current_jobs: z
+      .number()
+      .int()
+      .describe('Jobs it holds, running or waiting'),
+    last_seen_at: ts.nullable(),
+    created_at: ts,
+    created_by: z.string(),
+    secret: z
+      .string()
+      .nullable()
+      .describe(
+        "The runner's token (`SX_RUNNER_TOKEN`). Only in the response that creates it, never again",
+      ),
+    url: z.string(),
+    html_url: z.string(),
+  }),
+)
+
+export const RunnerJob = named(
+  'RunnerJob',
+  obj({
+    object: z.literal('runner_job'),
+    repo: z.string(),
+    run: z.number().int(),
+    job: z.number().int(),
+    name: z.string(),
+    status: stepStatus,
+    lease_expires_at: ts.nullable(),
+    url: z.string(),
   }),
 )
 
@@ -1091,6 +1199,7 @@ export const Dashboard = named(
 )
 
 export const notificationKinds = [
+  'handoff',
   'review',
   'mention',
   'release',
@@ -1107,7 +1216,7 @@ export const Notification = named(
     kind: z
       .enum(notificationKinds)
       .describe(
-        '`review`: your change was reviewed or landed. `mention`: someone wrote @you. `release`: a project you starred released. `ci`: checks failed on your change. `issue`: you were assigned. `import`: an import finished',
+        '`handoff`: a pipeline step waits on you. `review`: your change was reviewed or landed. `mention`: someone wrote @you. `release`: a project you starred released. `ci`: checks failed on your change. `issue`: you were assigned. `import`: an import finished',
       ),
     title: z.string(),
     repo: z
@@ -1271,6 +1380,7 @@ export const NotificationPreferences = named(
   'NotificationPreferences',
   obj({
     object: z.literal('notification_preferences'),
+    handoff: z.boolean().describe('A pipeline step waits on you'),
     review: z.boolean(),
     mention: z.boolean(),
     release: z.boolean(),

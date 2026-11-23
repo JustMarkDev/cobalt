@@ -13,6 +13,7 @@ import type {
 import { DomainSync } from './sync'
 
 export const defaultPrefs: NotificationPrefs = {
+  handoff: true,
   review: true,
   mention: true,
   release: true,

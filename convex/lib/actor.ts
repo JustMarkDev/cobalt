@@ -35,6 +35,10 @@ export type Actor = {
   scopes: ReadonlySet<string>
   /** Lowercase `owner/name` list when limited to repositories. */
   repos: ReadonlyArray<string> | null
+  /** Globs a change may touch, when the token is limited to paths. */
+  paths?: ReadonlyArray<string> | null
+  /** The runner, when the caller is one by its token. */
+  runnerId?: string | null
   /** The API token behind the request; null for a browser session. */
   tokenId: string | null
   /**
@@ -62,6 +66,7 @@ export const allScopes = [
   'webhooks:read',
   'webhooks:write',
   'tokens:manage',
+  'runners:manage',
 ] as const
 
 /** The claims the API puts in its JWT. Short names: they ride on every call. */
@@ -77,6 +82,10 @@ export const claim = {
   actingAs: 'sx_act',
   scopes: 'sx_scp',
   repos: 'sx_rep',
+  /** Paths a token may change, as JSON. */
+  paths: 'sx_pth',
+  /** The runner a token belongs to. */
+  runner: 'sx_run',
   system: 'sx_sys',
   /** `[scope, key]` of the request's Idempotency-Key, as JSON. */
   idempotency: 'sx_idem',
@@ -117,6 +126,8 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
           : null,
       tokenId: typeof token === 'string' ? token : null,
       loginId: text(claim.login),
+      paths: pathsOf(text(claim.paths)),
+      runnerId: text(claim.runner),
       system: id[claim.system] === true || id[claim.system] === 'true',
     }
   }
@@ -135,6 +146,16 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
     repos: null,
     tokenId: null,
     system: false,
+  }
+}
+
+function pathsOf(json: string | null): Array<string> | null {
+  if (!json) return null
+  try {
+    const v = JSON.parse(json) as unknown
+    return Array.isArray(v) && v.every((x) => typeof x === 'string') ? v : null
+  } catch {
+    return null
   }
 }
 

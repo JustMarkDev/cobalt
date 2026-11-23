@@ -27,12 +27,34 @@ export const allScopes = [
   'webhooks:read',
   'webhooks:write',
   'tokens:manage',
+  'runners:manage',
+  'runners:claim',
+  'runners:report',
 ] as const
 export type Scope = (typeof allScopes)[number]
 
+/**
+ * What only a runner's own token holds: claiming jobs and reporting them. No
+ * person, OAuth client or device login is given them.
+ */
+export const runnerOnlyScopes: ReadonlyArray<Scope> = [
+  'runners:claim',
+  'runners:report',
+]
+
+/** What a runner's token carries: read its repositories, claim and report. */
+export const runnerScopes: ReadonlyArray<Scope> = [
+  'repo:read',
+  'runners:claim',
+  'runners:report',
+]
+
 /** Scopes an OAuth client can be granted. A token never mints tokens. */
 export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
-  (s) => s !== 'tokens:manage' && s !== 'secrets:decrypt',
+  (s) =>
+    s !== 'tokens:manage' &&
+    s !== 'secrets:decrypt' &&
+    !runnerOnlyScopes.includes(s),
 )
 
 /**
@@ -41,11 +63,16 @@ export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
  * that names the machine and says so; a web application never gets values.
  */
 export const deviceScopes: ReadonlyArray<Scope> = allScopes.filter(
-  (s) => s !== 'tokens:manage',
+  (s) => s !== 'tokens:manage' && !runnerOnlyScopes.includes(s),
+)
+
+/** What a person holds: every scope but the runner-only ones. */
+export const personScopes: ReadonlyArray<Scope> = allScopes.filter(
+  (s) => !runnerOnlyScopes.includes(s),
 )
 
 export type Audience = 'api' | 'mcp'
-export type TokenKind = 'personal' | 'oauth'
+export type TokenKind = 'personal' | 'oauth' | 'runner'
 
 export type TokenRecord = {
   id: string
@@ -58,6 +85,13 @@ export type TokenRecord = {
   scopes: ReadonlyArray<Scope>
   /** `owner/name` list when the token is limited to repositories. */
   repos: ReadonlyArray<string> | null
+  /**
+   * Globs (`src/**`, `*.sql`) when the token may only change these paths of
+   * its one repository. Null or absent: any path.
+   */
+  paths?: ReadonlyArray<string> | null
+  /** A runner's token: the runner it belongs to. */
+  runnerId?: string | null
   /** The machine it was created on, as its owner named it. Receipts show it. */
   device?: string | null
   audience: ReadonlyArray<Audience>
@@ -96,6 +130,10 @@ export type Principal = {
   session: boolean
   scopes: ReadonlySet<Scope>
   repos: ReadonlyArray<string> | null
+  /** Paths a change made with this token may touch; null for any. */
+  paths: ReadonlyArray<string> | null
+  /** Set when the caller is a runner, by its token. */
+  runnerId: string | null
   expiresAt: number
   /** Everything that decides what this principal may do, as a cache key. */
   capabilityKey: string
@@ -134,11 +172,12 @@ export interface TokenStore {
 export const hashToken = (token: string) =>
   bytesToHex(sha256(utf8ToBytes(token)))
 
-export const tokenShape = /^sx[pof]_[A-Za-z0-9_-]{8,}$/
+export const tokenShape = /^sx[pofr]_[A-Za-z0-9_-]{8,}$/
 
 const prefixes: Record<TokenKind, string> = {
   personal: 'sxp',
   oauth: 'sxo',
+  runner: 'sxr',
 }
 
 export function secretFor(kind: TokenKind | 'refresh'): string {
@@ -163,7 +202,7 @@ const principals = new WeakMap<TokenRecord, Principal>()
 /** One principal per record, built once, so a request does no allocation for it. */
 export function principalOf(record: TokenRecord): Principal {
   let p = principals.get(record)
-  if (!p || p.repos !== record.repos) {
+  if (!p || p.repos !== record.repos || p.paths !== (record.paths ?? null)) {
     const scopes = new Set(record.scopes)
     p = {
       tokenId: record.id,
@@ -176,9 +215,15 @@ export function principalOf(record: TokenRecord): Principal {
       session: false,
       scopes,
       repos: record.repos,
+      paths: record.paths ?? null,
+      runnerId: record.runnerId ?? null,
       expiresAt: record.expiresAt,
       // Everything that can change what this caller sees or may do.
-      capabilityKey: `${record.handle}:${record.actingAs}:${[...scopes].sort().join(',')}:${record.repos?.join(',') ?? '*'}`,
+      capabilityKey: capabilityKeyOf(record.handle, record.actingAs, scopes, {
+        repos: record.repos,
+        paths: record.paths ?? null,
+        runnerId: record.runnerId ?? null,
+      }),
       capId: '',
     }
     p.capId = internCapability(p.capabilityKey)
@@ -187,13 +232,35 @@ export function principalOf(record: TokenRecord): Principal {
   return p
 }
 
+/** Everything that decides what a caller may do, as one string. */
+export function capabilityKeyOf(
+  handle: string,
+  actingAs: string,
+  scopes: Iterable<Scope>,
+  limits: {
+    repos: ReadonlyArray<string> | null
+    paths: ReadonlyArray<string> | null
+    runnerId: string | null
+  },
+) {
+  let key = `${handle}:${actingAs}:${[...scopes].sort().join(',')}:${limits.repos?.join(',') ?? '*'}`
+  // Added only when set, so every key from before stays what it was.
+  if (limits.paths) key += `:paths=${limits.paths.join(',')}`
+  if (limits.runnerId) key += `:runner=${limits.runnerId}`
+  return key
+}
+
 /**
  * A person signed in to the app itself: they can do in the app whatever they
  * could do with a token holding every scope. No token exists for it.
  */
 export function personPrincipal(handle: string, now: number): Principal {
-  const scopes = new Set<Scope>(allScopes)
-  const capabilityKey = `${handle}:${handle}:${[...scopes].sort().join(',')}:*`
+  const scopes = new Set<Scope>(personScopes)
+  const capabilityKey = capabilityKeyOf(handle, handle, scopes, {
+    repos: null,
+    paths: null,
+    runnerId: null,
+  })
   return {
     tokenId: `web:${handle}`,
     loginId: `web:${handle}`,
@@ -205,6 +272,8 @@ export function personPrincipal(handle: string, now: number): Principal {
     session: true,
     scopes,
     repos: null,
+    paths: null,
+    runnerId: null,
     expiresAt: now + 60_000,
     capabilityKey,
     capId: internCapability(capabilityKey),
@@ -232,6 +301,8 @@ export type CreateToken = {
   actingAs?: string
   scopes: ReadonlyArray<Scope>
   repos?: ReadonlyArray<string> | null
+  paths?: ReadonlyArray<string> | null
+  runnerId?: string | null
   device?: string | null
   audience?: ReadonlyArray<Audience>
   ttlMs: number
@@ -300,6 +371,8 @@ export class AuthStore implements TokenService {
       actingAs: input.actingAs ?? input.handle,
       scopes: [...input.scopes],
       repos: input.repos ? input.repos.map((r) => r.toLowerCase()) : null,
+      paths: input.paths ? [...input.paths] : null,
+      runnerId: input.runnerId ?? null,
       device: input.device ?? null,
       audience: input.audience ?? ['api', 'mcp'],
       prefix: secret.slice(0, 8),
@@ -466,7 +539,13 @@ export class AuthStore implements TokenService {
   countActive(handle: string, now = this.clock()) {
     let n = 0
     for (const t of this.byHandle.get(handle) ?? [])
-      if (t.revokedAt === null && t.kind !== 'oauth' && t.expiresAt > now) n++
+      if (
+        t.revokedAt === null &&
+        t.kind !== 'oauth' &&
+        t.kind !== 'runner' &&
+        t.expiresAt > now
+      )
+        n++
     return n
   }
 

@@ -22,6 +22,42 @@ import type {
 
 type Out<TSchema extends z.ZodType> = z.output<TSchema>
 
+export type WaitBody = {
+  kind: 'person' | 'agent' | 'approval'
+  reason: string
+  target?: string | null
+  expires_at?: string
+}
+export type ResumeBody = {
+  status: 'success' | 'failure'
+  summary?: string
+  lines?: Array<{
+    text: string
+    level?: 'cmd' | 'info' | 'ok' | 'warn' | 'error' | null
+  }>
+}
+export type RunnerBody = {
+  name: string
+  account?: string
+  kind?: 'self-hosted' | 'hosted'
+  provider?: string | null
+  labels?: Array<string>
+  repos?: Array<string> | null
+  concurrency?: number
+}
+export type RunnerReportBody = {
+  repo: string
+  run: number
+  job: number
+  step: number
+  status: 'running' | 'success' | 'failure' | 'skipped'
+  lines?: Array<{
+    text: string
+    level?: 'cmd' | 'info' | 'ok' | 'warn' | 'error' | null
+  }>
+  duration_ms?: number
+}
+
 /** What the forge knows about where a line came from. */
 export type ProvenanceFacts = {
   change: {
@@ -482,7 +518,13 @@ export interface DomainPort {
     name: string,
     p: Viewer,
     q: Paging & {
-      status?: 'queued' | 'running' | 'success' | 'failure' | 'canceled'
+      status?:
+        | 'queued'
+        | 'running'
+        | 'waiting'
+        | 'success'
+        | 'failure'
+        | 'canceled'
       workflow?: string
     },
   ) => Promise<Page<Out<typeof S.PipelineRun>>>
@@ -544,6 +586,62 @@ export interface DomainPort {
     p: Viewer,
     dry: Dry,
   ) => Promise<Out<typeof S.PipelineRun>>
+  /** Pause a running step for a person or an outside agent. */
+  waitPipelineStep: (
+    owner: string,
+    name: string,
+    n: number,
+    job: number,
+    step: number,
+    p: Viewer,
+    body: WaitBody,
+    dry: Dry,
+  ) => Promise<Out<typeof S.PipelineRun>>
+  /** Resume a waiting step with how it ended. */
+  resumePipelineStep: (
+    owner: string,
+    name: string,
+    n: number,
+    job: number,
+    step: number,
+    p: Viewer,
+    body: ResumeBody,
+    dry: Dry,
+  ) => Promise<Out<typeof S.PipelineRun>>
+
+  // ---- runners --------------------------------------------------------------
+
+  createRunner: (
+    p: Viewer,
+    body: RunnerBody,
+    dry: Dry,
+  ) => Promise<Out<typeof S.Runner>>
+  listRunners: (
+    p: Viewer,
+    account: string | undefined,
+  ) => Promise<Array<Out<typeof S.Runner>>>
+  getRunner: (p: Viewer, id: string) => Promise<Out<typeof S.Runner>>
+  updateRunner: (
+    p: Viewer,
+    id: string,
+    body: Partial<Omit<RunnerBody, 'account' | 'kind' | 'provider'>>,
+    dry: Dry,
+  ) => Promise<Out<typeof S.Runner>>
+  /** Disables the runner and revokes its token, in one write. */
+  deleteRunner: (
+    p: Viewer,
+    id: string,
+    dry: Dry,
+  ) => Promise<Out<typeof S.Runner>>
+  /** The runner says it is alive; the leases on its running jobs are extended. */
+  runnerHeartbeat: (p: Viewer) => Promise<Out<typeof S.Runner>>
+  /** The oldest queued job this runner may take, now its; null when none. */
+  runnerClaim: (p: Viewer) => Promise<Out<typeof S.PipelineJob> | null>
+  runnerReport: (
+    p: Viewer,
+    body: RunnerReportBody,
+  ) => Promise<Out<typeof S.PipelineRun>>
+  runnerJobs: (p: Viewer, id: string) => Promise<Array<Out<typeof S.RunnerJob>>>
 
   // ---- policy rules ---------------------------------------------------------
 

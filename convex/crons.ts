@@ -13,6 +13,13 @@ crons.interval(
 
 // Tokens past expiry, OAuth state that ran out, operations long over.
 crons.interval('sweep tokens', { hours: 1 }, internal.forge.tokens.sweep, {})
+// Jobs whose runner stopped answering go back to the queue.
+crons.interval(
+  'requeue runner jobs',
+  { minutes: 1 },
+  internal.forge.pipelines.sweepLeases,
+  {},
+)
 crons.interval('sweep oauth', { minutes: 15 }, internal.forge.oauth.sweep, {})
 crons.interval(
   'sweep operations',

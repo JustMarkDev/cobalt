@@ -14,6 +14,9 @@ export abstract class DomainAccess extends DomainState {
 
   protected canRead(repo: RepoRec, p: Viewer) {
     const full = `${repo.owner}/${repo.name}`.toLowerCase()
+    // A runner reads only the repositories of the account it serves.
+    if (p?.runnerId && repo.owner.toLowerCase() !== p.actingAs.toLowerCase())
+      return repo.visibility === 'public'
     if (p?.repos && !p.repos.includes(full)) return repo.visibility === 'public'
     if (repo.visibility === 'public') return true
     return (
@@ -44,6 +47,8 @@ export abstract class DomainAccess extends DomainState {
 
   protected canWrite(repo: RepoRec, p: Viewer): p is Principal {
     if (!p) return false
+    // A runner changes nothing through the repository; it reports its jobs.
+    if (p.runnerId) return false
     if (
       p.repos &&
       !p.repos.includes(`${repo.owner}/${repo.name}`.toLowerCase())

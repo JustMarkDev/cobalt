@@ -265,6 +265,7 @@ export const bodies = {
     expires_at: z.iso.datetime(),
   }),
   'notifications.update_preferences': z.strictObject({
+    handoff: z.boolean().optional(),
     review: z.boolean().optional(),
     mention: z.boolean().optional(),
     release: z.boolean().optional(),

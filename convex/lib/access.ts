@@ -80,6 +80,9 @@ export async function hasAccess(ctx: Ctx, repo: Doc<'repos'>, a: Actor) {
 
 export async function canRead(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   if (a?.system) return true
+  // A runner reads only the repositories of the account it serves.
+  if (a?.runnerId && repo.owner.toLowerCase() !== a.actingAs.toLowerCase())
+    return repo.visibility === 'public'
   if (a?.repos && !a.repos.includes(full(repo).toLowerCase()))
     return repo.visibility === 'public'
   if (repo.visibility === 'public') return true
@@ -92,6 +95,8 @@ export async function canRead(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
 
 export async function canWrite(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   if (!a) return false
+  // A runner changes nothing through the repository; it reports its jobs.
+  if (a.runnerId) return false
   if (a.repos && !a.repos.includes(full(repo).toLowerCase())) return false
   return (
     (await hasAccess(ctx, repo, a)) ||

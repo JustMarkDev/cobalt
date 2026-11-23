@@ -648,6 +648,35 @@ export default defineSchema({
     .index('by_repoId_and_status_and_started', ['repoId', 'status', 'started'])
     .index('by_status_and_started', ['status', 'started']),
 
+  // Machines that take pipeline jobs: an identity, labels, the repositories
+  // they may serve and a token only they hold.
+  runners: defineTable({
+    publicId: v.string(),
+    account: v.string(),
+    name: v.string(),
+    kind: v.union(v.literal('self-hosted'), v.literal('hosted')),
+    provider: v.union(v.null(), v.string()),
+    // Lowercase.
+    labels: v.array(v.string()),
+    // Repository ids (`rep_...`); null for every repository of the account.
+    repos: v.union(v.null(), v.array(v.string())),
+    concurrency: v.number(),
+    status: v.union(v.literal('active'), v.literal('disabled')),
+    createdBy: v.string(),
+    created: v.number(),
+    // The public id of its token.
+    tokenId: v.string(),
+  })
+    .index('by_account_and_name', ['account', 'name'])
+    .index('by_publicId', ['publicId']),
+
+  // When each runner last sent a heartbeat. Kept apart from the runner, so a
+  // heartbeat every 30 seconds does not invalidate every page that reads one.
+  runnerSeen: defineTable({
+    runnerId: v.id('runners'),
+    at: v.number(),
+  }).index('by_runnerId', ['runnerId']),
+
   pipelineLogs: defineTable({
     runId: v.id('pipelineRuns'),
     job: v.number(),
@@ -920,6 +949,7 @@ export default defineSchema({
       v.literal('bot'),
       v.literal('run'),
       v.literal('oauth'),
+      v.literal('runner'),
     ),
     handle: v.string(),
     actingAs: v.string(),
@@ -929,6 +959,10 @@ export default defineSchema({
     device: v.optional(v.union(v.null(), v.string())),
     scopes: v.array(v.string()),
     repos: v.union(v.null(), v.array(v.string())),
+    // Globs a change made with it may touch; absent or null for any path.
+    paths: v.optional(v.union(v.null(), v.array(v.string()))),
+    // A runner's token: the runner's public id.
+    runnerId: v.optional(v.string()),
     audience: v.array(v.union(v.literal('api'), v.literal('mcp'))),
     prefix: v.string(),
     createdAt: v.number(),

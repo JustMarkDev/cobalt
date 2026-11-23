@@ -146,6 +146,8 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
     device: t.device ?? null,
     scopes: [...t.scopes],
     repos: t.repos ? [...t.repos] : null,
+    ...(t.paths ? { paths: [...t.paths] } : {}),
+    ...(t.runnerId ? { runnerId: t.runnerId } : {}),
     audience: [...t.audience],
     prefix: t.prefix,
     createdAt: t.createdAt,

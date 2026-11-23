@@ -7,7 +7,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 /** Tokens: made here with their secret handed back once; only the hash is kept. */
 
 /** `rep_...` ids, or `n:owner/name` for a name that had no repository. */
-async function toRefs(ctx: QueryCtx, names: Array<string>) {
+export async function toRefs(ctx: QueryCtx, names: Array<string>) {
   const refs: Array<string> = []
   for (const n of names) {
     const r = await repoByKey(ctx, n)
@@ -17,7 +17,11 @@ async function toRefs(ctx: QueryCtx, names: Array<string>) {
 }
 
 /** The current lowercase names; repositories that are gone drop out. */
-async function toNames(ctx: QueryCtx, refs: Array<string>, since: number) {
+export async function toNames(
+  ctx: QueryCtx,
+  refs: Array<string>,
+  since: number,
+) {
   const names: Array<string> = []
   for (const ref of refs) {
     if (ref.startsWith('n:')) {
@@ -39,12 +43,19 @@ export async function record(ctx: QueryCtx, t: Doc<'tokens'>) {
   return {
     id: t.publicId,
     name: t.name,
-    kind: t.kind === 'oauth' ? ('oauth' as const) : ('personal' as const),
+    kind:
+      t.kind === 'oauth'
+        ? ('oauth' as const)
+        : t.kind === 'runner'
+          ? ('runner' as const)
+          : ('personal' as const),
     handle: t.handle,
     actingAs: t.actingAs,
     device: t.device ?? null,
     scopes: t.scopes,
     repos: t.repos ? await toNames(ctx, t.repos, t.createdAt) : null,
+    paths: t.paths ?? null,
+    runnerId: t.runnerId ?? null,
     audience: t.audience,
     prefix: t.prefix,
     createdAt: t.createdAt,
@@ -62,12 +73,14 @@ export async function mintToken(
   args: {
     id?: string
     name: string
-    kind: 'personal' | 'oauth'
+    kind: 'personal' | 'oauth' | 'runner'
     handle: string
     actingAs?: string
     device?: string | null
     scopes: Array<string>
     repos?: Array<string> | null
+    paths?: Array<string> | null
+    runnerId?: string | null
     audience?: Array<'api' | 'mcp'>
     ttlMs: number
     authorizationId?: string
@@ -88,6 +101,8 @@ export async function mintToken(
     device: args.device ?? null,
     scopes: [...args.scopes],
     repos: args.repos ? await toRefs(ctx, args.repos) : null,
+    ...(args.paths ? { paths: [...args.paths] } : {}),
+    ...(args.runnerId ? { runnerId: args.runnerId } : {}),
     audience: args.audience ?? ['api', 'mcp'],
     prefix: secret.slice(0, 8),
     createdAt: at,

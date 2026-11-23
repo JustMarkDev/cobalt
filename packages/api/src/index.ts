@@ -27,6 +27,7 @@ import { issueOps } from './ops/issues'
 import { notificationOps } from './ops/notifications'
 import { releaseOps } from './ops/releases'
 import { pipelineOps } from './ops/pipelines'
+import { runnerOps } from './ops/runners'
 import { policyRuleOps } from './ops/policy-rules'
 import { integrationOps } from './ops/integrations'
 import { importOps } from './ops/imports'
@@ -79,6 +80,7 @@ export const operations: ReadonlyArray<Op> = [
   ...notificationOps,
   ...releaseOps,
   ...pipelineOps,
+  ...runnerOps,
   ...policyRuleOps,
   ...integrationOps,
   ...importOps,

@@ -54,11 +54,12 @@ export class ConvexTokens implements TokenService {
   }
 
   create(input: CreateToken & { id?: string }) {
-    const { repos, ...rest } = input
+    const { repos, paths, ...rest } = input
     return this.m<{ record: TokenRecord; secret: string }>('create', {
       ...rest,
       scopes: [...input.scopes],
       repos: repos ? [...repos] : null,
+      paths: paths ? [...paths] : null,
       ...(input.audience ? { audience: [...input.audience] } : {}),
     })
   }
@@ -69,6 +70,7 @@ export class ConvexTokens implements TokenService {
       ...input,
       scopes: [...input.scopes],
       repos: input.repos ? [...input.repos] : null,
+      paths: input.paths ? [...input.paths] : null,
       secret,
     })
   }
