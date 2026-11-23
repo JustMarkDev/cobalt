@@ -7,6 +7,7 @@ Output is JSON when piped or with --json.
 
 Commands
   repo      list, view, create, clone
+  import    bring a repository in from GitHub, GitLab, Codeberg or Gitea
   change    list, view, create, land, checkout
   issue     list, view, create, close
   env       list, set, run, pull, confirmations
@@ -87,6 +88,16 @@ export const groupHelp: Record<string, string> = {
   check <change>          exits 5 when the change is blocked
   explain <change>        the same, listing each requirement
 `,
+  import: `sx import <host> <owner/name>   or   sx import <url>
+
+  Makes the repository here with its whole history and keeps pulling from the
+  original through a mirror, until you sx mirror remove it.
+
+  host                    github, gitlab, codeberg or gitea
+  --as name|owner/name    where it goes (default: its name, in the account you act as)
+  --private               private here (default: public)
+  list                    what you imported and how each mirror is doing
+`,
   mirror: `sx mirror <command>
 
   list
@@ -134,12 +145,12 @@ export const groupHelp: Record<string, string> = {
 }
 
 export const completions: Record<string, string> = {
-  bash: `_sx() { COMPREPLY=($(compgen -W "repo change issue env policy mirror handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
+  bash: `_sx() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
 complete -F _sx sx
 `,
   zsh: `#compdef sx
-_arguments '1: :(repo change issue env policy mirror handoff context config account auth skill mcp commands completion)'
+_arguments '1: :(repo import change issue env policy mirror handoff context config account auth skill mcp commands completion)'
 `,
-  fish: `complete -c sx -f -a "repo change issue env policy mirror handoff context config account auth skill mcp commands completion"
+  fish: `complete -c sx -f -a "repo import change issue env policy mirror handoff context config account auth skill mcp commands completion"
 `,
 }

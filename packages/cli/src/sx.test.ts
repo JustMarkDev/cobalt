@@ -552,3 +552,54 @@ describe('hand-off', () => {
     expect(JSON.parse(missing.err).error.code).toBe('not_found')
   })
 })
+
+// Last: imports add repositories to the sample state other tests count.
+describe('import', () => {
+  test('from a host and owner/name, or from its address, once', async () => {
+    const made = await sx('import', 'github', 'dana-okafor/recipes')
+    expect(made.code, made.err).toBe(0)
+    expect(JSON.parse(made.out)).toMatchObject({
+      slug: 'dana/recipes',
+      created: true,
+      upstream: { host: 'github', slug: 'dana-okafor/recipes' },
+    })
+    const again = await sx(
+      'import',
+      'https://github.com/dana-okafor/recipes.git',
+    )
+    expect(JSON.parse(again.out)).toMatchObject({
+      slug: 'dana/recipes',
+      created: false,
+    })
+    const placed = await sx(
+      'import',
+      'git@gitlab.com:dana/zine.git',
+      '--as',
+      'northwind/zine',
+      '--private',
+    )
+    expect(JSON.parse(placed.out)).toMatchObject({
+      slug: 'northwind/zine',
+      visibility: 'private',
+    })
+    const list = JSON.parse((await sx('import', 'list')).out) as Array<{
+      repo: string
+    }>
+    expect(list.map((i) => i.repo)).toContain('dana/recipes')
+  })
+
+  test('a dry run makes nothing', async () => {
+    const r = await sx('import', 'codeberg', 'dana/quiet', '--dry-run')
+    expect(JSON.parse(r.out)).toMatchObject({ dryRun: true })
+    const list = JSON.parse((await sx('import', 'list')).out) as Array<{
+      repo: string
+    }>
+    expect(list.map((i) => i.repo)).not.toContain('dana/quiet')
+  })
+
+  test('a host it cannot import from is a usage error with an example', async () => {
+    const r = await sx('import', 'https://bitbucket.org/dana/x')
+    expect(r.code).toBe(2)
+    expect(JSON.parse(r.err).error.hint).toContain('sx import github')
+  })
+})

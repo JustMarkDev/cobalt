@@ -8,7 +8,7 @@ import { useWrite } from '~/lib/forge'
 import { useMe } from '~/lib/auth/accounts'
 
 const plural = (n: number, word: string) =>
-  `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`
+  `${n.toLocaleString('en')} ${word}${n === 1 ? '' : 's'}`
 import { GitForkIcon } from '~/components/icons'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -152,13 +152,18 @@ export function DeveloperRow({ dev }: { dev: Person }) {
           </span>
         </div>
         <p className="truncate text-sm text-muted-foreground">{dev.bio}</p>
-        <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {dev.languages.map((l) => (
             <LangDot key={l} language={l} />
           ))}
           <span className="tabular-nums">
-            {plural(dev.followers, 'follower')} ·{' '}
-            {plural(dev.repositories, 'project')}
+            <span className="whitespace-nowrap">
+              {plural(dev.followers, 'follower')}
+            </span>{' '}
+            ·{' '}
+            <span className="whitespace-nowrap">
+              {plural(dev.repositories, 'project')}
+            </span>
           </span>
         </div>
       </div>

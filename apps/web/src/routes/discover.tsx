@@ -143,7 +143,7 @@ function Discover() {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
         {view === 'projects' && (
-          <aside className="hidden space-y-6 lg:sticky lg:top-20 lg:block lg:self-start">
+          <aside className="hidden space-y-6 lg:sticky lg:top-header lg:block lg:self-start">
             <FilterList
               title="Category"
               value={category}

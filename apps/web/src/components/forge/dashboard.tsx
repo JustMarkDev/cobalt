@@ -133,7 +133,7 @@ const severity: Record<Severity, { label: string; tone: BadgeTone }> = {
   assigned: { label: 'Assigned', tone: 'info' },
 }
 
-/** What needs a decision, most costly first. Only the first action is lime. */
+/** What needs a decision, most costly first. Only the first action is cobalt. */
 export function NeedsYou({ data }: { data: DashboardData }) {
   const items = data.needsYou
   return (

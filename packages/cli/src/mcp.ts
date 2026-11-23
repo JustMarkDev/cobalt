@@ -378,6 +378,31 @@ export function createSxMcpServer(
     { idempotent: true },
   )
   tool(
+    'import_repository',
+    'Bring a repository in from GitHub, GitLab, Codeberg or Gitea with its whole history. It keeps pulling from there through a mirror. Calling it again returns the one already imported.',
+    {
+      host: z.enum(['github', 'gitlab', 'codeberg', 'gitea']),
+      slug: z.string().describe('owner/name on that host.'),
+      as: z
+        .string()
+        .optional()
+        .describe(
+          'name or owner/name here. Default: its name, in the account you act as.',
+        ),
+      private: z.boolean().optional(),
+      dry_run: dryArg,
+    },
+    (a) => [
+      'import',
+      a.host,
+      a.slug,
+      ...(a.as ? ['--as', a.as] : []),
+      ...(a.private ? ['--private'] : []),
+      ...dry(a),
+    ],
+    { idempotent: true },
+  )
+  tool(
     'hand_off',
     'Build the prompt for an issue, a change or a failing pipeline run and the command that hands it to an orchestrator (T3 Code, or boat). source.code starts no agent itself.',
     {

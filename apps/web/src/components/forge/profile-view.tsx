@@ -162,7 +162,7 @@ export function ProfileView({
 
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+      <aside className="space-y-5 lg:sticky lg:top-header lg:self-start">
         <Tile name={name} hue={seed % 360} round className="size-20 text-2xl" />
         <div>
           <Name className="text-xl font-semibold tracking-tight">{name}</Name>
@@ -229,7 +229,11 @@ export function ProfileView({
           <div className="space-y-10">
             <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
               {[
-                ['Contributions', contributions.toLocaleString(), 'past year'],
+                [
+                  'Contributions',
+                  contributions.toLocaleString('en'),
+                  'past year',
+                ],
                 ['Releases', String(releases), 'shipped'],
                 ['Downloads', compact(downloads), 'all time'],
                 [

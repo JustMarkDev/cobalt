@@ -80,7 +80,7 @@ export function StatusCard({
         ) : (
           <>
             <Button
-              // Lime means "you can do this now". Until then it is quiet.
+              // Cobalt means "you can do this now". Until then it is quiet.
               variant={canLand ? 'brand' : 'outline'}
               size="lg"
               className="w-full"

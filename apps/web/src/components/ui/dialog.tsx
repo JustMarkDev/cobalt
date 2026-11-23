@@ -22,7 +22,7 @@ function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="overlay-backdrop fixed inset-0 z-50 bg-foreground/25" />
+        <Dialog.Backdrop className="overlay-backdrop fixed inset-0 z-50 bg-black/40" />
         <Dialog.Popup
           className={cn(
             'overlay-popup fixed top-[10vh] left-1/2 z-50 max-h-[80vh] -translate-x-1/2 space-y-4 overflow-y-auto rounded-2xl border bg-popover p-6 floating outline-none',

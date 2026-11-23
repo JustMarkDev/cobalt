@@ -239,7 +239,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
         <nav
           aria-label="Sections"
-          className="hidden space-y-0.5 text-sm lg:sticky lg:top-20 lg:block lg:self-start"
+          className="hidden space-y-0.5 text-sm lg:sticky lg:top-header lg:block lg:self-start"
         >
           {[
             ['download', 'Download'],
@@ -266,7 +266,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
         </nav>
 
         <div className="min-w-0 space-y-12">
-          <section id="download" className="scroll-mt-20">
+          <section id="download" className="scroll-mt-header">
             <Panel className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
                 <div className="trough flex h-9 max-w-full text-sm">
@@ -368,7 +368,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
               </div>
             </Panel>
           </section>
-          <section id="install" className="scroll-mt-20 space-y-3">
+          <section id="install" className="scroll-mt-header space-y-3">
             <SectionLabel>Or use a package manager</SectionLabel>
             {pinned && (
               <p className="text-sm text-muted-foreground">
@@ -391,13 +391,13 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
             />
             <CopyField value={installs[install][1]} />
           </section>
-          <section id="changelog" className="scroll-mt-20 space-y-3">
+          <section id="changelog" className="scroll-mt-header space-y-3">
             <SectionLabel>Changelog</SectionLabel>
             <Panel className="p-5">
               <ReleaseNotes release={release} />
             </Panel>
           </section>
-          <section id="files" className="scroll-mt-20 space-y-3">
+          <section id="files" className="scroll-mt-header space-y-3">
             <SectionLabel>All files</SectionLabel>
             <Panel className="overflow-x-auto" tabIndex={0}>
               <table className="w-full text-left text-sm">
@@ -471,7 +471,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
               </table>
             </Panel>
           </section>
-          <section id="history" className="scroll-mt-20 space-y-3">
+          <section id="history" className="scroll-mt-header space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <SectionLabel>Version history</SectionLabel>
               {repo.releases.length > 1 && (
@@ -547,7 +547,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
           </section>
           <details
             id="verify"
-            className="surface group scroll-mt-20 rounded-2xl border bg-card px-5 py-4"
+            className="surface group scroll-mt-header rounded-2xl border bg-card px-5 py-4"
           >
             <summary className="flex cursor-pointer list-none items-center justify-between text-sm text-muted-foreground hover:text-foreground">
               Verify your download

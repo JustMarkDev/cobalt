@@ -58,7 +58,7 @@ function Settings() {
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
       <nav
         aria-label="Settings"
-        className="flex gap-1 overflow-x-auto lg:sticky lg:top-20 lg:flex-col lg:self-start"
+        className="flex gap-1 overflow-x-auto lg:sticky lg:top-header lg:flex-col lg:self-start"
       >
         {sections.map(([id, label, Icon]) => (
           <Link

@@ -449,7 +449,7 @@ export function ContributionGraph({
       <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-4 text-sm md:w-64">
         {(
           [
-            ['Contributions', data.total.toLocaleString()],
+            ['Contributions', data.total.toLocaleString('en')],
             ['Active days', `${data.active}`],
             [
               'Longest streak',

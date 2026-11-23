@@ -58,6 +58,19 @@ function Days({ days }: { days: Service['days'] }) {
   )
 }
 
+const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * A moment as "Nov 23, 2026, 13:43 UTC". Built by hand, in UTC, so the
+ * server's ICU and the browser's (and their time zones) write the same text
+ * and hydration never sees two dates.
+ */
+const moment = (iso: string) => {
+  const d = new Date(iso)
+  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`
+}
+
 const day = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en', {
     month: 'short',
@@ -119,14 +132,10 @@ function Status() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Measured by this server from its own answers since{' '}
-          {new Date(s.since).toLocaleString('en', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })}
-          . It holds {s.counts.repositories.toLocaleString()} repositories,{' '}
-          {s.counts.changes.toLocaleString()} changes and{' '}
-          {s.counts.issues.toLocaleString()} issues.
+          Measured by this server from its own answers since {moment(s.since)}.
+          It holds {s.counts.repositories.toLocaleString('en')} repositories,{' '}
+          {s.counts.changes.toLocaleString('en')} changes and{' '}
+          {s.counts.issues.toLocaleString('en')} issues.
         </p>
       </header>
 
@@ -141,14 +150,14 @@ function Status() {
                 x.state !== 'up' && 'bg-warning/5',
               )}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">{x.name}</div>
                   <div className="text-sm text-muted-foreground">
                     {x.detail ?? x.note}
                   </div>
                 </div>
-                <span className="text-right text-xs text-muted-foreground tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums max-sm:order-last max-sm:w-full sm:text-right">
                   {x.uptime !== null && <div>{x.uptime}% up</div>}
                   {x.p50_ms !== null && (
                     <div>
@@ -169,8 +178,8 @@ function Status() {
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>90 days ago</span>
                     <span>
-                      {x.requests.toLocaleString()} requests,{' '}
-                      {x.errors.toLocaleString()} failed
+                      {x.requests.toLocaleString('en')} requests,{' '}
+                      {x.errors.toLocaleString('en')} failed
                     </span>
                     <span>Today</span>
                   </div>
@@ -181,7 +190,7 @@ function Status() {
         </ul>
       </section>
 
-      <section id="incidents" className="scroll-mt-24 space-y-3">
+      <section id="incidents" className="scroll-mt-header space-y-3">
         <h2 className="text-sm font-medium">Recent incidents</h2>
         {s.incidents.length === 0 ? (
           <p className="text-sm text-muted-foreground">

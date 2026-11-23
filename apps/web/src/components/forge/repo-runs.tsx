@@ -292,7 +292,7 @@ function StepBlock({
   const errors = step.lines.filter((l) => l.level === 'error').length
   const warns = step.lines.filter((l) => l.level === 'warn').length
   return (
-    <div id={`step-${step.name}`} className="scroll-mt-24">
+    <div id={`step-${step.name}`} className="scroll-mt-header">
       <button
         type="button"
         aria-expanded={open}

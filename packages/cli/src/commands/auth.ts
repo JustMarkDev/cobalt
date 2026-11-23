@@ -1,7 +1,7 @@
 import { platform } from 'node:os'
 import { SxError, exit, print } from '../output'
 import { activeAccount, whoami } from '../account'
-import { resolve } from '../config'
+import { readConfig, resolve, writeConfig } from '../config'
 import {
   clearCredentials,
   readCredentials,
@@ -84,14 +84,10 @@ export async function signIn(
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   },
 ) {
-  const api = resolve('api').value.replace(/\/$/, '')
-  if (!api)
-    throw new SxError(
-      'not_available',
-      'There is nothing to sign in to: sx is running on sample data.',
-      'Set SX_API to the API address (or `sx config set api <url>`), then run sx auth login.',
-      exit.usage,
-    )
+  // With no API set, sign in to the host's own (https://source.code/api/v1
+  // by default) and remember it, so every later command talks to it too.
+  const given = resolve('api').value.replace(/\/$/, '')
+  const api = given || `${resolve('host').value.replace(/\/$/, '')}/api/v1`
   const form = (data: Record<string, string>) => ({
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -174,6 +170,7 @@ export async function signIn(
         expires_at: Date.now() + Number(t.json.expires_in) * 1000,
         scope: String(t.json.scope),
       })
+      if (!given) writeConfig({ ...readConfig(), api })
       print(
         ctx,
         { signedIn: true, api, scope: t.json.scope },

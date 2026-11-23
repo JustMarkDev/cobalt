@@ -96,6 +96,7 @@ export class ApiClient {
           new Request(url, { method, headers, body, redirect: 'manual' }),
         )
       } catch (e) {
+        if (e instanceof SxError) throw e
         throw new SxError(
           'network',
           `Could not reach ${this.base}: ${e instanceof Error ? e.message : String(e)}`,
@@ -166,6 +167,8 @@ let sample: Promise<SampleApi> | undefined
 
 /** The preview's API, in this process. State lasts as long as the process. */
 function sampleApi(): Promise<SampleApi> {
+  // The sample lives in the source.code repository. An installed sx has no
+  // copy, so there the only way on is to sign in.
   sample ??= import('@source-code/api').then(
     (m) =>
       m.createSampleApi({
@@ -175,6 +178,14 @@ function sampleApi(): Promise<SampleApi> {
         // Sample values, sealed for as long as this process runs.
         ephemeralSecrets: true,
       }) as SampleApi,
+    () => {
+      throw new SxError(
+        'unauthenticated',
+        'You are not signed in.',
+        'Run sx auth login, or set SX_TOKEN to a token from Settings, Agents and tokens.',
+        exit.auth,
+      )
+    },
   )
   return sample
 }

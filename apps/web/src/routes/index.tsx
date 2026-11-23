@@ -1,259 +1,319 @@
+import * as React from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { cn } from 'cn'
+import type { BrandIcon } from '~/components/brand-icons'
 import {
-  ClockIcon,
-  CurrencyDollarIcon,
-  KeyIcon,
-  ShieldCheckIcon,
-} from '@heroicons/react/24/outline'
-import type { StatusItem } from '~/components/forge/status-card'
-import { Sparkline } from '~/components/charts'
-import { CopyField } from '~/components/forge/repo-shell'
-import { AnySection } from '~/components/forge/any-section'
+  siBitbucket,
+  siClaude,
+  siCodeberg,
+  siCursor,
+  siForgejo,
+  siGitea,
+  siGithub,
+  siGitlab,
+} from '~/components/brand-icons'
+import { siCodex, siGooglegemini, siOpencode } from '~/components/agent-icons'
+import { BrandMark } from '~/components/brand-mark'
 import { CompareTable, Legend } from '~/components/forge/compare-table'
-import { StatusCard } from '~/components/forge/status-card'
 import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth/client'
+import { SETUP_PROMPT } from '~/lib/setup-prompt'
 
 export const Route = createFileRoute('/')({
   head: () => ({
-    meta: [
-      { title: 'source.code: a home for your code that keeps your history' },
-    ],
+    meta: [{ title: 'source.code: Git hosting. Agent native.' }],
   }),
   component: Landing,
 })
 
-const preview: Array<StatusItem> = [
-  {
-    id: 'checks',
-    label: 'Checks passed',
-    detail: 'ci/test on the tree that will land',
-    state: 'pass',
-  },
-  {
-    id: 'approval',
-    label: 'Approved by hollis',
-    detail: '1 of 1 required. Carried over from the last patch set.',
-    state: 'pass',
-  },
-  {
-    id: 'findings',
-    label: '1 high finding to handle',
-    detail: 'greptile: NegCache is unbounded',
-    state: 'fail',
-  },
+const hosts: Array<BrandIcon> = [
+  siGithub,
+  siGitlab,
+  siBitbucket,
+  siGitea,
+  siCodeberg,
+  siForgejo,
 ]
 
-const history = [4, 6, 5, 9, 8, 12, 10, 14, 13, 18, 16, 22, 20, 26]
+const agents: Array<{ name: string; icon: BrandIcon }> = [
+  { name: 'Claude Code', icon: siClaude },
+  { name: 'Codex', icon: siCodex },
+  { name: 'Gemini CLI', icon: siGooglegemini },
+  { name: 'Cursor', icon: siCursor },
+  { name: 'OpenCode', icon: siOpencode },
+]
+
+function Mark({ icon, className }: { icon: BrandIcon; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={cn('fill-current', className)}
+    >
+      <path d={icon.path} />
+    </svg>
+  )
+}
+
+/**
+ * A statement whose words light up as they pass the middle of the screen.
+ * With reduced motion, or before it hydrates, every word is lit.
+ */
+function Lit({
+  as: Tag = 'h2',
+  children,
+  className,
+}: {
+  as?: 'h2' | 'p'
+  children: string
+  className?: string
+}) {
+  const ref = React.useRef<HTMLElement>(null)
+  const [lit, setLit] = React.useState<number | null>(null)
+  const words = children.split(' ')
+  React.useEffect(() => {
+    const el = ref.current
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const spans = [...el.querySelectorAll('span')]
+    const paint = () => {
+      const mid = window.innerHeight * 0.66
+      setLit(spans.filter((s) => s.getBoundingClientRect().top < mid).length)
+    }
+    paint()
+    window.addEventListener('scroll', paint, { passive: true })
+    window.addEventListener('resize', paint)
+    return () => {
+      window.removeEventListener('scroll', paint)
+      window.removeEventListener('resize', paint)
+    }
+  }, [])
+  return (
+    <Tag ref={ref as never} className={className} aria-label={children}>
+      {words.map((w, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && ' '}
+          <span
+            aria-hidden="true"
+            className={cn(
+              'transition-colors duration-500',
+              lit !== null && i >= lit && 'text-muted-foreground',
+            )}
+          >
+            {w}
+          </span>
+        </React.Fragment>
+      ))}
+    </Tag>
+  )
+}
+
+function CopyPrompt({
+  variant,
+  className,
+  children,
+}: {
+  variant: 'brand' | 'outline'
+  className?: string
+  children: string
+}) {
+  const [copied, setCopied] = React.useState(false)
+  return (
+    <Button
+      variant={variant}
+      size="lg"
+      className={className}
+      onClick={() => {
+        void navigator.clipboard.writeText(SETUP_PROMPT).catch(() => undefined)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? 'Copied' : children}
+    </Button>
+  )
+}
+
+/**
+ * The prompt with its commands set as code. A command keeps the punctuation
+ * that follows it on its own line, so a comma never floats away from the chip;
+ * below 360px a long command may wrap rather than be cut off.
+ */
+function PromptText() {
+  const parts = SETUP_PROMPT.split(/(`[^`]+`)/)
+  return (
+    <p className="font-mono text-[13.5px] leading-[1.8] text-foreground/80 sm:text-[15px]">
+      {parts.map((part, i) => {
+        if (!part.startsWith('`')) {
+          return i > 0 && parts[i - 1].startsWith('`')
+            ? part.replace(/^[,.;:]/, '')
+            : part
+        }
+        const tail = /^[,.;:]/.exec(parts[i + 1] ?? '')?.[0] ?? ''
+        return (
+          <span
+            key={i}
+            className="whitespace-nowrap max-[359px]:whitespace-normal"
+          >
+            <code className="rounded-md bg-muted px-1.5 py-0.5 text-foreground shadow-[inset_0_1px_0_var(--edge)] [box-decoration-break:clone]">
+              {part.slice(1, -1)}
+            </code>
+            {tail}
+          </span>
+        )
+      })}
+    </p>
+  )
+}
+
+const statement =
+  'mx-auto max-w-[17ch] text-[clamp(40px,5.6vw,80px)] leading-[0.98] font-extrabold tracking-[-0.022em] text-balance'
+const heading =
+  'text-[clamp(48px,7vw,104px)] leading-[0.98] font-extrabold tracking-[-0.022em] text-balance'
 
 function Landing() {
   const { data: session } = authClient.useSession()
   return (
-    <div className="space-y-28">
-      <section className="mx-auto max-w-3xl space-y-7 pt-10 text-center">
-        <h1 className="text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
-          Your code and its history, in one place that outlasts every host.
-        </h1>
-        <p className="mx-auto max-w-2xl text-lg text-muted-foreground text-balance">
-          source.code hosts your repositories, keeps everything you have done
-          elsewhere, and lets any model, harness or agent do the work, under
-          rules you set.
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            variant="brand"
-            size="lg"
-            render={<Link to={session ? '/new' : '/sign-up'} />}
-            nativeButton={false}
-          >
-            {session ? 'Start a repository' : 'Get started'}
-          </Button>
-          <Button
-            size="lg"
-            render={<Link to="/" hash="compare" />}
-            nativeButton={false}
-          >
-            How it compares
-          </Button>
+    <div className="overflow-x-clip">
+      <section className="relative flex min-h-[min(760px,calc(100svh-4rem))] items-center pt-6 pb-12">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 px-6 md:grid-cols-[1.35fr_0.65fr]">
+          <div>
+            <h1 className="text-[clamp(52px,8.6vw,132px)] leading-[0.93] font-extrabold tracking-[-0.03em] max-[359px]:text-[44px] md:whitespace-nowrap">
+              Git hosting.
+              <br />
+              Agent native.
+            </h1>
+            <div className="mt-11 flex flex-wrap gap-3">
+              <Button
+                variant="brand"
+                size="lg"
+                render={<Link to={session ? '/new' : '/sign-up'} />}
+                nativeButton={false}
+              >
+                {session ? 'Start a repository' : 'Start for free'}
+              </Button>
+              <CopyPrompt variant="outline">Copy setup prompt</CopyPrompt>
+            </div>
+          </div>
+          <div className="relative order-first grid h-72 place-items-center md:order-none md:h-[min(440px,36vw)]">
+            <div
+              aria-hidden="true"
+              className="absolute inset-[-10%] bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand)_18%,transparent),transparent_72%)]"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute right-[18%] bottom-[4%] left-[18%] h-7 rounded-[50%] bg-black/25 blur-lg dark:bg-black/60"
+            />
+            <BrandMark className="relative h-[92%] w-auto -rotate-12 drop-shadow-[0_24px_24px_rgba(0,0,0,0.22)] dark:drop-shadow-[0_40px_40px_rgba(0,0,0,0.55)]" />
+          </div>
         </div>
-        <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-          Bring your own runner, model and agent. We never resell compute or
-          tokens.
-        </p>
       </section>
 
-      <section className="mx-auto max-w-4xl space-y-6">
-        <div className="surface rounded-[calc(var(--radius-2xl)+0.75rem+1px)] border bg-muted/40 p-3 md:rounded-[calc(var(--radius-2xl)+1.25rem+1px)] md:p-5">
-          <div className="well grid grid-cols-1 gap-5 rounded-2xl border bg-background p-5 md:grid-cols-[1fr_1.1fr] md:p-8">
-            <div className="space-y-4 self-center">
-              <p className="font-mono text-xs text-muted-foreground">#216</p>
-              <h2 className="text-2xl font-semibold tracking-tight">
-                Cache negative ref lookups
-              </h2>
-              <p className="text-muted-foreground">
-                Every change says whether it can land and what is in the way.
-                People, reviewers and agents all read the same answer, so no one
-                has to ask.
-              </p>
-              <CopyField value="sx change view 216" />
-            </div>
-            {/* An illustration of the real screen, so it takes no focus and says nothing twice. */}
-            <div inert aria-hidden="true">
-              <StatusCard
-                items={preview}
-                landing="idle"
-                canLand={false}
-                changeId="216"
-                note="1 thing in the way."
-                onLand={() => undefined}
-              />
+      <section className="py-36 text-center">
+        <div className="mx-auto max-w-6xl px-6">
+          <p className="text-[clamp(88px,30vw,260px)] leading-[0.85] font-extrabold tracking-[-0.045em]">
+            99.99
+            <span className="text-[0.32em] tracking-[-0.02em] text-brand-ink">
+              %
+            </span>
+          </p>
+          <Lit className={cn(statement, 'mt-11')}>
+            Your agent never sleeps. Neither does your code host.
+          </Lit>
+        </div>
+      </section>
+
+      <section id="import" className="scroll-mt-header py-36 text-center">
+        <h2 className={cn(heading, 'px-6')}>Bring everything.</h2>
+        <div className="my-18 overflow-hidden mask-x-from-88% mask-x-to-100%">
+          {/* Each item carries its own trailing margin, so the two copies are
+              exactly half the strip and the loop has no jump. */}
+          <ul
+            aria-label="Import from GitHub, GitLab, Bitbucket, Gitea, Codeberg and Forgejo"
+            className="flex w-max animate-[marquee_36s_linear_infinite] motion-reduce:animate-none"
+          >
+            {[...hosts, ...hosts].map((h, i) => (
+              <li
+                key={i}
+                aria-hidden={i >= hosts.length || undefined}
+                className="surface mr-3.5 flex h-20 items-center gap-3.5 rounded-3xl border bg-card pr-8 pl-6 sm:h-21"
+              >
+                <Mark icon={h} className="size-7" />
+                <span className="text-[22px] font-bold tracking-[-0.02em] sm:text-[28px]">
+                  {h.title}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="mx-auto max-w-6xl px-6">
+          <Lit
+            as="p"
+            className="mx-auto max-w-[22ch] text-[clamp(30px,3.8vw,56px)] leading-[1.02] font-extrabold tracking-[-0.02em] text-balance"
+          >
+            Repositories. History. Issues. Reviews. Releases.
+          </Lit>
+          <h2 className={cn(heading, 'mt-30')}>Leave anytime.</h2>
+        </div>
+      </section>
+
+      <section id="agents" className="scroll-mt-header py-36 text-center">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className={heading}>Any agent.</h2>
+          {/* A centred wrap on phones; from sm up one row of five, so the
+              cards never break four and one. */}
+          <ul className="mt-16 flex flex-wrap justify-center gap-3.5 sm:mx-auto sm:grid sm:max-w-[57rem] sm:grid-cols-5">
+            {agents.map((a) => (
+              <li
+                key={a.name}
+                className="surface flex size-30 flex-col items-center justify-center gap-3.5 rounded-3xl border bg-card sm:aspect-square sm:size-auto sm:w-full"
+              >
+                <Mark icon={a.icon} className="size-9 sm:size-11" />
+                <span className="text-[13px] font-semibold text-foreground/85 sm:text-[14.5px]">
+                  {a.name}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section id="setup" className="scroll-mt-header py-36 text-center">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className={heading}>
+            One prompt.
+            <br />
+            Your agent does the rest.
+          </h2>
+          <div className="surface mx-auto mt-14 flex max-w-[820px] flex-col gap-5 rounded-3xl border bg-card p-6 text-left sm:p-8 sm:pb-6">
+            <PromptText />
+            <div className="flex justify-end">
+              <CopyPrompt variant="brand" className="w-full sm:w-auto">
+                Copy prompt
+              </CopyPrompt>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        {[
-          {
-            title: 'Keep everything',
-            body: 'Import your history from the hosts you have used and mirror out to them. If one goes away, nothing here changes.',
-            visual: (
-              <div className="h-16">
-                <Sparkline data={history} label="Downloads per day" />
-              </div>
-            ),
-          },
-          {
-            title: 'Review changes, not branches',
-            body: 'A change keeps its identity through rebases, shows only what is new, and lands under policies you write as code.',
-            visual: (
-              <ul className="space-y-1.5 font-mono text-xs text-muted-foreground">
-                <li>patch set 1 → 2 → 3</li>
-                <li>approval carries over</li>
-                <li>lands in order</li>
-              </ul>
-            ),
-          },
-          {
-            title: 'Your agents, with receipts',
-            body: 'Agents work under your login and the same rules as everyone. Every write names the machine, tool and model, and a repository can turn away models it does not trust.',
-            visual: (
-              <ul className="space-y-1.5 font-mono text-xs text-muted-foreground">
-                <li>sx auth login</li>
-                <li>Claude Opus 5.5 in T3 Code</li>
-                <li>on Laptop</li>
-              </ul>
-            ),
-          },
-        ].map((f) => (
-          <article
-            key={f.title}
-            className="surface flex flex-col gap-5 rounded-2xl border bg-card p-7"
-          >
-            <div className="well flex h-24 items-center rounded-xl border bg-muted/60 p-4 [--plot-bg:color-mix(in_oklch,var(--muted)_60%,var(--card))] [&>*]:w-full">
-              {f.visual}
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold tracking-tight">
-                {f.title}
-              </h3>
-              <p className="text-sm text-muted-foreground">{f.body}</p>
-            </div>
-          </article>
-        ))}
+      <section id="secrets" className="scroll-mt-header py-36 text-center">
+        <div className="mx-auto max-w-6xl px-6">
+          <Lit className={statement}>Commit your secrets. Ship on day one.</Lit>
+        </div>
       </section>
-
-      <AnySection />
 
       <section
         aria-labelledby="compare"
-        className="mx-auto max-w-6xl space-y-6"
+        className="mx-auto max-w-6xl space-y-6 px-6 pt-36 pb-12"
       >
-        <div className="space-y-3 text-center">
-          <h2
-            id="compare"
-            className="scroll-mt-28 text-3xl font-semibold tracking-tight"
-          >
-            How it compares
-          </h2>
-          <p className="mx-auto max-w-2xl text-muted-foreground text-balance">
-            source.code next to the hosts teams use today and the new ones built
-            for agents, as they ship now.
-          </p>
-        </div>
-        <Legend />
+        <h2
+          id="compare"
+          className={cn(heading, 'scroll-mt-header pb-10 text-center')}
+        >
+          How it compares.
+        </h2>
         <CompareTable />
-      </section>
-
-      <section aria-labelledby="teams" className="mx-auto max-w-4xl space-y-8">
-        <div className="space-y-3 text-center">
-          <h2 id="teams" className="text-3xl font-semibold tracking-tight">
-            Built for teams that answer to someone
-          </h2>
-          <p className="mx-auto max-w-2xl text-muted-foreground">
-            Rules, records and limits that hold up when the people who set them
-            are not in the room.
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[
-            [
-              ShieldCheckIcon,
-              'Rules that apply to everyone',
-              'Landing policies are code, reviewed like code. People and agents follow the same ones, and nobody approves their own change, whatever tool sends the approval.',
-            ],
-            [
-              ClockIcon,
-              'A record you can export',
-              'An audit log of sensitive actions, kept for up to five years. Enterprise adds SSO, audit export, data residency and an SLA.',
-            ],
-            [
-              KeyIcon,
-              'Production secrets wait for a person',
-              'Secrets are sealed per repository and readable only by your team. Production values reach an agent only after someone confirms in the browser, for 1, 4 or 8 hours.',
-            ],
-            [
-              CurrencyDollarIcon,
-              'Limits on what agents cost',
-              'Spend caps and token history for agents, on top of per-repository grants that expire.',
-            ],
-          ].map(([Icon, title, body]) => (
-            <li
-              key={title as string}
-              className="surface flex gap-4 rounded-2xl border bg-card p-5"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <Icon className="size-5" />
-              </span>
-              <div className="space-y-1">
-                <h3 className="font-semibold tracking-tight">
-                  {title as string}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {body as string}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button
-            render={<Link to="/pricing" />}
-            nativeButton={false}
-            size="lg"
-          >
-            See plans
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            render={
-              <Link to="/docs/$" params={{ _splat: 'concepts/policies' }} />
-            }
-            nativeButton={false}
-          >
-            How policies work
-          </Button>
+        <div className="flex justify-center">
+          <Legend />
         </div>
       </section>
     </div>

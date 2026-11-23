@@ -11,8 +11,8 @@ import { levelLabel, products, rows } from '~/lib/compare'
 const tone: Record<Level, string> = {
   yes: 'text-success',
   partly: 'text-warning',
-  no: 'text-muted-foreground/70',
-  unclear: 'text-muted-foreground/40',
+  no: 'text-danger',
+  unclear: 'text-muted-foreground/60',
 }
 
 /** The mark for a level. The words are there for screen readers and the legend. */
@@ -66,7 +66,7 @@ function NoteMark({ cell, product }: { cell: Cell; product: string }) {
         delay={60}
         closeDelay={80}
         aria-label={`${product}: ${levelLabel[cell.level]}. Show note`}
-        className="relative inline-flex cursor-help rounded-full focus-ring"
+        className="relative -m-0.5 inline-flex cursor-help rounded-full p-0.5 focus-ring"
       >
         <Mark level={cell.level} />
         <NoteDot />
@@ -111,7 +111,8 @@ const ours = (id: Product) => id === 'us' && 'bg-brand/[0.07]'
 export function CompareTable() {
   return (
     <div className="surface lit-edge overflow-hidden rounded-2xl border bg-card">
-      <div className="overflow-x-auto">
+      {/* The table scrolls sideways on narrow screens; its right edge fades until the end. */}
+      <div className="scroll-fade-x overflow-x-auto">
         <table className="w-full min-w-[38rem] sm:min-w-[52rem] text-sm">
           <caption className="sr-only">
             How source.code compares with other code hosts, feature by feature.
@@ -138,7 +139,7 @@ export function CompareTable() {
                 >
                   <span className="block leading-tight">{p.name}</span>
                   {p.note && (
-                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground/80">
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
                       {p.note}
                     </span>
                   )}

@@ -26,16 +26,16 @@ sx config path
 
 ## All settings
 
-| Key              | Default               | Environment         | Meaning                                                 |
-| ---------------- | --------------------- | ------------------- | ------------------------------------------------------- |
-| `host`           | `https://source.code` | `SX_HOST`           | The server, for links and the browser                   |
-| `api`            | (sample data)         | `SX_API`            | The API to call. Empty runs the preview's sample data   |
-| `account`        | (you)                 | `SX_ACCOUNT`        | The account commands act as. Set by `sx account switch` |
-| `output`         | `auto`                | `SX_OUTPUT`         | `auto`, `json` or `text`                                |
-| `handoff.to`     | `t3`                  | `SX_HANDOFF_TO`     | Where `sx handoff` hands work: `t3` or `boat`           |
-| `change.base`    | `main`                | `SX_CHANGE_BASE`    | Base branch for new changes                             |
-| `change.draft`   | `false`               | `SX_CHANGE_DRAFT`   | Create changes as drafts                                |
-| `clone.protocol` | `ssh`                 | `SX_CLONE_PROTOCOL` | `ssh` or `https` for `repo clone`                       |
+| Key              | Default               | Environment         | Meaning                                                        |
+| ---------------- | --------------------- | ------------------- | -------------------------------------------------------------- |
+| `host`           | `https://source.code` | `SX_HOST`           | The server, for links and the browser                          |
+| `api`            | (set by `auth login`) | `SX_API`            | The API to call. `sx auth login` sets it to `host` + `/api/v1` |
+| `account`        | (you)                 | `SX_ACCOUNT`        | The account commands act as. Set by `sx account switch`        |
+| `output`         | `auto`                | `SX_OUTPUT`         | `auto`, `json` or `text`                                       |
+| `handoff.to`     | `t3`                  | `SX_HANDOFF_TO`     | Where `sx handoff` hands work: `t3` or `boat`                  |
+| `change.base`    | `main`                | `SX_CHANGE_BASE`    | Base branch for new changes                                    |
+| `change.draft`   | `false`               | `SX_CHANGE_DRAFT`   | Create changes as drafts                                       |
+| `clone.protocol` | `ssh`                 | `SX_CLONE_PROTOCOL` | `ssh` or `https` for `repo clone`                              |
 
 ## Other environment variables
 

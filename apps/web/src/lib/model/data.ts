@@ -14,7 +14,7 @@ export const sources: Record<
   github: { label: 'GitHub', dot: 'bg-zinc-200', host: 'github.com' },
   gitlab: { label: 'GitLab', dot: 'bg-orange-400', host: 'gitlab.com' },
   codeberg: { label: 'Codeberg', dot: 'bg-sky-400', host: 'codeberg.org' },
-  gitea: { label: 'Gitea', dot: 'bg-lime-400', host: 'gitea.com' },
+  gitea: { label: 'Gitea', dot: 'bg-emerald-500', host: 'gitea.com' },
 }
 
 export const languageColors: Record<string, string> = {
