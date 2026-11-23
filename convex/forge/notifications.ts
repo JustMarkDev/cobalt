@@ -1,3 +1,5 @@
+import { loadRules, seesChange } from '../lib/accessRules'
+import { findChange, hydrate } from '../lib/changes'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
 import { internalMutation, query } from '../_generated/server'
@@ -24,6 +26,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
  */
 
 export const defaultPrefs: Record<string, boolean> = {
+  handoff: true,
   review: true,
   mention: true,
   release: true,
@@ -138,6 +141,34 @@ export async function fanOutEvent(ctx: MutationCtx, e: Event) {
     issue?: number
     thread?: Array<string>
   }
+  // A change under an access rule is never told to someone who cannot see it.
+  let mayKnow: ((who: string) => Promise<boolean>) | null = null
+  if (n !== null && !e.type.startsWith('issue.') && e.repo_id) {
+    const repo = await repoByPublicId(ctx, e.repo_id)
+    const rules = repo ? await loadRules(ctx, repo) : []
+    const doc =
+      repo && rules.length ? await findChange(ctx, repo, String(n)) : null
+    if (repo && doc) {
+      const { rec } = await hydrate(ctx, doc)
+      mayKnow = (who) =>
+        seesChange(
+          ctx,
+          repo,
+          rec,
+          {
+            handle: who,
+            actingAs: who,
+            via: { machine: null, tool: null, model: null },
+            session: false,
+            scopes: new Set(),
+            repos: null,
+            tokenId: null,
+            system: false,
+          },
+          rules,
+        )
+    }
+  }
   const tell = async (
     who: string | undefined,
     kind: string,
@@ -145,6 +176,7 @@ export async function fanOutEvent(ctx: MutationCtx, e: Event) {
     path: string,
   ) => {
     if (!who || who === by) return
+    if (mayKnow && !(await mayKnow(who))) return
     await notify(ctx, who, { kind, title, repo: full, path })
   }
   const type = e.type

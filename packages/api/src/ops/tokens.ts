@@ -1,7 +1,8 @@
 import { cleanLabel } from '../via'
 import { Effect } from 'effect'
 import { z } from 'zod'
-import { allScopes } from '../auth'
+import { allScopes, runnerOnlyScopes } from '../auth'
+import { MAX_TOKEN_PATHS } from '../paths'
 import { ApiError, apiError } from '../problem'
 import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
@@ -24,6 +25,7 @@ function present(
     device: t.device ?? null,
     scopes: [...t.scopes],
     repos: t.repos ? [...t.repos] : null,
+    paths: t.paths ? [...t.paths] : null,
     prefix: t.prefix,
     secret,
     url: `${d.urls.api}/tokens/${t.id}`,
@@ -94,7 +96,13 @@ export const createToken = defineOp({
   idempotent: false,
   body: z.strictObject({
     name: z.string().min(1).max(100),
-    scopes: z.array(z.enum(allScopes)).min(1).max(allScopes.length),
+    scopes: z
+      .array(z.enum(allScopes))
+      .min(1)
+      .max(allScopes.length)
+      .refine((s) => !s.some((x) => runnerOnlyScopes.includes(x)), {
+        message: 'runners:claim and runners:report belong to runner tokens',
+      }),
     expires_in_days: z
       .union([z.literal(30), z.literal(60), z.literal(90), z.literal(365)])
       .default(90),
@@ -103,6 +111,14 @@ export const createToken = defineOp({
       .max(50)
       .optional()
       .describe('`owner/name`. Limits the token to these repositories'),
+    paths: z
+      .array(z.string().min(1).max(200))
+      .min(1)
+      .max(MAX_TOKEN_PATHS)
+      .optional()
+      .describe(
+        'Globs such as `docs/**` or `*.sql`, as policy writes them. A change made with the token may touch nothing else. Only with `repos` naming exactly one repository',
+      ),
     device: z
       .string()
       .min(1)
@@ -131,6 +147,21 @@ export const createToken = defineOp({
         const repos = body.repos
           ? [...new Set(body.repos.map((r) => canonical.get(r)!))]
           : null
+        if (body.paths && repos?.length !== 1)
+          throw apiError(
+            'invalid_request',
+            'Paths limit a token inside one repository: name exactly one in `repos`.',
+            {
+              errors: [
+                {
+                  pointer: '/body/paths',
+                  code: 'needs_one_repo',
+                  message: 'Send `repos` with exactly one repository.',
+                },
+              ],
+            },
+          )
+        const paths = body.paths ? [...new Set(body.paths)] : null
         const requestedName = new Map<string, string>()
         for (const r of body.repos ?? [])
           requestedName.set(canonical.get(r)!, r)
@@ -155,6 +186,12 @@ export const createToken = defineOp({
           throw apiError(
             'forbidden',
             'Your token is limited to repositories, so a token you create must be limited to some of them.',
+          )
+        // Nor can a token limited to paths make one that reaches further.
+        if (p.paths && (!paths || paths.some((g) => !p.paths!.includes(g))))
+          throw apiError(
+            'forbidden',
+            'Your token is limited to paths, so a token you create must be limited to some of them.',
           )
         for (const r of repos ?? []) {
           try {
@@ -186,6 +223,7 @@ export const createToken = defineOp({
               scopes: body.scopes,
               device: body.device ?? null,
               repos,
+              paths,
               audience: ['api', 'mcp'],
               prefix: 'sxp_',
               createdAt: ctx.now(),
@@ -202,6 +240,7 @@ export const createToken = defineOp({
           scopes: body.scopes,
           device: body.device ?? null,
           repos,
+          paths,
           ttlMs: body.expires_in_days * 86_400_000,
         })
         return present(d, record, secret)

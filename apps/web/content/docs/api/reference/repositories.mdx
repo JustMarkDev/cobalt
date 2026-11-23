@@ -40,7 +40,7 @@ curl "https://api.source.code/v1/imports" \
 ```http
 HTTP/1.1 200
 etag: W/"5oyWwZ9tk8dor04o"
-ratelimit: "read";r=1140;t=60
+ratelimit: "read";r=1134;t=60
 ```
 
 ```json
@@ -118,13 +118,13 @@ curl -X POST "https://api.source.code/v1/imports" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=50;t=60
+ratelimit: "write";r=38;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r809qd3c51t",
+  "id": "rep_01m6tq6r80j449nb36",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -410,7 +410,7 @@ curl -X DELETE "https://api.source.code/v1/repos/northwind/scratch2?confirm=nort
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=30;t=60
+ratelimit: "write";r=18;t=60
 ```
 
 ### `repos.get`
@@ -456,7 +456,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-XXOZRe1tchpBajOB"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1196;t=60
 ```
 
@@ -569,7 +569,7 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=32;t=60
+ratelimit: "write";r=20;t=60
 ```
 
 ```json
@@ -605,6 +605,184 @@ ratelimit: "write";r=32;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
+}
+```
+
+### `access_rules.list`
+
+`GET /repos/{owner}/{repo}/access-rules`
+
+**Branches and paths only some people may see**
+
+An administrator sees every rule; someone a rule names sees that rule; anyone else sees none, and the parts the rules hide answer `404` to them everywhere: the repository's files, its changes, search, events and notifications.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `read` pool, 1 unit                        |
+| Success    | `200`, a list of `access_rule`             |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/repos/dana/gitfs/access-rules" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"0encaVUDN3zQUVaM"
+ratelimit: "read";r=1144;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "access_rule",
+      "id": "deal",
+      "kind": "branch",
+      "patterns": ["deal/*"],
+      "readers": ["hollis"],
+      "created_by": "dana",
+      "created_at": "2026-11-07T10:00:00.000Z",
+      "url": "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal"
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `access_rules.delete`
+
+`DELETE /repos/{owner}/{repo}/access-rules/{rule}`
+
+**Remove an access rule**
+
+What it hid is visible again to everyone who can read the repository. Only an owner or admin.
+
+| About      |                                           |
+| ---------- | ----------------------------------------- |
+| Safety     | `destructive`, not safe to repeat blindly |
+| Needs      | a token                                   |
+| Scopes     | `repo:write`                              |
+| Rate limit | `write` pool, 1 unit                      |
+| Dry run    | `?dry_run=true`                           |
+| Success    | `204`, no body                            |
+
+**Path parameters**
+
+| Name    | Type             | Notes |
+| ------- | ---------------- | ----- |
+| `owner` | string           |       |
+| `repo`  | string           |       |
+| `rule`  | string (pattern) |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 204
+ratelimit: "write";r=54;t=60
+```
+
+### `access_rules.put`
+
+`PUT /repos/{owner}/{repo}/access-rules/{rule}`
+
+**Make branches or paths private to some people**
+
+Creates the rule, or replaces it. `kind: branch` hides branches matching `patterns` (`secret/*`) and the changes on them; `kind: path` hides files matching `patterns` (`finance/**`, `*.key`) and every change touching one. `readers` are handles and `team:<slug>`; the repository's owners and admins always read everything, and a rule cannot hide the default branch. Someone who does not read a rule cannot see, open, push to or edit what it hides. Only an owner or admin. At most 20 rules, 20 patterns and 50 readers each.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `repo:write`            |
+| Rate limit | `write` pool, 1 unit    |
+| Dry run    | `?dry_run=true`         |
+| Success    | `200`, a `access_rule`  |
+
+**Path parameters**
+
+| Name    | Type             | Notes |
+| ------- | ---------------- | ----- |
+| `owner` | string           |       |
+| `repo`  | string           |       |
+| `rule`  | string (pattern) |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Request body**
+
+| Member     | Type                                               | Notes     |
+| ---------- | -------------------------------------------------- | --------- |
+| `kind`     | `branch` or `path`                                 | Required. |
+| `patterns` | array of string (up to 200 characters, at least 1) | Required. |
+| `readers`  | array of string (up to 60 characters, at least 1)  | Required. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`limit_reached`](/docs/api/errors#limit_reached), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"branch","patterns":["deal/*"],"readers":["hollis"]}'
+```
+
+```http
+HTTP/1.1 201
+sx-outcome: created
+ratelimit: "write";r=55;t=60
+```
+
+```json
+{
+  "object": "access_rule",
+  "id": "deal",
+  "kind": "branch",
+  "patterns": ["deal/*"],
+  "readers": ["hollis"],
+  "created_by": "dana",
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "url": "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal"
 }
 ```
 
@@ -653,7 +831,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/context" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-XXOZRe1tchpBajOB"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1195;t=60
 ```
 
@@ -866,7 +1044,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/insights" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.ins22.19.8.2406.20764.1-7pElIC77C7_aUa4w"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.ins22.19.8.2406.20764.1-x2r-PLMP2JjVQMfY"
 ratelimit: "heavy";r=115;t=60
 ```
 
@@ -1002,7 +1180,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/provenance?path=src/refs.rs&li
 ```http
 HTTP/1.1 200
 etag: W/"cZT0HblWb3YD4kYf"
-ratelimit: "read";r=1127;t=60
+ratelimit: "read";r=1121;t=60
 ```
 
 ```json
@@ -1070,8 +1248,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/releases?limit=1" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.r3.3.1-26Jh1l153BimF7kC"
-ratelimit: "read";r=1145;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.r3.3.3-Tb4QhmGrNUWuxOLR"
+ratelimit: "read";r=1139;t=60
 ```
 
 ```json
@@ -1193,13 +1371,13 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=58;t=60
+ratelimit: "write";r=46;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r80jb3b4psr",
+  "id": "rel_01m6tq6r8038hr519j",
   "tag": "v0.9.1",
   "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://source.code/dana/gitfs/releases",
@@ -1271,7 +1449,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0" \
 ```http
 HTTP/1.1 200
 etag: W/"Xw_hF8guRecTZnyS"
-ratelimit: "read";r=1144;t=60
+ratelimit: "read";r=1138;t=60
 ```
 
 ```json
@@ -1383,13 +1561,13 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=57;t=60
+ratelimit: "write";r=45;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r80jb3b4psr",
+  "id": "rel_01m6tq6r8038hr519j",
   "tag": "v0.9.1",
   "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://source.code/dana/gitfs/releases",
@@ -1466,7 +1644,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0/assets
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=56;t=60
+ratelimit: "write";r=44;t=60
 ```
 
 ```json
@@ -1573,7 +1751,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/star" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.2.22.7.5.1.dana-7pElIC77C7_aUa4w"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.2.22.7.5.1.dana-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1154;t=60
 ```
 
@@ -1695,7 +1873,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=31;t=60
+ratelimit: "write";r=19;t=60
 ```
 
 ```json

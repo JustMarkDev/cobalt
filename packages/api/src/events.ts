@@ -244,3 +244,23 @@ export class EventLog {
     return n
   }
 }
+
+/**
+ * Whether an event is about a change the viewer may not see (an access
+ * rule's branch or paths). `hidden` is that repository's hidden change
+ * numbers for the viewer. Only change subjects are hidden; everything else
+ * about the repository is not.
+ */
+export function hiddenEvent(
+  e: { type: string; json: string },
+  hidden: ReadonlySet<number> | undefined,
+) {
+  if (!hidden?.size) return false
+  const subject = parseEvent(e as StoredEvent).subject
+  return (
+    subject.number !== null &&
+    (subject.object === 'change' ||
+      /^(change|finding|check|ci|operation)\./.test(e.type)) &&
+    hidden.has(subject.number)
+  )
+}

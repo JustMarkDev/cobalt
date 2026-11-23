@@ -69,7 +69,30 @@ export const searchOp = defineOp({
         for (const h of all)
           if (!allowed.has(h.doc.repo))
             allowed.set(h.doc.repo, await can(h.doc.repo))
-        const hits = all.filter((h) => allowed.get(h.doc.repo))
+        // A change under an access rule the caller does not read is not found.
+        const hiddenIn = new Map<string, Set<number>>()
+        for (const h of all)
+          if (
+            h.doc.type === 'change' &&
+            allowed.get(h.doc.repo) &&
+            !hiddenIn.has(h.doc.repo)
+          )
+            hiddenIn.set(
+              h.doc.repo,
+              await d.hiddenChanges(
+                await d.repoIdForHistory(h.doc.repo),
+                ctx.principal,
+              ),
+            )
+        const hits = all.filter(
+          (h) =>
+            allowed.get(h.doc.repo) &&
+            !(
+              h.doc.type === 'change' &&
+              h.doc.number !== null &&
+              hiddenIn.get(h.doc.repo)?.has(h.doc.number)
+            ),
+        )
         const visible = hits.filter((h) =>
           h.doc.type === 'change'
             ? !ctx.principal || ctx.principal.scopes.has('pulls:read')

@@ -8,6 +8,7 @@ import {
   CreditCardIcon,
   LinkIcon,
   PuzzlePieceIcon,
+  ServerStackIcon,
   ShieldCheckIcon,
   UserIcon,
 } from '@heroicons/react/24/outline'
@@ -21,6 +22,7 @@ import { Chip, SectionLabel, SourceBadge } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
 import { TargetPicker } from '~/components/forge/download-button'
 import { MachinesPanel } from '~/components/forge/machines-panel'
+import { RunnersPanel } from '~/components/forge/runners-panel'
 import { PlanAndData } from '~/components/forge/account-data'
 import { IntegrationsPanel } from '~/components/forge/integrations-panel'
 import { Toggle } from '~/components/forge/repo-pages'
@@ -33,6 +35,7 @@ const sections = [
   ['accounts', 'Linked accounts', LinkIcon],
   ['integrations', 'Integrations', PuzzlePieceIcon],
   ['agents', 'Machines and tokens', CpuChipIcon],
+  ['runners', 'Runners', ServerStackIcon],
   ['privacy', 'Privacy', ShieldCheckIcon],
   ['downloads', 'Downloads', ArrowDownTrayIcon],
   ['notifications', 'Notifications', BellIcon],
@@ -94,6 +97,17 @@ function Settings() {
               machine they run on.
             </Header>
             <MachinesPanel />
+          </div>
+        )}
+        {current === 'runners' && (
+          <div className="max-w-4xl">
+            <Header id="runners" title="Runners">
+              Machines that run your pipeline jobs: a Mac mini under a desk, a
+              Linux build server, or a hosted provider. source.code routes each
+              job to a runner whose labels cover its <code>runs-on</code>; the
+              machine runs it.
+            </Header>
+            <RunnersPanel />
           </div>
         )}
         {current === 'privacy' && <Privacy />}
@@ -796,6 +810,11 @@ function Notifications() {
       </Header>
       {error && <p className="mb-3 text-sm text-danger">{error}</p>}
       <Card>
+        <Toggle
+          label="Pipeline steps waiting on you"
+          checked={s.handoff}
+          onChange={set('handoff')}
+        />
         <Toggle
           label="Review requests"
           checked={s.review}

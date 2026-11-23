@@ -46,10 +46,20 @@ export function toRunDetail(
       runner: j.runner,
       status: j.status,
       time: duration(j.duration_ms),
+      runsOn: j.runs_on,
+      waitingFor: j.waiting_for_labels,
       steps: j.steps.map((s) => ({
         name: s.name,
         status: s.status,
         time: duration(s.duration_ms),
+        wait: s.wait
+          ? {
+              kind: s.wait.kind,
+              reason: s.wait.reason,
+              target: s.wait.target,
+              expiresAt: s.wait.expires_at,
+            }
+          : null,
         lines: (logs[k++]?.lines ?? []).map((l) => ({
           t: l.text,
           ...(l.level ? { level: l.level } : {}),

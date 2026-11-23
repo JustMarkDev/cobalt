@@ -295,6 +295,7 @@ export default defineSchema({
     pipelineNumber: v.optional(v.number()),
     pipelineRev: v.optional(v.number()),
     automationRev: v.optional(v.number()),
+    triggersRev: v.optional(v.number()),
   }).index('by_repoId', ['repoId']),
 
   // A renamed or transferred repository keeps answering at its old address.
@@ -597,6 +598,55 @@ export default defineSchema({
     errors: v.optional(v.string()),
   }).index('by_repoId', ['repoId']),
 
+  // Parts of a repository only some people may see: branches (and the
+  // changes on them) and paths (and every change touching one).
+  repoAccessRules: defineTable({
+    repoId: v.id('repos'),
+    ruleId: v.string(),
+    kind: v.union(v.literal('branch'), v.literal('path')),
+    patterns: v.array(v.string()),
+    // Handles, and `team:<slug>` for a team of the owning organization.
+    readers: v.array(v.string()),
+    createdBy: v.string(),
+    created: v.number(),
+  }).index('by_repoId_and_ruleId', ['repoId', 'ruleId']),
+
+  // `.source/triggers/*.yml` as last landed. `sourceText` is JSON of every
+  // trigger file by path; `triggersJson` the set in force (the last that
+  // read); `errors` JSON of why the newest did not read.
+  repoTriggers: defineTable({
+    repoId: v.id('repos'),
+    sourceText: v.string(),
+    sourceSha: v.string(),
+    triggersJson: v.string(),
+    errors: v.string(),
+    rev: v.number(),
+  }).index('by_repoId', ['repoId']),
+
+  // What a trigger did for an event, written before the run starts: the same
+  // event never starts the same trigger twice.
+  triggerRuns: defineTable({
+    repoId: v.id('repos'),
+    triggerId: v.string(),
+    // The repository's event sequence of the event.
+    eventSequence: v.number(),
+    runId: v.union(v.null(), v.string()),
+    run: v.union(v.null(), v.number()),
+    state: v.union(
+      v.literal('started'),
+      v.literal('failed'),
+      v.literal('capped'),
+    ),
+    error: v.union(v.null(), v.string()),
+    at: v.number(),
+  })
+    .index('by_repoId_and_triggerId_and_eventSequence', [
+      'repoId',
+      'triggerId',
+      'eventSequence',
+    ])
+    .index('by_repoId_and_at', ['repoId', 'at']),
+
   // Long operations (landing a stack), watched with GET /operations/{id}.
   operations: defineTable({
     publicId: v.string(),
@@ -647,6 +697,35 @@ export default defineSchema({
     .index('by_repoId_and_number', ['repoId', 'number'])
     .index('by_repoId_and_status_and_started', ['repoId', 'status', 'started'])
     .index('by_status_and_started', ['status', 'started']),
+
+  // Machines that take pipeline jobs: an identity, labels, the repositories
+  // they may serve and a token only they hold.
+  runners: defineTable({
+    publicId: v.string(),
+    account: v.string(),
+    name: v.string(),
+    kind: v.union(v.literal('self-hosted'), v.literal('hosted')),
+    provider: v.union(v.null(), v.string()),
+    // Lowercase.
+    labels: v.array(v.string()),
+    // Repository ids (`rep_...`); null for every repository of the account.
+    repos: v.union(v.null(), v.array(v.string())),
+    concurrency: v.number(),
+    status: v.union(v.literal('active'), v.literal('disabled')),
+    createdBy: v.string(),
+    created: v.number(),
+    // The public id of its token.
+    tokenId: v.string(),
+  })
+    .index('by_account_and_name', ['account', 'name'])
+    .index('by_publicId', ['publicId']),
+
+  // When each runner last sent a heartbeat. Kept apart from the runner, so a
+  // heartbeat every 30 seconds does not invalidate every page that reads one.
+  runnerSeen: defineTable({
+    runnerId: v.id('runners'),
+    at: v.number(),
+  }).index('by_runnerId', ['runnerId']),
 
   pipelineLogs: defineTable({
     runId: v.id('pipelineRuns'),
@@ -920,6 +999,7 @@ export default defineSchema({
       v.literal('bot'),
       v.literal('run'),
       v.literal('oauth'),
+      v.literal('runner'),
     ),
     handle: v.string(),
     actingAs: v.string(),
@@ -929,6 +1009,10 @@ export default defineSchema({
     device: v.optional(v.union(v.null(), v.string())),
     scopes: v.array(v.string()),
     repos: v.union(v.null(), v.array(v.string())),
+    // Globs a change made with it may touch; absent or null for any path.
+    paths: v.optional(v.union(v.null(), v.array(v.string()))),
+    // A runner's token: the runner's public id.
+    runnerId: v.optional(v.string()),
     audience: v.array(v.union(v.literal('api'), v.literal('mcp'))),
     prefix: v.string(),
     createdAt: v.number(),

@@ -1,6 +1,6 @@
 import { pageSorted } from '../cursor'
 import { apiError } from '../problem'
-import { parseEvent } from '../events'
+import { hiddenEvent, parseEvent } from '../events'
 import { Pre } from '../registry'
 import type { CursorPosition } from '../cursor'
 import type { StoredEvent } from '../events'
@@ -145,12 +145,21 @@ export abstract class DomainSync extends DomainChanges {
         ? this.events.repoEvents(repoId)
         : []
       : this.events.all()
+    // Changes under an access rule the viewer does not read leave no trace.
+    const hidden = new Map<string, Set<number>>()
+    for (const e of source)
+      if (e.repoId && !hidden.has(e.repoId))
+        hidden.set(e.repoId, await this.hiddenChanges(e.repoId, p))
     const page = pageSorted(source, (e) => e.sequence, seqId, {
       limit: q.limit,
       after: q.after,
       desc: false,
       stored: 'asc',
-      match: (e) => typeOk(e.type) && scopeOk(e.type) && can(e.repoId),
+      match: (e) =>
+        typeOk(e.type) &&
+        scopeOk(e.type) &&
+        can(e.repoId) &&
+        !hiddenEvent(e, hidden.get(e.repoId ?? '')),
     })
     // An event never changes, so its text is its own version.
     return {
@@ -179,17 +188,20 @@ export abstract class DomainSync extends DomainChanges {
         : /^(change|finding|check|ci|operation)\./.test(t)
           ? canPull
           : true
+    const hidden = await this.hiddenChanges(repo.id, p)
     const snapshot = (from: number, head: number, reset: boolean) => {
       const all: Array<Record<string, unknown>> = [
         this.presentRepo(repo),
         ...(canPull
-          ? [...repo.changes.values()].map(
-              (c) =>
-                this.presentChange(repo, c, 'event') as unknown as Record<
-                  string,
-                  unknown
-                >,
-            )
+          ? [...repo.changes.values()]
+              .filter((c) => !hidden.has(c.number))
+              .map(
+                (c) =>
+                  this.presentChange(repo, c, 'event') as unknown as Record<
+                    string,
+                    unknown
+                  >,
+              )
           : []),
         ...(canIssue
           ? [...repo.issues.values()].map(
@@ -279,7 +291,8 @@ export abstract class DomainSync extends DomainChanges {
       (e) =>
         e.repoId === repo.id &&
         scopeOk(e.type) &&
-        /^(repo|change|issue|finding|check|ci)\./.test(e.type),
+        /^(repo|change|issue|finding|check|ci)\./.test(e.type) &&
+        !hiddenEvent(e, hidden),
     )
     // Keep only the newest state of each object, and remember what was deleted
     // after the cursor so a local copy can remove it.

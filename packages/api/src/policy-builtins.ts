@@ -1,3 +1,4 @@
+import { outsidePaths, touchedFiles } from './paths'
 import type { RuleMode } from './policy-file'
 
 /**
@@ -89,5 +90,39 @@ export function reviewedRequirement(
 export function rulesReadChangedFiles(
   rules: ReadonlyArray<{ kind: string }>,
 ): boolean {
-  return rules.some((r) => r.kind === 'path_approval' || r.kind === 'max_lines')
+  return rules.some(
+    (r) =>
+      r.kind === 'path_approval' ||
+      r.kind === 'max_lines' ||
+      r.kind === 'allowed_paths',
+  )
+}
+
+/**
+ * `allowed_paths`: a change may touch only these paths, whoever made it and
+ * however it arrived, `git push` included. Token path limits cover the API;
+ * this covers landing.
+ */
+export function allowedPathsRequirement(
+  r: { id: string; name: string; paths?: Array<string> },
+  head: {
+    files: Record<string, unknown>
+    contents?: Record<string, unknown> | null
+  },
+) {
+  const globs = r.paths ?? []
+  const outside = outsidePaths(touchedFiles(head), globs)
+  const shown = outside.slice(0, 3).join(', ')
+  return {
+    id: r.id,
+    rule: r.name,
+    state: outside.length ? ('fail' as const) : ('pass' as const),
+    detail: outside.length
+      ? `Touches ${shown}${outside.length > 3 ? ` and ${outside.length - 3} more` : ''}, outside ${globs.join(', ')}.`
+      : `Touches only ${globs.join(', ')}.`,
+    needs: outside.length
+      ? { paths: globs, outside: outside.slice(0, 20) }
+      : null,
+    blocking: [],
+  }
 }

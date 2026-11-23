@@ -13,6 +13,8 @@ Commands
   env       list, set, run, pull, confirmations
   policy    check, explain
   mirror    list, add, sync, remove
+  pipeline  wait, resume (a step waiting on a person or an agent)
+  runner    register, list, revoke, start (a machine that runs jobs)
   handoff   hand an issue or change to an orchestrator (T3 Code, boat)
   context   everything an agent needs, no secret values
   config    list, get, set, path
@@ -105,6 +107,26 @@ export const groupHelp: Record<string, string> = {
   sync <id>
   remove <id>             stops mirroring. History here is untouched.
 `,
+  pipeline: `sx pipeline <command>
+
+  wait <run> --job N --step N --reason "…" [--kind person|agent|approval]
+       [--target handle] [--expires 2026-12-01T09:00:00Z]
+                          pause a running step; it fails if nobody resumes it
+                          by then (7 days by default, 30 at most)
+  resume <run> --job N --step N --status success|failure [--note "…"]
+                          end a waiting step; the runner carries on
+`,
+  runner: `sx runner <command>
+
+  register <name> [--labels macos,arm64] [--repos owner/a,owner/b]
+           [--concurrency N] [--provider blacksmith] [--account org]
+                          prints the runner's token, once
+  list [--account org]
+  revoke <id>             disables it; its token stops working at once
+  start [--workdir dir] [--once]
+                          with SX_RUNNER_TOKEN set: heartbeat, claim jobs its
+                          labels cover, run each step's run: and report it
+`,
   handoff: `sx handoff <issue|change|run:N>   (--to t3|boat)
 
   Builds the prompt from the issue or change and prints the command that hands
@@ -145,12 +167,12 @@ export const groupHelp: Record<string, string> = {
 }
 
 export const completions: Record<string, string> = {
-  bash: `_sx() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
+  bash: `_sx() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
 complete -F _sx sx
 `,
   zsh: `#compdef sx
-_arguments '1: :(repo import change issue env policy mirror handoff context config account auth skill mcp commands completion)'
+_arguments '1: :(repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion)'
 `,
-  fish: `complete -c sx -f -a "repo import change issue env policy mirror handoff context config account auth skill mcp commands completion"
+  fish: `complete -c sx -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
 `,
 }

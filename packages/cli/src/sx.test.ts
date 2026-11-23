@@ -603,3 +603,43 @@ describe('import', () => {
     expect(JSON.parse(r.err).error.hint).toContain('sx import github')
   })
 })
+
+describe('runners', () => {
+  test('register shows the token once; start runs a job with it; revoke ends it', async () => {
+    const made = await sx(
+      'runner',
+      'register',
+      'cli-runner',
+      '--concurrency',
+      '1',
+    )
+    expect(made.code).toBe(0)
+    const r = JSON.parse(made.out)
+    expect(r.secret).toMatch(/^sxr_/)
+    const listed = JSON.parse((await sx('runner', 'list')).out) as Array<{
+      id: string
+      secret: string | null
+    }>
+    expect(listed.find((x) => x.id === r.id)?.secret).toBeNull()
+    const dir = mkdtempSync(join(tmpdir(), 'sx-runner-'))
+    process.env.SX_RUNNER_TOKEN = r.secret
+    try {
+      const ran = await sx('runner', 'start', '--once', '--workdir', dir)
+      expect(ran.code).toBe(0)
+      const out = JSON.parse(ran.out)
+      expect(out.ran === null || typeof out.ran.run === 'number').toBe(true)
+      if (out.ran) expect(out.status).toBe('success')
+      expect((await sx('runner', 'revoke', r.id)).code).toBe(0)
+      const after = await sx('runner', 'start', '--once', '--workdir', dir)
+      expect(after.code).toBe(4)
+    } finally {
+      delete process.env.SX_RUNNER_TOKEN
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('pipeline resume says what it needs', async () => {
+    const r = await sx('pipeline', 'resume', 'x')
+    expect(r.code).toBe(2)
+  })
+})

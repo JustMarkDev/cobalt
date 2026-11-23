@@ -185,7 +185,12 @@ export const bodies = {
         'Lowercase letters, digits and dashes',
       ),
     name: z.string().trim().min(1).max(100),
-    kind: z.enum(['required_check', 'path_approval', 'max_lines']),
+    kind: z.enum([
+      'required_check',
+      'path_approval',
+      'max_lines',
+      'allowed_paths',
+    ]),
     check: z.string().min(1).max(100).optional(),
     paths: z.array(z.string().min(1).max(200)).min(1).max(20).optional(),
     approvals: z.number().int().min(1).max(5).optional(),
@@ -211,7 +216,12 @@ export const bodies = {
                 'Lowercase letters, digits and dashes',
               ),
             name: z.string().trim().min(1).max(100),
-            kind: z.enum(['required_check', 'path_approval', 'max_lines']),
+            kind: z.enum([
+              'required_check',
+              'path_approval',
+              'max_lines',
+              'allowed_paths',
+            ]),
             check: z.string().min(1).max(100).optional(),
             paths: z
               .array(z.string().min(1).max(200))
@@ -265,6 +275,7 @@ export const bodies = {
     expires_at: z.iso.datetime(),
   }),
   'notifications.update_preferences': z.strictObject({
+    handoff: z.boolean().optional(),
     review: z.boolean().optional(),
     mention: z.boolean().optional(),
     release: z.boolean().optional(),

@@ -1,5 +1,7 @@
+import { StoreGit } from './git'
 import { T0, sampleTokens } from './sample'
 import { createSampleApi } from './index'
+import type { GitData } from './git'
 
 /** A fixed clock the tests can move. */
 export function clock(start = T0 + 3_600_000) {
@@ -70,4 +72,68 @@ export function harness(overrides: Parameters<typeof createSampleApi>[0] = {}) {
     return { status: res.status, headers: res.headers, json, text, res }
   }
   return { api, call, now, tokens: sampleTokens }
+}
+
+/** The sample git store, with these files put in it at every ref. */
+export function gitWith(files: Record<string, string>): GitData {
+  const base = new StoreGit()
+  return {
+    files: (repo, ref) => base.files(repo, ref),
+    blob: async (repo, path, ref) =>
+      path in files
+        ? new TextEncoder().encode(files[path])
+        : base.blob(repo, path, ref),
+    commits: (repo, limit) => base.commits(repo, limit),
+    commit: (repo, sha) => base.commit(repo, sha),
+    diff: (repo, sha) => base.diff(repo, sha),
+    setRepo: (repo, id) => base.setRepo(repo, id),
+    dropRepo: (repo) => base.dropRepo(repo),
+    storeOf: (repo) => base.storeOf(repo),
+  }
+}
+
+/** A call as a person signed in to the app, the way the web app makes one. */
+export async function asPerson(
+  h: ReturnType<typeof harness>,
+  handle: string,
+  method: string,
+  path: string,
+  body?: unknown,
+) {
+  const { personPrincipal } = await import('./auth')
+  const res = await h.api.fetchAs(
+    personPrincipal(handle, h.now()),
+    new Request(`https://api.test/v1${path}`, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+  )
+  const text = await res.text()
+  return { status: res.status, json: text ? JSON.parse(text) : null }
+}
+
+/** A harness whose `build` workflow asks for these labels on every job. */
+export async function withRunsOn(
+  labels: Array<string> | string,
+  now = clock(),
+) {
+  const probe = harness({ now })
+  const last = (
+    await probe.call(
+      'GET',
+      `/repos/dana/gitfs/pipelines?workflow=build&limit=1`,
+    )
+  ).json.data[0]
+  const run = (
+    await probe.call('GET', `/repos/dana/gitfs/pipelines/${last.number}`)
+  ).json
+  const yaml = [
+    'jobs:',
+    ...run.jobs.flatMap((j: any) => [
+      `  ${JSON.stringify(j.name)}:`,
+      `    runs-on: ${JSON.stringify(labels)}`,
+    ]),
+  ].join('\n')
+  return harness({ now, git: gitWith({ [run.file]: yaml }) })
 }

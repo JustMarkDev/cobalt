@@ -6,6 +6,27 @@ import { apiError } from '../problem'
 import { afterOf, fp, listOf, pageShape, repoParams } from './common'
 import { mapLines, splitLines } from '../lines'
 import type { GitCommit, GitData } from '../git'
+import { branchHidden, pathHidden } from '../access-rules'
+import type { DomainPort } from '../domain'
+
+/**
+ * A repository's files as the caller may see them: a private branch (an
+ * access rule they do not read) answers like a ref that does not exist, and
+ * a private path like a file that does not.
+ */
+async function readable(
+  d: DomainPort,
+  owner: string,
+  name: string,
+  p: Parameters<DomainPort['repoAccess']>[2],
+  ref?: string,
+) {
+  const full = await d.repoAccess(owner, name, p, 'read')
+  const { hidden } = await d.accessView(owner, name, p)
+  if (ref && branchHidden(hidden, ref))
+    throw apiError('not_found', `The ref ${ref} was not found.`)
+  return { full, hides: (path: string) => pathHidden(hidden, path) }
+}
 
 const base = {
   auth: 'optional' as const,
@@ -106,13 +127,15 @@ export const gitTree = defineOp({
     Effect.gen(function* () {
       const { run } = yield* Domain
       const out = yield* run(async (d) => {
-        const full = await d.repoAccess(
+        const { full, hides } = await readable(
+          d,
           ctx.params.owner,
           ctx.params.repo,
           ctx.principal,
-          'read',
+          ctx.query.ref,
         )
-        const { ref, paths } = await d.svc.git.files(full, ctx.query.ref)
+        const { ref, paths: all } = await d.svc.git.files(full, ctx.query.ref)
+        const paths = all.filter((p) => !hides(p))
         const dir = ctx.query.path.replace(/^\/+|\/+$/g, '')
         const prefix = dir ? `${dir}/` : ''
         const deep = ctx.query.recursive === 'true'
@@ -196,13 +219,16 @@ export const gitBlob = defineOp({
     Effect.gen(function* () {
       const { run } = yield* Domain
       const out = yield* run(async (d) => {
-        const full = await d.repoAccess(
+        const { full, hides } = await readable(
+          d,
           ctx.params.owner,
           ctx.params.repo,
           ctx.principal,
-          'read',
+          ctx.query.ref,
         )
-        const bytes = await d.svc.git.blob(full, ctx.query.path, ctx.query.ref)
+        const bytes = hides(ctx.query.path)
+          ? null
+          : await d.svc.git.blob(full, ctx.query.path, ctx.query.ref)
         if (!bytes) throw apiError('not_found', `No file ${ctx.query.path}.`)
         if (bytes.byteLength > BLOB_MAX)
           throw apiError(
@@ -254,13 +280,16 @@ export const gitRaw = defineOp({
     Effect.gen(function* () {
       const { run } = yield* Domain
       const found = yield* run(async (d) => {
-        const full = await d.repoAccess(
+        const { full, hides } = await readable(
+          d,
           ctx.params.owner,
           ctx.params.repo,
           ctx.principal,
-          'read',
+          ctx.query.ref,
         )
-        const bytes = await d.svc.git.blob(full, ctx.query.path, ctx.query.ref)
+        const bytes = hides(ctx.query.path)
+          ? null
+          : await d.svc.git.blob(full, ctx.query.path, ctx.query.ref)
         if (!bytes) throw apiError('not_found', `No file ${ctx.query.path}.`)
         return bytes
       })
@@ -398,16 +427,25 @@ export const gitDiff = defineOp({
           ctx.principal,
           'read',
         )
+        const { hidden } = await d.accessView(
+          ctx.params.owner,
+          ctx.params.repo,
+          ctx.principal,
+        )
         const diff = await d.svc.git.diff(full, ctx.params.sha)
-        const files = diff.files.map((f) => ({
-          path: f.path,
-          state: f.state,
-          additions: f.additions,
-          deletions: f.deletions,
-          patch:
-            f.patch.length > PATCH_MAX ? f.patch.slice(0, PATCH_MAX) : f.patch,
-          truncated: f.patch.length > PATCH_MAX,
-        }))
+        const files = diff.files
+          .filter((f) => !pathHidden(hidden, f.path))
+          .map((f) => ({
+            path: f.path,
+            state: f.state,
+            additions: f.additions,
+            deletions: f.deletions,
+            patch:
+              f.patch.length > PATCH_MAX
+                ? f.patch.slice(0, PATCH_MAX)
+                : f.patch,
+            truncated: f.patch.length > PATCH_MAX,
+          }))
         return {
           object: 'commit_diff' as const,
           sha: diff.sha,
@@ -514,7 +552,14 @@ export const provenance = defineOp({
         const { owner, repo } = ctx.params
         const q = ctx.query
         const path = q.path.replace(/^\/+/, '')
-        const full = await d.repoAccess(owner, repo, ctx.principal, 'read')
+        const { full, hides } = await readable(
+          d,
+          owner,
+          repo,
+          ctx.principal,
+          q.ref,
+        )
+        if (hides(path)) throw apiError('not_found', `No file ${path}.`)
         let ref = q.ref
         if (q.change !== undefined) {
           const f = await d.provenance(owner, repo, ctx.principal, {

@@ -1,3 +1,5 @@
+import { assertMayTouch, hiddenChangeNumbers } from '../lib/accessRules'
+import { pathRefusal, touchedFiles } from '@source-code/api/paths'
 import { attachUpload, evidenceFits, evidenceUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
 import { changeTarget } from '@source-code/api/lifecycles'
@@ -34,6 +36,8 @@ import {
 } from '@source-code/api/landing'
 import type { LandingStepRec } from '@source-code/api/landing'
 import { readLandedPolicy } from '../lib/policyFile'
+import { readLandedTriggers } from '../lib/triggerFile'
+import { dispatchTriggers } from './triggers'
 import { issueRefs } from '@source-code/api/references'
 import { fileKey, presentSeen } from '@source-code/api/seen'
 import { checkGuide, presentGuide } from '@source-code/api/guides'
@@ -291,6 +295,8 @@ export const list = query({
   handler: async (ctx, q) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, q.owner, q.name, p)
+    // A change under an access rule the viewer does not read is not listed.
+    const hidden = await hiddenChangeNumbers(ctx, repo, p)
     const states = q.state && q.state !== 'all' ? q.state.split(',') : null
     const everything = q.state === 'all'
     const order = q.desc ? 'desc' : 'asc'
@@ -348,6 +354,7 @@ export const list = query({
             (states ? states.includes(c.state) : isOpen(c.state))) &&
           (!q.author || c.author.handle === q.author) &&
           (!q.branch || c.branch === q.branch) &&
+          !hidden.has(c.number) &&
           (!q.label || c.labels.includes(q.label)),
       },
     )
@@ -381,7 +388,7 @@ export const get = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     return out(await shown(ctx, repo, l.rec, p, a.at, a.expand))
   },
 })
@@ -433,7 +440,7 @@ export const provenance = query({
     let c: ChangeRec | undefined
     let ps: ChangeRec['patchSets'][number] | undefined
     if (a.change !== undefined) {
-      c = (await loadChange(ctx, repo, String(a.change))).rec
+      c = (await loadChange(ctx, repo, String(a.change), p)).rec
       const at = changeBlame(c, a.path, a.line, (code, detail, more) =>
         fail(code, detail, more),
       )
@@ -571,6 +578,15 @@ const patchSetEvent = (
   extra: addressed.length ? { addressed } : undefined,
 })
 
+/** Refuses a patch set that touches paths outside a token's. */
+function withinPaths(
+  ps: { files: Record<string, unknown>; contents?: Record<string, unknown> },
+  globs: ReadonlyArray<string> | null | undefined,
+) {
+  const r = pathRefusal(touchedFiles(ps), globs)
+  if (r) fail(r.code, r.detail, { hint: r.hint })
+}
+
 export const create = mutation({
   args: {
     owner: v.string(),
@@ -592,6 +608,7 @@ export const create = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     assertMayContribute(repo, p, 'change')
+    await assertMayTouch(ctx, repo, p, a.branch, [])
     const by = await actorFor(ctx, p.handle)
     const via = await viaOf(ctx)
     const at = Date.now()
@@ -613,6 +630,8 @@ export const create = mutation({
         via,
         addresses: a.addresses,
       })
+      // A token limited to paths changes nothing outside them.
+      withinPaths(l.rec.patchSets[l.rec.patchSets.length - 1], p.paths)
       await commit(ctx, repo, l, was, patchSetEvent(by, addressed))
       return finish(a.dry, {
         change: await shown(ctx, repo, l.rec, p, at),
@@ -673,6 +692,14 @@ export const create = mutation({
       landed: null,
       version: 1,
     }
+    withinPaths(rec.patchSets[0], p.paths)
+    await assertMayTouch(
+      ctx,
+      repo,
+      p,
+      rec.branch,
+      touchedFiles(rec.patchSets[0]),
+    )
     const l = { rec, parts: new Map() } as unknown as Loaded
     await commit(ctx, repo, l, null, {
       type: 'change.opened',
@@ -705,7 +732,7 @@ export const update = mutation({
     const p = await signedIn(ctx)
     const at = Date.now()
     const repo = await resolve(ctx, owner, name, p, 'write')
-    const l = await loadChange(ctx, repo, ref)
+    const l = await loadChange(ctx, repo, ref, p)
     const c = l.rec
     const current = await shown(ctx, repo, c, p, at)
     assertMatch(ifMatch, `${c.id}.${c.version}`, () => current)
@@ -741,7 +768,7 @@ export const listPatchSets = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec } = await loadChange(ctx, repo, a.ref)
+    const { rec } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [])
     return out(rec.patchSets.map((ps) => view.presentPatchSet(rec, ps)))
   },
@@ -765,7 +792,7 @@ export const getPatchSet = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec } = await loadChange(ctx, repo, a.ref)
+    const { rec } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [])
     return out(view.presentPatchSet(rec, patchSetOf(rec, a.n)))
   },
@@ -808,7 +835,7 @@ export const addPatchSet = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     assertMayContribute(repo, p, 'change')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     if (c.state === 'landed' || c.state === 'abandoned')
       fail('invalid_state', `Change #${c.number} is ${c.state}.`)
@@ -889,6 +916,15 @@ export const addPatchSet = mutation({
         via: await viaOf(ctx),
       })
     }
+    // A token limited to paths changes nothing outside them; deleting is changing.
+    withinPaths(c.patchSets[c.patchSets.length - 1], p.paths)
+    await assertMayTouch(
+      ctx,
+      repo,
+      p,
+      c.branch,
+      touchedFiles(c.patchSets[c.patchSets.length - 1]),
+    )
     await commit(ctx, repo, l, c.state, patchSetEvent(by, addressed))
     return finish(
       a.dry,
@@ -902,7 +938,7 @@ export const getPatchSetFiles = query({
   returns: v.string(),
   handler: async (ctx, a) => {
     const repo = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, await actorOf(ctx))
     const ps = patchSetOf(c, a.n)
     const base = c.baseFiles ?? {}
     return out({
@@ -934,7 +970,7 @@ export const comparePatchSets = query({
   returns: v.string(),
   handler: async (ctx, a) => {
     const repo = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, await actorOf(ctx))
     const x = c.patchSets[a.from - 1] as
       | ChangeRec['patchSets'][number]
       | undefined
@@ -996,7 +1032,7 @@ export const review = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const by = await actorFor(ctx, p.handle)
     if (!isOpen(c.state))
@@ -1064,7 +1100,7 @@ export const listFindings = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [])
     return out(
       c.findings
@@ -1100,7 +1136,7 @@ export const raiseFinding = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     if (!isOpen(c.state))
       fail('invalid_state', `Change #${c.number} is ${c.state}.`)
@@ -1171,7 +1207,7 @@ export const setFinding = mutation({
       await bodyOf(ctx, 'findings.dismiss', { reason: a.reason })
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const f = c.findings.find(
       (x) => x.id === a.finding || x.label === a.finding,
@@ -1232,7 +1268,7 @@ export const reportCheck = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const found = c.checks.find((k) => k.key === a.key && k.tree === a.tree)
     let outcome: 'created' | 'updated' | 'unchanged' = 'created'
@@ -1291,7 +1327,7 @@ export const listChecks = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [])
     return out(c.checks.map((k) => view.presentCheck(k)))
   },
@@ -1337,7 +1373,7 @@ export const policy = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     const as = assumeOf(a.assume)
     const view = await viewFor(ctx, repo, p, a.at, [c], { assume: as })
     const reqs = view.evaluate(c, as ?? {})
@@ -1375,7 +1411,7 @@ export const transition = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     if (!p.scopes.has('pulls:write'))
       fail('insufficient_scope', 'This needs pulls:write.', {
@@ -1504,8 +1540,19 @@ async function doLand(
     changes: ['state', 'landed_at'],
     via,
   })
+  // The repository's event revision of the land, for triggers to key on.
+  const landedRev = (await counters(ctx, repo)).rev
+  const landedVia = via ?? (await viaOf(ctx))
   // A change to the policy file that lands is the repository's rules now.
   await readLandedPolicy(ctx, repo, c, by)
+  // Then its trigger files, then what the land triggers.
+  await readLandedTriggers(ctx, repo, c, by)
+  await dispatchTriggers(ctx, repo, c, {
+    type: 'change.landed',
+    actor: by.handle,
+    model: landedVia.model,
+    sequence: landedRev,
+  })
   // Changes above it are rebased onto the result. Their trees do not change,
   // so approvals and evidence stay valid.
   if (c.stackId) {
@@ -1538,7 +1585,7 @@ export const landability = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [c])
     const head = c.patchSets[c.patchSets.length - 1]
     const requirements = view.evaluate(c)
@@ -1599,7 +1646,7 @@ export const land = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     await assertPushAllowed(ctx, repo)
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, Date.now(), [l.rec])
     checkLandable(view, l.rec, p, a.expectedTree)
     // With steps after landing, it is an operation: a stack of one.
@@ -1829,7 +1876,7 @@ export const addEvidence = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const by = await actorFor(ctx, p.handle)
     const upload = evidenceUpload(
       await attachUpload(ctx, a.upload.id, repo, p, evidenceFits[a.kind]),
@@ -1870,7 +1917,7 @@ export const listEvidence = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [])
     return out(
       (c.evidence ?? []).map((e) => ({
@@ -1896,7 +1943,7 @@ export const listReviewComments = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, a.at, [])
     const all = c.comments ?? []
     const open = new Set(
@@ -1957,7 +2004,7 @@ export const createReviewComment = mutation({
     const p = await signedIn(ctx)
     // Anyone who can read the repository may comment, as on an issue.
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const comments = (c.comments ??= [])
     const latest = c.patchSets[c.patchSets.length - 1].n
@@ -2102,7 +2149,7 @@ export const addressReviewComment = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const x = reviewCommentOf(c, a.id)
     const head = c.patchSets[c.patchSets.length - 1].n
@@ -2168,7 +2215,7 @@ export const updateReviewComment = mutation({
     }
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const x = reviewCommentOf(c, a.id)
     if (a.body !== undefined && x.author.handle !== p.handle)
@@ -2230,7 +2277,7 @@ export const deleteReviewComment = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const x = reviewCommentOf(c, a.id)
     if (x.author.handle !== p.handle && !(await canWrite(ctx, repo, p)))
@@ -2270,7 +2317,7 @@ export const seen = query({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { doc, rec: c } = await loadChange(ctx, repo, a.ref)
+    const { doc, rec: c } = await loadChange(ctx, repo, a.ref, p)
     const marks = await seenMarks(ctx, doc._id, p.handle)
     return out(
       presentSeen(
@@ -2308,7 +2355,7 @@ export const setSeen = mutation({
     }
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { doc, rec: c } = await loadChange(ctx, repo, a.ref)
+    const { doc, rec: c } = await loadChange(ctx, repo, a.ref, p)
     const head = c.patchSets[c.patchSets.length - 1]
     for (const [k, path] of a.paths.entries())
       if (!(path in head.files))
@@ -2365,7 +2412,7 @@ export const guide = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const { rec: c } = await loadChange(ctx, repo, a.ref)
+    const { rec: c } = await loadChange(ctx, repo, a.ref, p)
     if (!c.guide) fail('not_found', `#${c.number} has no guide yet.`)
     const view = await viewFor(ctx, repo, p, Date.now(), [])
     return out(
@@ -2410,7 +2457,7 @@ export const putGuide = mutation({
     }
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
-    const l = await loadChange(ctx, repo, a.ref)
+    const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     const n = checkGuide(c.patchSets, a, (code, detail, more) =>
       fail(code, detail, more),

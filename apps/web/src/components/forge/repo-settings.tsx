@@ -9,6 +9,8 @@ import {
 import { cn } from 'cn'
 import { IntegrationsPanel } from './integrations-panel'
 import { PoliciesPage } from './repo-policies'
+import { AccessPage } from './repo-access'
+import { AutomationsPage, RepoRunnersPage } from './repo-automations'
 import { SecretsPage } from './repo-secrets'
 import { slugOf } from './repo-shell'
 import type { Host, Mirror } from '~/lib/model/hub'
@@ -28,7 +30,10 @@ const sections = [
   ['general', 'General'],
   ['mirrors', 'Mirrors and sync'],
   ['secrets', 'Secrets'],
+  ['access', 'Access'],
   ['policies', 'Policies'],
+  ['automations', 'Automations'],
+  ['runners', 'Runners'],
   ['contributions', 'Contributions'],
   ['integrations', 'Integrations'],
 ] as const
@@ -827,7 +832,10 @@ export function RepoSettings({
             </>
           )}
           {current === 'secrets' && <SecretsPage repo={repo} />}
+          {current === 'access' && <AccessPage repo={repo} />}
           {current === 'policies' && <PoliciesPage repo={repo} />}
+          {current === 'automations' && <AutomationsPage repo={repo} />}
+          {current === 'runners' && <RepoRunnersPage repo={repo} />}
           {current === 'contributions' && (
             <>
               <Title title="Contributions">

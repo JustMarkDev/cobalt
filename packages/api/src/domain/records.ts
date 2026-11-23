@@ -3,6 +3,8 @@ import type { SecretBox } from '../secret-box'
 import type { Receipt } from '../via'
 import type { LandingStepRec } from '../landing'
 import type { FileError, Landing } from '../policy-file'
+import type { AccessRule } from '../access-rules'
+import type { Trigger, FileError as TriggerFileError } from '../trigger-file'
 import type { Addressed, Anchor, Placement } from '../anchors'
 import type { HookPort } from '../webhooks'
 import type { SearchIndex } from '../search'
@@ -372,6 +374,22 @@ export type RepoRec = {
   }
   /** How changes land: from the policy file, or the defaults. */
   landing?: Landing
+  /**
+   * `.source/triggers/*.yml` as last landed: every file's text, the commit,
+   * the triggers in force (the last valid set) and why the newest did not
+   * read, if it did not.
+   */
+  triggers?: {
+    files: Record<string, string>
+    sha: string
+    set: Array<Trigger>
+    errors: Array<TriggerFileError>
+    rev: number
+  }
+  /** What each trigger did for each event, by `trigger:event`. */
+  triggerRuns?: Map<string, TriggerRunRec>
+  /** Parts only some people may see: branches and paths (`access-rules.ts`). */
+  accessRules?: Array<AccessRule>
   /** By lowercase name. */
   labels: Map<string, LabelRec>
   /** Bumped by every label write, for the list's version. */
@@ -478,6 +496,7 @@ export type Attached = {
 }
 
 export type NotificationKind =
+  | 'handoff'
   | 'review'
   | 'mention'
   | 'release'
@@ -530,8 +549,38 @@ export type ReleaseRec = {
 }
 
 export type { PipelineStatus } from '../lifecycles'
-import type { PipelineStatus } from '../lifecycles'
+import type { PipelineStatus, PipelineWait } from '../lifecycles'
 export type LogLevel = 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error'
+/** One trigger, for one event: started (with its run), failed, or over the cap. */
+export type TriggerRunRec = {
+  triggerId: string
+  /** The repository's event revision of the event that started it. */
+  eventSequence: number
+  runId: string | null
+  run: number | null
+  state: 'started' | 'failed' | 'capped'
+  error: string | null
+  at: number
+}
+
+/** A machine that takes pipeline jobs (`runners.ts`). */
+export type RunnerRec = {
+  id: string
+  account: string
+  name: string
+  kind: 'self-hosted' | 'hosted'
+  provider: string | null
+  labels: Array<string>
+  /** Lowercase `owner/name`; null for every repository of the account. */
+  repos: Array<string> | null
+  concurrency: number
+  disabled: boolean
+  lastSeen: number | null
+  createdBy: string
+  created: number
+  tokenId: string
+}
+
 export type PipelineRunRec = {
   id: string
   number: number
@@ -540,7 +589,11 @@ export type PipelineRunRec = {
   branch: string
   sha: string
   status: PipelineStatus
-  trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual'
+  trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual' | 'event'
+  /** A trigger started it and its `runs-on` is not read yet: no runner takes it. */
+  runsOnPending?: boolean
+  /** The run its jobs and provisional labels were copied from. */
+  runsOnFrom?: number
   actor: string
   started: number
   finished: number | null
@@ -557,11 +610,18 @@ export type PipelineRunRec = {
     runner: string
     status: PipelineStatus | 'skipped'
     duration: number
+    /** The labels it asked for (`runs-on`); empty takes any runner. */
+    runsOn?: Array<string>
+    /** The registered runner holding it. */
+    runnerId?: string | null
+    /** When it goes back to the queue unless its runner reports. */
+    lease?: number | null
     steps: Array<{
       name: string
       status: PipelineStatus | 'skipped'
       duration: number
       lines: Array<{ t: string; level: LogLevel | null }>
+      wait?: PipelineWait | null
     }>
   }>
   version: number
@@ -583,7 +643,7 @@ export type PolicyExceptionRec = {
 export type CustomRuleRec = {
   id: string
   name: string
-  kind: 'required_check' | 'path_approval' | 'max_lines'
+  kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
   /** required_check: the check that has to pass on the tree that lands. */
   check?: string
   /** path_approval: globs, such as `docs/**` or `*.sql`. */

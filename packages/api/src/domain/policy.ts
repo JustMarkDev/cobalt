@@ -12,6 +12,17 @@ import {
   unifiedDiff,
 } from '../policy-file'
 import { proposalEdits, proposalTitle } from '../policy-proposals'
+import {
+  MAX_RUNS_PER_EVENT,
+  isTriggerFile,
+  parseTriggerFiles,
+  triggersFor,
+} from '../trigger-file'
+import { presentTriggers } from '../triggers'
+import { MAX_ACCESS_RULES, readsRule, ruleProblems } from '../access-rules'
+import type { AccessRule } from '../access-rules'
+import { touchedFiles } from '../paths'
+import type { EventRecord } from '../events'
 import type { Principal } from '../auth'
 import type { PolicyContent } from '../policy-file'
 import type { LandingStepRec } from '../landing'
@@ -24,6 +35,7 @@ import type {
   RepoRec,
   Requirement,
   RuleMode,
+  TriggerRunRec,
   Viewer,
 } from './records'
 import { DomainPipelines } from './pipelines'
@@ -165,10 +177,243 @@ export abstract class DomainPolicy extends DomainPipelines {
    * On code.storage this runs from the push that lands it.
    */
   protected override doLand(repo: RepoRec, c: ChangeRec, by: ActorRec) {
-    super.doLand(repo, c, by)
+    const landed = super.doLand(repo, c, by)
     const head = this.head(c)
     const text = head.contents?.[POLICY_FILE]
     if (typeof text === 'string') this.readPolicyFile(repo, text, head.sha, by)
+    // Right after the policy: the triggers it landed, then the ones it starts.
+    this.readTriggerFiles(repo, c, by)
+    this.dispatchTriggers(repo, c, landed.event, landed.rev)
+    return landed
+  }
+
+  // ---- triggers --------------------------------------------------------------
+
+  /**
+   * A change that edits trigger files landed. Every trigger file is read
+   * together; when they read, their triggers are in force, and when they do
+   * not, the last valid set stays and the errors are shown. A trigger file
+   * that does not read never blocks the change itself.
+   */
+  protected readTriggerFiles(repo: RepoRec, c: ChangeRec, by: ActorRec) {
+    const head = this.head(c)
+    const touched = Object.entries(head.contents ?? {}).filter(([path]) =>
+      isTriggerFile(path),
+    )
+    if (!touched.length) return
+    const files = { ...repo.triggers?.files }
+    for (const [path, text] of touched)
+      if (typeof text === 'string') files[path] = text
+      else delete files[path]
+    const { triggers, errors } = parseTriggerFiles(files)
+    repo.triggers = {
+      files,
+      sha: head.sha,
+      set: triggers ?? repo.triggers?.set ?? [],
+      errors,
+      rev: (repo.triggers?.rev ?? 0) + 1,
+    }
+    this.emit(
+      repo,
+      'repo.triggers_changed',
+      by,
+      { object: 'repo', id: repo.id, number: null },
+      [errors.length ? 'source.errors' : 'source'],
+      null,
+    )
+  }
+
+  /**
+   * Starts what a landed change triggers: each matching trigger once per
+   * event (a retry finds it recorded), at most three. A workflow that never
+   * ran is recorded and its author told; the land itself never fails here.
+   */
+  protected dispatchTriggers(
+    repo: RepoRec,
+    c: ChangeRec,
+    e: EventRecord,
+    sequence: number,
+  ) {
+    const set = repo.triggers?.set ?? []
+    if (!set.length) return
+    const head = this.head(c)
+    const { start, capped } = triggersFor(set, {
+      type: e.type,
+      actor: e.actor.handle,
+      model: e.via?.model ?? null,
+      files: [...touchedFiles(head)],
+      labels: c.labels,
+    })
+    const runs = (repo.triggerRuns ??= new Map())
+    const at = this.now()
+    const record = (r: TriggerRunRec) =>
+      runs.set(`${r.triggerId}:${r.eventSequence}`, r)
+    for (const t of capped)
+      if (!runs.has(`${t.id}:${sequence}`))
+        record({
+          triggerId: t.id,
+          eventSequence: sequence,
+          runId: null,
+          run: null,
+          state: 'capped',
+          error: `More than ${MAX_RUNS_PER_EVENT} triggers matched; this one did not start.`,
+          at,
+        })
+    for (const t of start) {
+      if (runs.has(`${t.id}:${sequence}`)) continue
+      try {
+        const r = this.startPipelineForEvent(repo, t.run, {
+          branch: c.base,
+          sha: head.sha,
+          actor: e.actor.handle,
+        })
+        record({
+          triggerId: t.id,
+          eventSequence: sequence,
+          runId: r.id,
+          run: r.number,
+          state: 'started',
+          error: null,
+          at,
+        })
+      } catch (err) {
+        const why =
+          (err as { detail?: string }).detail ??
+          (err instanceof Error ? err.message : String(err))
+        record({
+          triggerId: t.id,
+          eventSequence: sequence,
+          runId: null,
+          run: null,
+          state: 'failed',
+          error: why,
+          at,
+        })
+        const full = `${repo.owner}/${repo.name}`
+        this.notify(c.author.handle, {
+          kind: 'ci',
+          title: `Trigger ${t.id} did not start ${t.run}: ${why}`,
+          repo: full,
+          path: `/${full}/settings?section=automations`,
+        })
+      }
+    }
+  }
+
+  // ---- access rules ---------------------------------------------------------
+
+  private presentAccessRule(repo: RepoRec, r: AccessRule) {
+    return {
+      object: 'access_rule' as const,
+      id: r.id,
+      kind: r.kind,
+      patterns: [...r.patterns],
+      readers: [...r.readers],
+      created_by: r.createdBy,
+      created_at: new Date(r.created).toISOString(),
+      url: `${this.repoUrl(repo)}/access-rules/${r.id}`,
+    }
+  }
+
+  /** Administrators see every rule; a reader sees the rules they read; others none. */
+  async listAccessRules(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    const v = this.ruleViewer(repo, p)
+    return (repo.accessRules ?? [])
+      .filter((r) => readsRule(r, v))
+      .map((r) => this.presentAccessRule(repo, r))
+  }
+
+  async putAccessRule(
+    owner: string,
+    name: string,
+    id: string,
+    p: Viewer,
+    body: {
+      kind: 'branch' | 'path'
+      patterns: Array<string>
+      readers: Array<string>
+    },
+    dry: boolean,
+  ) {
+    const repo = this.resolve(owner, name, p, 'write')
+    this.assertAdmin(repo, p!)
+    const problems = ruleProblems(body, repo.defaultBranch)
+    for (const [i, r] of body.readers.entries())
+      if (r.startsWith('team:')) {
+        if (!this.teams.has(`${repo.owner}/${r.slice(5)}`))
+          problems.push([
+            `/body/readers/${i}`,
+            `${repo.owner} has no team ${r.slice(5)}.`,
+          ])
+      } else if (this.accounts.get(r)?.kind !== 'person')
+        problems.push([`/body/readers/${i}`, `${r} is not a person.`])
+    if (problems.length)
+      throw apiError('invalid_request', problems[0][1], {
+        errors: problems.map(([pointer, message]) => ({
+          pointer,
+          code: 'invalid',
+          message,
+        })),
+      })
+    const rules = repo.accessRules ?? []
+    const had = rules.find((r) => r.id === id)
+    if (!had && rules.length >= MAX_ACCESS_RULES)
+      throw apiError(
+        'limit_reached',
+        `A repository has at most ${MAX_ACCESS_RULES} access rules.`,
+      )
+    const rule: AccessRule = {
+      id,
+      kind: body.kind,
+      patterns: [...new Set(body.patterns)],
+      readers: [...new Set(body.readers)],
+      createdBy: had?.createdBy ?? p!.handle,
+      created: had?.created ?? this.now(),
+    }
+    if (!dry) {
+      repo.accessRules = [...rules.filter((r) => r.id !== id), rule]
+      // Who sees what changed: nothing cached may outlive it.
+      this.accessRevision++
+      for (const c of repo.changes.values()) c.version++
+      repo.changeRev++
+    }
+    return { rule: this.presentAccessRule(repo, rule), created: !had }
+  }
+
+  async deleteAccessRule(
+    owner: string,
+    name: string,
+    id: string,
+    p: Viewer,
+    dry: boolean,
+  ) {
+    const repo = this.resolve(owner, name, p, 'write')
+    this.assertAdmin(repo, p!)
+    if (!(repo.accessRules ?? []).some((r) => r.id === id))
+      throw apiError('not_found', `No access rule ${id}.`)
+    if (dry) return
+    repo.accessRules = (repo.accessRules ?? []).filter((r) => r.id !== id)
+    this.accessRevision++
+    for (const c of repo.changes.values()) c.version++
+    repo.changeRev++
+  }
+
+  async getTriggers(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    const t = repo.triggers
+    return presentTriggers(
+      `${repo.owner}/${repo.name}`,
+      this.urls.html,
+      repo.defaultBranch,
+      t ?? null,
+      [...(repo.triggerRuns?.values() ?? [])],
+    )
+  }
+
+  async triggersVersion(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    return `${repo.id}.t${repo.triggers?.rev ?? 0}.${repo.triggerRuns?.size ?? 0}.${this.accessRevision}`
   }
 
   protected readPolicyFile(
@@ -380,7 +625,7 @@ export abstract class DomainPolicy extends DomainPipelines {
 
   async landability(owner: string, name: string, ref: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const head = this.head(c)
     const requirements = this.evaluate(repo, c)
     const blockers = [
@@ -480,6 +725,7 @@ export abstract class DomainPolicy extends DomainPipelines {
       required_check: ['check'],
       path_approval: ['paths'],
       max_lines: ['max_lines'],
+      allowed_paths: ['paths'],
     }
     for (const k of need[body.kind])
       if (body[k] === undefined)
@@ -501,6 +747,7 @@ export abstract class DomainPolicy extends DomainPipelines {
           }
         : {}),
       ...(body.kind === 'max_lines' ? { maxLines: body.max_lines } : {}),
+      ...(body.kind === 'allowed_paths' ? { paths: body.paths } : {}),
       createdBy: have?.createdBy ?? p!.handle,
       created: have?.created ?? this.now(),
     }

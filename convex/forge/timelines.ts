@@ -84,7 +84,7 @@ export const get = query({
       return from
     }
     if (a.kind === 'change') {
-      const { rec: c } = await loadChange(ctx, repo, a.ref)
+      const { rec: c } = await loadChange(ctx, repo, a.ref, p)
       const view = await viewFor(ctx, repo, p, a.at, [c])
       for (const ps of c.patchSets)
         entry(

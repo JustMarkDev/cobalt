@@ -76,6 +76,9 @@ export const TABLES: Record<TableNames, string> = {
   reviewSeen: 'scrub: by handle, and with its change',
   presenceRooms: 'none: rooms, not people',
   repoPolicy: 'wipe: with its repository',
+  repoTriggers: 'wipe: with its repository',
+  repoAccessRules: 'wipe: with its repository',
+  triggerRuns: 'wipe: with its repository',
   operations: 'none: expire on their own',
   pipelineRuns: 'wipe: with its repository',
   pipelineLogs: 'wipe: with its run',
@@ -101,6 +104,8 @@ export const TABLES: Record<TableNames, string> = {
   notifications: 'wipe: by handle',
   inboxes: 'wipe: by handle',
   tokens: 'wipe: by handle',
+  runners: 'wipe: by account',
+  runnerSeen: 'wipe: with its runner',
   authorizations: 'wipe: by handle',
   oauthState: 'none: expires on its own',
   outbox: 'none: expires on its own',
@@ -345,6 +350,23 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
         .take(BATCH),
     ),
   )
+  // Its runners, with when each was last seen. Their tokens went with `tokens`.
+  const runners = await ctx.db
+    .query('runners')
+    .withIndex('by_account_and_name', (q) => q.eq('account', h))
+    .take(BATCH)
+  for (const r of runners)
+    await add(
+      drop(
+        ctx,
+        'runnerSeen',
+        await ctx.db
+          .query('runnerSeen')
+          .withIndex('by_runnerId', (q) => q.eq('runnerId', r._id))
+          .take(BATCH),
+      ),
+    )
+  await add(drop(ctx, 'runners', runners))
   await add(
     drop(
       ctx,
@@ -567,6 +589,36 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
       await ctx.db
         .query('repoPolicy')
         .withIndex('by_repoId', (q) => q.eq('repoId', id))
+        .take(BATCH),
+    ),
+  )
+  await add(
+    drop(
+      ctx,
+      'repoAccessRules',
+      await ctx.db
+        .query('repoAccessRules')
+        .withIndex('by_repoId_and_ruleId', (q) => q.eq('repoId', id))
+        .take(BATCH),
+    ),
+  )
+  await add(
+    drop(
+      ctx,
+      'repoTriggers',
+      await ctx.db
+        .query('repoTriggers')
+        .withIndex('by_repoId', (q) => q.eq('repoId', id))
+        .take(BATCH),
+    ),
+  )
+  await add(
+    drop(
+      ctx,
+      'triggerRuns',
+      await ctx.db
+        .query('triggerRuns')
+        .withIndex('by_repoId_and_at', (q) => q.eq('repoId', id))
         .take(BATCH),
     ),
   )

@@ -5,6 +5,7 @@ export type RunStatus =
   | 'success'
   | 'failure'
   | 'running'
+  | 'waiting'
   | 'queued'
   | 'canceled'
 export type StepStatus = RunStatus | 'skipped'
@@ -19,7 +20,15 @@ export type Run = {
   duration: string
   when: string
   actor: string
-  trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual'
+  trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual' | 'event'
+}
+
+/** What a waiting step waits for. */
+export type Wait = {
+  kind: 'person' | 'agent' | 'approval'
+  reason: string
+  target: string | null
+  expiresAt: string
 }
 
 export type Level = 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error'
@@ -31,6 +40,7 @@ export type Step = {
   status: StepStatus
   time: string
   lines: Array<LogLine>
+  wait: Wait | null
 }
 
 export type Job = {
@@ -39,6 +49,10 @@ export type Job = {
   status: StepStatus
   time: string
   steps: Array<Step>
+  /** The labels it asked for (`runs-on`). */
+  runsOn: Array<string>
+  /** While queued: the labels no runner of the repository has, or null. */
+  waitingFor: Array<string> | null
 }
 
 export type RunDetail = {

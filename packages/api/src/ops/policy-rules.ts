@@ -191,7 +191,7 @@ export const createRule = defineOp({
   id: 'policy.create_rule',
   summary: "Write a rule of the repository's own",
   description:
-    "Three kinds. `required_check`: `check` has to pass on the tree that lands. `path_approval`: a change touching `paths` (globs, `**` crosses folders) needs `approvals` human approvals, from the people in `from` if given. `max_lines`: a change may add and remove at most `max_lines`. Sending the same `id` again replaces the rule. Every open change's requirements are worked out again. When the policy lives in the repository, this proposes instead of applying: it answers `202` with a `PolicyProposal`, a change to the policy file that applies once it lands.",
+    "Four kinds. `required_check`: `check` has to pass on the tree that lands. `path_approval`: a change touching `paths` (globs, `**` crosses folders) needs `approvals` human approvals, from the people in `from` if given. `max_lines`: a change may add and remove at most `max_lines`. `allowed_paths`: a change may touch only `paths` (deleting a file is touching it), however it arrived, `git push` included. Sending the same `id` again replaces the rule. Every open change's requirements are worked out again. When the policy lives in the repository, this proposes instead of applying: it answers `202` with a `PolicyProposal`, a change to the policy file that applies once it lands.",
   method: 'POST',
   path: '/repos/{owner}/{repo}/policy/rules',
   params: repoParams,

@@ -9,9 +9,11 @@ import {
   isTerminal,
   landingStepLifecycle,
   operationLifecycle,
+  pipelineDone,
   pipelineLifecycle,
   pipelineStepLifecycle,
   reportStep,
+  requeueJob,
   uploadLifecycle,
   uploadMoveRefusal,
 } from './lifecycles'
@@ -109,6 +111,38 @@ describe('the tables', () => {
     expect(canMove(deviceLifecycle, 'pending', 'approved')).toBe(true)
     expect(canMove(deviceLifecycle, 'approved', 'denied')).toBe(false)
     expect(canMove(deviceLifecycle, 'denied', 'approved')).toBe(false)
+  })
+
+  test('a run waits only from running, and goes back to the queue only from running', () => {
+    expect(canMove(pipelineLifecycle, 'running', 'waiting')).toBe(true)
+    expect(canMove(pipelineLifecycle, 'queued', 'waiting')).toBe(false)
+    expect(canMove(pipelineLifecycle, 'waiting', 'running')).toBe(true)
+    expect(canMove(pipelineLifecycle, 'waiting', 'canceled')).toBe(true)
+    expect(canMove(pipelineLifecycle, 'waiting', 'failure')).toBe(true)
+    expect(canMove(pipelineLifecycle, 'waiting', 'success')).toBe(false)
+    expect(canMove(pipelineLifecycle, 'waiting', 'queued')).toBe(false)
+    expect(canMove(pipelineLifecycle, 'running', 'queued')).toBe(true)
+    expect(canMove(pipelineStepLifecycle, 'running', 'waiting')).toBe(true)
+    expect(canMove(pipelineStepLifecycle, 'waiting', 'skipped')).toBe(false)
+    expect(pipelineDone('waiting')).toBe(false)
+    // A job whose runner went quiet starts over; what finished stays finished.
+    const r = {
+      status: 'running',
+      jobs: [
+        {
+          status: 'running',
+          duration: 0,
+          steps: [
+            { status: 'success', duration: 1 },
+            { status: 'running', duration: 0 },
+          ],
+        },
+      ],
+    }
+    expect(requeueJob(r, 1)).toBe(true)
+    expect(r.jobs[0].status).toBe('queued')
+    expect(r.jobs[0].steps.map((x) => x.status)).toEqual(['success', 'queued'])
+    expect(requeueJob(r, 1)).toBe(false)
   })
 
   test('a pipeline step is reported in order, forward only', () => {

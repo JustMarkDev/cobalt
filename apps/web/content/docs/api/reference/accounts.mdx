@@ -130,7 +130,7 @@ curl -X POST "https://api.source.code/v1/accounts" \
 HTTP/1.1 201
 location: https://api.source.code/v1/accounts/harbor-tools
 sx-outcome: created
-ratelimit: "write";r=46;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ```json
@@ -190,7 +190,7 @@ curl "https://api.source.code/v1/accounts/dana" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m203xrm0bw4d69nd.1.0-XXOZRe1tchpBajOB"
+etag: W/"acc_01m203xrm0bw4d69nd.1.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1198;t=60
 ```
 
@@ -262,7 +262,7 @@ curl -X PATCH "https://api.source.code/v1/accounts/harbor-tools" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=45;t=60
+ratelimit: "write";r=33;t=60
 ```
 
 ```json
@@ -322,7 +322,7 @@ curl "https://api.source.code/v1/accounts/dana/followers" \
 
 ```http
 HTTP/1.1 200
-etag: W/"ppl2.1.6-7pElIC77C7_aUa4w"
+etag: W/"ppl2.1.6-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1151;t=60
 ```
 
@@ -391,7 +391,7 @@ curl "https://api.source.code/v1/accounts/dana/following" \
 
 ```http
 HTTP/1.1 200
-etag: W/"ppl2.1.6-7pElIC77C7_aUa4w"
+etag: W/"ppl2.1.6-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1150;t=60
 ```
 
@@ -454,8 +454,8 @@ curl "https://api.source.code/v1/accounts/dana/integrations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.int0-7pElIC77C7_aUa4w"
-ratelimit: "read";r=1143;t=60
+etag: W/"dana.int0-lg2b_cbZq8ASWDxZ"
+ratelimit: "read";r=1137;t=60
 ```
 
 ```json
@@ -528,7 +528,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/dana/integrations/boat" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=53;t=60
+ratelimit: "write";r=41;t=60
 ```
 
 ### `integrations.connect`
@@ -582,7 +582,7 @@ curl -X PUT "https://api.source.code/v1/accounts/dana/integrations/boat" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=55;t=60
+ratelimit: "write";r=43;t=60
 ```
 
 ```json
@@ -631,8 +631,8 @@ curl "https://api.source.code/v1/accounts/harbor-tools/invitations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m6tq6r80xfyz652f.4-8OiyqXhHovuH4NFx"
-ratelimit: "read";r=1134;t=60
+etag: W/"acc_01m6tq6r80xfyz652f.4-On-y_6txzS7Ml4td"
+ratelimit: "read";r=1128;t=60
 ```
 
 ```json
@@ -641,14 +641,14 @@ ratelimit: "read";r=1134;t=60
   "data": [
     {
       "object": "invitation",
-      "id": "inv_01m6tq6r80dx54cbk3",
+      "id": "inv_01m6tq6r80afwa4sxb",
       "account": "harbor-tools",
       "email": "yuki@example.com",
       "role": "member",
       "invited_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
       "expires_at": "2026-11-14T10:00:00.000Z",
-      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80dx54cbk3"
+      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
     }
   ],
   "has_more": false,
@@ -708,20 +708,20 @@ curl -X POST "https://api.source.code/v1/accounts/harbor-tools/invitations" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=43;t=60
+ratelimit: "write";r=31;t=60
 ```
 
 ```json
 {
   "object": "invitation",
-  "id": "inv_01m6tq6r80dx54cbk3",
+  "id": "inv_01m6tq6r80afwa4sxb",
   "account": "harbor-tools",
   "email": "yuki@example.com",
   "role": "member",
   "invited_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
   "expires_at": "2026-11-14T10:00:00.000Z",
-  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80dx54cbk3"
+  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
 }
 ```
 
@@ -762,13 +762,13 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80dx54cbk3" \
+curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=41;t=60
+ratelimit: "write";r=29;t=60
 ```
 
 ### `links.list`
@@ -805,7 +805,7 @@ curl "https://api.source.code/v1/accounts/dana/links" \
 ```http
 HTTP/1.1 200
 etag: W/"uAT56aSLO6vqD0Ud"
-ratelimit: "read";r=1141;t=60
+ratelimit: "read";r=1135;t=60
 ```
 
 ```json
@@ -861,7 +861,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/dana/links/gitlab" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=51;t=60
+ratelimit: "write";r=39;t=60
 ```
 
 ### `links.set`
@@ -909,7 +909,7 @@ curl -X PUT "https://api.source.code/v1/accounts/dana/links/gitlab" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=52;t=60
+ratelimit: "write";r=40;t=60
 ```
 
 ```json
@@ -959,8 +959,8 @@ curl "https://api.source.code/v1/accounts/harbor-tools/members" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m6tq6r80xfyz652f.3-8OiyqXhHovuH4NFx"
-ratelimit: "read";r=1135;t=60
+etag: W/"acc_01m6tq6r80xfyz652f.3-On-y_6txzS7Ml4td"
+ratelimit: "read";r=1129;t=60
 ```
 
 ```json
@@ -1032,7 +1032,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/members/hollis"
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=40;t=60
+ratelimit: "write";r=28;t=60
 ```
 
 ### `members.set`
@@ -1087,7 +1087,7 @@ curl -X PUT "https://api.source.code/v1/accounts/harbor-tools/members/hollis" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=44;t=60
+ratelimit: "write";r=32;t=60
 ```
 
 ```json
@@ -1136,7 +1136,7 @@ curl "https://api.source.code/v1/accounts/dana/profile" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m203xrm0bw4d69nd.1.22.3.1.20764.dana-7pElIC77C7_aUa4w"
+etag: W/"acc_01m203xrm0bw4d69nd.1.22.3.1.20764.dana-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1149;t=60
 ```
 
@@ -1259,8 +1259,8 @@ curl "https://api.source.code/v1/accounts/northwind/teams" \
 
 ```http
 HTTP/1.1 200
-etag: W/"VWoowNooUK5UJPuZ"
-ratelimit: "read";r=1133;t=60
+etag: W/"jojnYUYRJc_HCh7F"
+ratelimit: "read";r=1127;t=60
 ```
 
 ```json
@@ -1269,7 +1269,7 @@ ratelimit: "read";r=1133;t=60
   "data": [
     {
       "object": "team",
-      "id": "tem_01m6tq6r80f721nfmg",
+      "id": "tem_01m6tq6r80kwt2gkdn",
       "org": "northwind",
       "slug": "support",
       "name": "Support",
@@ -1341,13 +1341,13 @@ curl -X POST "https://api.source.code/v1/accounts/northwind/teams" \
 HTTP/1.1 201
 location: https://api.source.code/v1/accounts/northwind/teams/support
 sx-outcome: created
-ratelimit: "write";r=39;t=60
+ratelimit: "write";r=27;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80f721nfmg",
+  "id": "tem_01m6tq6r80kwt2gkdn",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1404,7 +1404,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=33;t=60
+ratelimit: "write";r=21;t=60
 ```
 
 ### `teams.get`
@@ -1443,14 +1443,14 @@ curl "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-etag: W/"tem_01m6tq6r80f721nfmg.1-Ejm5Dr90CjwcDgP8"
-ratelimit: "read";r=1132;t=60
+etag: W/"tem_01m6tq6r80kwt2gkdn.1-IdiBhiRqyEgMjrlC"
+ratelimit: "read";r=1126;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80f721nfmg",
+  "id": "tem_01m6tq6r80kwt2gkdn",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1516,13 +1516,13 @@ curl -X PATCH "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=38;t=60
+ratelimit: "write";r=26;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80f721nfmg",
+  "id": "tem_01m6tq6r80kwt2gkdn",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1578,7 +1578,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/memb
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=34;t=60
+ratelimit: "write";r=22;t=60
 ```
 
 ### `teams.members.add`
@@ -1625,13 +1625,13 @@ curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/members
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=37;t=60
+ratelimit: "write";r=25;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80f721nfmg",
+  "id": "tem_01m6tq6r80kwt2gkdn",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1688,7 +1688,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/repo
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=35;t=60
+ratelimit: "write";r=23;t=60
 ```
 
 ### `teams.repos.set`
@@ -1744,13 +1744,13 @@ curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/repos/n
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=24;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80f721nfmg",
+  "id": "tem_01m6tq6r80kwt2gkdn",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1932,6 +1932,93 @@ ratelimit: "heavy";r=114;t=60
 }
 ```
 
+### `inbox.list`
+
+`GET /inbox`
+
+**What needs you now**
+
+Stopped mirrors, failing builds, your blocked changes, reviews waiting on you, pipeline steps waiting on you, runs no runner can take, issues assigned to you and unread mentions, in the repositories you can read. Most costly first, then newest. A queue is short by design: not paged, at most 100.
+
+| About      |                        |
+| ---------- | ---------------------- |
+| Safety     | `read`, safe to repeat |
+| Needs      | a token                |
+| Scopes     | none                   |
+| Rate limit | `read` pool, 1 unit    |
+| Success    | `200`, a `inbox`       |
+
+**Query parameters**
+
+| Name    | Type                     | Notes         |
+| ------- | ------------------------ | ------------- |
+| `limit` | integer (min 1, max 100) | Default `50`. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`invalid_request`](/docs/api/errors#invalid_request), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/inbox?limit=3" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"WY6FoRzmgXfV3vPk"
+ratelimit: "read";r=1143;t=60
+```
+
+```json
+{
+  "object": "inbox",
+  "items": [
+    {
+      "object": "inbox_item",
+      "id": "mirror:dana/gitfs:gitlab",
+      "kind": "mirror_stopped",
+      "severity": "stopped",
+      "title": "Mirror to gitlab stopped",
+      "repo": "dana/gitfs",
+      "note": "Authentication failed. Reconnect GitLab.",
+      "action": "fix",
+      "path": "/dana/gitfs/settings?section=mirrors",
+      "subject": null,
+      "created_at": "2026-11-04T09:00:00.000Z"
+    },
+    {
+      "object": "inbox_item",
+      "id": "blocked:dana/gitfs:216",
+      "kind": "change_blocked",
+      "severity": "blocked",
+      "title": "#216 Cache negative ref lookups is blocked",
+      "repo": "dana/gitfs",
+      "note": "Policy blocks it: 2 requirements not met.",
+      "action": "fix",
+      "path": "/dana/gitfs/changes?n=216",
+      "subject": {
+        "type": "change",
+        "number": 216
+      },
+      "created_at": "2026-11-07T10:00:00.006Z"
+    },
+    "…and 1 more"
+  ],
+  "counts": {
+    "stopped": 1,
+    "failing": 0,
+    "blocked": 1,
+    "review": 2,
+    "handoff": 0,
+    "assigned": 1,
+    "mention": 0,
+    "total": 5
+  }
+}
+```
+
 ### `invitations.accept`
 
 `POST /invitations/accept`
@@ -1971,7 +2058,7 @@ Send the token from the link in the email. You join with the role the invitation
 curl -X POST "https://api.source.code/v1/invitations/accept" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"token":"sxi_Wfd7C8y1J89ucjCi2V7MXNNIIGm8Xbci"}'
+  -d '{"token":"sxi_gNXQGIhXPeH003y_4biZFjqQZ8wXR-Ao"}'
 ```
 
 ```http
@@ -2008,12 +2095,12 @@ Newest first. What reaches it follows your preferences, and something about a re
 
 **Query parameters**
 
-| Name     | Type                                                              | Notes                                                              |
-| -------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `limit`  | integer (min 1, max 200)                                          | Default `50`. Items per page, 1 to 200. Larger values are clamped. |
-| `cursor` | string                                                            | `next_cursor` from the previous page, exactly as returned          |
-| `unread` | `true` or `false`                                                 | Only unread ones                                                   |
-| `kind`   | `review` or `mention` or `release` or `ci` or `issue` or `import` |                                                                    |
+| Name     | Type                                                                           | Notes                                                              |
+| -------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `limit`  | integer (min 1, max 200)                                                       | Default `50`. Items per page, 1 to 200. Larger values are clamped. |
+| `cursor` | string                                                                         | `next_cursor` from the previous page, exactly as returned          |
+| `unread` | `true` or `false`                                                              | Only unread ones                                                   |
+| `kind`   | `handoff` or `review` or `mention` or `release` or `ci` or `issue` or `import` |                                                                    |
 
 **Errors**
 
@@ -2028,8 +2115,8 @@ curl "https://api.source.code/v1/notifications?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.8.2-7gMDZxP-jx4j5GVU"
-ratelimit: "read";r=1139;t=60
+etag: W/"dana.8.4-K58HAIxv5z0QxThw"
+ratelimit: "read";r=1133;t=60
 ```
 
 ```json
@@ -2095,7 +2182,7 @@ curl -X POST "https://api.source.code/v1/notifications/ntf_01m6tq6r80bcjy602t/re
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=49;t=60
+ratelimit: "write";r=37;t=60
 ```
 
 ### `notifications.count`
@@ -2127,8 +2214,8 @@ curl "https://api.source.code/v1/notifications/count" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.8.2-6oLkGm-GCsFXp9Zk"
-ratelimit: "read";r=1138;t=60
+etag: W/"dana.8.4-cdDRVa-SJA3uQa9Y"
+ratelimit: "read";r=1132;t=60
 ```
 
 ```json
@@ -2165,13 +2252,14 @@ curl "https://api.source.code/v1/notifications/preferences" \
 
 ```http
 HTTP/1.1 200
-etag: W/"Bju-rRirgHUpJAq-"
-ratelimit: "read";r=1136;t=60
+etag: W/"NEDeJpHfBELx3I9Y"
+ratelimit: "read";r=1130;t=60
 ```
 
 ```json
 {
   "object": "notification_preferences",
+  "handoff": true,
   "review": true,
   "mention": true,
   "release": true,
@@ -2202,6 +2290,7 @@ Send only what changes. Turning a kind off stops new ones; what is already in th
 
 | Member    | Type    | Notes |
 | --------- | ------- | ----- |
+| `handoff` | boolean |       |
 | `review`  | boolean |       |
 | `mention` | boolean |       |
 | `release` | boolean |       |
@@ -2225,12 +2314,13 @@ curl -X PATCH "https://api.source.code/v1/notifications/preferences" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=47;t=60
+ratelimit: "write";r=35;t=60
 ```
 
 ```json
 {
   "object": "notification_preferences",
+  "handoff": true,
   "review": true,
   "mention": true,
   "release": false,
@@ -2268,7 +2358,7 @@ curl -X POST "https://api.source.code/v1/notifications/read" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=48;t=60
+ratelimit: "write";r=36;t=60
 ```
 
 ### `people.list`
@@ -2381,8 +2471,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/integrations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.int1.1-7pElIC77C7_aUa4w"
-ratelimit: "read";r=1142;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.int1.3-lg2b_cbZq8ASWDxZ"
+ratelimit: "read";r=1136;t=60
 ```
 
 ```json
@@ -2456,7 +2546,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/integrations/boat" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=54;t=60
+ratelimit: "write";r=42;t=60
 ```
 
 ```json

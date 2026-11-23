@@ -281,3 +281,21 @@ export function makeClient(): ApiClient {
 export function clientFor(base: string, token: string, transport: Transport) {
   return new ApiClient(base, token, transport, 'network')
 }
+
+/**
+ * A client for a runner's own token (`SX_RUNNER_TOKEN`): the network when
+ * `SX_API` is set, else the sample in this process.
+ */
+export function runnerClient(token: string): ApiClient {
+  const api = resolve('api').value
+  if (api) {
+    const base = api.replace(/\/$/, '')
+    return new ApiClient(base, token, (req) => fetch(req), 'network')
+  }
+  return new ApiClient(
+    SAMPLE_BASE,
+    token,
+    async (req) => (await sampleApi()).fetch(req),
+    'sample',
+  )
+}

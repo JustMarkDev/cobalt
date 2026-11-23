@@ -1,4 +1,9 @@
 import { apiError } from '../problem'
+import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
+import type { NeedsFacts } from '../inbox'
+import { WAIT_DEFAULT_MS } from '../lifecycles'
+import { waitingForLabels } from '../runners'
+import type { Principal } from '../auth'
 import type { EventRecord } from '../events'
 import type { GitCommit } from '../git'
 import type { RepoRec, Viewer } from './records'
@@ -150,6 +155,189 @@ export abstract class DomainInsights extends DomainImports {
     return `${r.id}.ins${r.rev}.${r.changeRev}.${r.issueRev}.${d}.${Math.floor(this.now() / DAY)}.${this.accessRevision}`
   }
 
+  /**
+   * The facts behind "what needs you". `owned` are the repositories whose
+   * mirrors and main branch are the viewer's to watch; `all` adds what only
+   * the inbox shows: their own blocked or failing changes, unread mentions,
+   * steps waiting on them and runs no runner can take.
+   */
+  protected needsFacts(
+    p: Principal,
+    owned: Array<RepoRec>,
+    all: boolean,
+  ): NeedsFacts {
+    const me = p.handle
+    const full = (r: RepoRec) => `${r.owner}/${r.name}`
+    const f: NeedsFacts = {
+      mirrors: [],
+      mainFailures: [],
+      toReview: [],
+      assigned: [],
+    }
+    for (const r of owned) {
+      if (!this.canRead(r, p)) continue
+      this.settleTimers(r)
+      for (const m of this.memExtras.for(full(r)).mirrors)
+        if (m.state === 'failing')
+          f.mirrors.push({
+            repo: full(r),
+            host: m.host,
+            detail: m.detail ?? null,
+            lastSync: m.lastSync,
+          })
+      const main = (r.pipelines ?? []).find(
+        (x) =>
+          x.branch === 'main' &&
+          x.status !== 'queued' &&
+          x.status !== 'running' &&
+          x.status !== 'waiting',
+      )
+      if (main?.status === 'failure')
+        f.mainFailures.push({
+          repo: full(r),
+          number: main.number,
+          workflow: main.workflow,
+          title: main.title,
+          started: main.started,
+        })
+    }
+    for (const r of this.repos.values())
+      if (this.canWrite(r, p))
+        for (const c of r.changes.values())
+          if (
+            c.state === 'open' &&
+            c.author.handle !== me &&
+            !c.reviews.some((x) => x.actor.handle === me && x.carries) &&
+            this.seesChange(r, c, p)
+          )
+            f.toReview.push({
+              repo: full(r),
+              number: c.number,
+              title: c.title,
+              author: c.author.handle,
+              updated: c.updated,
+            })
+    for (const r of this.repos.values())
+      if (this.canRead(r, p))
+        for (const i of r.issues.values())
+          if (i.state === 'open' && i.assignees?.some((a) => a.handle === me))
+            f.assigned.push({
+              repo: full(r),
+              number: i.number,
+              title: i.title,
+              updated: i.updated,
+            })
+    if (!all) return f
+    f.blocked = []
+    f.checksFailing = []
+    f.waiting = []
+    f.noRunner = []
+    for (const r of this.repos.values()) {
+      if (!this.canRead(r, p)) continue
+      for (const c of r.changes.values()) {
+        if (c.state !== 'open' || c.author.handle !== me) continue
+        const reqs = this.evaluate(r, c)
+        if (this.policyState(reqs) === 'blocked')
+          f.blocked.push({
+            repo: full(r),
+            number: c.number,
+            title: c.title,
+            updated: c.updated,
+            blocking: this.unmet(reqs),
+          })
+        const checks = this.checksFor(c)
+        if (checks.state === 'fail')
+          f.checksFailing.push({
+            repo: full(r),
+            number: c.number,
+            title: c.title,
+            updated: c.updated,
+            failed: checks.failed,
+          })
+      }
+      this.settleTimers(r)
+      const runners = [...this.runners.values()]
+      for (const run of r.pipelines ?? []) {
+        if (run.status === 'waiting' || run.status === 'running')
+          for (const [ji, j] of run.jobs.entries())
+            for (const [si, s] of j.steps.entries())
+              if (
+                s.status === 'waiting' &&
+                s.wait &&
+                s.wait.kind !== 'agent' &&
+                (s.wait.target ?? run.actor) === me
+              )
+                f.waiting.push({
+                  repo: full(r),
+                  run: run.number,
+                  job: ji + 1,
+                  step: si + 1,
+                  workflow: run.workflow,
+                  stepName: s.name,
+                  reason: s.wait.reason,
+                  expires: s.wait.expires,
+                  since: s.wait.expires - WAIT_DEFAULT_MS,
+                })
+        if (
+          (run.status === 'queued' || run.status === 'running') &&
+          run.actor === me
+        )
+          for (const j of run.jobs) {
+            if (j.status !== 'queued') continue
+            const labels = waitingForLabels(
+              j.runsOn ?? [],
+              runners,
+              r.owner,
+              r.name,
+            )
+            if (labels) {
+              f.noRunner.push({
+                repo: full(r),
+                run: run.number,
+                workflow: run.workflow,
+                labels,
+                started: run.started,
+              })
+              break
+            }
+          }
+      }
+    }
+    f.mentions = (this.inboxes.get(me) ?? [])
+      .filter(
+        (x) =>
+          x.kind === 'mention' &&
+          x.unread &&
+          (!x.repo ||
+            !x.repo.includes('/') ||
+            (this.repos.get(x.repo) &&
+              this.canRead(this.repos.get(x.repo)!, p))),
+      )
+      .map((x) => ({
+        id: x.id,
+        title: x.title,
+        repo: x.repo,
+        path: x.path,
+        created: x.created,
+      }))
+    return f
+  }
+
+  /** What needs the viewer: everything they can read, across their accounts. */
+  async inbox(p: Viewer, limit: number) {
+    if (!p) throw apiError('unauthenticated', 'Sign in to see your inbox.')
+    const owners = new Set(
+      [...this.accounts.values()]
+        .filter((a) => this.isMember(a.handle, p.handle))
+        .map((a) => a.handle),
+    )
+    const owned = [...this.repos.values()].filter((r) => owners.has(r.owner))
+    return presentInbox(
+      needsFrom(this.needsFacts(p, owned, true)),
+      Math.min(limit, INBOX_MAX),
+    )
+  }
+
   /** The signed-in person's (or the account they act as) dashboard. */
   async dashboard(p: Viewer, as?: string) {
     if (!p) throw apiError('unauthenticated', 'Sign in to see your dashboard.')
@@ -164,77 +352,7 @@ export abstract class DomainInsights extends DomainImports {
     const ago = (t: number) => new Date(t).toISOString()
 
     // What needs this person, most costly to leave first.
-    const needs: Array<{
-      severity: 'stopped' | 'failing' | 'review' | 'assigned'
-      title: string
-      repo: string
-      note: string
-      at: string
-      action: string
-      path: string
-    }> = []
-    for (const r of owned)
-      for (const m of this.memExtras.for(full(r)).mirrors)
-        if (m.state === 'failing')
-          needs.push({
-            severity: 'stopped',
-            title: `Mirror to ${m.host} stopped`,
-            repo: full(r),
-            note: m.detail ?? 'It stopped syncing.',
-            at: ago(m.lastSync),
-            action: 'Reconnect',
-            path: path(r, '/settings?section=mirrors'),
-          })
-    for (const r of owned) {
-      const main = (r.pipelines ?? []).find(
-        (x) =>
-          x.branch === 'main' &&
-          x.status !== 'queued' &&
-          x.status !== 'running',
-      )
-      if (main?.status === 'failure')
-        needs.push({
-          severity: 'failing',
-          title: `${main.workflow} is failing on main`,
-          repo: full(r),
-          note: main.title,
-          at: ago(main.started),
-          action: 'See the run',
-          path: path(r, `/pipelines?n=${main.number}`),
-        })
-    }
-    const writable = [...this.repos.values()].filter((r) => this.canWrite(r, p))
-    for (const r of writable)
-      for (const c of r.changes.values())
-        if (
-          c.state === 'open' &&
-          c.author.handle !== me &&
-          !c.reviews.some((x) => x.actor.handle === me && x.carries)
-        )
-          needs.push({
-            severity: 'review',
-            title: `Review #${c.number} ${c.title}`,
-            repo: full(r),
-            note: `${c.author.handle} opened it.`,
-            at: ago(c.updated),
-            action: 'Review',
-            path: path(r, `/changes?n=${c.number}`),
-          })
-    for (const r of this.repos.values())
-      if (this.canRead(r, p))
-        for (const i of r.issues.values())
-          if (i.state === 'open' && i.assignees?.some((a) => a.handle === me))
-            needs.push({
-              severity: 'assigned',
-              title: `#${i.number} ${i.title}`,
-              repo: full(r),
-              note: 'Assigned to you.',
-              at: ago(i.updated),
-              action: 'Open',
-              path: path(r, `/issues?n=${i.number}`),
-            })
-    const rank = { stopped: 0, failing: 1, review: 2, assigned: 3 }
-    needs.sort((a, b) => rank[a.severity] - rank[b.severity])
+    const needs = dashboardNeeds(needsFrom(this.needsFacts(p, owned, false)))
 
     // Moving without them: agents' changes and runs in progress.
     const progress: Array<{
@@ -340,7 +458,8 @@ export abstract class DomainInsights extends DomainImports {
             (x) =>
               x.branch === 'main' &&
               x.status !== 'queued' &&
-              x.status !== 'running',
+              x.status !== 'running' &&
+              x.status !== 'waiting',
           )
           const shown = this.presentRepo(r)
           return {

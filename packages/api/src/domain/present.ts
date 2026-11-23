@@ -1,5 +1,6 @@
 import { globMatcher } from '../glob'
 import {
+  allowedPathsRequirement,
   approvalsOf,
   policyRules,
   reviewedRequirement,
@@ -48,6 +49,11 @@ export function describeCustomRule(r: CustomRuleRec) {
     return {
       when: 'any change',
       requires: [`at most ${r.maxLines} lines added and removed`],
+    }
+  if (r.kind === 'allowed_paths')
+    return {
+      when: 'any change',
+      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
     }
   const n = r.approvals ?? 1
   return {
@@ -369,6 +375,7 @@ export abstract class DomainPresent extends DomainAccess {
         blocking: [],
       }
     }
+    if (r.kind === 'allowed_paths') return allowedPathsRequirement(r, head)
     const globs = (r.paths ?? []).map((g) => globMatcher(g))
     const touched = Object.keys(head.files).filter((f) =>
       globs.some((g) => g.test(f)),

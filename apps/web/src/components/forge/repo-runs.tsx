@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   MinusCircleIcon,
+  PauseCircleIcon,
   PlayIcon,
   StopIcon,
   XCircleIcon,
@@ -64,8 +65,15 @@ function StatusIcon({
   if (status === 'queued')
     return (
       <ClockIcon
-        aria-label="Waiting"
+        aria-label="Queued"
         className={cn(c, 'text-muted-foreground')}
+      />
+    )
+  if (status === 'waiting')
+    return (
+      <PauseCircleIcon
+        aria-label="Waiting on someone"
+        className={cn(c, 'text-info')}
       />
     )
   return (
@@ -80,7 +88,8 @@ const statusLabel: Record<RunStatus, string> = {
   success: 'Passed',
   failure: 'Failed',
   running: 'Running',
-  queued: 'Waiting',
+  waiting: 'Waiting',
+  queued: 'Queued',
   canceled: 'Canceled',
 }
 
@@ -88,6 +97,7 @@ const statusTone = {
   success: 'success',
   failure: 'danger',
   running: 'warning',
+  waiting: 'info',
   queued: 'muted',
   canceled: 'muted',
 } as const
@@ -471,21 +481,27 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
                 label="Fix with an agent"
               />
             )}
-            {(status === 'running' || status === 'queued') && (
+            {(status === 'running' ||
+              status === 'queued' ||
+              status === 'waiting') && (
               <Button variant="outline" size="sm" onClick={cancel}>
                 <StopIcon className="size-3.5" />
                 Cancel
               </Button>
             )}
-            {status !== 'running' && status !== 'queued' && (
-              <Button variant="outline" size="sm" onClick={rerun}>
-                <ArrowPathIcon className="size-3.5" />
-                Run again
-              </Button>
-            )}
+            {status !== 'running' &&
+              status !== 'queued' &&
+              status !== 'waiting' && (
+                <Button variant="outline" size="sm" onClick={rerun}>
+                  <ArrowPathIcon className="size-3.5" />
+                  Run again
+                </Button>
+              )}
           </div>
         </div>
       </div>
+
+      <WaitingPanel repo={repo} detail={detail} />
 
       {detail.annotations.length > 0 && (
         <Panel className="overflow-hidden text-sm">
@@ -549,8 +565,16 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{j.name}</span>
                 <span className="block text-xs font-normal text-muted-foreground">
-                  {j.runner}
+                  {j.status === 'queued' && j.waitingFor
+                    ? `Waiting for a runner with: ${j.waitingFor.join(', ')}`
+                    : j.runner ||
+                      (j.status === 'queued' ? 'Queued for a runner' : '')}
                 </span>
+                {j.runsOn.length > 0 && (
+                  <span className="block truncate font-mono text-[11px] font-normal text-muted-foreground">
+                    runs-on: {j.runsOn.join(', ')}
+                  </span>
+                )}
               </span>
               <span className="font-mono text-xs text-muted-foreground">
                 {j.time}
@@ -614,6 +638,88 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * What a waiting run waits for, and the button that answers it. The step
+ * resumes as passed or failed in one write; the runner holding the job
+ * carries on from there. An agent resumes it from its own login with the
+ * command shown.
+ */
+function WaitingPanel({ repo, detail }: { repo: Repo; detail: RunDetail }) {
+  const write = useWrite()
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState('')
+  const waiting = detail.jobs.flatMap((j, ji) =>
+    j.steps.flatMap((s, si) =>
+      s.status === 'waiting' && s.wait
+        ? [{ job: ji + 1, step: si + 1, jobName: j.name, s, wait: s.wait }]
+        : [],
+    ),
+  )
+  if (!waiting.length) return null
+  const resume = (job: number, step: number, status: 'success' | 'failure') => {
+    setBusy(true)
+    void write('pipelines.resume', {
+      owner: repo.owner,
+      repo: repo.name,
+      run: detail.run.id,
+      job,
+      step,
+      body: { status },
+    }).then((r) => {
+      setBusy(false)
+      setError(r.error?.message ?? '')
+    })
+  }
+  return (
+    <Panel className="overflow-hidden border-info/40 text-sm">
+      {waiting.map((w) => (
+        <div
+          key={`${w.job}/${w.step}`}
+          className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+        >
+          <div className="min-w-0 space-y-1">
+            <p className="flex items-center gap-2 font-medium">
+              <PauseCircleIcon className="size-4 text-info" />
+              {w.wait.kind === 'agent'
+                ? `Waiting on ${w.wait.target ?? 'an agent'}`
+                : w.wait.target
+                  ? `Waiting on ${w.wait.target}`
+                  : 'Waiting on you'}
+            </p>
+            <p>{w.wait.reason}</p>
+            <p className="text-xs text-muted-foreground">
+              {w.jobName} · {w.s.name} · fails{' '}
+              {new Date(w.wait.expiresAt).toLocaleString()} if nobody resumes it
+            </p>
+            <p className="font-mono text-xs break-all text-muted-foreground">
+              sx pipeline resume {detail.run.id} --job {w.job} --step {w.step}{' '}
+              --status success --note "…"
+            </p>
+            {error && <p className="text-danger">{error}</p>}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() => resume(w.job, w.step, 'failure')}
+            >
+              Mark failed
+            </Button>
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={() => resume(w.job, w.step, 'success')}
+            >
+              Resume
+            </Button>
+          </div>
+        </div>
+      ))}
+    </Panel>
   )
 }
 

@@ -1,3 +1,4 @@
+import { settleRunsOn } from '../runs-on'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { Domain, defineOp, reply } from '../registry'
@@ -36,7 +37,7 @@ export const listPipelineRuns = defineOp({
   query: z.strictObject({
     ...pageShape,
     status: z
-      .enum(['queued', 'running', 'success', 'failure', 'canceled'])
+      .enum(['queued', 'running', 'waiting', 'success', 'failure', 'canceled'])
       .optional(),
     workflow: z.string().max(100).optional(),
   }),
@@ -81,6 +82,7 @@ export const getPipelineRun = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
+      yield* run((d) => settleRunsOn(d))
       return yield* run((d) =>
         d.getPipelineRun(
           ctx.params.owner,
@@ -179,6 +181,7 @@ export const claimPipelineJob = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
+      yield* run((d) => settleRunsOn(d))
       const j = yield* run((d) =>
         d.claimPipelineJob(
           ctx.params.owner,
@@ -296,6 +299,109 @@ export const cancelPipeline = defineOp({
     }),
 })
 
+const stepParams = runParams.extend({
+  job: z.coerce.number().int().min(1),
+  step: z.coerce.number().int().min(1),
+})
+
+const logLines = z
+  .array(
+    z.strictObject({
+      text: z.string().max(4000),
+      level: z
+        .enum(['cmd', 'info', 'ok', 'warn', 'error'])
+        .nullable()
+        .optional(),
+    }),
+  )
+  .max(1000)
+
+export const waitPipelineStep = defineOp({
+  ...write,
+  id: 'pipelines.wait',
+  summary: 'Pause a running step for a person or an agent',
+  description:
+    'The step, its job and (when nothing else of it runs) the run wait. A waiting job keeps its runner and is never claimed again. A `person` or `approval` wait tells its `target` (or whoever started the run) in their inbox. The wait ends at `expires_at`, 7 days by default and at most 30; if nobody resumes it by then, the step and the run fail.',
+  method: 'POST',
+  path: '/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/wait',
+  idempotent: true,
+  params: stepParams,
+  body: z.strictObject({
+    kind: z.enum(['person', 'agent', 'approval']),
+    reason: z.string().min(1).max(500),
+    target: z
+      .string()
+      .min(1)
+      .max(100)
+      .nullable()
+      .optional()
+      .describe('A handle, or an agent as you name it'),
+    expires_at: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe('Within 30 days; 7 days from now if left out'),
+  }),
+  response: S.PipelineRun,
+  errors: [
+    'not_found',
+    'forbidden',
+    'invalid_state',
+    'invalid_request',
+    'moved',
+  ],
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      return yield* run((d) =>
+        d.waitPipelineStep(
+          ctx.params.owner,
+          ctx.params.repo,
+          ctx.params.run,
+          ctx.params.job,
+          ctx.params.step,
+          ctx.principal,
+          ctx.body,
+          ctx.dryRun,
+        ),
+      )
+    }),
+})
+
+export const resumePipelineStep = defineOp({
+  ...write,
+  id: 'pipelines.resume',
+  summary: 'Resume a waiting step with how it ended',
+  description:
+    'In one write the step runs again and ends as `success` or `failure`, with the lines and summary given added to its log. A failure skips the rest of its job. The runner that holds the job carries on from the next step.',
+  method: 'POST',
+  path: '/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/resume',
+  idempotent: false,
+  params: stepParams,
+  body: z.strictObject({
+    status: z.enum(['success', 'failure']),
+    summary: z.string().min(1).max(2000).optional(),
+    lines: logLines.optional(),
+  }),
+  response: S.PipelineRun,
+  errors: ['not_found', 'forbidden', 'invalid_state', 'moved'],
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      return yield* run((d) =>
+        d.resumePipelineStep(
+          ctx.params.owner,
+          ctx.params.repo,
+          ctx.params.run,
+          ctx.params.job,
+          ctx.params.step,
+          ctx.principal,
+          ctx.body,
+          ctx.dryRun,
+        ),
+      )
+    }),
+})
+
 export const pipelineOps = [
   listPipelineRuns,
   startPipeline,
@@ -305,4 +411,30 @@ export const pipelineOps = [
   getPipelineLog,
   rerunPipeline,
   cancelPipeline,
+  waitPipelineStep,
+  resumePipelineStep,
 ]
+
+export const listTriggers = defineOp({
+  ...read,
+  id: 'triggers.list',
+  summary: 'What starts a workflow in a repository',
+  description:
+    'The triggers in `.source/triggers/*.yml` on the default branch, as they were read when they last landed, with any errors and what each did lately. Read-only: the files are the API, and a change to them is a change.',
+  method: 'GET',
+  path: '/repos/{owner}/{repo}/triggers',
+  params: repoParams,
+  response: S.TriggerSet,
+  errors: ['not_found', 'moved'],
+  probe: (ctx, d) =>
+    d.triggersVersion(ctx.params.owner, ctx.params.repo, ctx.principal),
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      return yield* run((d) =>
+        d.getTriggers(ctx.params.owner, ctx.params.repo, ctx.principal),
+      )
+    }),
+})
+
+export const triggerOps = [listTriggers]

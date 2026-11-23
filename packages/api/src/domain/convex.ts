@@ -1,4 +1,7 @@
 import { receiptFor } from '../receipt'
+import { runsOnOf } from '../workflow'
+import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
+import type { NeedsFacts } from '../inbox'
 import { ConvexError } from 'convex/values'
 import { apiError } from '../problem'
 import { Pre } from '../registry'
@@ -6,7 +9,7 @@ import { pageSorted } from '../cursor'
 import { heldKey } from '../idempotency'
 import { healthAreas, reportFrom } from '../health'
 import type { HealthReader } from '../health'
-import { parseEvent } from '../events'
+import { hiddenEvent, parseEvent } from '../events'
 import type { StoredEvent } from '../events'
 import type { SearchDoc } from '../search'
 import type { MirrorRec } from '../extras'
@@ -50,6 +53,8 @@ export function claimsOf(who: Principal | 'system') {
   if (via.model) claims.sx_model = via.model
   if (who.session) claims.sx_ses = 'true'
   if (who.repos) claims.sx_rep = who.repos.join(',')
+  if (who.paths) claims.sx_pth = JSON.stringify(who.paths)
+  if (who.runnerId) claims.sx_run = who.runnerId
   // A write under an Idempotency-Key marks the key in its own transaction.
   const held = heldKey.getStore()
   if (held) claims.sx_idem = JSON.stringify([held.scope, held.key, held.lease])
@@ -880,15 +885,24 @@ export class ConvexDomain implements DomainPort {
     // Access is asked of Convex, so it is worked out for the repositories in
     // the window first, then the page is read as the memory domain reads it.
     const allowed = new Map<string | null, boolean>()
+    const hidden = new Map<string | null, Set<number>>()
     for (const e of source)
-      if (!allowed.has(e.repoId)) allowed.set(e.repoId, await can(e.repoId))
+      if (!allowed.has(e.repoId)) {
+        allowed.set(e.repoId, await can(e.repoId))
+        // Changes under an access rule the viewer does not read leave no trace.
+        if (allowed.get(e.repoId))
+          hidden.set(e.repoId, await this.hiddenChanges(e.repoId, p))
+      }
     const page = pageSorted(source, (e) => e.sequence, seqId, {
       limit: q.limit,
       after: q.after,
       desc: false,
       stored: 'asc',
       match: (e) =>
-        typeOk(e.type) && scopeOk(e.type) && !!allowed.get(e.repoId),
+        typeOk(e.type) &&
+        scopeOk(e.type) &&
+        !!allowed.get(e.repoId) &&
+        !hiddenEvent(e, hidden.get(e.repoId)),
     })
     return {
       items: page.items.map(
@@ -916,6 +930,12 @@ export class ConvexDomain implements DomainPort {
     }>('sync:snapshot', { full, at: this.now() }, p)
     const repoId = snap.id
     const head = this.events.head
+    // Changes under an access rule the viewer does not read leave no trace.
+    const hidden = await this.hiddenChanges(repoId, p)
+    if (hidden.size)
+      snap.objects = snap.objects.filter(
+        (o) => !(o.object === 'change' && hidden.has(o.number as number)),
+      )
     const snapshot = (from: number, at: number, reset: boolean) => {
       const slice = snap.objects.slice(from, from + q.limit)
       const more = from + q.limit < snap.objects.length
@@ -977,7 +997,8 @@ export class ConvexDomain implements DomainPort {
       (e) =>
         e.repoId === repoId &&
         scopeOk(e.type) &&
-        /^(repo|change|issue|finding|check|ci)\./.test(e.type),
+        /^(repo|change|issue|finding|check|ci)\./.test(e.type) &&
+        !hiddenEvent(e, hidden),
     )
     const latest = new Map<string, Record<string, unknown>>()
     const deleted = new Map<string, { object: string; id: string }>()
@@ -1039,7 +1060,35 @@ export class ConvexDomain implements DomainPort {
     } catch {
       // No history in the store: it starts on the commit it last ran on.
     }
-    return this.m('pipelines:start', { owner, name, ...body, sha, dry }, p)
+    // What the workflow file at the branch says about runs-on, when it is there.
+    let runsOn:
+      | { jobs: Record<string, Array<string>>; warnings: Array<string> }
+      | undefined
+    const file = await this.q<string | null>(
+      'pipelines:lastFile',
+      { owner, name, workflow: body.workflow },
+      p,
+    )
+    if (file) {
+      let bytes: Uint8Array | null = null
+      try {
+        bytes = await this.svc.git.blob(full, file, body.branch)
+      } catch {
+        bytes = null
+      }
+      if (bytes) {
+        const read = runsOnOf(new TextDecoder().decode(bytes))
+        runsOn = {
+          jobs: Object.fromEntries(read.jobs),
+          warnings: read.warnings,
+        }
+      }
+    }
+    return this.m(
+      'pipelines:start',
+      { owner, name, ...body, sha, runsOn, dry },
+      p,
+    )
   }
   claimPipelineJob: Port['claimPipelineJob'] = (owner, name, p, body) =>
     this.m('pipelines:claim', { owner, name, runner: body.runner }, p)
@@ -1054,6 +1103,83 @@ export class ConvexDomain implements DomainPort {
   ) => this.m('pipelines:report', { owner, name, n, job, step, ...body }, p)
   cancelPipeline: Port['cancelPipeline'] = (owner, name, n, p, dry) =>
     this.m('pipelines:cancel', { owner, name, n, dry }, p)
+  waitPipelineStep: Port['waitPipelineStep'] = (
+    owner,
+    name,
+    n,
+    job,
+    step,
+    p,
+    body,
+    dry,
+  ) => this.m('pipelines:wait', { owner, name, n, job, step, ...body, dry }, p)
+  resumePipelineStep: Port['resumePipelineStep'] = (
+    owner,
+    name,
+    n,
+    job,
+    step,
+    p,
+    body,
+    dry,
+  ) =>
+    this.m('pipelines:resume', { owner, name, n, job, step, ...body, dry }, p)
+
+  // ---- access rules ----------------------------------------------------------------
+
+  listAccessRules: Port['listAccessRules'] = (owner, name, p) =>
+    this.q('access:list', { owner, name }, p)
+  putAccessRule: Port['putAccessRule'] = (owner, name, id, p, body, dry) =>
+    this.m('access:put', { owner, name, id, ...body, dry }, p)
+  deleteAccessRule: Port['deleteAccessRule'] = async (
+    owner,
+    name,
+    id,
+    p,
+    dry,
+  ) => {
+    await this.m('access:remove', { owner, name, id, dry }, p)
+  }
+  accessView: Port['accessView'] = (owner, name, p) =>
+    this.q('access:view', { owner, name }, p)
+  hiddenChanges: Port['hiddenChanges'] = async (id, p) =>
+    id
+      ? new Set(await this.q<Array<number>>('access:hiddenChanges', { id }, p))
+      : new Set()
+
+  // ---- triggers --------------------------------------------------------------------
+
+  getTriggers: Port['getTriggers'] = (owner, name, p) =>
+    this.q('triggers:get', { owner, name }, p)
+  triggersVersion: Port['triggersVersion'] = (owner, name, p) =>
+    this.q('triggers:version', { owner, name }, p)
+
+  pendingRunsOn: Port['pendingRunsOn'] = () =>
+    this.q('pipelines:pendingRunsOn', {}, 'system')
+  setRunsOn: Port['setRunsOn'] = async (owner, name, n, read) => {
+    await this.m('pipelines:setRunsOn', { owner, name, n, read }, 'system')
+  }
+
+  // ---- runners ---------------------------------------------------------------------
+
+  createRunner: Port['createRunner'] = (p, body, dry) =>
+    this.m('runners:create', { ...body, dry }, p)
+  listRunners: Port['listRunners'] = (p, account) =>
+    this.q('runners:list', { account, now: this.now() }, p)
+  getRunner: Port['getRunner'] = (p, id) =>
+    this.q('runners:get', { id, now: this.now() }, p)
+  updateRunner: Port['updateRunner'] = (p, id, body, dry) =>
+    this.m('runners:update', { id, ...body, dry }, p)
+  deleteRunner: Port['deleteRunner'] = (p, id, dry) =>
+    this.m('runners:remove', { id, dry }, p)
+  runnerHeartbeat: Port['runnerHeartbeat'] = (p) =>
+    this.m('runners:heartbeat', {}, p)
+  runnerClaim: Port['runnerClaim'] = (p) => this.m('runners:claim', {}, p)
+  runnerReport: Port['runnerReport'] = (p, body) =>
+    this.m('runners:report', { ...body }, p)
+  runnerWait: Port['runnerWait'] = (p, body) =>
+    this.m('runners:wait', { ...body }, p)
+  runnerJobs: Port['runnerJobs'] = (p, id) => this.q('runners:jobs', { id }, p)
 
   // ---- policy rules -------------------------------------------------------------
 
@@ -1380,6 +1506,36 @@ export class ConvexDomain implements DomainPort {
       p,
     )
 
+  private failingMirrors(
+    repos: Array<string>,
+    mirrorsOf: Map<string, Array<MirrorRec>>,
+  ) {
+    return repos.flatMap((repo) =>
+      (mirrorsOf.get(repo) ?? [])
+        .filter((m) => m.state === 'failing')
+        .map((m) => ({
+          repo,
+          host: m.host,
+          detail: m.detail ?? null,
+          lastSync: m.lastSync,
+        })),
+    )
+  }
+
+  inbox: Port['inbox'] = async (p, limit) => {
+    if (!p) throw apiError('unauthenticated', 'Sign in to see your inbox.')
+    const f = await this.q<
+      Omit<NeedsFacts, 'mirrors'> & { owned: Array<string> }
+    >('inbox:facts', { at: this.now() }, p)
+    const mirrorsOf = new Map<string, Array<MirrorRec>>()
+    for (const repo of f.owned)
+      mirrorsOf.set(repo, (await this.svc.extras.open(repo)).mirrors)
+    return presentInbox(
+      needsFrom({ ...f, mirrors: this.failingMirrors(f.owned, mirrorsOf) }),
+      Math.min(limit, INBOX_MAX),
+    )
+  }
+
   dashboard: Port['dashboard'] = async (p, as) => {
     if (!p) throw apiError('unauthenticated', 'Sign in to see your dashboard.')
     const now = this.now()
@@ -1443,59 +1599,36 @@ export class ConvexDomain implements DomainPort {
         (x) =>
           x.branch === 'main' &&
           x.status !== 'queued' &&
-          x.status !== 'running',
+          x.status !== 'running' &&
+          x.status !== 'waiting',
       )
-    const needs: Awaited<ReturnType<Port['dashboard']>>['needs_you'] = []
     const mirrorsOf = new Map<string, Array<MirrorRec>>()
     for (const r of f.owned)
       mirrorsOf.set(r.repo, (await this.svc.extras.open(r.repo)).mirrors)
-    for (const r of f.owned)
-      for (const m of mirrorsOf.get(r.repo) ?? [])
-        if (m.state === 'failing')
-          needs.push({
-            severity: 'stopped',
-            title: `Mirror to ${m.host} stopped`,
-            repo: r.repo,
-            note: m.detail ?? 'It stopped syncing.',
-            at: ago(m.lastSync),
-            action: 'Reconnect',
-            path: path(r.repo, '/settings?section=mirrors'),
-          })
-    for (const r of f.owned) {
-      const main = mainOf(r.runs)
-      if (main?.status === 'failure')
-        needs.push({
-          severity: 'failing',
-          title: `${main.workflow} is failing on main`,
-          repo: r.repo,
-          note: main.title,
-          at: ago(main.started),
-          action: 'See the run',
-          path: path(r.repo, `/pipelines?n=${main.number}`),
-        })
-    }
-    for (const c of f.toReview)
-      needs.push({
-        severity: 'review',
-        title: `Review #${c.number} ${c.title}`,
-        repo: c.repo,
-        note: `${c.author} opened it.`,
-        at: ago(c.updated),
-        action: 'Review',
-        path: path(c.repo, `/changes?n=${c.number}`),
-      })
-    for (const i of f.assigned)
-      needs.push({
-        severity: 'assigned',
-        title: `#${i.number} ${i.title}`,
-        repo: i.repo,
-        note: 'Assigned to you.',
-        at: ago(i.updated),
-        action: 'Open',
-        path: path(i.repo, `/issues?n=${i.number}`),
-      })
-    const rank = { stopped: 0, failing: 1, review: 2, assigned: 3 }
-    needs.sort((a, b) => rank[a.severity] - rank[b.severity])
+    const needs = dashboardNeeds(
+      needsFrom({
+        mirrors: this.failingMirrors(
+          f.owned.map((r) => r.repo),
+          mirrorsOf,
+        ),
+        mainFailures: f.owned.flatMap((r) => {
+          const main = mainOf(r.runs)
+          return main?.status === 'failure'
+            ? [
+                {
+                  repo: r.repo,
+                  number: main.number,
+                  workflow: main.workflow,
+                  title: main.title,
+                  started: main.started,
+                },
+              ]
+            : []
+        }),
+        toReview: f.toReview,
+        assigned: f.assigned,
+      }),
+    )
     const progress: Awaited<ReturnType<Port['dashboard']>>['in_progress'] = []
     for (const r of f.owned) {
       for (const c of r.agentChanges)

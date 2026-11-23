@@ -170,12 +170,14 @@ export type World = {
     publicId: string
     hash: string
     name: string
-    kind: 'personal' | 'oauth'
+    kind: 'personal' | 'oauth' | 'runner'
     handle: string
     actingAs: string
     device: string | null
     scopes: Array<string>
     repos: Array<string> | null
+    paths?: Array<string> | null
+    runnerId?: string
     audience: Array<'api' | 'mcp'>
     prefix: string
     createdAt: number

@@ -20,8 +20,9 @@ The prefix says what a token is, so secret scanners can find a leaked one and yo
 | ------ | ---------------------------------------------------------------------------------- | --------------------------------------------- |
 | `sxp_` | A personal token you made, optionally named for the machine it is on               | 30, 60, 90 days or 1 year. Always expires.    |
 | `sxo_` | An OAuth access token: `sx auth login`, MCP clients, [OAuth](/docs/api/oauth) apps | 1 hour, renewed with a refresh token (`sxf_`) |
+| `sxr_` | A runner's token, made by `POST /v1/runners` and shown once                        | 1 year, or until the runner is revoked        |
 
-Tokens are stored as hashes and shown once. A token may be limited to named repositories. There is no separate kind of token for agents: an agent works under the login of the machine it runs on, or under a narrower personal token you made for it.
+Tokens are stored as hashes and shown once. A token may be limited to named repositories, and inside one repository to paths. There is no separate kind of token for agents: an agent works under the login of the machine it runs on, or under a narrower personal token you made for it.
 
 ## Log in once per machine
 
@@ -39,6 +40,8 @@ The response is the only time `secret` is shown. It needs the `tokens:manage` sc
 - **A token can never have a scope its creator lacks**, and never outlives a year.
 - `device` names the machine the token lives on. Receipts show it; without it they show the token's name.
 - **A token limited to repositories can only create tokens limited to the same ones.**
+- `paths` limits a token inside its one repository: `["docs/**"]` makes a token that changes nothing outside `docs/`. The globs are the ones policy rules use (`src/**` does not match `src` itself). A change made with it that touches, edits or deletes anything else is `403 forbidden`, and the hint names the first paths. It covers the API, `sx` and MCP. A `git push` carries no token, so it is not covered: the `allowed_paths` policy rule is, for everyone ([Policies](/docs/concepts/policies)). A token limited to paths can only create tokens limited to some of them.
+- Runner tokens (`sxr_`) are not listed here: they belong to [runners](/docs/api/reference/pipelines) and are revoked with them.
 - You can have 100 active tokens.
 - `GET /v1/tokens` lists yours without secrets, with `last_used_at` (updated at most once a minute, so reading a token never becomes a write per request). `DELETE /v1/tokens/{id}` revokes at once: the next request with it is `401 token_revoked`.
 - Someone else's token answers `404`, as if it did not exist.
@@ -55,23 +58,26 @@ It returns the login, the account the request acts as, the machine (`device`), t
 
 ## Scopes
 
-| Scope             | Allows                                                                  |
-| ----------------- | ----------------------------------------------------------------------- |
-| `repo:read`       | Read repositories, mirrors, uploads                                     |
-| `repo:write`      | Create repositories and mirrors, announce uploads                       |
-| `issues:read`     | Read issues                                                             |
-| `issues:comment`  | Comment on issues                                                       |
-| `issues:write`    | Open, edit and close issues                                             |
-| `pulls:read`      | Read changes, run policy simulations                                    |
-| `pulls:comment`   | Review, comment, resolve and dismiss findings                           |
-| `pulls:write`     | Create changes, add patch sets, report checks, attach evidence, abandon |
-| `pulls:merge`     | Land a change or a stack                                                |
-| `secrets:schema`  | Read names and kinds of environment variables, and your confirmations   |
-| `secrets:write`   | Set values (team only)                                                  |
-| `secrets:decrypt` | Read values (team only). A device login may ask; a web app never can    |
-| `webhooks:read`   | Read webhooks and their deliveries                                      |
-| `webhooks:write`  | Create, change, delete and replay webhooks                              |
-| `tokens:manage`   | Create and revoke tokens and authorizations. Never granted by OAuth     |
+| Scope             | Allows                                                                     |
+| ----------------- | -------------------------------------------------------------------------- |
+| `repo:read`       | Read repositories, mirrors, uploads                                        |
+| `repo:write`      | Create repositories and mirrors, announce uploads                          |
+| `issues:read`     | Read issues                                                                |
+| `issues:comment`  | Comment on issues                                                          |
+| `issues:write`    | Open, edit and close issues                                                |
+| `pulls:read`      | Read changes, run policy simulations                                       |
+| `pulls:comment`   | Review, comment, resolve and dismiss findings                              |
+| `pulls:write`     | Create changes, add patch sets, report checks, attach evidence, abandon    |
+| `pulls:merge`     | Land a change or a stack                                                   |
+| `secrets:schema`  | Read names and kinds of environment variables, and your confirmations      |
+| `secrets:write`   | Set values (team only)                                                     |
+| `secrets:decrypt` | Read values (team only). A device login may ask; a web app never can       |
+| `webhooks:read`   | Read webhooks and their deliveries                                         |
+| `webhooks:write`  | Create, change, delete and replay webhooks                                 |
+| `tokens:manage`   | Create and revoke tokens and authorizations. Never granted by OAuth        |
+| `runners:manage`  | Register, change and revoke runners of your account or organization        |
+| `runners:claim`   | A runner's own: send heartbeats and claim jobs. Never granted to people    |
+| `runners:report`  | A runner's own: report the steps of jobs it holds. Never granted to people |
 
 `pulls:*` is the scope family for changes. The names match the ones shown in **Settings, Agents and tokens**.
 

@@ -20,7 +20,11 @@ import type { QueryCtx } from '../_generated/server'
  */
 
 const audience = v.array(v.union(v.literal('api'), v.literal('mcp')))
-const tokenKind = v.union(v.literal('personal'), v.literal('oauth'))
+const tokenKind = v.union(
+  v.literal('personal'),
+  v.literal('oauth'),
+  v.literal('runner'),
+)
 
 const byPublicId = (ctx: QueryCtx, id: string) =>
   ctx.db
@@ -84,6 +88,8 @@ export const create = mutation({
     device: v.optional(v.union(v.null(), v.string())),
     scopes: v.array(v.string()),
     repos: v.optional(v.union(v.null(), v.array(v.string()))),
+    paths: v.optional(v.union(v.null(), v.array(v.string()))),
+    runnerId: v.optional(v.union(v.null(), v.string())),
     audience: v.optional(audience),
     ttlMs: v.number(),
     authorizationId: v.optional(v.string()),
@@ -121,7 +127,7 @@ export const list = query({
       .take(2000)
     const live = rows.filter(
       (t) =>
-        (t.kind === 'personal' || t.kind === 'oauth') &&
+        (t.kind === 'personal' || t.kind === 'oauth' || t.kind === 'runner') &&
         kinds.includes(t.kind) &&
         t.revokedAt === null,
     )
@@ -140,7 +146,11 @@ export const countActive = query({
       .take(2000)
     return out(
       rows.filter(
-        (t) => t.revokedAt === null && t.kind !== 'oauth' && t.expiresAt > at,
+        (t) =>
+          t.revokedAt === null &&
+          t.kind !== 'oauth' &&
+          t.kind !== 'runner' &&
+          t.expiresAt > at,
       ).length,
     )
   },

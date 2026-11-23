@@ -403,3 +403,165 @@ test('a landing step that fails keeps none of its writes', async () => {
   // though the operation says the step did not happen.
   expect(await l.countRuns()).toBe(before)
 })
+
+// ---- Waiting steps and runner leases ----------------------------------------------
+
+/** A run of `build` in dana/gitfs, its first job claimed by name and step 1 running. */
+async function runningStep(s: Awaited<ReturnType<typeof setup>>) {
+  const run = JSON.parse(
+    await s.dana().mutation(forge.forge.pipelines.start, {
+      owner: 'dana',
+      name: 'gitfs',
+      workflow: 'build',
+    }),
+  ) as { number: number }
+  let job: { run: number; job: number } | null = null
+  for (let i = 0; i < 30 && job?.run !== run.number; i++)
+    job = JSON.parse(
+      await s.dana().mutation(forge.forge.pipelines.claim, {
+        owner: 'dana',
+        name: 'gitfs',
+        runner: 'r1',
+      }),
+    )
+  await s.dana().mutation(forge.forge.pipelines.report, {
+    owner: 'dana',
+    name: 'gitfs',
+    n: run.number,
+    job: job!.job,
+    step: 1,
+    status: 'running',
+  })
+  return { n: run.number, job: job!.job }
+}
+
+const runOf = async (s: Awaited<ReturnType<typeof setup>>, n: number) =>
+  JSON.parse(
+    await s.dana().query(forge.forge.pipelines.get, {
+      owner: 'dana',
+      name: 'gitfs',
+      n,
+    }),
+  )
+
+test('a wait timer that comes after the step was resumed does nothing', async () => {
+  const s = await setup()
+  const { n, job } = await runningStep(s)
+  const waited = JSON.parse(
+    await s.dana().mutation(forge.forge.pipelines.wait, {
+      owner: 'dana',
+      name: 'gitfs',
+      n,
+      job,
+      step: 1,
+      kind: 'person',
+      reason: 'Look',
+    }),
+  )
+  const expires = Date.parse(waited.jobs[job - 1].wait.expires_at)
+  await s.dana().mutation(forge.forge.pipelines.resume, {
+    owner: 'dana',
+    name: 'gitfs',
+    n,
+    job,
+    step: 1,
+    status: 'success',
+  })
+  const runId = await s.t.run(
+    async (ctx) =>
+      (await ctx.db
+        .query('pipelineRuns')
+        .withIndex('by_repoId_and_number', (q) =>
+          q.eq('repoId', s.repo._id).eq('number', n),
+        )
+        .unique())!._id,
+  )
+  advance(8 * 24 * 60 * MINUTE)
+  await s.t.mutation(internal.forge.pipelines.expire, {
+    runId,
+    job,
+    step: 1,
+    expires,
+  })
+  const after = await runOf(s, n)
+  expect(after.status).toBe('running')
+  expect(after.jobs[job - 1].steps[0].status).toBe('success')
+})
+
+test('a wait timer at its deadline fails the step and the run', async () => {
+  const s = await setup()
+  const { n, job } = await runningStep(s)
+  const waited = JSON.parse(
+    await s.dana().mutation(forge.forge.pipelines.wait, {
+      owner: 'dana',
+      name: 'gitfs',
+      n,
+      job,
+      step: 1,
+      kind: 'approval',
+      reason: 'Sign off',
+    }),
+  )
+  const expires = Date.parse(waited.jobs[job - 1].wait.expires_at)
+  const runId = await s.t.run(
+    async (ctx) =>
+      (await ctx.db
+        .query('pipelineRuns')
+        .withIndex('by_repoId_and_number', (q) =>
+          q.eq('repoId', s.repo._id).eq('number', n),
+        )
+        .unique())!._id,
+  )
+  advance(7 * 24 * 60 * MINUTE + MINUTE)
+  await s.t.mutation(internal.forge.pipelines.expire, {
+    runId,
+    job,
+    step: 1,
+    expires,
+  })
+  const after = await runOf(s, n)
+  expect(after.status).toBe('failure')
+  expect(after.jobs[job - 1].steps[0].status).toBe('failure')
+  // A second timer for the same wait finds nothing to do.
+  await s.t.mutation(internal.forge.pipelines.expire, {
+    runId,
+    job,
+    step: 1,
+    expires,
+  })
+  expect((await runOf(s, n)).version).toBe(after.version)
+})
+
+test('the lease sweep puts a silent runner’s job back in the queue, once', async () => {
+  const s = await setup()
+  const made = JSON.parse(
+    await s
+      .dana({ sx_scp: 'repo:read repo:write runners:manage' })
+      .mutation(forge.forge.runners.create, { name: 'quiet', labels: [] }),
+  ) as { id: string }
+  const asRunner = s.t.withIdentity({
+    subject: 'dana',
+    sx_tok: 'tok_runner',
+    sx_api: 'true',
+    sx_act: 'dana',
+    sx_scp: 'repo:read runners:claim runners:report',
+    sx_run: made.id,
+  })
+  const job = JSON.parse(await asRunner.mutation(forge.forge.runners.claim, {}))
+  expect(job.runner_id).toBe(made.id)
+  advance(16 * MINUTE)
+  await s.t.mutation(internal.forge.pipelines.sweepLeases, {})
+  const after = await runOf(s, job.run)
+  expect(after.jobs[job.job - 1]).toMatchObject({
+    status: 'queued',
+    runner_id: null,
+    lease_expires_at: null,
+  })
+  const notes = after.annotations.filter((a: { text: string }) =>
+    a.text.includes('Runner quiet'),
+  )
+  expect(notes).toHaveLength(1)
+  // Swept again, nothing more happens.
+  await s.t.mutation(internal.forge.pipelines.sweepLeases, {})
+  expect((await runOf(s, job.run)).version).toBe(after.version)
+})

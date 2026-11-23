@@ -1,7 +1,7 @@
 ---
 icon: PlayIcon
 title: Pipelines
-description: Pipeline runs on your own runners, their jobs, steps and logs.
+description: Pipeline runs, their jobs, steps and logs; steps that wait on a person; the runners that take jobs; the triggers that start them.
 ---
 
 {/* Generated from the API definitions by scripts/api-docs.ts. Do not edit by hand. */}
@@ -35,12 +35,12 @@ Newest first. Each is a workflow run; a check on a change is the result of one.
 
 **Query parameters**
 
-| Name       | Type                                                          | Notes                                                              |
-| ---------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `limit`    | integer (min 1, max 200)                                      | Default `50`. Items per page, 1 to 200. Larger values are clamped. |
-| `cursor`   | string                                                        | `next_cursor` from the previous page, exactly as returned          |
-| `status`   | `queued` or `running` or `success` or `failure` or `canceled` |                                                                    |
-| `workflow` | string (up to 100 characters)                                 |                                                                    |
+| Name       | Type                                                                       | Notes                                                              |
+| ---------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `limit`    | integer (min 1, max 200)                                                   | Default `50`. Items per page, 1 to 200. Larger values are clamped. |
+| `cursor`   | string                                                                     | `next_cursor` from the previous page, exactly as returned          |
+| `status`   | `queued` or `running` or `waiting` or `success` or `failure` or `canceled` |                                                                    |
+| `workflow` | string (up to 100 characters)                                              |                                                                    |
 
 **Errors**
 
@@ -55,7 +55,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/pipelines?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.p8.8.1-EJNiA0vTEF0emhye"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.p8.8.0.1-rjFhNa-wa2iKXxAu"
 ratelimit: "read";r=1147;t=60
 ```
 
@@ -81,6 +81,7 @@ ratelimit: "read";r=1147;t=60
       "finished_at": null,
       "duration_ms": null,
       "jobs": null,
+      "runs_on_pending": false,
       "annotations": [
         {
           "level": "warn",
@@ -109,6 +110,7 @@ ratelimit: "read";r=1147;t=60
       "finished_at": "2026-11-06T09:00:48.000Z",
       "duration_ms": 48000,
       "jobs": null,
+      "runs_on_pending": false,
       "annotations": [
         {
           "level": "warn",
@@ -208,51 +210,66 @@ ratelimit: "write";r=61;t=60
   "jobs": [
     {
       "name": "build (ubuntu)",
-      "runner": "ubuntu-latest",
+      "runner": "",
       "status": "queued",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     },
     {
       "name": "build (macos)",
-      "runner": "macos-14",
+      "runner": "",
       "status": "queued",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 1
 }
@@ -295,7 +312,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.p8.8.1-7pElIC77C7_aUa4w"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.p8.8.0.1-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1146;t=60
 ```
 
@@ -323,20 +340,27 @@ ratelimit: "read";r=1146;t=60
       "runner": "ubuntu-latest",
       "status": "success",
       "duration_ms": 70000,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "success",
           "duration_ms": 2000,
           "lines": 5,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "success",
           "duration_ms": 24000,
           "lines": 9,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
@@ -346,25 +370,33 @@ ratelimit: "read";r=1146;t=60
       "runner": "macos-14",
       "status": "failure",
       "duration_ms": 144000,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "success",
           "duration_ms": 2000,
           "lines": 5,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "success",
           "duration_ms": 24000,
           "lines": 9,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [
     {
       "level": "warn",
@@ -455,20 +487,27 @@ ratelimit: "write";r=62;t=60
       "runner": "ubuntu-latest",
       "status": "canceled",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "success",
           "duration_ms": 2000,
           "lines": 5,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "success",
           "duration_ms": 24000,
           "lines": 9,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
@@ -478,25 +517,33 @@ ratelimit: "write";r=62;t=60
       "runner": "macos-14",
       "status": "canceled",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "canceled",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "canceled",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [
     {
       "level": "warn",
@@ -585,20 +632,27 @@ ratelimit: "write";r=59;t=60
       "runner": "mac-mini-1",
       "status": "running",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "success",
           "duration_ms": 2140,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
@@ -608,25 +662,33 @@ ratelimit: "write";r=59;t=60
       "runner": "macos-14",
       "status": "queued",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 3
 }
@@ -693,6 +755,307 @@ ratelimit: "heavy";r=113;t=60
     },
     "…and 7 more"
   ]
+}
+```
+
+### `pipelines.resume`
+
+`POST /repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/resume`
+
+**Resume a waiting step with how it ended**
+
+In one write the step runs again and ends as `success` or `failure`, with the lines and summary given added to its log. A failure skips the rest of its job. The runner that holds the job carries on from the next step.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Dry run    | `?dry_run=true`                     |
+| Success    | `200`, a `pipeline_run`             |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+| `job`   | integer (min 1, max 9007199254740991) |       |
+| `step`  | integer (min 1, max 9007199254740991) |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Request body**
+
+| Member    | Type                                       | Notes     |
+| --------- | ------------------------------------------ | --------- |
+| `status`  | `success` or `failure`                     | Required. |
+| `summary` | string (up to 2000 characters, at least 1) |           |
+| `lines`   | array of object                            |           |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/resume" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"success","summary":"Plan checked, go ahead."}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=56;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6r1c5m0ftmrqqz5",
+  "number": 1837,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Cache negative lookups",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "status": "running",
+  "trigger": "change",
+  "actor": "dana",
+  "started_at": "2026-11-06T09:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "mac-mini-1",
+      "status": "running",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2140,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "queued",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "runs_on_pending": false,
+  "annotations": [],
+  "version": 6
+}
+```
+
+### `pipelines.wait`
+
+`POST /repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/wait`
+
+**Pause a running step for a person or an agent**
+
+The step, its job and (when nothing else of it runs) the run wait. A waiting job keeps its runner and is never claimed again. A `person` or `approval` wait tells its `target` (or whoever started the run) in their inbox. The wait ends at `expires_at`, 7 days by default and at most 30; if nobody resumes it by then, the step and the run fail.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `repo:write`            |
+| Rate limit | `write` pool, 1 unit    |
+| Dry run    | `?dry_run=true`         |
+| Success    | `200`, a `pipeline_run` |
+
+**Path parameters**
+
+| Name    | Type                                  | Notes |
+| ------- | ------------------------------------- | ----- |
+| `owner` | string                                |       |
+| `repo`  | string                                |       |
+| `run`   | integer (min 1, max 9007199254740991) |       |
+| `job`   | integer (min 1, max 9007199254740991) |       |
+| `step`  | integer (min 1, max 9007199254740991) |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Request body**
+
+| Member       | Type                                              | Notes                                       |
+| ------------ | ------------------------------------------------- | ------------------------------------------- |
+| `kind`       | `person` or `agent` or `approval`                 | Required.                                   |
+| `reason`     | string (up to 500 characters, at least 1)         | Required.                                   |
+| `target`     | string (up to 100 characters, at least 1) or null | A handle, or an agent as you name it        |
+| `expires_at` | string (date-time, pattern)                       | Within 30 days; 7 days from now if left out |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/wait" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"person","reason":"Check the migration plan before it runs","target":"hollis","expires_at":"2026-11-10T10:00:00.000Z"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=57;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6r1c5m0ftmrqqz5",
+  "number": 1837,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Cache negative lookups",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "status": "waiting",
+  "trigger": "change",
+  "actor": "dana",
+  "started_at": "2026-11-06T09:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "mac-mini-1",
+      "status": "waiting",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": {
+        "kind": "person",
+        "reason": "Check the migration plan before it runs",
+        "target": "hollis",
+        "expires_at": "2026-11-10T10:00:00.000Z"
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2140,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "waiting",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "wait": {
+            "kind": "person",
+            "reason": "Check the migration plan before it runs",
+            "target": "hollis",
+            "expires_at": "2026-11-10T10:00:00.000Z"
+          }
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "macos-14",
+      "status": "queued",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "runs_on_pending": false,
+  "annotations": [],
+  "version": 5
 }
 ```
 
@@ -765,51 +1128,66 @@ ratelimit: "write";r=63;t=60
   "jobs": [
     {
       "name": "build (ubuntu)",
-      "runner": "ubuntu-latest",
+      "runner": "",
       "status": "queued",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     },
     {
       "name": "build (macos)",
-      "runner": "macos-14",
+      "runner": "",
       "status": "queued",
       "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
       "steps": [
         {
           "name": "Set up job",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/1/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/1/log",
+          "wait": null
         },
         {
           "name": "Build",
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/2/log"
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/2/log",
+          "wait": null
         },
         "…and 2 more"
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 1
 }
@@ -883,6 +1261,858 @@ ratelimit: "write";r=60;t=60
     },
     "…and 2 more"
   ],
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1"
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1",
+  "runs_on": [],
+  "runner_id": null,
+  "lease_expires_at": null
+}
+```
+
+### `triggers.list`
+
+`GET /repos/{owner}/{repo}/triggers`
+
+**What starts a workflow in a repository**
+
+The triggers in `.source/triggers/*.yml` on the default branch, as they were read when they last landed, with any errors and what each did lately. Read-only: the files are the API, and a change to them is a change.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `read` pool, 1 unit                        |
+| Success    | `200`, a `trigger_set`                     |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/repos/dana/gitfs/triggers" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"rep_01m3kkw4m0zvf3zfc9.t0.0.1-x2r-PLMP2JjVQMfY"
+ratelimit: "read";r=1145;t=60
+```
+
+```json
+{
+  "object": "trigger_set",
+  "repo": "dana/gitfs",
+  "path": ".source/triggers",
+  "sha": null,
+  "files": [],
+  "triggers": [],
+  "errors": [],
+  "recent": []
+}
+```
+
+### `runners.list`
+
+`GET /runners`
+
+**Runners of an account**
+
+Newest first, with their labels, status and the jobs they hold. Never includes a secret.
+
+| About      |                           |
+| ---------- | ------------------------- |
+| Safety     | `read`, safe to repeat    |
+| Needs      | a token                   |
+| Scopes     | `runners:manage`          |
+| Rate limit | `read` pool, 1 unit       |
+| Success    | `200`, a list of `runner` |
+
+**Query parameters**
+
+| Name      | Type                                      | Notes                          |
+| --------- | ----------------------------------------- | ------------------------------ |
+| `account` | string (up to 100 characters, at least 1) | The one you act as if left out |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/runners" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"PWsMs7A3cD2CT9dW"
+ratelimit: "read";r=1142;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "runner",
+      "id": "rnr_01m6tq6r80196dnvvs",
+      "name": "mac-mini",
+      "account": "dana",
+      "kind": "self-hosted",
+      "provider": null,
+      "labels": ["macos", "arm64", "…and 1 more"],
+      "repos": ["dana/gitfs"],
+      "concurrency": 2,
+      "status": "offline",
+      "current_jobs": 0,
+      "last_seen_at": null,
+      "created_at": "2026-11-07T10:00:00.000Z",
+      "created_by": "dana",
+      "secret": null,
+      "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+      "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `runners.create`
+
+`POST /runners`
+
+**Register a runner**
+
+The response is the only time the runner's token (`secret`) is shown: put it in `SX_RUNNER_TOKEN` on the machine. It reads the repositories the runner may serve, claims and reports their jobs, and nothing else. A person registers runners for themself; an organization's owner or admin for the organization.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `runners:manage`                    |
+| Rate limit | `write` pool, 1 unit                |
+| Dry run    | `?dry_run=true`                     |
+| Success    | `201`, a `runner`                   |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Request body**
+
+| Member        | Type                                                      | Notes                                                                           |
+| ------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `name`        | string (up to 80 characters, at least 1)                  | Required.                                                                       |
+| `account`     | string (up to 100 characters, at least 1)                 | The account it serves; the one you act as if left out                           |
+| `kind`        | `self-hosted` or `hosted`                                 |                                                                                 |
+| `provider`    | string (up to 40 characters, at least 1, pattern) or null | For a hosted runner: `blacksmith`, `depot`, ...                                 |
+| `labels`      | array of string (up to 50 characters, at least 1)         | What the machine offers, such as `macos`, `arm64`, `xcode-16`. Stored lowercase |
+| `repos`       | array of string (pattern) or null                         | `owner/name` of the account it may serve; null for all of them, now and later   |
+| `concurrency` | integer (min 1, max 64)                                   |                                                                                 |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`limit_reached`](/docs/api/errors#limit_reached), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/runners" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"mac-mini","labels":["macos","arm64","xcode-16"],"repos":["dana/gitfs"],"concurrency":2}'
+```
+
+```http
+HTTP/1.1 201
+location: https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs
+ratelimit: "write";r=53;t=60
+```
+
+```json
+{
+  "object": "runner",
+  "id": "rnr_01m6tq6r80196dnvvs",
+  "name": "mac-mini",
+  "account": "dana",
+  "kind": "self-hosted",
+  "provider": null,
+  "labels": ["macos", "arm64", "…and 1 more"],
+  "repos": ["dana/gitfs"],
+  "concurrency": 2,
+  "status": "offline",
+  "current_jobs": 0,
+  "last_seen_at": null,
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "created_by": "dana",
+  "secret": "sxr_…",
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+}
+```
+
+### `runners.delete`
+
+`DELETE /runners/{id}`
+
+**Revoke a runner**
+
+Disables it and revokes its token in the same write: its next request is refused. Jobs it held go back to the queue when their lease runs out.
+
+| About      |                               |
+| ---------- | ----------------------------- |
+| Safety     | `destructive`, safe to repeat |
+| Needs      | a token                       |
+| Scopes     | `runners:manage`              |
+| Rate limit | `write` pool, 1 unit          |
+| Dry run    | `?dry_run=true`               |
+| Success    | `200`, a `runner`             |
+
+**Path parameters**
+
+| Name | Type   | Notes |
+| ---- | ------ | ----- |
+| `id` | string |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X DELETE "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=47;t=60
+```
+
+```json
+{
+  "object": "runner",
+  "id": "rnr_01m6tq6r80196dnvvs",
+  "name": "mac-mini",
+  "account": "dana",
+  "kind": "self-hosted",
+  "provider": null,
+  "labels": ["macos", "arm64", "…and 2 more"],
+  "repos": ["dana/gitfs"],
+  "concurrency": 2,
+  "status": "disabled",
+  "current_jobs": 1,
+  "last_seen_at": "2026-11-07T10:00:00.000Z",
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "created_by": "dana",
+  "secret": null,
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+}
+```
+
+### `runners.get`
+
+`GET /runners/{id}`
+
+**One runner**
+
+| About      |                        |
+| ---------- | ---------------------- |
+| Safety     | `read`, safe to repeat |
+| Needs      | a token                |
+| Scopes     | `runners:manage`       |
+| Rate limit | `read` pool, 1 unit    |
+| Success    | `200`, a `runner`      |
+
+**Path parameters**
+
+| Name | Type   | Notes |
+| ---- | ------ | ----- |
+| `id` | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"bsJ9-IK9woKM_98D"
+ratelimit: "read";r=1141;t=60
+```
+
+```json
+{
+  "object": "runner",
+  "id": "rnr_01m6tq6r80196dnvvs",
+  "name": "mac-mini",
+  "account": "dana",
+  "kind": "self-hosted",
+  "provider": null,
+  "labels": ["macos", "arm64", "…and 1 more"],
+  "repos": ["dana/gitfs"],
+  "concurrency": 2,
+  "status": "offline",
+  "current_jobs": 0,
+  "last_seen_at": null,
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "created_by": "dana",
+  "secret": null,
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+}
+```
+
+### `runners.update`
+
+`PATCH /runners/{id}`
+
+**Change a runner**
+
+Its name, labels, repositories or concurrency. Its token follows the repositories it may serve.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `runners:manage`        |
+| Rate limit | `write` pool, 1 unit    |
+| Dry run    | `?dry_run=true`         |
+| Success    | `200`, a `runner`       |
+
+**Path parameters**
+
+| Name | Type   | Notes |
+| ---- | ------ | ----- |
+| `id` | string |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+
+**Request body**
+
+| Member        | Type                                              | Notes                                                                           |
+| ------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `name`        | string (up to 80 characters, at least 1)          |                                                                                 |
+| `labels`      | array of string (up to 50 characters, at least 1) | What the machine offers, such as `macos`, `arm64`, `xcode-16`. Stored lowercase |
+| `repos`       | array of string (pattern) or null                 | `owner/name` of the account it may serve; null for all of them, now and later   |
+| `concurrency` | integer (min 1, max 64)                           |                                                                                 |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X PATCH "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"labels":["macos","arm64","xcode-16","xcode-15"]}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=52;t=60
+```
+
+```json
+{
+  "object": "runner",
+  "id": "rnr_01m6tq6r80196dnvvs",
+  "name": "mac-mini",
+  "account": "dana",
+  "kind": "self-hosted",
+  "provider": null,
+  "labels": ["macos", "arm64", "…and 2 more"],
+  "repos": ["dana/gitfs"],
+  "concurrency": 2,
+  "status": "offline",
+  "current_jobs": 0,
+  "last_seen_at": null,
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "created_by": "dana",
+  "secret": null,
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+}
+```
+
+### `runners.jobs`
+
+`GET /runners/{id}/jobs`
+
+**The jobs a runner holds**
+
+Running or waiting. Readable by the runner itself and by members of its account.
+
+| About      |                               |
+| ---------- | ----------------------------- |
+| Safety     | `read`, safe to repeat        |
+| Needs      | a token                       |
+| Scopes     | none                          |
+| Rate limit | `read` pool, 1 unit           |
+| Success    | `200`, a list of `runner_job` |
+
+**Path parameters**
+
+| Name | Type   | Notes |
+| ---- | ------ | ----- |
+| `id` | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs/jobs" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"TBgAEjVEVBJ-nF9k"
+ratelimit: "read";r=1140;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "runner_job",
+      "repo": "dana/gitfs",
+      "run": 1837,
+      "job": 2,
+      "name": "build (macos)",
+      "status": "waiting",
+      "lease_expires_at": null,
+      "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2"
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `runners.claim`
+
+`POST /runners/claim`
+
+**Take the next job, as the runner**
+
+The oldest queued job in a repository the runner may serve whose `runs-on` labels are all among the runner's (case does not matter). `204` when there is none, or when the runner already holds `concurrency` jobs. The job is leased for 15 minutes; every report and heartbeat extends it.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `runners:claim`                     |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `200`, a `pipeline_job`             |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/runners/claim" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=50;t=60
+```
+
+```json
+{
+  "object": "pipeline_job",
+  "run": 1837,
+  "job": 2,
+  "name": "build (macos)",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "steps": [
+    {
+      "number": 1,
+      "name": "Set up job"
+    },
+    {
+      "number": 2,
+      "name": "Build"
+    },
+    "…and 2 more"
+  ],
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2",
+  "runs_on": [],
+  "runner_id": "rnr_01m6tq6r80196dnvvs",
+  "lease_expires_at": "2026-11-07T10:15:00.000Z"
+}
+```
+
+### `runners.heartbeat`
+
+`POST /runners/heartbeat`
+
+**Say the runner is alive, as the runner**
+
+Send one every 30 seconds with the runner token. It extends the lease on every job the runner is running. A runner silent for 90 seconds is shown offline.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `runners:claim`         |
+| Rate limit | `write` pool, 1 unit    |
+| Success    | `200`, a `runner`       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/runners/heartbeat" \
+  -H "Authorization: Bearer $SX_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=51;t=60
+```
+
+```json
+{
+  "object": "runner",
+  "id": "rnr_01m6tq6r80196dnvvs",
+  "name": "mac-mini",
+  "account": "dana",
+  "kind": "self-hosted",
+  "provider": null,
+  "labels": ["macos", "arm64", "…and 2 more"],
+  "repos": ["dana/gitfs"],
+  "concurrency": 2,
+  "status": "online",
+  "current_jobs": 0,
+  "last_seen_at": "2026-11-07T10:00:00.000Z",
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "created_by": "dana",
+  "secret": null,
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+}
+```
+
+### `runners.report`
+
+`POST /runners/report`
+
+**Report a step of a job it holds, as the runner**
+
+The same report as `pipelines.report`, made with the runner token for a job this runner claimed.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `runners:report`                    |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `200`, a `pipeline_run`             |
+
+**Request body**
+
+| Member        | Type                                             | Notes     |
+| ------------- | ------------------------------------------------ | --------- |
+| `repo`        | string (pattern)                                 | Required. |
+| `run`         | integer (min 1, max 9007199254740991)            | Required. |
+| `job`         | integer (min 1, max 9007199254740991)            | Required. |
+| `step`        | integer (min 1, max 9007199254740991)            | Required. |
+| `status`      | `running` or `success` or `failure` or `skipped` | Required. |
+| `lines`       | array of object                                  |           |
+| `duration_ms` | integer (min 0, max 9007199254740991)            |           |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/runners/report" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"repo":"dana/gitfs","run":1837,"job":2,"step":1,"status":"running","lines":[{"text":"cargo build --release","level":"cmd"}]}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=49;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6r1c5m0ftmrqqz5",
+  "number": 1837,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Cache negative lookups",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "status": "running",
+  "trigger": "change",
+  "actor": "dana",
+  "started_at": "2026-11-06T09:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "mac-mini-1",
+      "status": "running",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2140,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "mac-mini",
+      "status": "running",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": "rnr_01m6tq6r80196dnvvs",
+      "lease_expires_at": "2026-11-07T10:15:00.000Z",
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "running",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "runs_on_pending": false,
+  "annotations": [],
+  "version": 8
+}
+```
+
+### `runners.wait`
+
+`POST /runners/wait`
+
+**Pause a step of a job it holds, as the runner**
+
+A step that waits on a person, an approval or an outside agent, paused by the runner running it, with the runner token. The job keeps the runner and is never claimed again; whom it waits on is told; if nobody resumes it by `expires_at` (7 days by default, 30 at most) the step and the run fail. Resuming takes a login with `repo:write` (`pipelines.resume`): a runner's token cannot answer its own wait.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `runners:report`        |
+| Rate limit | `write` pool, 1 unit    |
+| Success    | `200`, a `pipeline_run` |
+
+**Request body**
+
+| Member       | Type                                              | Notes     |
+| ------------ | ------------------------------------------------- | --------- |
+| `repo`       | string (pattern)                                  | Required. |
+| `run`        | integer (min 1, max 9007199254740991)             | Required. |
+| `job`        | integer (min 1, max 9007199254740991)             | Required. |
+| `step`       | integer (min 1, max 9007199254740991)             | Required. |
+| `kind`       | `person` or `agent` or `approval`                 | Required. |
+| `reason`     | string (up to 500 characters, at least 1)         | Required. |
+| `target`     | string (up to 100 characters, at least 1) or null |           |
+| `expires_at` | string (date-time, pattern)                       |           |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/runners/wait" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"repo":"dana/gitfs","run":1837,"job":2,"step":1,"kind":"approval","reason":"Sign off the release build","target":"hollis"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=48;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6r1c5m0ftmrqqz5",
+  "number": 1837,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Cache negative lookups",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "status": "running",
+  "trigger": "change",
+  "actor": "dana",
+  "started_at": "2026-11-06T09:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "mac-mini-1",
+      "status": "running",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2140,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "mac-mini",
+      "status": "waiting",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": "rnr_01m6tq6r80196dnvvs",
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": {
+        "kind": "approval",
+        "reason": "Sign off the release build",
+        "target": "hollis",
+        "expires_at": "2026-11-14T10:00:00.000Z"
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "waiting",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "wait": {
+            "kind": "approval",
+            "reason": "Sign off the release build",
+            "target": "hollis",
+            "expires_at": "2026-11-14T10:00:00.000Z"
+          }
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "runs_on_pending": false,
+  "annotations": [],
+  "version": 9
 }
 ```
