@@ -5,6 +5,8 @@
     "changes",
     "pull-requests",
     "policies",
+    "triggers",
+    "runners",
     "secrets",
     "agent-secrets",
     "agents"

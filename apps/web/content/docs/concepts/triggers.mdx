@@ -1,0 +1,50 @@
+---
+icon: BoltIcon
+title: Triggers
+description: What starts a workflow when something happens, written in the repository.
+---
+
+A trigger says: when this happens, and the change matches these filters, run that workflow. Triggers live in `.source/triggers/*.yml` and change by a change, like any other file. There is no builder and no write endpoint: the files are the API. **Repository settings, Automations** lists them, with any errors, and links to each file.
+
+```yaml
+# .source/triggers/docs.yml
+triggers:
+  - id: docs-build
+    on: [change.landed]
+    filter:
+      paths: ['docs/**']
+      labels: ['docs']
+    run: docs
+```
+
+## The format
+
+| Key             | Meaning                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `id`            | Lowercase letters, digits and dashes. Unique across every trigger file of the repository   |
+| `on`            | An event type or a list. `change.*` matches the family                                     |
+| `filter.paths`  | Globs, as policy writes them: `**` crosses folders, `*` does not. Any touched file matches |
+| `filter.labels` | Any of these labels on the change                                                          |
+| `filter.actor`  | Who caused the event (the person who landed the change)                                    |
+| `filter.model`  | The model the tool declared (`Sx-Model`), case ignored. Declared, not verified             |
+| `run`           | The workflow to start. Exactly one action                                                  |
+
+Every filter is optional; all the ones given must match. Unknown keys are an error, not ignored, so a typo never quietly turns a filter off.
+
+## When it runs
+
+In this version the event that starts triggers is `change.landed`, in the same write that lands the change. The run is on the base branch at the landed commit, with `trigger: event` and the person who landed it as its actor.
+
+A run started by a trigger takes its jobs from the workflow's last run, and so its `runs-on` labels. The run says so in a warning, since the workflow file may have changed since. A workflow that has never run has no jobs to copy: the trigger records the error and tells the change's author. The land itself never fails because of a trigger.
+
+What each trigger did, for each event, is recorded before the run starts. The same event never starts the same trigger twice, even if the write is retried.
+
+## Limits
+
+- At most **20 triggers** per repository.
+- At most **3 runs** for one event. Triggers past the third are recorded as `capped`, in file order.
+- **No trigger on `pipeline.*`** (or on `*`). A pipeline event starting a pipeline could loop.
+
+## A file that does not read
+
+The trigger files are read together when a change that edits one lands. If any of them does not read, nothing of the new version applies: the last set that did stays in force, and the errors (file, line, what is wrong) are shown in settings and in `GET /v1/repos/{owner}/{repo}/triggers`. A broken trigger file never blocks the change that brought it.
