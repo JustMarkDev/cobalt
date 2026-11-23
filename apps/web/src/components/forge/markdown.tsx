@@ -49,7 +49,7 @@ function Heading({
   // The repository page already has the h1. A README's # is the next level down.
   const Tag = (['h2', 'h3', 'h4'] as const)[level - 1]
   return (
-    <Tag id={id} className={cn('group scroll-mt-24', size)}>
+    <Tag id={id} className={cn('group scroll-mt-header', size)}>
       {children}
       {level > 1 && (
         <a

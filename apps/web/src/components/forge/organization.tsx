@@ -79,7 +79,7 @@ export function OrgPage({
   const manages = managesAccount(org)
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+      <aside className="space-y-5 lg:sticky lg:top-header lg:self-start">
         <AccountTile
           account={{ kind: 'organization', name: org.name, handle: org.handle }}
           className="size-20 text-2xl"

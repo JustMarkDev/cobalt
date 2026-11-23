@@ -288,14 +288,37 @@ describe('signing in with a code', () => {
     }
   })
 
-  test('sample data has nothing to sign in to', async () => {
-    const r = await sx(
-      { SX_API: undefined, SX_CONFIG_DIR: dir },
-      'auth',
-      'login',
-    )
-    expect(r.code).toBe(2)
-    expect(JSON.parse(r.err).error.code).toBe('not_available')
+  test("with no API set it signs in to the host's and remembers it", async () => {
+    process.env.SX_CONFIG_DIR = dir
+    process.env.SX_HOST = 'https://forge.example.com'
+    delete process.env.SX_API
+    try {
+      const { f, calls } = stub([
+        [
+          200,
+          {
+            access_token: 'sxo_access_token_value',
+            refresh_token: 'sxf_refresh_token_value',
+            expires_in: 3600,
+            scope: 'repo:read',
+          },
+        ],
+      ])
+      await signIn(ctx().ctx, {}, { fetch: f, sleep: () => Promise.resolve() })
+      expect(calls[0].url).toBe(
+        'https://forge.example.com/api/v1/oauth/register',
+      )
+      const forge = 'https://forge.example.com/api/v1'
+      expect(readCredentials(forge)?.access_token).toBe(
+        'sxo_access_token_value',
+      )
+      expect(
+        JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).api,
+      ).toBe(forge)
+    } finally {
+      delete process.env.SX_CONFIG_DIR
+      delete process.env.SX_HOST
+    }
   })
 
   test('against the real server: the whole device flow, then the saved token works and refreshes', async () => {

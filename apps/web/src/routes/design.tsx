@@ -81,7 +81,7 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-20 space-y-5">
+    <section id={id} className="scroll-mt-header space-y-5">
       <div className="space-y-1 border-b pb-3">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {note && (
@@ -159,7 +159,7 @@ function Design() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[180px_minmax(0,1fr)]">
       <nav
         aria-label="On this page"
-        className="hidden space-y-0.5 text-sm lg:sticky lg:top-20 lg:block lg:self-start"
+        className="hidden space-y-0.5 text-sm lg:sticky lg:top-header lg:block lg:self-start"
       >
         {sections.map(([id, label]) => (
           <a
@@ -185,6 +185,25 @@ function Design() {
             variants. Icons are Heroicons. Charts are our own SVG. Brand logos
             are the vendors&apos; own.
           </p>
+          {/* Below lg there is no side index: the sections as one row of
+              chips that scrolls sideways. */}
+          <nav
+            aria-label="On this page"
+            className="scroll-fade-x -mx-6 overflow-x-auto px-6 pt-2 pb-1 [scrollbar-width:none] lg:hidden"
+          >
+            <ul className="flex w-max gap-2">
+              {sections.map(([id, label]) => (
+                <li key={id}>
+                  <a
+                    href={`#${id}`}
+                    className="surface focus-ring flex h-9 items-center rounded-full border bg-card px-3.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </header>
 
         <Section
@@ -196,7 +215,7 @@ function Design() {
             {[
               [
                 'One next step',
-                'Each screen has one primary action, drawn in brand lime. Everything else is quiet.',
+                'Each screen has one primary action, drawn in brand cobalt. Everything else is quiet.',
               ],
               [
                 'Structure is felt, not seen',
@@ -216,7 +235,7 @@ function Design() {
               ],
               [
                 'Readable by everyone',
-                'Nothing under 12px, lines of about 68 characters, text at 4.5 to 1 contrast or better. Colour never carries meaning alone.',
+                'Running text is never under 12px, lines of about 68 characters, text at 4.5 to 1 contrast or better. Colour never carries meaning alone.',
               ],
               [
                 'Reachable any way',
@@ -240,7 +259,7 @@ function Design() {
         <Section
           id="colour"
           title="Colour"
-          note="Semantic tokens that flip with the theme, so components never need dark: variants. Brand lime is for the primary action, the current item and charts."
+          note="Semantic tokens that flip with the theme, so components never need dark: variants. Brand cobalt is for the primary action, the current item and charts."
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {swatches.map(([name, cls, note]) => (
@@ -267,8 +286,8 @@ function Design() {
           note={
             <ul className="list-disc space-y-1.5 pl-4 marker:text-muted-foreground/50">
               <li>
-                Geist for text, Geist Mono for code, names and ids. Nothing is
-                set below 12px.
+                Inter Tight for text, Geist Mono for code, names and ids.
+                Running text is never set below 12px; chart ticks are 11px.
               </li>
               <li>
                 Radius by role: controls 12px (rounded-lg), menus 17.2px

@@ -226,7 +226,7 @@ export function MediaCard({ m }: { m: Media }) {
           title={m.title}
           srcDoc={m.html}
           sandbox="allow-scripts"
-          className="h-64 w-full rounded-xl border bg-[#0b0d10]"
+          className="h-64 w-full rounded-xl border bg-[#03050c]"
         />
       )}
     </Panel>

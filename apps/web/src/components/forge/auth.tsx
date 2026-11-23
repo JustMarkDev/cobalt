@@ -31,14 +31,20 @@ export function AuthShell({
   footer?: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center px-6 py-10">
-      <Logo className="text-base" />
+    <div className="relative isolate flex min-h-dvh flex-col items-center px-6 py-10">
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(50%_60%_at_50%_0%,color-mix(in_oklch,var(--brand)_12%,transparent),transparent_75%)]"
+      />
+      <Logo />
       <Stagger className="mt-8 w-full max-w-[26rem] space-y-6 pb-10 sm:mt-[9vh]">
         <div className="space-y-1.5 text-center">
           {step && (
             <p className="font-mono text-xs text-muted-foreground">{step}</p>
           )}
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-[28px] leading-tight font-extrabold tracking-[-0.022em]">
+            {title}
+          </h1>
           {subtitle && (
             <p className="text-sm text-muted-foreground text-balance">
               {subtitle}

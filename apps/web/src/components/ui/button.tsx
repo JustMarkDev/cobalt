@@ -12,8 +12,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        brand:
-          'raised bg-brand font-semibold text-brand-foreground hover:brightness-[1.04]',
+        brand: 'key-brand font-semibold text-brand-foreground',
         default:
           'raised bg-primary text-primary-foreground hover:bg-primary/90',
         outline:

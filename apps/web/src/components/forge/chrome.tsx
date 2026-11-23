@@ -1,12 +1,19 @@
 import * as React from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Dialog } from '@base-ui/react/dialog'
 import {
   ArrowTurnDownLeftIcon,
+  ArrowsRightLeftIcon,
   BellIcon,
+  BookOpenIcon,
   CheckIcon,
+  ChevronDownIcon,
+  CommandLineIcon,
+  GlobeAltIcon,
+  KeyIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  SignalIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import { useOpMaybe } from '~/lib/forge'
@@ -21,19 +28,20 @@ import { switchAccount, useAccounts } from '~/lib/auth/accounts'
 import { useTarget } from '~/lib/platform'
 import { authClient } from '~/lib/auth/client'
 import { socials } from '~/lib/site'
+import { BrandMark } from '~/components/brand-mark'
+import { SETUP_PROMPT } from '~/lib/setup-prompt'
 
 export function Logo({ className }: { className?: string }) {
   return (
     <Link
       to="/"
       className={cn(
-        '-my-2 inline-flex items-center gap-2 py-2 font-mono text-sm font-semibold tracking-tight',
+        '-my-2 inline-flex items-center gap-2.5 py-2 text-[17px] font-bold tracking-[-0.02em]',
         className,
       )}
     >
-      <span>
-        source<span className="text-brand-ink">.</span>code
-      </span>
+      <BrandMark className="h-6 w-5" />
+      <span>source.code</span>
     </Link>
   )
 }
@@ -387,7 +395,7 @@ function CommandPalette({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="overlay-backdrop fixed inset-0 z-50 bg-foreground/25" />
+        <Dialog.Backdrop className="overlay-backdrop fixed inset-0 z-50 bg-black/40" />
         <Dialog.Popup
           aria-label="Search"
           className="overlay-popup fixed top-[16vh] left-1/2 z-50 w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border bg-popover floating outline-none"
@@ -474,7 +482,7 @@ const navLinks = [
 ] as const
 
 const navItem =
-  'relative inline-flex items-center rounded-(--radius-thumb) px-3 text-sm text-muted-foreground focus-ring-inset transition-colors hover:text-foreground'
+  'relative inline-flex h-9 shrink-0 items-center rounded-lg px-3.5 text-[14.5px] whitespace-nowrap text-muted-foreground focus-ring-inset transition-colors hover:bg-muted hover:text-foreground max-[359px]:px-2.5'
 const navActive = 'font-medium text-foreground'
 
 /** One entry of the main nav. The active one carries the sliding pill. */
@@ -495,6 +503,126 @@ function NavItem({
   )
 }
 
+const productLinks = [
+  {
+    icon: ArrowsRightLeftIcon,
+    label: 'Import and mirrors',
+    hint: 'From any host, in both directions',
+    link: {
+      to: '/docs/$',
+      params: { _splat: 'getting-started/import-and-mirrors' },
+    },
+  },
+  {
+    icon: CommandLineIcon,
+    label: 'Agents',
+    hint: 'MCP and CLI, built in',
+    link: { to: '/docs/$', params: { _splat: 'concepts/agents' } },
+  },
+  {
+    icon: KeyIcon,
+    label: 'Secrets',
+    hint: 'Per person, per environment',
+    link: { to: '/docs/$', params: { _splat: 'concepts/secrets' } },
+  },
+] as const
+
+const resourceLinks = [
+  {
+    icon: BookOpenIcon,
+    label: 'Documentation',
+    link: { to: '/docs/$', params: { _splat: '' } },
+  },
+  { icon: GlobeAltIcon, label: 'Discover', link: { to: '/discover' } },
+  { icon: SignalIcon, label: 'Status', link: { to: '/status' } },
+] as const
+
+/** The Product menu: what the platform does, where to read more, and the setup prompt. */
+function ProductMenu({
+  id,
+  onNavigate,
+  focusFirst,
+}: {
+  id: string
+  onNavigate: () => void
+  /** Opened from the keyboard: move focus into the panel at once. */
+  focusFirst: boolean
+}) {
+  const [copied, setCopied] = React.useState(false)
+  const panel = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (focusFirst) panel.current?.querySelector('a')?.focus()
+  }, [focusFirst])
+  return (
+    <div
+      ref={panel}
+      id={id}
+      className="floating absolute inset-x-0 top-16 border-y border-dashed bg-background"
+    >
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-6 pt-6 pb-8 md:grid-cols-[1.25fr_0.8fr_1fr]">
+        <div>
+          <h2 className="mb-2 ml-2.5 text-[12.5px] font-medium text-muted-foreground">
+            Platform
+          </h2>
+          {productLinks.map(({ icon: Icon, label, hint, link }) => (
+            <Link
+              key={label}
+              {...link}
+              onClick={onNavigate}
+              className="flex gap-3.5 rounded-xl p-2.5 transition-colors hover:bg-muted"
+            >
+              <span className="raised flex size-9.5 shrink-0 items-center justify-center rounded-[11px] border bg-card">
+                <Icon className="size-5" />
+              </span>
+              <span>
+                <span className="block text-[15px] font-semibold">{label}</span>
+                <span className="block text-[13px] text-muted-foreground">
+                  {hint}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div>
+          <h2 className="mb-2 ml-2.5 text-[12.5px] font-medium text-muted-foreground">
+            Resources
+          </h2>
+          {resourceLinks.map(({ icon: Icon, label, link }) => (
+            <Link
+              key={label}
+              {...link}
+              onClick={onNavigate}
+              className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-[15px] transition-colors hover:bg-muted"
+            >
+              <Icon className="size-4.5 text-muted-foreground" />
+              {label}
+            </Link>
+          ))}
+        </div>
+        <div className="surface flex min-h-44 flex-col gap-3.5 rounded-2xl border bg-[radial-gradient(120%_120%_at_0%_0%,color-mix(in_oklch,var(--brand)_14%,transparent),transparent_70%)] p-5">
+          <span className="mt-auto text-lg font-bold tracking-[-0.015em]">
+            Set up in one prompt
+          </span>
+          <Button
+            variant="brand"
+            size="sm"
+            className="self-start"
+            onClick={() => {
+              void navigator.clipboard
+                .writeText(SETUP_PROMPT)
+                .catch(() => undefined)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 1500)
+            }}
+          >
+            {copied ? 'Copied' : 'Copy prompt'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function SiteHeader() {
   const [open, setOpen] = React.useState(false)
   const navigate = useNavigate()
@@ -503,6 +631,42 @@ export function SiteHeader() {
   const links = signedIn ? navLinks : publicLinks
   const desktopPill = React.useId()
   const mobilePill = React.useId()
+  const productId = React.useId()
+  const [productOpen, setProductOpen] = React.useState(false)
+  // Hovering opens the menu, and the click that usually follows must not
+  // close it again: a click within a moment of a hover-open keeps it open.
+  const hoverOpenedAt = React.useRef(0)
+  const openedByKeyboard = React.useRef(false)
+  const productButton = React.useRef<HTMLButtonElement>(null)
+  // Any navigation (a nav link, the logo, sign in) closes the menu.
+  const pathname = useRouterState({ select: (st) => st.location.pathname })
+  React.useEffect(() => setProductOpen(false), [pathname])
+  const [scrolled, setScrolled] = React.useState(false)
+  const headerRef = React.useRef<HTMLElement>(null)
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  React.useEffect(() => {
+    if (!productOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProductOpen(false)
+        productButton.current?.focus()
+      }
+    }
+    const onClick = (e: MouseEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) setProductOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', onClick)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('mousedown', onClick)
+    }
+  }, [productOpen])
   // The key handler lives for the whole page; it reads the session from here.
   const signedInRef = React.useRef(signedIn)
   signedInRef.current = signedIn
@@ -518,12 +682,14 @@ export function SiteHeader() {
           e.target.isContentEditable)
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
+        setProductOpen(false)
         setOpen(true)
         return
       }
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === '/') {
         e.preventDefault()
+        setProductOpen(false)
         setOpen(true)
       } else if (pending) {
         pending = false
@@ -556,7 +722,10 @@ export function SiteHeader() {
   const searchButton = (
     <button
       type="button"
-      onClick={() => setOpen(true)}
+      onClick={() => {
+        setProductOpen(false)
+        setOpen(true)
+      }}
       aria-label="Search"
       className="raised focus-ring inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
     >
@@ -569,13 +738,66 @@ export function SiteHeader() {
   )
 
   return (
-    <header className="sticky top-0 z-40 bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-6">
-        <Logo />
-        <nav
-          aria-label="Main"
-          className="trough absolute left-1/2 hidden h-9 -translate-x-1/2 md:flex"
-        >
+    <header
+      ref={headerRef}
+      data-scrolled={scrolled || undefined}
+      data-open={productOpen || undefined}
+      className="group/nav sticky top-0 z-40"
+      onMouseLeave={() => setProductOpen(false)}
+      // Any link in the header closes the menu, the current page's too, and so
+      // does keyboard focus leaving the header.
+      onClickCapture={(e) => {
+        if ((e.target as Element).closest('a')) setProductOpen(false)
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setProductOpen(false)
+      }}
+    >
+      {/* Progressive blur: the page melts into the bar instead of meeting an edge. */}
+      <div aria-hidden="true" className="progressive-blur">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
+      <div className="relative mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-6 max-[359px]:gap-1 md:grid-cols-[1fr_auto_1fr]">
+        <Logo className="justify-self-start" />
+        <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
+          {!signedIn && (
+            <button
+              type="button"
+              aria-expanded={productOpen}
+              aria-controls={productId}
+              ref={productButton}
+              onClick={(e) => {
+                // detail is 0 for a keyboard press (Enter or Space).
+                openedByKeyboard.current = e.detail === 0
+                setProductOpen(
+                  (o) => !o || Date.now() - hoverOpenedAt.current < 400,
+                )
+              }}
+              onMouseEnter={() => {
+                openedByKeyboard.current = false
+                if (!productOpen) hoverOpenedAt.current = Date.now()
+                setProductOpen(true)
+              }}
+              className={cn(
+                navItem,
+                'gap-1.5',
+                productOpen && 'bg-muted text-foreground',
+              )}
+            >
+              Product
+              <ChevronDownIcon
+                className={cn(
+                  'size-3.5 transition-transform',
+                  productOpen && 'rotate-180',
+                )}
+              />
+            </button>
+          )}
           {links.map((l) => (
             <NavItem key={l.to} pill={desktopPill} to={l.to} label={l.label} />
           ))}
@@ -587,7 +809,7 @@ export function SiteHeader() {
           />
         </nav>
         {session ? (
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 justify-self-end">
             {searchButton}
             <Link
               to="/new"
@@ -601,17 +823,19 @@ export function SiteHeader() {
             </span>
           </div>
         ) : (
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 justify-self-end max-[359px]:gap-1">
             {searchButton}
             <Button
               variant="ghost"
+              className="hidden sm:inline-flex"
               render={<Link to="/sign-in" />}
               nativeButton={false}
             >
               Sign in
             </Button>
             <Button
-              variant="default"
+              variant="brand"
+              className="max-[359px]:px-2"
               render={<Link to="/sign-up" />}
               nativeButton={false}
             >
@@ -620,9 +844,17 @@ export function SiteHeader() {
           </div>
         )}
       </div>
-      <div className="mx-auto max-w-6xl px-6 pb-2 md:hidden">
-        {/* h-10, not h-9: on a phone the tabs keep a 34px tap height. */}
-        <nav aria-label="Main" className="trough flex h-10 w-fit max-w-full">
+      {!signedIn && productOpen && (
+        <ProductMenu
+          id={productId}
+          onNavigate={() => setProductOpen(false)}
+          focusFirst={openedByKeyboard.current}
+        />
+      )}
+      <div className="relative mx-auto max-w-6xl px-6 pb-2 md:hidden">
+        {/* h-11: the track's inside (h-11 less the 4px inset each side) must
+            hold the h-9 tabs, or the scroll box clips the current tab's pill. */}
+        <nav aria-label="Main" className="trough flex h-11 w-fit max-w-full">
           <div className="trough-scroll">
             {links.map((l) => (
               <NavItem key={l.to} pill={mobilePill} to={l.to} label={l.label} />
@@ -633,6 +865,12 @@ export function SiteHeader() {
               params={{ _splat: '' }}
               label="Docs"
             />
+            {/* Below sm the bar has no room for Sign in, so it lives here. */}
+            {!signedIn && (
+              <span className="contents sm:hidden">
+                <NavItem pill={mobilePill} to="/sign-in" label="Sign in" />
+              </span>
+            )}
           </div>
         </nav>
       </div>
@@ -688,15 +926,14 @@ export function SiteFooter() {
   const state = useOpMaybe('status.get', {})?.state
   const { data: session } = authClient.useSession()
   return (
-    <footer className="mt-24 border-t">
-      <div className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-6 py-12 text-sm sm:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div className="space-y-4">
+    <footer className="relative mt-24 overflow-hidden border-t">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-10 px-6 pt-16 pb-12 text-[15px] sm:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="col-span-2 space-y-4 sm:col-span-1">
           <div className="pb-1">
             <Logo />
           </div>
           <p className="max-w-xs text-muted-foreground">
-            A home for your code that keeps your history, and works with any
-            model, harness and agent.
+            Git hosting. Agent native.
           </p>
           <ul className="flex gap-2">
             {socials.map((s) => {
@@ -729,8 +966,10 @@ export function SiteFooter() {
             : all.filter(({ label }) => label !== 'Dashboard')
           return (
             <nav key={title} aria-label={title} className="space-y-2">
-              <h2 className="font-medium">{title}</h2>
-              <ul className="text-muted-foreground">
+              <h2 className="text-[13px] font-medium text-muted-foreground">
+                {title}
+              </h2>
+              <ul className="text-foreground/80">
                 {links.map(({ label, link }) => (
                   <li key={label}>
                     {link ? (
@@ -755,7 +994,7 @@ export function SiteFooter() {
           )
         })}
       </div>
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 pb-8 text-xs text-muted-foreground">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t px-6 py-6 text-[13px] text-muted-foreground">
         <span>
           © 2026 Marco Procopio. Names and logos belong to their owners; no
           endorsement implied.
@@ -780,6 +1019,12 @@ export function SiteFooter() {
               ? 'Some services are degraded'
               : 'All systems operational'}
         </Link>
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none bg-linear-to-b from-foreground/[0.1] to-foreground/[0.035] bg-clip-text pt-[0.25em] pb-[0.2em] text-center text-[clamp(56px,17.5vw,250px)] leading-[0.8] font-extrabold tracking-[-0.045em] text-transparent select-none"
+      >
+        source.code
       </div>
     </footer>
   )

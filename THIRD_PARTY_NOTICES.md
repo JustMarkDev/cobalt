@@ -13,7 +13,7 @@ source.code includes or depends on the components below. Each keeps its own lice
 - **@pierre/trees** (Apache-2.0) includes code derived from `@headless-tree/core` (MIT). Its `NOTICE.md` is shipped in the package and must be kept when redistributing.
 - **@pierre/diffs** (Apache-2.0). Keep its license and any notices when redistributing.
 - **Simple Icons** (`simple-icons`, CC0-1.0). The package is public domain, but individual brand icons may be subject to the trademark and usage rules of their owners. See https://github.com/simple-icons/simple-icons/blob/develop/DISCLAIMER.md.
-- **Geist and Geist Mono** (via `@fontsource-variable`, SIL Open Font License 1.1). Ship the license with the fonts.
+- **Inter Tight and Geist Mono** (via `@fontsource-variable`, SIL Open Font License 1.1). Ship the license with the fonts.
 - **Heroicons** (MIT).
 
 ## Brand names and logos
@@ -26,9 +26,10 @@ Names and logos of other companies and products (for example CodeRabbit, Greptil
 | -------------------------------- | --------------- | ------------ |
 | @base-ui/react                   | yes             | MIT          |
 | @convex-dev/better-auth          | yes             | Apache-2.0   |
+| @convex-dev/presence             | yes             | Apache-2.0   |
 | @convex-dev/react-query          | yes             | Apache-2.0   |
-| @fontsource-variable/geist       | yes             | OFL-1.1      |
 | @fontsource-variable/geist-mono  | yes             | OFL-1.1      |
+| @fontsource-variable/inter-tight | yes             | OFL-1.1      |
 | @heroicons/react                 | yes             | MIT          |
 | @modelcontextprotocol/server     | yes             | Apache-2.0   |
 | @noble/hashes                    | yes             | MIT          |
@@ -41,7 +42,6 @@ Names and logos of other companies and products (for example CodeRabbit, Greptil
 | @tanstack/react-start            | yes             | MIT          |
 | better-auth                      | yes             | MIT          |
 | class-variance-authority         | yes             | Apache-2.0   |
-| clsx                             | yes             | MIT          |
 | cn                               | yes             | MIT          |
 | convex                           | yes             | Apache-2.0   |
 | d3-scale                         | yes             | ISC          |
@@ -52,15 +52,14 @@ Names and logos of other companies and products (for example CodeRabbit, Greptil
 | fumadocs-mdx                     | yes             | MIT          |
 | fumadocs-ui                      | yes             | MIT          |
 | jose                             | yes             | MIT          |
-| lucide-react                     | yes             | ISC          |
 | motion                           | yes             | MIT          |
 | react                            | yes             | MIT          |
 | react-dom                        | yes             | MIT          |
 | react-markdown                   | yes             | MIT          |
 | remark-gfm                       | yes             | MIT          |
-| tailwind-merge                   | yes             | MIT          |
-| tw-animate-css                   | yes             | MIT          |
+| yaml                             | yes             | ISC          |
 | zod                              | yes             | MIT          |
+| @anthropic-ai/sdk                | build only      | Apache-2.0   |
 | @convex-dev/eslint-plugin        | build only      | Apache-2.0   |
 | @modelcontextprotocol/client     | build only      | Apache-2.0   |
 | @tailwindcss/vite                | build only      | MIT          |
@@ -74,7 +73,6 @@ Names and logos of other companies and products (for example CodeRabbit, Greptil
 | @vitejs/plugin-react             | build only      | MIT          |
 | convex-test                      | build only      | Apache-2.0   |
 | oxfmt                            | build only      | MIT          |
-| shadcn                           | build only      | MIT          |
 | simple-icons                     | build only      | CC0-1.0      |
 | tailwindcss                      | build only      | MIT          |
 | typescript                       | build only      | Apache-2.0   |

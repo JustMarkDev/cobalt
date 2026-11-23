@@ -93,7 +93,7 @@ function Pricing() {
   return (
     <div className="space-y-20">
       <header className="mx-auto max-w-2xl space-y-4 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight">
+        <h1 className="text-4xl font-semibold tracking-tight text-balance">
           Pay to keep your work, not to run it.
         </h1>
         <p className="text-lg text-muted-foreground">
@@ -171,7 +171,10 @@ function Pricing() {
             )}
             <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
               {limitLines(p).map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-4">
+                <div
+                  key={k}
+                  className="flex justify-between gap-4 max-sm:flex-col max-sm:gap-0.5 xl:flex-col xl:gap-0.5"
+                >
                   <dt className="text-muted-foreground">{k}</dt>
                   <dd className="font-medium">{v}</dd>
                 </div>
@@ -192,7 +195,7 @@ function Pricing() {
         ))}
       </section>
 
-      <p className="-mt-12 text-center text-sm text-muted-foreground">
+      <p className="mx-auto -mt-12 max-w-[68ch] text-center text-sm text-balance text-muted-foreground">
         Beyond a plan: ${overage.storagePerGbMonth.toFixed(2)} per extra GB of
         storage a month, ${overage.transferPerGb.toFixed(2)} per extra GB
         transferred, in dollars. Plans are charged in euros in Europe, at the

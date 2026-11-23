@@ -65,7 +65,7 @@ export function LegalSection({
   children: React.ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-24 space-y-3">
+    <section id={id} className="scroll-mt-header space-y-3">
       <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
       <div className="max-w-[68ch] space-y-3 text-[15px] leading-relaxed text-muted-foreground [&_b]:font-medium [&_b]:text-foreground [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5">
         {children}

@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
-@import '@fontsource-variable/geist';
+@import '@fontsource-variable/inter-tight';
 @import '@fontsource-variable/geist-mono';
 
 @custom-variant dark (&:is(.dark *));
@@ -16,7 +16,6 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: 'ss01', 'cv11';
   }
   html {
     @apply font-sans;
@@ -108,8 +107,8 @@
   /*
    * Checkboxes are drawn by the system too: a small recessed box on the xs
    * radius that fills with the brand key and a check when on. The check is
-   * an SVG, so it can't read a variable: %23141e09 is --brand-foreground
-   * (oklch 0.22 0.04 130) in sRGB, the same in both themes. Change both
+   * an SVG, so it can't read a variable: %23ffffff is --brand-foreground
+   * (white), the same in both themes. Change both
    * together.
    */
   input[type='checkbox'] {
@@ -129,7 +128,7 @@
   input[type='checkbox']:checked {
     border-color: var(--brand);
     background-color: var(--brand);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23141e09' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
     box-shadow:
       inset 0 1px 0 var(--edge),
       inset 0 -1px 0 var(--bevel);
@@ -140,7 +139,7 @@
   input[type='checkbox']:indeterminate {
     border-color: var(--brand);
     background-color: var(--brand);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23141e09' stroke-width='2.25' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2.25' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
     box-shadow:
       inset 0 1px 0 var(--edge),
       inset 0 -1px 0 var(--bevel);
@@ -247,6 +246,104 @@
   }
 }
 
+/*
+ * The header's progressive blur. Stacked layers each blur more and are masked
+ * to a shorter band, so the page fades into the bar with no edge. It shows
+ * once the page scrolls; an open menu gets a solid panel instead.
+ */
+.progressive-blur {
+  position: absolute;
+  inset: 0 0 auto;
+  /* The bar plus a fade below it, so a taller header (the phone's second row
+     of tabs) is covered just as well. */
+  height: calc(100% + 80px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+[data-scrolled] > .progressive-blur {
+  opacity: 1;
+}
+header[data-open] > .progressive-blur {
+  opacity: 0;
+}
+header[data-open] {
+  background: var(--background);
+}
+.progressive-blur::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Solid behind the whole bar (both rows on a phone), then a fade over the
+     80px below it. */
+  background: linear-gradient(
+    var(--background) 0,
+    var(--background) calc(100% - 80px),
+    color-mix(in oklch, var(--background) 72%, transparent) calc(100% - 56px),
+    color-mix(in oklch, var(--background) 25%, transparent) calc(100% - 30px),
+    transparent 100%
+  );
+}
+.progressive-blur > i {
+  position: absolute;
+  inset: 0;
+  /* Unprefixed only: the build adds the -webkit- form where needed, and
+     writing both lets the minifier keep just the prefixed one. */
+  backdrop-filter: blur(var(--b));
+  mask-image: linear-gradient(#000 0%, #000 var(--s), transparent var(--e));
+}
+.progressive-blur > i:nth-child(1) {
+  --b: 1px;
+  --s: 70%;
+  --e: 100%;
+}
+.progressive-blur > i:nth-child(2) {
+  --b: 2px;
+  --s: 85%;
+  --e: 100%;
+}
+.progressive-blur > i:nth-child(3) {
+  --b: 4px;
+  --s: 70%;
+  --e: 92%;
+}
+.progressive-blur > i:nth-child(4) {
+  --b: 8px;
+  --s: 55%;
+  --e: 80%;
+}
+.progressive-blur > i:nth-child(5) {
+  --b: 12px;
+  --s: 40%;
+  --e: 66%;
+}
+.progressive-blur > i:nth-child(6) {
+  --b: 20px;
+  --s: 26%;
+  --e: 52%;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .progressive-blur > i {
+    display: none;
+  }
+}
+
+/*
+ * Clearance for the site header: its bar plus the 80px progressive-blur fade
+ * below it (one row on desktop, two on a phone). Anchored sections scroll to
+ * just below it, and sticky side columns stick below it, so neither sits in
+ * the blur.
+ */
+@utility scroll-mt-header {
+  scroll-margin-top: 13rem;
+  @media (width >= 48rem) {
+    scroll-margin-top: 9rem;
+  }
+}
+@utility top-header {
+  top: 9rem;
+}
+
 /* The first thing a keyboard user can reach: jump past the header to the page. */
 @utility skip-link {
   position: fixed;
@@ -275,7 +372,7 @@
  * the thumb inside it is 12px - 4px = 8px. Never put a plain ring-* on an
  * elevated surface: rings are box-shadows and the elevation erases them. Use
  * an outline.
- * One accent (brand, an acid lime) used sparingly: the primary action, the
+ * One accent (brand, cobalt #2e5bff) used sparingly: the primary action, the
  * current item and the charts. Everything else is ink on paper.
  * Semantic colours (success, warning, info, danger, merged) flip per theme so
  * components never need dark: variants.
@@ -292,7 +389,7 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Inter Tight Variable', ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -346,106 +443,110 @@
 }
 
 :root {
-  --background: oklch(0.982 0.003 250);
-  --foreground: oklch(0.17 0.015 265);
-  --card: oklch(0.995 0.002 250);
-  --card-foreground: oklch(0.17 0.015 265);
-  --popover: oklch(0.995 0.002 250);
-  --popover-foreground: oklch(0.17 0.015 265);
-  --primary: oklch(0.2 0.015 265);
-  --primary-foreground: oklch(0.98 0.003 250);
-  --secondary: oklch(0.955 0.005 255);
-  --secondary-foreground: oklch(0.2 0.015 265);
-  --muted: oklch(0.955 0.005 255);
-  --muted-foreground: oklch(0.47 0.02 265);
-  --accent: oklch(0.945 0.008 255);
-  --accent-foreground: oklch(0.2 0.015 265);
-  --destructive: oklch(0.55 0.2 25);
-  --border: oklch(0.9 0.006 255);
-  --input: oklch(0.88 0.008 255);
+  /* Light: cool paper and deep ink, with the same cobalt key as dark. */
+  --background: #f6f7fb;
+  --foreground: #03050c;
+  --card: #ffffff;
+  --card-foreground: #03050c;
+  --popover: #ffffff;
+  --popover-foreground: #03050c;
+  --primary: #03050c;
+  --primary-foreground: #f4f5f8;
+  --secondary: #eceef4;
+  --secondary-foreground: #0d1120;
+  --muted: #eceef4;
+  --muted-foreground: #565c6e;
+  --accent: #e6e9f2;
+  --accent-foreground: #0d1120;
+  --destructive: #d42a2a;
+  --border: #dde1ea;
+  --input: #d3d8e3;
   /* The edge of a small control that is nothing but its edge (checkbox,
      radio, range thumb): 3:1 against the card, as WCAG 1.4.11 asks. */
-  --control-border: oklch(0.64 0.012 255);
-  --ring: oklch(0.6 0.15 130);
+  --control-border: #8a90a1;
+  --ring: #2e5bff;
   /*
-   * Chart series, in this order and never cycled: lime (the brand's hue),
-   * blue, amber, magenta; --chart-5 is "Other". Checked for colour-blind
-   * separation against each theme's card. Amber is under 3:1 on light, so
-   * charts always print their values.
+   * Chart series, in this order and never cycled: cobalt (the brand's hue),
+   * teal, amber, magenta; --chart-5 is "Other". Amber is under 3:1 on light,
+   * so charts always print their values.
    */
-  --chart-1: oklch(0.58 0.16 132);
-  --chart-2: oklch(0.52 0.15 255);
-  --chart-3: oklch(0.74 0.15 68);
-  --chart-4: oklch(0.6 0.18 320);
-  --chart-5: oklch(0.72 0.012 265);
+  --chart-1: #2e5bff;
+  --chart-2: #0f9fae;
+  --chart-3: #d98a00;
+  --chart-4: #c03fd8;
+  --chart-5: #a3a9b8;
   /* px, not rem: nested radii subtract px insets, and the sliding thumb needs a
      number for Motion to keep its corners round while it moves. So radii
      don't grow with a text-only zoom; browser zoom scales them as usual. */
   --radius: 12px;
   --trough-inset: 4px;
   --radius-thumb: calc(var(--radius) - var(--trough-inset));
-  --sidebar: oklch(0.985 0.002 250);
-  --sidebar-foreground: oklch(0.17 0.015 265);
-  --sidebar-primary: oklch(0.2 0.015 265);
-  --sidebar-primary-foreground: oklch(0.98 0.003 250);
-  --sidebar-accent: oklch(0.955 0.005 255);
-  --sidebar-accent-foreground: oklch(0.2 0.015 265);
-  --sidebar-border: oklch(0.9 0.006 255);
-  --sidebar-ring: oklch(0.6 0.15 130);
+  --sidebar: #f1f3f8;
+  --sidebar-foreground: #03050c;
+  --sidebar-primary: #2e5bff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6e9f2;
+  --sidebar-accent-foreground: #0d1120;
+  --sidebar-border: #dde1ea;
+  --sidebar-ring: #2e5bff;
 
-  --brand: oklch(0.9 0.21 125);
-  --brand-foreground: oklch(0.22 0.04 130);
-  --brand-ink: oklch(0.45 0.14 135);
-  --success: oklch(0.47 0.14 150);
-  --warning: oklch(0.49 0.12 65);
-  --info: oklch(0.5 0.16 250);
-  --danger: oklch(0.52 0.2 25);
-  --merged: oklch(0.5 0.18 295);
-  --pop: var(--foreground);
+  --brand: #2e5bff;
+  --brand-foreground: #ffffff;
+  --brand-ink: #2347d9;
+  --brand-glow: rgb(46 91 255 / 28%);
+  /* Dark enough to read at 4.5:1 on their own 12% tint (badges). */
+  --success: #0e6c3b;
+  --warning: #8a5200;
+  --info: #2347d9;
+  --danger: #b52323;
+  --merged: #7c4dd8;
+  --pop: var(--brand);
 }
 
 .dark {
-  --background: oklch(0.14 0.008 265);
-  --foreground: oklch(0.96 0.004 250);
-  --card: oklch(0.18 0.01 265);
-  --card-foreground: oklch(0.96 0.004 250);
-  --popover: oklch(0.21 0.011 265);
-  --popover-foreground: oklch(0.96 0.004 250);
-  --primary: oklch(0.96 0.004 250);
-  --primary-foreground: oklch(0.2 0.015 265);
-  --secondary: oklch(0.255 0.013 265);
-  --secondary-foreground: oklch(0.96 0.004 250);
-  --muted: oklch(0.245 0.013 265);
-  --muted-foreground: oklch(0.72 0.02 265);
-  --accent: oklch(0.27 0.014 265);
-  --accent-foreground: oklch(0.96 0.004 250);
-  --destructive: oklch(0.72 0.19 25);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 13%);
-  --control-border: oklch(0.52 0.012 265);
-  --ring: oklch(0.8 0.17 125);
-  --chart-1: oklch(0.66 0.17 130);
-  --chart-2: oklch(0.62 0.15 252);
-  --chart-3: oklch(0.66 0.13 62);
-  --chart-4: oklch(0.6 0.19 325);
-  --chart-5: oklch(0.45 0.012 265);
-  --sidebar: oklch(0.195 0.013 265);
-  --sidebar-foreground: oklch(0.96 0.004 250);
-  --sidebar-primary: oklch(0.9 0.21 125);
-  --sidebar-primary-foreground: oklch(0.22 0.04 130);
-  --sidebar-accent: oklch(0.27 0.014 265);
-  --sidebar-accent-foreground: oklch(0.96 0.004 250);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.8 0.17 125);
+  /* Dark first: near-black blue, cool white ink, one cobalt key. */
+  --background: #03050c;
+  --foreground: #f4f5f8;
+  --card: #0b0e17;
+  --card-foreground: #f4f5f8;
+  --popover: #10131d;
+  --popover-foreground: #f4f5f8;
+  --primary: #f4f5f8;
+  --primary-foreground: #03050c;
+  --secondary: #161a26;
+  --secondary-foreground: #f4f5f8;
+  --muted: #131722;
+  --muted-foreground: #9097a8;
+  --accent: #1b1f2c;
+  --accent-foreground: #f4f5f8;
+  --destructive: #ff5c5c;
+  --border: rgb(244 245 248 / 8%);
+  --input: rgb(244 245 248 / 13%);
+  --control-border: #5a6072;
+  --ring: #5b7cff;
+  --chart-1: #4f75ff;
+  --chart-2: #2ec5d3;
+  --chart-3: #ffb340;
+  --chart-4: #e05cff;
+  --chart-5: #4a5062;
+  --sidebar: #070a13;
+  --sidebar-foreground: #f4f5f8;
+  --sidebar-primary: #2e5bff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #161a26;
+  --sidebar-accent-foreground: #f4f5f8;
+  --sidebar-border: rgb(244 245 248 / 8%);
+  --sidebar-ring: #5b7cff;
 
-  --brand: oklch(0.9 0.21 125);
-  --brand-foreground: oklch(0.22 0.04 130);
-  --brand-ink: oklch(0.9 0.2 125);
-  --success: oklch(0.78 0.17 152);
-  --warning: oklch(0.82 0.15 80);
-  --info: oklch(0.78 0.12 245);
-  --danger: oklch(0.72 0.19 25);
-  --merged: oklch(0.76 0.15 295);
+  --brand: #2e5bff;
+  --brand-foreground: #ffffff;
+  --brand-ink: #7d95ff;
+  --brand-glow: rgb(46 91 255 / 30%);
+  --success: #3ddc84;
+  --warning: #ffb340;
+  --info: #7d95ff;
+  --danger: #ff5c5c;
+  --merged: #a78bfa;
   --pop: var(--brand);
 }
 
@@ -534,6 +635,36 @@
 }
 
 /*
+ * The brand key: a raised control in cobalt glass. A lighter top half reads as
+ * light falling on it, and a soft glow of its own colour lifts it off the page.
+ * Owns its fill, shadow and press, like raised.
+ */
+@utility key-brand {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--brand) 92%, white),
+    var(--brand) 60%
+  );
+  background-color: var(--brand);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 20%),
+    inset 0 -1px 0 rgb(0 0 0 / 22%),
+    0 1px 2px rgb(0 0 0 / 35%),
+    0 6px 18px -8px var(--brand-glow);
+  transition-property: box-shadow, transform, filter;
+  transition-duration: 120ms;
+  &:hover {
+    filter: brightness(1.05);
+  }
+  &:active:not(:disabled, [aria-disabled='true']) {
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 1px 3px rgb(0 0 0 / 35%),
+      0 4px 14px -8px var(--brand-glow);
+  }
+}
+
+/*
  * For a surface whose children are opaque and flush with its top (a grid of
  * cells, a sticky table column, a code viewer): the inset top edge is painted
  * under them, so draw it again above. The ::after is out of flow, so it never
@@ -590,6 +721,12 @@
 @utility focus-ring-inset {
   &:focus-visible {
     /* --focus-color lets a control on a brand fill keep it visible. */
+    outline: 2px solid var(--focus-color, var(--ring));
+    outline-offset: -2px;
+  }
+  /* The current item's sliding pill is painted over its own outline: draw the
+     ring on the pill instead, so the current tab shows focus too. */
+  &:focus-visible > .thumb {
     outline: 2px solid var(--focus-color, var(--ring));
     outline-offset: -2px;
   }
@@ -842,6 +979,13 @@
   }
 }
 
+/* The home page's strip of hosts: two copies side by side, moved by half. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @keyframes sweep {
   from {
     transform: translateX(-100%);
@@ -862,8 +1006,8 @@
   --color-fd-card: var(--card);
   --color-fd-card-foreground: var(--card-foreground);
   --color-fd-border: var(--border);
-  --color-fd-primary: var(--primary);
-  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-primary: var(--brand-ink);
+  --color-fd-primary-foreground: var(--brand-foreground);
   --color-fd-secondary: var(--secondary);
   --color-fd-secondary-foreground: var(--secondary-foreground);
   --color-fd-accent: var(--accent);
@@ -872,16 +1016,19 @@
 }
 
 /* Docs, in the product's tactile look. Fumadocs markup, our surfaces. */
-#nd-sidebar {
+#nd-sidebar,
+#nd-sidebar-mobile {
   background: var(--background);
 }
-#nd-sidebar button[data-search-full] {
+#nd-sidebar button[data-search-full],
+#nd-sidebar-mobile button[data-search-full] {
   height: 2.5rem;
   border-radius: var(--radius);
   background: var(--background);
   box-shadow: var(--well);
 }
-#nd-sidebar a[data-active='true'] {
+#nd-sidebar a[data-active='true'],
+#nd-sidebar-mobile a[data-active='true'] {
   background: var(--card);
   color: var(--foreground);
   font-weight: 500;
@@ -890,13 +1037,39 @@
     var(--thumb);
 }
 #nd-sidebar a,
-#nd-sidebar button {
+#nd-sidebar button,
+#nd-sidebar-mobile a,
+#nd-sidebar-mobile button {
   border-radius: var(--radius);
 }
-.nd-page h1 {
+#nd-page h1 {
   letter-spacing: -0.02em;
 }
-.nd-page div:has(> table) {
+/* Long paths and ids in running text and headings wrap instead of pushing the
+   page sideways on a phone. */
+#nd-page :not(pre) > code,
+#nd-page :is(h1, h2, h3, h4) {
+  overflow-wrap: anywhere;
+}
+#nd-page :is(h1, h2, h3, h4) {
+  min-width: 0;
+}
+/* GitHub Dark's comment grey is 4:1 on the docs card: lift it to 4.5:1.
+   The token's inline style sets the variable, so only !important wins. */
+.dark #nd-page [style*='--shiki-dark:#6A737D'] {
+  --shiki-dark: #8b949e !important;
+}
+/* Tables keep their own sideways scroll: code and right-aligned numbers stay
+   whole inside a cell instead of squeezing the table to the screen. */
+#nd-page :is(td, th) code {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+#nd-page :is(td, th)[style*='text-align:right'],
+#nd-page :is(td, th)[style*='text-align: right'] {
+  white-space: nowrap;
+}
+#nd-page div:has(> table) {
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: var(--card);
@@ -904,18 +1077,44 @@
     inset 0 1px 0 var(--edge),
     var(--rest);
 }
-.nd-page div:has(> table) table {
+/* A sideways scroller fades at its right edge until its end is reached, so a
+   cut-off column or line reads as more to scroll. Where scroll timelines are
+   missing, or nothing overflows, there is no fade. */
+@supports (animation-timeline: scroll()) {
+  .scroll-fade-x,
+  #nd-page div:has(> table),
+  #nd-page .fd-scroll-container {
+    --fade-r: 0px;
+    mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - var(--fade-r)),
+      transparent
+    );
+    animation: scroll-fade-x linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+@keyframes scroll-fade-x {
+  0%,
+  92% {
+    --fade-r: 2.5rem;
+  }
+  100% {
+    --fade-r: 0px;
+  }
+}
+#nd-page div:has(> table) table {
   border: 0;
 }
-.nd-page figure {
+#nd-page figure {
   border-radius: var(--radius-xl);
   background: var(--card);
   box-shadow:
     inset 0 1px 0 var(--edge),
     var(--rest);
 }
-.nd-page main a[href^='/docs'][class*='bg-fd-card'],
-.nd-page a[class*='bg-fd-card'] {
+#nd-page main a[href^='/docs'][class*='bg-fd-card'],
+#nd-page a[class*='bg-fd-card'] {
   border-radius: var(--radius-xl);
   box-shadow:
     inset 0 1px 0 var(--edge),

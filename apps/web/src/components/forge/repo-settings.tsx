@@ -793,7 +793,7 @@ export function RepoSettings({
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[200px_minmax(0,1fr)]">
         <nav
           aria-label="Repository settings"
-          className="flex gap-1 overflow-x-auto lg:sticky lg:top-20 lg:flex-col lg:self-start"
+          className="flex gap-1 overflow-x-auto lg:sticky lg:top-header lg:flex-col lg:self-start"
         >
           {sections.map(([id, label]) => (
             <Link

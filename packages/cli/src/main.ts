@@ -9,6 +9,7 @@ import { change } from './commands/change'
 import { config } from './commands/config'
 import { context } from './commands/context'
 import { env } from './commands/env'
+import { importCommand } from './commands/import'
 import { issue } from './commands/issue'
 import { mcp } from './commands/mcp'
 import { mirror } from './commands/mirror'
@@ -22,6 +23,7 @@ import type { Command } from './commands/types'
 
 const commands: Record<string, Command> = {
   repo,
+  import: importCommand,
   change,
   issue,
   env,

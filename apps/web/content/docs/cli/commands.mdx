@@ -29,6 +29,16 @@ sx repo clone dana/gitfs
 
 `repo clone` prints the command and honours `clone.protocol` (`ssh` or `https`).
 
+## import
+
+```bash
+sx import github dana/notes
+sx import https://gitlab.com/dana/zine --as northwind/zine --private
+sx import list
+```
+
+`import` makes the repository here and keeps pulling from the original through a mirror, until you `sx mirror remove` it. It takes GitHub, GitLab, Codeberg and Gitea, as `host owner/name` or as the repository's address. The repository goes in the account you act as under its own name; `--as` picks another name or `owner/name`. Importing the same repository again returns `created: false`. `import list` shows what you imported and how each mirror is doing.
+
 ## account
 
 ```bash

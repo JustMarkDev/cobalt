@@ -15,92 +15,47 @@ description: What we measured, against what, how it compares with other forges, 
 
 ## What we measured
 
-`bun scripts/api-bench.ts` starts the server in its own process behind a real HTTP server and drives it over sockets from **three separate client processes with 32 connections each**, for 5 seconds per scenario. The server's CPU use is printed next to every row: about 100% means one core was busy, so the number is the server's limit and not the load generator's. The repository holds 10,000 changes and 2,000 issues.
+`bun scripts/api-bench.ts` starts the server in its own process behind a real HTTP server and drives it over sockets from **three separate client processes with 32 connections each**, for 5 seconds per scenario. The script prints the server's CPU use next to each scenario: about 100% means one core was busy, so the number is the server's limit and not the load generator's. The repository holds 10,000 changes and 2,000 issues.
 
-Apple M5, Bun 1.4.4, one server process. "Before" is the first version of the API that passed its tests, measured with exactly the same harness (`docs/bench/baseline.json`). "Now" is the current code (`docs/bench/after.json`). `bun scripts/api-bench.ts --compare docs/bench/baseline.json` reproduces the table on your machine.
+Apple M5, Bun 1.4.4, one server process.
 
-| Scenario                                      | before req/s | now req/s |  change | p99 before | p99 now |
-| --------------------------------------------- | -----------: | --------: | ------: | ---------: | ------: |
-| `GET /v1` (anonymous)                         |       90,788 |   111,923 |    +23% |    2.09 ms | 1.68 ms |
-| One change, from the body cache               |       58,635 |   111,633 |    +90% |    3.16 ms | 1.68 ms |
-| One change, `If-None-Match` (304)             |       59,978 |   121,267 |   +102% |    3.04 ms | 1.55 ms |
-| One of 10,000 changes (cache misses)          |       42,718 |    68,739 |    +61% |    4.26 ms | 2.75 ms |
-| The same change, 1,000 different tokens       |       37,720 |    57,642 |    +53% |    4.34 ms | 3.10 ms |
-| Policy of a change                            |       57,803 |    69,914 |    +21% |    3.16 ms | 2.65 ms |
-| `GET …/context` (the agent start-up bundle)   |       46,821 |    58,571 |    +25% |    3.86 ms | 3.16 ms |
-| `GET /sync` with nothing new                  |       59,406 |    69,444 |    +17% |    3.10 ms | 2.65 ms |
-| 50 changes of 10,000                          |        7,751 |    29,330 |   +278% |    15.4 ms | 5.40 ms |
-| 50 changes, `fields=number,title,policy`      |       12,276 |    27,341 |   +123% |    12.2 ms | 5.96 ms |
-| 50 changes, author filter                     |        7,682 |    26,915 |   +250% |    13.7 ms | 6.08 ms |
-| 50 issues of 2,000                            |       16,611 |    37,424 |   +125% |    9.04 ms | 4.70 ms |
-| Event log, 50 newest                          |       57,518 |    65,254 |    +13% |    3.36 ms | 2.87 ms |
-| Search, one query (10,000 matches)            |       27,318 |    40,807 |    +49% |    6.58 ms | 4.43 ms |
-| Search, 500 different queries                 |       35,993 |    34,464 |     −4% |    4.99 ms | 9.59 ms |
-| `openapi.json`, conditional                   |        2,063 |   104,708 | +4,977% |    49.6 ms | 1.78 ms |
-| `POST /batch`, three reads                    |       13,339 |    14,316 |     +7% |    9.40 ms | 17.4 ms |
-| Mixed: 80% change reads, 15% lists, 5% writes |       21,143 |    44,542 |   +111% |    8.35 ms | 4.52 ms |
-| `POST` an issue                               |        3,512 |    43,742 | +1,145% |    43.2 ms | 8.52 ms |
-| `POST` an issue with an `Idempotency-Key`     |        4,070 |    41,375 |   +917% |    41.5 ms | 12.4 ms |
-| `POST` a review                               |       23,671 |    40,006 |    +69% |    11.9 ms | 6.45 ms |
-| `POST` a check run                            |       31,643 |    42,000 |    +33% |    9.40 ms | 6.33 ms |
-| `POST` a token, then revoke it                |        7,073 |     8,903 |    +26% |    11.9 ms | 9.59 ms |
+| Scenario                                      |   req/s |     p99 |
+| --------------------------------------------- | ------: | ------: |
+| `GET /v1` (anonymous)                         | 111,923 | 1.68 ms |
+| One change, from the body cache               | 111,633 | 1.68 ms |
+| One change, `If-None-Match` (304)             | 121,267 | 1.55 ms |
+| One of 10,000 changes (cache misses)          |  68,739 | 2.75 ms |
+| The same change, 1,000 different tokens       |  57,642 | 3.10 ms |
+| Policy of a change                            |  69,914 | 2.65 ms |
+| `GET …/context` (the agent start-up bundle)   |  58,571 | 3.16 ms |
+| `GET /sync` with nothing new                  |  69,444 | 2.65 ms |
+| 50 changes of 10,000                          |  29,330 | 5.40 ms |
+| 50 changes, `fields=number,title,policy`      |  27,341 | 5.96 ms |
+| 50 changes, author filter                     |  26,915 | 6.08 ms |
+| 50 issues of 2,000                            |  37,424 | 4.70 ms |
+| Event log, 50 newest                          |  65,254 | 2.87 ms |
+| Search, one query (10,000 matches)            |  40,807 | 4.43 ms |
+| Search, 500 different queries                 |  34,464 | 9.59 ms |
+| `openapi.json`, conditional                   | 104,708 | 1.78 ms |
+| `POST /batch`, three reads                    |  14,316 | 17.4 ms |
+| Mixed: 80% change reads, 15% lists, 5% writes |  44,542 | 4.52 ms |
+| `POST` an issue                               |  43,742 | 8.52 ms |
+| `POST` an issue with an `Idempotency-Key`     |  41,375 | 12.4 ms |
+| `POST` a review                               |  40,006 | 6.45 ms |
+| `POST` a check run                            |  42,000 | 6.33 ms |
+| `POST` a token, then revoke it                |   8,903 | 9.59 ms |
 
 Zero errors in every scenario.
 
-### Where it did not move
-
-- **Search with 500 different queries is level with before (−4%) and its p99 roughly doubled** (5.0 to 9.6 ms). Every distinct query is computed from scratch. We made scoring cheaper and snippets lazy and it did not move this row, so we do not know yet what the tail is made of; it is the one scenario we left worse than we found it.
-- **`POST /batch` of three reads is +7% with a worse p99** (9.4 to 17 ms). It was a single bad window in one run and we have not shown that, so treat it as unexplained too.
-- **Events, sync and policy rose only 13–21%.** They were already close to the cost of one HTTP round trip in this runtime, so there was little left to remove.
-- **Uploads have no honest "before".** The baseline's in-memory blob store hit its cap and 150,007 of its requests failed, so its 29,990 req/s counted failures. Now a 100 KB upload (announce, then PUT) runs at 12,109 per second with zero errors. The blob store here discards the bytes, so it measures the signed address, the type, size and magic-byte checks, hashing and the response, and not storage.
-
-### Beyond requests per second
-
-| Measure                                             | Before            | Now                                 |
-| --------------------------------------------------- | ----------------- | ----------------------------------- |
-| One hot read as connections grow (8 to 2,048)       | ~30,000/s         | 50,500–52,800/s, p99 78 ms at 2,048 |
-| 1,000 long-polling readers answered after one write | 25–27 ms          | 25–36 ms                            |
-| 1,000 open event streams, one write, last delivery  | 13 ms             | 28 ms                               |
-| 3,000 writes with a webhook subscribed              | 1,363 writes/s    | 20,732 writes/s                     |
-| Server CPU per write, including its delivery        | 824 µs            | 79 µs                               |
-| Sign-in steps (consent, approve, exchange, rotate)  | 0.07–0.08 ms each | 0.05 ms each                        |
-
-Throughput stays flat from 8 to 2,048 connections and latency grows in line with the queue (p50 38 ms at 2,048 connections is 2,048 requests waiting for one core). Nothing falls over and no request fails. The fan-out rows are within a few tens of milliseconds of each other and the event-stream row is slower by 15 ms (13 to 28 ms; 18 in the previous run), which we put down to noise because it is one write observed once, but have not shown.
-
 ### Memory
 
-Writes got ten times faster, so the same five seconds now create ten times the data, and the benchmark's server ends the run holding about 1.1 GB (720 MB of live heap) after creating several hundred thousand issues, reviews and check runs. To judge the cost of the data itself, create 100,000 issues in an otherwise idle server:
+Creating 100,000 issues in an otherwise idle server ends at about 109 MB of live heap, each issue and its event adding about 0.7 KB. The largest caches and logs are capped by count, and the event log, idempotency keys and serialized bodies by bytes as well, so memory stays flat under steady load.
 
-|                                   | Before this pass |                                Now |
-| --------------------------------- | ---------------: | ---------------------------------: |
-| Live heap                         |           168 MB |                         **109 MB** |
-| Resident memory right after       |           585 MB | **348 MB** (243 MB after 4 s idle) |
-| With an `Idempotency-Key` on each |     not measured |                        135 MB heap |
-| Per issue, with its event         |           1.3 KB |                             0.7 KB |
-
-What changed:
-
-- **The event log keeps text, not objects.** An event is one JSON string (about 900 characters) plus four fields to filter on, instead of a nested object of a dozen values (about 1.7 KB). The stream and the list copy that text straight into the response, so reading got cheaper too. The window is bounded by size as well as count: 24 MB of event text or 50,000 events, whichever is smaller.
-- **Idempotency keys are bounded by size too**: 24 MB of stored responses or 100,000 keys, oldest first. A retry that arrives after its key was dropped runs again, which only happens to a retry that comes a very long time after the original.
-- **The search index uses integers, not strings.** Documents get a number, each word points at a sorted list of numbers, and an update touches only the words that changed. Words whose last document is gone leave the vocabulary. Cached results are limited to 150,000 hits in total.
-- **Revoked tokens are limited** to the newest 50,000; older ones answer `token_invalid` instead of `token_revoked`, and still do not work. Tokens are indexed by owner, so listing yours no longer reads everyone's.
-- **Uploads that were announced and never sent are forgotten** when their hour is up, and counting a person's pending uploads is a lookup, not a scan.
-
-Resident memory sits above the heap because the runtime hands pages back slowly: 100,000 requests' worth of garbage is released over a few seconds. Setting `BUN_JSC_forceRAMSize` to the container's memory limit makes it collect earlier; in our test it lowered the peak from 547 MB to 414 MB for the same work. `bun run start` (`apps/web/start.sh`) sets it from the container's memory limit (`/sys/fs/cgroup/memory.max`) on every start, so it follows the limit when the service is resized.
-
-### Where the time went
-
-We profiled the server under each scenario and fixed what was at the top:
-
-- **Lists** serialized and hashed all 50 items on every request. Each item (change or issue) is serialized once per version, kept in a bounded cache, and the list's `ETag` is built from the items' digests, so a list is 50 lookups and a join.
-- **Writes** repeated scans: finding an open issue by title, an open change by branch, counting a repository's items, finding a person's pending uploads or active tokens. These are indexes and counters now.
-- **The OpenAPI document** was rebuilt for every request. It is built once and answered with a `304` for a matching `ETag`.
-- **Per request overhead**: parsing the timeout duration, drawing random bytes for every id (now a pooled source), hashing a token for every lookup (a lookup cache by raw token string), formatting the same millisecond as a date and as an id several times (the last answer is kept), adding CORS headers when there is no `Origin`.
-- **Search** scores a candidate from its title and reads the body only when a phrase asks for it, makes snippets only for the 50 hits on the page, and keeps a cached result when the writes since it was made could not match it.
+Resident memory sits above the heap because the runtime hands pages back slowly. Setting `BUN_JSC_forceRAMSize` to the container's memory limit in bytes makes it collect earlier; `bun run start` (`apps/web/start.sh`) sets it from the container's memory limit (`/sys/fs/cgroup/memory.max`) on every start, so it follows the limit when the service is resized.
 
 ## Against other forges, from a client
 
-Everything above is our code on a laptop. To see where a request stands against the others, `bun scripts/probe-competitors.ts` reads each service's public API the way a client does: one request after another on a kept-alive connection, from one machine (Europe, a home network), on 7 November 2026. It only reads, politely: GitHub with a personal token (5,000 an hour), everything else anonymously, with fewer samples where a service has low limits or heavy lists.
+The numbers above are our code on a laptop. To see where a request stands against the others, `bun scripts/probe-competitors.ts` reads each service's public API the way a client does: one request after another on a kept-alive connection, from one machine (Europe, a home network), on 7 November 2026. It only reads, politely: GitHub with a personal token (5,000 an hour), everything else anonymously, with fewer samples where a service has low limits or heavy lists.
 
 | Service   | Request                        | Samples |      p50 |      p95 |      p99 | p50 minus round trip |      Size |
 | --------- | ------------------------------ | ------: | -------: | -------: | -------: | -------------------: | --------: |
@@ -199,7 +154,7 @@ These are goals, set before there is anything to measure them against, and publi
 - **Reads decide before they build.** The `ETag` is the version plus what shaped the answer (`fields`, filters, the caller's abilities). A matching `If-None-Match` is answered before any body exists.
 - **No repeated work for the common screen.** Rollups on a change (`checks`, `policy`, `stack`, `reviewers`) remove the fetch-per-item pattern.
 - **Keyset pagination over ordered indexes.** A page costs the same at any depth. No counts, no offsets.
-- **Waiting is registered per repository.** An event wakes only the clients watching that repository. 2,000 waiters on one change, one event, 39 ms to answer all of them in the test.
+- **Waiting is registered per repository.** An event wakes only the clients watching that repository. In `packages/api/src/scale.test.ts`, one event answered 2,000 waiters on one change in about 40 ms on the benchmark machine; the test allows two seconds.
 - **Nothing blocks.** Work that can take more than a few seconds is an operation. Every handler runs under a 5 second budget and fails with `503` and `Retry-After` past it.
 - **Server-Timing on every response**, so slow is something you can see.
 

@@ -50,6 +50,7 @@ export const Route = createRootRouteWithContext<{
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
       {
         rel: 'apple-touch-icon',
         sizes: '180x180',
@@ -67,7 +68,7 @@ export const Route = createRootRouteWithContext<{
         sizes: '16x16',
         href: '/favicon-16x16.png',
       },
-      { rel: 'manifest', href: '/site.webmanifest', color: '#fffff' },
+      { rel: 'manifest', href: '/site.webmanifest' },
       { rel: 'icon', href: '/favicon.ico' },
     ],
   }),
@@ -93,10 +94,16 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   // Account screens are one card on a quiet page, with no header or footer.
   const bare = useRouterState({
     select: (s) =>
-      ['/sign-in', '/sign-up', '/forgot-password', '/welcome'].includes(
-        s.location.pathname,
-      ),
+      [
+        '/sign-in',
+        '/sign-up',
+        '/forgot-password',
+        '/reset-password',
+        '/welcome',
+      ].includes(s.location.pathname),
   })
+  // The home page is full bleed: its sections set their own widths.
+  const home = useRouterState({ select: (s) => s.location.pathname === '/' })
   // The leaf route, not the URL: moving between tabs of one route keeps the
   // page mounted, and the page animates its own tab content.
   const routeId = useRouterState({ select: (s) => s.matches.at(-1)?.routeId })
@@ -104,6 +111,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* Written here, not in head(): the router keeps one meta per name,
+            and the browser bar needs one colour per scheme. */}
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: light)"
+          content="#f6f7fb"
+        />
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: dark)"
+          content="#03050c"
+        />
         <HeadContent />
       </head>
       <body className="flex min-h-dvh flex-col">
@@ -133,7 +152,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 <main
                   id="main"
                   tabIndex={-1}
-                  className="mx-auto w-full max-w-6xl flex-1 px-6 py-8 outline-none"
+                  className={
+                    home
+                      ? 'w-full flex-1 outline-none'
+                      : 'mx-auto w-full max-w-6xl flex-1 px-6 py-8 outline-none'
+                  }
                 >
                   <PageTransition trigger={routeId}>{children}</PageTransition>
                 </main>

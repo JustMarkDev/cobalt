@@ -1171,7 +1171,7 @@ function CodeReview({
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="pierre surface h-fit overflow-hidden rounded-2xl border bg-card p-3 md:sticky md:top-20">
+        <div className="pierre surface h-fit overflow-hidden rounded-2xl border bg-card p-3 md:sticky md:top-header">
           <FileTree model={model} className="block h-36" />
         </div>
         <div className="min-w-0 space-y-4">
@@ -1235,7 +1235,7 @@ function CodeReview({
                 key={`${ps}-${compare}-${since}-${name}`}
                 id={`file-${name}`}
                 data-presence-file={name}
-                className="pierre surface scroll-mt-20 overflow-hidden rounded-2xl border bg-card"
+                className="pierre surface scroll-mt-header overflow-hidden rounded-2xl border bg-card"
               >
                 {why.get(name) && (
                   <p className="flex items-start gap-2 border-b px-4 py-1.5 text-xs">

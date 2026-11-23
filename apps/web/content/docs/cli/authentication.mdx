@@ -6,11 +6,13 @@ description: Signing in for people, tokens for scripts and agents.
 
 ## Where sx talks to
 
-With nothing set, `sx` runs the [API](/docs/api) in its own process on sample data, which is what the preview offers. To use a real server, point it at one:
+`sx auth login` with nothing set signs in to the API of `host` (`https://source.code/api/v1`) and remembers it, so every later command talks to it. To use another server, point it there first:
 
 ```bash
-export SX_API=https://api.source.code/v1     # or: sx config set api <url>
+export SX_API=https://forge.example.com/api/v1     # or: sx config set api <url>
 ```
+
+Inside the source.code repository, before you sign in, `sx` runs the [API](/docs/api) in its own process on sample data. An installed `sx` has no sample data: until you sign in it says so and exits `4`.
 
 ## Signing in as a person
 

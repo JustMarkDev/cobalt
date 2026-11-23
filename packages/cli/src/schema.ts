@@ -87,6 +87,26 @@ export const schema: Array<CommandSpec> = [
     example: 'sx repo create notes -A northwind',
   },
   {
+    command: 'import',
+    summary:
+      'Bring a repository in from GitHub, GitLab, Codeberg or Gitea, history and all. It keeps pulling from there through a mirror.',
+    args: '<host> <owner/name> | <url> [--as name|owner/name] [--private]',
+    mutates: true,
+    idempotent: true,
+    exits: [2, 3],
+    example: 'sx import github dana/notes',
+  },
+  {
+    command: 'import list',
+    summary:
+      'What you imported, with where it came from and how its mirror is doing.',
+    args: '',
+    mutates: false,
+    idempotent: true,
+    exits: [],
+    example: 'sx import list',
+  },
+  {
     command: 'repo clone',
     summary: 'Print the git clone command.',
     args: '<owner/name>',
