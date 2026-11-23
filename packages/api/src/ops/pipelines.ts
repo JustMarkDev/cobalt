@@ -1,3 +1,4 @@
+import { settleRunsOn } from '../runs-on'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { Domain, defineOp, reply } from '../registry'
@@ -81,6 +82,7 @@ export const getPipelineRun = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
+      yield* run((d) => settleRunsOn(d))
       return yield* run((d) =>
         d.getPipelineRun(
           ctx.params.owner,
@@ -179,6 +181,7 @@ export const claimPipelineJob = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
+      yield* run((d) => settleRunsOn(d))
       const j = yield* run((d) =>
         d.claimPipelineJob(
           ctx.params.owner,

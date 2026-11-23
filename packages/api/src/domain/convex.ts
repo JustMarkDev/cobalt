@@ -1154,6 +1154,12 @@ export class ConvexDomain implements DomainPort {
   triggersVersion: Port['triggersVersion'] = (owner, name, p) =>
     this.q('triggers:version', { owner, name }, p)
 
+  pendingRunsOn: Port['pendingRunsOn'] = () =>
+    this.q('pipelines:pendingRunsOn', {}, 'system')
+  setRunsOn: Port['setRunsOn'] = async (owner, name, n, read) => {
+    await this.m('pipelines:setRunsOn', { owner, name, n, read }, 'system')
+  }
+
   // ---- runners ---------------------------------------------------------------------
 
   createRunner: Port['createRunner'] = (p, body, dry) =>
@@ -1171,6 +1177,8 @@ export class ConvexDomain implements DomainPort {
   runnerClaim: Port['runnerClaim'] = (p) => this.m('runners:claim', {}, p)
   runnerReport: Port['runnerReport'] = (p, body) =>
     this.m('runners:report', { ...body }, p)
+  runnerWait: Port['runnerWait'] = (p, body) =>
+    this.m('runners:wait', { ...body }, p)
   runnerJobs: Port['runnerJobs'] = (p, id) => this.q('runners:jobs', { id }, p)
 
   // ---- policy rules -------------------------------------------------------------

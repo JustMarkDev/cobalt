@@ -29,9 +29,16 @@ import {
   waitingForLabels,
 } from '../runners'
 import { runsOnOf } from '../workflow'
+import { applyRunsOn } from '../runs-on'
 import type { PipelineWait } from '../lifecycles'
 import type { CursorPosition } from '../cursor'
-import type { ResumeBody, RunnerBody, RunnerReportBody, WaitBody } from './port'
+import type {
+  ResumeBody,
+  RunnerBody,
+  RunnerReportBody,
+  RunnerWaitBody,
+  WaitBody,
+} from './port'
 import type {
   PipelineRunRec,
   PipelineStatus,
@@ -151,9 +158,51 @@ export abstract class DomainPipelines extends DomainReleases {
             })),
           }))
         : null,
+      runs_on_pending: !!r.runsOnPending,
       annotations: r.annotations,
       version: r.version,
     }
+  }
+
+  /** Runs a trigger started whose labels are not read yet. */
+  async pendingRunsOn() {
+    const out: Array<{
+      owner: string
+      name: string
+      number: number
+      file: string
+      sha: string
+    }> = []
+    for (const repo of this.repos.values())
+      for (const r of repo.pipelines ?? [])
+        if (r.runsOnPending)
+          out.push({
+            owner: repo.owner,
+            name: repo.name,
+            number: r.number,
+            file: r.file,
+            sha: r.sha,
+          })
+    return out
+  }
+
+  /** The labels a run's workflow file says, now read; null when it could not be. */
+  async setRunsOn(
+    owner: string,
+    name: string,
+    n: number,
+    read: {
+      jobs: Record<string, Array<string>>
+      warnings: Array<string>
+    } | null,
+  ) {
+    const repo =
+      this.repos.get(`${owner}/${name}`) ??
+      this.byLower(`${owner}/${name}`.toLowerCase())
+    const r = repo?.pipelines?.find((x) => x.number === n)
+    if (!r?.runsOnPending) return
+    applyRunsOn(r, read)
+    r.version++
   }
 
   /**
@@ -368,13 +417,10 @@ export abstract class DomainPipelines extends DomainReleases {
     r.branch = at.branch
     r.sha = at.sha
     r.title = `${workflow} on ${at.branch}`
-    if (r.jobs.some((j) => j.runsOn?.length))
-      r.annotations.push({
-        level: 'warn',
-        text: `runs-on was copied from run #${last.number}; it may be stale if the workflow changed since.`,
-        job: '',
-        step: '',
-      })
+    // Its labels are read from the workflow file at this commit before any
+    // runner may take it (`settleRunsOn`); until then the last run's stand in.
+    r.runsOnPending = true
+    r.runsOnFrom = last.number
     this.seedPipelineRun(repo, r)
     return r
   }
@@ -447,7 +493,10 @@ export abstract class DomainPipelines extends DomainReleases {
     const repo = this.resolve(owner, name, p, 'write')
     this.settleTimers(repo)
     const queued = [...(repo.pipelines ?? [])]
-      .filter((r) => r.status === 'queued' || r.status === 'running')
+      .filter(
+        (r) =>
+          (r.status === 'queued' || r.status === 'running') && !r.runsOnPending,
+      )
       .sort((a, b) => a.started - b.started)
     for (const r of queued) {
       const ji = r.jobs.findIndex(
@@ -588,6 +637,20 @@ export abstract class DomainPipelines extends DomainReleases {
     this.settleTimers(repo)
     const live = this.runOf(repo, n)
     const r: PipelineRunRec = dry ? structuredClone(live) : live
+    this.applyWait(repo, r, job, step, body, p!.handle, dry)
+    return this.presentPipelineRun(repo, r, true)
+  }
+
+  /** Pauses a running step and tells whom it waits on. Shared with a runner's own wait. */
+  private applyWait(
+    repo: RepoRec,
+    r: PipelineRunRec,
+    job: number,
+    step: number,
+    body: WaitBody,
+    by: string,
+    dry: boolean,
+  ) {
     const wait: PipelineWait = {
       kind: body.kind,
       reason: body.reason,
@@ -599,8 +662,32 @@ export abstract class DomainPipelines extends DomainReleases {
     r.jobs[job - 1].lease = null
     if (!dry) {
       r.version++
-      this.toldOfWait(repo, r, job, wait, p!.handle)
+      this.toldOfWait(repo, r, job, wait, by)
     }
+  }
+
+  /** The runner pauses a step of a job it holds. */
+  async runnerWait(p: Viewer, body: RunnerWaitBody) {
+    const runner = this.runnerOf(p)
+    const [o, n] = body.repo.split('/')
+    const repo = this.resolve(o, n, p)
+    if (!mayServe(runner, repo.owner, repo.name))
+      throw apiError('not_found', `No repository ${body.repo}.`)
+    this.settleTimers(repo)
+    const r = this.runOf(repo, body.run)
+    const j = r.jobs.at(body.job - 1)
+    if (!j || body.job < 1)
+      throw apiError('not_found', `Run ${body.run} has no job ${body.job}.`)
+    if (j.runnerId !== runner.id)
+      throw apiError(
+        'forbidden',
+        `Job ${body.job} of run ${body.run} is not this runner's.`,
+        {
+          hint: 'A runner pauses only the jobs it claimed. Its lease may have run out.',
+        },
+      )
+    runner.lastSeen = this.now()
+    this.applyWait(repo, r, body.job, body.step, body, p!.handle, false)
     return this.presentPipelineRun(repo, r, true)
   }
 
@@ -954,6 +1041,7 @@ export abstract class DomainPipelines extends DomainReleases {
       if (!mayServe(runner, repo.owner, repo.name)) continue
       for (const r of repo.pipelines ?? []) {
         if (r.status !== 'queued' && r.status !== 'running') continue
+        if (r.runsOnPending) continue
         if (best && best.r.started <= r.started) continue
         const ji = r.jobs.findIndex(
           (j) =>

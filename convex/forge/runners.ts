@@ -30,6 +30,7 @@ import { repoUrl, urls } from '../lib/present'
 import { mintToken, revokeToken, toRefs } from '../lib/tokens'
 import {
   applyReport,
+  applyWait,
   claimedJob,
   expireDue,
   load,
@@ -487,6 +488,7 @@ export const claim = mutation({
       .sort((x, y) => x.doc.started - y.doc.started)
     for (const { repo, doc } of offered) {
       const run = await load(ctx, doc)
+      if (run.runsOnPending) continue
       const ji = run.jobs.findIndex(
         (j) => j.status === 'queued' && labelsMatch(j.runsOn ?? [], r.labels),
       )
@@ -572,5 +574,43 @@ export const jobs = query({
         url: `${repoUrl(repo)}/pipelines/${run.number}/jobs/${ji + 1}`,
       })),
     )
+  },
+})
+
+/** The runner pauses a step of a job it holds, for a person or an agent. */
+export const wait = mutation({
+  args: {
+    repo: v.string(),
+    run: v.number(),
+    job: v.number(),
+    step: v.number(),
+    kind: v.union(
+      v.literal('person'),
+      v.literal('agent'),
+      v.literal('approval'),
+    ),
+    reason: v.string(),
+    target: v.optional(v.union(v.null(), v.string())),
+    expires_at: v.optional(v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const { p, r } = await runnerOf(ctx, await signedIn(ctx))
+    const [o, n] = a.repo.split('/')
+    const repo = await resolve(ctx, o, n, p)
+    if (!mayServe(await like(ctx, r), repo.owner, repo.name))
+      fail('not_found', `No repository ${a.repo}.`)
+    await expireDue(ctx, repo)
+    const doc = await runOf(ctx, repo, a.run)
+    const held = (await load(ctx, doc)).jobs.at(a.job - 1)
+    if (!held || a.job < 1)
+      fail('not_found', `Run ${a.run} has no job ${a.job}.`)
+    if (held.runnerId !== r.publicId)
+      fail('forbidden', `Job ${a.job} of run ${a.run} is not this runner's.`, {
+        hint: 'A runner pauses only the jobs it claimed. Its lease may have run out.',
+      })
+    await seen(ctx, r, Date.now())
+    const run = await applyWait(ctx, repo, doc, a, p.handle)
+    return out(await shown(ctx, repo, doc, run))
   },
 })

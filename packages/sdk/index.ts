@@ -1177,6 +1177,8 @@ export type PipelineRun = {
       wait: PipelineWait | null
     }>
   }> | null
+  /** A trigger started it and its jobs' `runs-on` is still being read from the workflow file at `sha`; no runner takes it until then */
+  runs_on_pending: boolean
   /** What to look at first */
   annotations: Array<{
     level: 'error' | 'warn'
@@ -4205,6 +4207,22 @@ export interface Operations {
     }
     output: Runner
   }
+  /** Pause a step of a job it holds, as the runner (`POST /runners/wait`) */
+  'runners.wait': {
+    input: {
+      body: {
+        repo: string
+        run: number
+        job: number
+        step: number
+        kind: 'person' | 'agent' | 'approval'
+        reason: string
+        target?: string | null
+        expires_at?: string
+      }
+    }
+    output: PipelineRun
+  }
   /** Search repositories, changes and issues (`GET /search`) */
   'search.query': {
     input: {
@@ -6457,6 +6475,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
+  'runners.wait': {
+    method: 'POST',
+    path: '/runners/wait',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
   'search.query': {
     method: 'GET',
     path: '/search',
@@ -7601,6 +7630,10 @@ export interface Client extends Core {
       input: Operations['runners.update']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['runners.update']['output']>
+    wait: (
+      input: Operations['runners.wait']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.wait']['output']>
   }
   search: {
     query: (

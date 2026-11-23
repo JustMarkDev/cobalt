@@ -23838,6 +23838,154 @@
         "x-sx-secret-request": false
       }
     },
+    "/runners/wait": {
+      "post": {
+        "operationId": "runners.wait",
+        "summary": "Pause a step of a job it holds, as the runner",
+        "description": "A step that waits on a person, an approval or an outside agent, paused by the runner running it, with the runner token. The job keeps the runner and is never claimed again; whom it waits on is told; if nobody resumes it by `expires_at` (7 days by default, 30 at most) the step and the run fail. Resuming takes a login with `repo:write` (`pipelines.resume`): a runner's token cannot answer its own wait.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string",
+                    "pattern": "^[^/\\s]+\\/[^/\\s]+$"
+                  },
+                  "run": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "job": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "person",
+                      "agent",
+                      "approval"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "target": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "expires_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "repo",
+                  "run",
+                  "job",
+                  "step",
+                  "kind",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRun"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:report"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:report"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
     "/runners": {
       "get": {
         "operationId": "runners.list",
@@ -31645,6 +31793,10 @@
             ],
             "description": "Only on one run, not in a list"
           },
+          "runs_on_pending": {
+            "type": "boolean",
+            "description": "A trigger started it and its jobs' `runs-on` is still being read from the workflow file at `sha`; no runner takes it until then"
+          },
           "annotations": {
             "type": "array",
             "items": {
@@ -31700,6 +31852,7 @@
           "finished_at",
           "duration_ms",
           "jobs",
+          "runs_on_pending",
           "annotations",
           "version"
         ]

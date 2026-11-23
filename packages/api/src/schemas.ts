@@ -788,6 +788,11 @@ export const PipelineRun = named(
       )
       .nullable()
       .describe('Only on one run, not in a list'),
+    runs_on_pending: z
+      .boolean()
+      .describe(
+        "A trigger started it and its jobs' `runs-on` is still being read from the workflow file at `sha`; no runner takes it until then",
+      ),
     annotations: z
       .array(
         obj({

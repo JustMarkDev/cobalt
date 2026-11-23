@@ -1,3 +1,4 @@
+import { settleRunsOn } from '../runs-on'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { MAX_CONCURRENCY, MAX_LABELS } from '../runners'
@@ -238,6 +239,8 @@ export const runnerClaim = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
+      // Labels a trigger left unread are read first, so no job goes by a stale one.
+      yield* run((d) => settleRunsOn(d))
       const j = yield* run((d) => d.runnerClaim(ctx.principal))
       return j ?? reply(null as never, { status: 204 })
     }),
@@ -282,6 +285,35 @@ export const runnerReport = defineOp({
     }),
 })
 
+export const runnerWait = defineOp({
+  ...asRunner,
+  scopes: ['runners:report'],
+  id: 'runners.wait',
+  summary: 'Pause a step of a job it holds, as the runner',
+  description:
+    "A step that waits on a person, an approval or an outside agent, paused by the runner running it, with the runner token. The job keeps the runner and is never claimed again; whom it waits on is told; if nobody resumes it by `expires_at` (7 days by default, 30 at most) the step and the run fail. Resuming takes a login with `repo:write` (`pipelines.resume`): a runner's token cannot answer its own wait.",
+  method: 'POST',
+  path: '/runners/wait',
+  idempotent: true,
+  body: z.strictObject({
+    repo: z.string().regex(/^[^/\s]+\/[^/\s]+$/),
+    run: z.number().int().min(1),
+    job: z.number().int().min(1),
+    step: z.number().int().min(1),
+    kind: z.enum(['person', 'agent', 'approval']),
+    reason: z.string().min(1).max(500),
+    target: z.string().min(1).max(100).nullable().optional(),
+    expires_at: z.iso.datetime({ offset: true }).optional(),
+  }),
+  response: S.PipelineRun,
+  errors: ['not_found', 'forbidden', 'invalid_state', 'invalid_request'],
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      return yield* run((d) => d.runnerWait(ctx.principal, ctx.body))
+    }),
+})
+
 export const runnerJobs = defineOp({
   tags: ['runners'],
   auth: 'required',
@@ -316,6 +348,7 @@ export const runnerOps = [
   runnerHeartbeat,
   runnerClaim,
   runnerReport,
+  runnerWait,
   getRunner,
   updateRunner,
   deleteRunner,

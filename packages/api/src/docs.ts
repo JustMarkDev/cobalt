@@ -723,7 +723,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     const rjob = (
       await call('runners.claim', 'POST', '/runners/claim', { token: rt })
     ).json as Json | null
-    if (rjob)
+    if (rjob) {
       await call('runners.report', 'POST', '/runners/report', {
         token: rt,
         body: {
@@ -735,6 +735,19 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
           lines: [{ text: 'cargo build --release', level: 'cmd' }],
         },
       })
+      await call('runners.wait', 'POST', '/runners/wait', {
+        token: rt,
+        body: {
+          repo: 'dana/gitfs',
+          run: rjob.run,
+          job: rjob.job,
+          step: 1,
+          kind: 'approval',
+          reason: 'Sign off the release build',
+          target: 'hollis',
+        },
+      })
+    }
     await call('runners.jobs', 'GET', `/runners/${runner.id as string}/jobs`, {
       token: rt,
     })

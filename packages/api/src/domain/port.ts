@@ -45,6 +45,12 @@ export type RunnerBody = {
   repos?: Array<string> | null
   concurrency?: number
 }
+export type RunnerWaitBody = WaitBody & {
+  repo: string
+  run: number
+  job: number
+  step: number
+}
 export type RunnerReportBody = {
   repo: string
   run: number
@@ -661,6 +667,26 @@ export interface DomainPort {
   ) => Promise<Out<typeof S.TriggerSet>>
   triggersVersion: (owner: string, name: string, p: Viewer) => Promise<string>
 
+  /** Runs a trigger started whose `runs-on` is not read yet (`runs-on.ts`). */
+  pendingRunsOn: () => Promise<
+    Array<{
+      owner: string
+      name: string
+      number: number
+      file: string
+      sha: string
+    }>
+  >
+  setRunsOn: (
+    owner: string,
+    name: string,
+    n: number,
+    read: {
+      jobs: Record<string, Array<string>>
+      warnings: Array<string>
+    } | null,
+  ) => Promise<void>
+
   // ---- runners --------------------------------------------------------------
 
   createRunner: (
@@ -692,6 +718,11 @@ export interface DomainPort {
   runnerReport: (
     p: Viewer,
     body: RunnerReportBody,
+  ) => Promise<Out<typeof S.PipelineRun>>
+  /** The runner pauses a step of a job it holds. */
+  runnerWait: (
+    p: Viewer,
+    body: RunnerWaitBody,
   ) => Promise<Out<typeof S.PipelineRun>>
   runnerJobs: (p: Viewer, id: string) => Promise<Array<Out<typeof S.RunnerJob>>>
 

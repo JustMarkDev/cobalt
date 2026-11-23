@@ -17,10 +17,11 @@ import { LEASE_MS, waitingForLabels } from '@source-code/api/runners'
 import type { RunnerLike } from '@source-code/api/runners'
 import { v } from 'convex/values'
 import { newId } from '@source-code/api/ids'
+import { applyRunsOn } from '@source-code/api/runs-on'
 import { internal } from '../_generated/api'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
-import { actorOf, signedIn } from '../lib/actor'
+import { actorOf, signedIn, system } from '../lib/actor'
 import { accessStamp, repoByPublicId, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { counters } from '../lib/events'
@@ -66,6 +67,8 @@ export type PipelineRun = {
   sha: string
   status: Status
   trigger: string
+  runsOnPending?: boolean
+  runsOnFrom?: number
   actor: string
   started: number
   finished: number | null
@@ -287,6 +290,7 @@ export function present(
           })),
         }))
       : null,
+    runs_on_pending: !!r.runsOnPending,
     annotations: r.annotations,
     version: r.version,
   }
@@ -612,13 +616,10 @@ export async function startWorkflow(
   }
   if (at.trigger === 'event') {
     r.trigger = 'event'
-    if (r.jobs.some((j) => j.runsOn?.length))
-      r.annotations.push({
-        level: 'warn',
-        text: `runs-on was copied from run #${last.number}; it may be stale if the workflow changed since.`,
-        job: '',
-        step: '',
-      })
+    // Its labels are read from the workflow file at this commit before any
+    // runner may take it (`settleRunsOn`); until then the last run's stand in.
+    r.runsOnPending = true
+    r.runsOnFrom = last.number
   }
   await insertRun(ctx, repo, r)
   return r
@@ -649,6 +650,7 @@ export const claim = mutation({
     candidates.sort((x, y) => x.started - y.started)
     for (const doc of candidates) {
       const r = await load(ctx, doc)
+      if (r.runsOnPending) continue
       const ji = r.jobs.findIndex(
         (j) => j.status === 'queued' && !j.runsOn?.length,
       )
@@ -818,38 +820,60 @@ export const wait = mutation({
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     await expireDue(ctx, repo)
     const doc = await runOf(ctx, repo, a.n)
-    const r = await load(ctx, doc)
-    const w: PipelineWait = {
-      kind: a.kind,
-      reason: a.reason,
-      target: a.target ?? null,
-      expires: waitUntil(a.expires_at),
-    }
-    const refused = waitStep(r, a.job, a.step, w)
-    if (refused) fail('invalid_state', refused.refusal)
-    r.jobs[a.job - 1].lease = null
-    r.version++
-    await save(ctx, repo, doc, r)
-    await ctx.scheduler.runAt(w.expires, internal.forge.pipelines.expire, {
-      runId: doc._id,
-      job: a.job,
-      step: a.step,
-      expires: w.expires,
-    })
-    if (w.kind !== 'agent') {
-      const full = `${repo.owner}/${repo.name}`
-      const who = w.target ?? r.actor
-      if (w.target || who !== p.handle)
-        await notify(ctx, who, {
-          kind: 'handoff',
-          title: `${r.workflow} #${r.number} waits on you: ${w.reason}`,
-          repo: full,
-          path: `/${full}/pipelines?n=${r.number}&job=${a.job}`,
-        })
-    }
+    const r = await applyWait(ctx, repo, doc, a, p.handle)
     return finish(a.dry, await shown(ctx, repo, doc, r))
   },
 })
+
+/**
+ * Pauses a running step: the wait is kept, its expiry scheduled, and whom it
+ * waits on told. Shared by `pipelines.wait` and a runner's own `runners.wait`.
+ */
+export async function applyWait(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  doc: Doc<'pipelineRuns'>,
+  a: {
+    job: number
+    step: number
+    kind: 'person' | 'agent' | 'approval'
+    reason: string
+    target?: string | null
+    expires_at?: string
+  },
+  by: string,
+) {
+  const r = await load(ctx, doc)
+  const w: PipelineWait = {
+    kind: a.kind,
+    reason: a.reason,
+    target: a.target ?? null,
+    expires: waitUntil(a.expires_at),
+  }
+  const refused = waitStep(r, a.job, a.step, w)
+  if (refused) fail('invalid_state', refused.refusal)
+  r.jobs[a.job - 1].lease = null
+  r.version++
+  await save(ctx, repo, doc, r)
+  await ctx.scheduler.runAt(w.expires, internal.forge.pipelines.expire, {
+    runId: doc._id,
+    job: a.job,
+    step: a.step,
+    expires: w.expires,
+  })
+  if (w.kind !== 'agent') {
+    const full = `${repo.owner}/${repo.name}`
+    const who = w.target ?? r.actor
+    if (w.target || who !== by)
+      await notify(ctx, who, {
+        kind: 'handoff',
+        title: `${r.workflow} #${r.number} waits on you: ${w.reason}`,
+        repo: full,
+        path: `/${full}/pipelines?n=${r.number}&job=${a.job}`,
+      })
+  }
+  return r
+}
 
 /** Resume a waiting step with how it ended, in one write. */
 export const resume = mutation({
@@ -1059,3 +1083,58 @@ export async function startPipelineForEvent(
     trigger: 'event',
   })
 }
+
+/** Runs a trigger started whose `runs-on` is not read yet. Only the API server asks. */
+export const pendingRunsOn = query({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    await system(ctx)
+    const found = []
+    for (const d of await ctx.db
+      .query('pipelineRuns')
+      .withIndex('by_status_and_started', (q) => q.eq('status', 'queued'))
+      .take(500)) {
+      const r = JSON.parse(d.json) as PipelineRun
+      if (!r.runsOnPending) continue
+      const repo = await ctx.db.get('repos', d.repoId)
+      if (repo)
+        found.push({
+          owner: repo.owner,
+          name: repo.name,
+          number: r.number,
+          file: r.file,
+          sha: r.sha,
+        })
+    }
+    return out(found)
+  },
+})
+
+/** What the workflow file says about a pending run's labels, read by the API server. */
+export const setRunsOn = mutation({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    n: v.number(),
+    read: v.union(
+      v.null(),
+      v.object({
+        jobs: v.record(v.string(), v.array(v.string())),
+        warnings: v.array(v.string()),
+      }),
+    ),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const sys = await system(ctx)
+    const repo = await resolve(ctx, a.owner, a.name, sys)
+    const doc = await runOf(ctx, repo, a.n)
+    const r = await load(ctx, doc)
+    if (!r.runsOnPending) return out(null)
+    applyRunsOn(r, a.read)
+    r.version++
+    await save(ctx, repo, doc, r)
+    return out(null)
+  },
+})

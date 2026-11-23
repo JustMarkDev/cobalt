@@ -1,3 +1,4 @@
+import { settleRunsOn } from '../runs-on'
 import { tryAutoLand } from '../auto-land'
 import { Effect } from 'effect'
 import { z } from 'zod'
@@ -888,6 +889,8 @@ export const landChange = defineOp({
           ctx.dryRun,
         ),
       )
+      // A run the land triggered gets its labels from the workflow at its commit.
+      if (!ctx.dryRun) yield* run((d) => settleRunsOn(d))
       if (!('operation' in out)) return out
       // The operation's other answer (`accepted`), not its usual response.
       return reply(out.operation, {

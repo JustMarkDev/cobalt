@@ -49,6 +49,7 @@ import type * as forge_uploads from "../forge/uploads.js";
 import type * as forge_webhooks from "../forge/webhooks.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
+import type * as lib_accessRules from "../lib/accessRules.js";
 import type * as lib_acl from "../lib/acl.js";
 import type * as lib_actor from "../lib/actor.js";
 import type * as lib_changeTypes from "../lib/changeTypes.js";
@@ -128,6 +129,7 @@ declare const fullApi: ApiFromModules<{
   "forge/webhooks": typeof forge_webhooks;
   http: typeof http;
   "lib/access": typeof lib_access;
+  "lib/accessRules": typeof lib_accessRules;
   "lib/acl": typeof lib_acl;
   "lib/actor": typeof lib_actor;
   "lib/changeTypes": typeof lib_changeTypes;

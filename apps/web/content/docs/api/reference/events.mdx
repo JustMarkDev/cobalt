@@ -241,20 +241,20 @@ Poll it, or add ?wait=20 with If-None-Match to hold the request until it changes
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/operations/op_01m6tq6r80cx12kgge" \
+curl "https://api.source.code/v1/operations/op_01m6tq6r80vx1nsgvy" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"op_01m6tq6r80cx12kgge.succeeded.3-Wl6BEwDcre9bPIqr"
+etag: W/"op_01m6tq6r80vx1nsgvy.succeeded.3-Wl6BEwDcre9bPIqr"
 ratelimit: "read";r=1115;t=60
 ```
 
 ```json
 {
   "object": "operation",
-  "id": "op_01m6tq6r80cx12kgge",
+  "id": "op_01m6tq6r80vx1nsgvy",
   "kind": "stack.land",
   "state": "succeeded",
   "progress": {
@@ -267,7 +267,7 @@ ratelimit: "read";r=1115;t=60
     "url": "https://api.source.code/v1/repos/dana/stacky/stacks/stk_stacky000000000000"
   },
   "error": null,
-  "url": "https://api.source.code/v1/operations/op_01m6tq6r80cx12kgge",
+  "url": "https://api.source.code/v1/operations/op_01m6tq6r80vx1nsgvy",
   "created_at": "2026-11-07T10:00:00.000Z",
   "finished_at": "2026-11-07T10:00:00.000Z",
   "steps": [

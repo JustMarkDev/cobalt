@@ -81,6 +81,7 @@ ratelimit: "read";r=1147;t=60
       "finished_at": null,
       "duration_ms": null,
       "jobs": null,
+      "runs_on_pending": false,
       "annotations": [
         {
           "level": "warn",
@@ -109,6 +110,7 @@ ratelimit: "read";r=1147;t=60
       "finished_at": "2026-11-06T09:00:48.000Z",
       "duration_ms": 48000,
       "jobs": null,
+      "runs_on_pending": false,
       "annotations": [
         {
           "level": "warn",
@@ -267,6 +269,7 @@ ratelimit: "write";r=61;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 1
 }
@@ -393,6 +396,7 @@ ratelimit: "read";r=1146;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [
     {
       "level": "warn",
@@ -539,6 +543,7 @@ ratelimit: "write";r=62;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [
     {
       "level": "warn",
@@ -683,6 +688,7 @@ ratelimit: "write";r=59;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 3
 }
@@ -891,6 +897,7 @@ ratelimit: "write";r=56;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 6
 }
@@ -1046,6 +1053,7 @@ ratelimit: "write";r=57;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 5
 }
@@ -1179,6 +1187,7 @@ ratelimit: "write";r=63;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 1
 }
@@ -1498,7 +1507,7 @@ curl -X DELETE "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=48;t=60
+ratelimit: "write";r=47;t=60
 ```
 
 ```json
@@ -1695,7 +1704,7 @@ curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs/jobs" \
 
 ```http
 HTTP/1.1 200
-etag: W/"QgfydtqyGmN2TjOP"
+etag: W/"TBgAEjVEVBJ-nF9k"
 ratelimit: "read";r=1140;t=60
 ```
 
@@ -1709,8 +1718,8 @@ ratelimit: "read";r=1140;t=60
       "run": 1837,
       "job": 2,
       "name": "build (macos)",
-      "status": "running",
-      "lease_expires_at": "2026-11-07T10:15:00.000Z",
+      "status": "waiting",
+      "lease_expires_at": null,
       "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2"
     }
   ],
@@ -1959,7 +1968,151 @@ ratelimit: "write";r=49;t=60
       ]
     }
   ],
+  "runs_on_pending": false,
   "annotations": [],
   "version": 8
+}
+```
+
+### `runners.wait`
+
+`POST /runners/wait`
+
+**Pause a step of a job it holds, as the runner**
+
+A step that waits on a person, an approval or an outside agent, paused by the runner running it, with the runner token. The job keeps the runner and is never claimed again; whom it waits on is told; if nobody resumes it by `expires_at` (7 days by default, 30 at most) the step and the run fail. Resuming takes a login with `repo:write` (`pipelines.resume`): a runner's token cannot answer its own wait.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `runners:report`        |
+| Rate limit | `write` pool, 1 unit    |
+| Success    | `200`, a `pipeline_run` |
+
+**Request body**
+
+| Member       | Type                                              | Notes     |
+| ------------ | ------------------------------------------------- | --------- |
+| `repo`       | string (pattern)                                  | Required. |
+| `run`        | integer (min 1, max 9007199254740991)             | Required. |
+| `job`        | integer (min 1, max 9007199254740991)             | Required. |
+| `step`       | integer (min 1, max 9007199254740991)             | Required. |
+| `kind`       | `person` or `agent` or `approval`                 | Required. |
+| `reason`     | string (up to 500 characters, at least 1)         | Required. |
+| `target`     | string (up to 100 characters, at least 1) or null |           |
+| `expires_at` | string (date-time, pattern)                       |           |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.source.code/v1/runners/wait" \
+  -H "Authorization: Bearer $SX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"repo":"dana/gitfs","run":1837,"job":2,"step":1,"kind":"approval","reason":"Sign off the release build","target":"hollis"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=48;t=60
+```
+
+```json
+{
+  "object": "pipeline_run",
+  "id": "pip_01m6r1c5m0ftmrqqz5",
+  "number": 1837,
+  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "workflow": "build",
+  "file": ".source/workflows/build.yml",
+  "title": "Cache negative lookups",
+  "branch": "dana/neg-cache",
+  "sha": "77ab3d0",
+  "status": "running",
+  "trigger": "change",
+  "actor": "dana",
+  "started_at": "2026-11-06T09:00:00.000Z",
+  "finished_at": null,
+  "duration_ms": null,
+  "jobs": [
+    {
+      "name": "build (ubuntu)",
+      "runner": "mac-mini-1",
+      "status": "running",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": null,
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "success",
+          "duration_ms": 2140,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "wait": null
+        },
+        {
+          "name": "Build",
+          "status": "success",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    },
+    {
+      "name": "build (macos)",
+      "runner": "mac-mini",
+      "status": "waiting",
+      "duration_ms": 0,
+      "runs_on": [],
+      "runner_id": "rnr_01m6tq6r80196dnvvs",
+      "lease_expires_at": null,
+      "waiting_for_labels": null,
+      "wait": {
+        "kind": "approval",
+        "reason": "Sign off the release build",
+        "target": "hollis",
+        "expires_at": "2026-11-14T10:00:00.000Z"
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "waiting",
+          "duration_ms": 0,
+          "lines": 1,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "wait": {
+            "kind": "approval",
+            "reason": "Sign off the release build",
+            "target": "hollis",
+            "expires_at": "2026-11-14T10:00:00.000Z"
+          }
+        },
+        {
+          "name": "Build",
+          "status": "queued",
+          "duration_ms": 0,
+          "lines": 0,
+          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "wait": null
+        },
+        "…and 2 more"
+      ]
+    }
+  ],
+  "runs_on_pending": false,
+  "annotations": [],
+  "version": 9
 }
 ```

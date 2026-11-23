@@ -455,3 +455,77 @@ describe('registered runners', () => {
     ).toBe(404)
   })
 })
+
+describe('a runner pauses a step it is running', () => {
+  test('with its own token, only on a job it holds; a person resumes it', async () => {
+    const now = clock()
+    const h = await withRunsOn('linux', now)
+    const run = (
+      await h.call('POST', `${R}/pipelines`, { body: { workflow: 'build' } })
+    ).json
+    const a = await register(h, { name: 'a', labels: ['linux'] })
+    const b = await register(h, { name: 'b', labels: ['linux'] })
+    const job = await claimRun(h, a.secret, run.number)
+    const at = { repo: 'dana/gitfs', run: run.number, job: job.job, step: 1 }
+    await h.call('POST', '/runners/report', {
+      token: a.secret,
+      body: { ...at, status: 'running' },
+    })
+    const wait = {
+      ...at,
+      kind: 'approval',
+      reason: 'Sign off the release',
+      target: 'hollis',
+    }
+    // Another runner cannot pause a job it does not hold.
+    const theirs = await h.call('POST', '/runners/wait', {
+      token: b.secret,
+      body: wait,
+    })
+    expect(theirs.status).toBe(403)
+    // Nor can a person's token use the runner's door.
+    expect((await h.call('POST', '/runners/wait', { body: wait })).status).toBe(
+      403,
+    )
+    const paused = await h.call('POST', '/runners/wait', {
+      token: a.secret,
+      body: wait,
+    })
+    expect(paused.status).toBe(200)
+    expect(paused.json.status).toBe('waiting')
+    const j = paused.json.jobs[job.job - 1]
+    expect(j).toMatchObject({ status: 'waiting', runner_id: a.id })
+    expect(j.wait.target).toBe('hollis')
+    // A waiting job has no lease to run out: it stays with its runner.
+    now.advance(20 * 60_000)
+    await h.call('POST', '/runners/heartbeat', { token: b.secret })
+    const held = (await h.call('GET', `${R}/pipelines/${run.number}`)).json
+    expect(held.jobs[job.job - 1]).toMatchObject({
+      status: 'waiting',
+      runner_id: a.id,
+    })
+    // The runner cannot answer its own wait; a login with repo:write can.
+    expect(
+      (
+        await h.call(
+          'POST',
+          `${R}/pipelines/${run.number}/jobs/${job.job}/steps/1/resume`,
+          { token: a.secret, body: { status: 'success' } },
+        )
+      ).status,
+    ).toBe(403)
+    const resumed = await h.call(
+      'POST',
+      `${R}/pipelines/${run.number}/jobs/${job.job}/steps/1/resume`,
+      { body: { status: 'success', summary: 'Signed off.' } },
+    )
+    expect(resumed.status).toBe(200)
+    expect(resumed.json.jobs[job.job - 1].lease_expires_at).not.toBeNull()
+    // The runner carries on with the next step.
+    const next = await h.call('POST', '/runners/report', {
+      token: a.secret,
+      body: { ...at, step: 2, status: 'running' },
+    })
+    expect(next.status).toBe(200)
+  })
+})

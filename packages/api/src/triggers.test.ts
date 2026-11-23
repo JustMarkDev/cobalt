@@ -5,7 +5,7 @@ import {
   triggerMatches,
   triggersFor,
 } from './trigger-file'
-import { harness, onConvex } from './testing'
+import { gitWith, harness, onConvex } from './testing'
 import type { MemoryDomain } from './domain'
 import type { Trigger } from './trigger-file'
 
@@ -361,6 +361,86 @@ describe('triggers when a change lands', () => {
         run.eventSequence,
       )
       expect((await runsBy(h)).length).toBe(before)
+    },
+  )
+})
+
+describe('the labels of a run a trigger started', () => {
+  test('are read from the workflow file at its commit, not copied from the last run', async () => {
+    const probe = harness()
+    const last = (
+      await probe.call('GET', `${R}/pipelines?workflow=build&limit=1`)
+    ).json.data[0]
+    const shape = (await probe.call('GET', `${R}/pipelines/${last.number}`))
+      .json
+    const yaml = [
+      'jobs:',
+      ...shape.jobs.flatMap((j: any) => [
+        `  ${JSON.stringify(j.name)}:`,
+        '    runs-on: [macos, xcode-16]',
+      ]),
+    ].join('\n')
+    const h = harness({
+      git: gitWith({ [shape.file]: yaml }),
+      seed: (d) =>
+        seedFiles(d, 901, {
+          [`${DIR}/ci.yml`]: VALID,
+          'src/lib.rs': 'pub fn x() {}\n',
+        }),
+    })
+    await land(h, 901)
+    const [run] = await runsBy(h)
+    const shown = (await h.call('GET', `${R}/pipelines/${run.number}`)).json
+    expect(shown.runs_on_pending).toBe(false)
+    expect(shown.jobs[0].runs_on).toEqual(['macos', 'xcode-16'])
+    expect(
+      shown.annotations.some((a: any) => a.text.includes('copied from')),
+    ).toBe(false)
+  })
+
+  test('a file that cannot be read keeps the last run’s labels, and says so', async () => {
+    const h = harness({
+      seed: (d) =>
+        seedFiles(d, 901, {
+          [`${DIR}/ci.yml`]: VALID,
+          'src/lib.rs': 'pub fn x() {}\n',
+        }),
+    })
+    await land(h, 901)
+    const [run] = await runsBy(h)
+    const shown = (await h.call('GET', `${R}/pipelines/${run.number}`)).json
+    expect(shown.runs_on_pending).toBe(false)
+  })
+
+  test.skipIf(onConvex)(
+    'until they are read, no runner takes the job',
+    async () => {
+      const h = harness({
+        seed: (d) =>
+          seedFiles(d, 901, {
+            [`${DIR}/ci.yml`]: VALID,
+            'src/lib.rs': 'pub fn x() {}\n',
+          }),
+      })
+      const d = h.api.port as unknown as MemoryDomain
+      const repo = d.repos.get('dana/gitfs')!
+      // Land without the API's follow-up, as a stack landing step does.
+      ;(d as unknown as { doLand: (...a: Array<unknown>) => void }).doLand(
+        repo,
+        repo.changes.get(901)!,
+        d.actors.get('dana')!,
+      )
+      const pending = repo.pipelines!.find((r) => r.trigger === 'event')!
+      expect(pending.runsOnPending).toBe(true)
+      for (let i = 0; i < 40; i++) {
+        const c = await h.call('POST', `${R}/pipelines/claim`, {
+          body: { runner: 'r' },
+        })
+        if (c.status === 204) break
+        // The claim reads the labels first; the run is then no longer pending.
+        expect(pending.runsOnPending).toBe(false)
+      }
+      expect(pending.runsOnPending).toBe(false)
     },
   )
 })

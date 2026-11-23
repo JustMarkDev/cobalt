@@ -590,6 +590,10 @@ export type PipelineRunRec = {
   sha: string
   status: PipelineStatus
   trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual' | 'event'
+  /** A trigger started it and its `runs-on` is not read yet: no runner takes it. */
+  runsOnPending?: boolean
+  /** The run its jobs and provisional labels were copied from. */
+  runsOnFrom?: number
   actor: string
   started: number
   finished: number | null
