@@ -130,7 +130,7 @@ curl -X POST "https://api.source.code/v1/accounts" \
 HTTP/1.1 201
 location: https://api.source.code/v1/accounts/harbor-tools
 sx-outcome: created
-ratelimit: "write";r=37;t=60
+ratelimit: "write";r=35;t=60
 ```
 
 ```json
@@ -262,7 +262,7 @@ curl -X PATCH "https://api.source.code/v1/accounts/harbor-tools" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ```json
@@ -454,8 +454,8 @@ curl "https://api.source.code/v1/accounts/dana/integrations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.int0-x2r-PLMP2JjVQMfY"
-ratelimit: "read";r=1138;t=60
+etag: W/"dana.int0-lg2b_cbZq8ASWDxZ"
+ratelimit: "read";r=1137;t=60
 ```
 
 ```json
@@ -528,7 +528,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/dana/integrations/boat" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=44;t=60
+ratelimit: "write";r=42;t=60
 ```
 
 ### `integrations.connect`
@@ -582,7 +582,7 @@ curl -X PUT "https://api.source.code/v1/accounts/dana/integrations/boat" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=46;t=60
+ratelimit: "write";r=44;t=60
 ```
 
 ```json
@@ -631,8 +631,8 @@ curl "https://api.source.code/v1/accounts/harbor-tools/invitations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m6tq6r80xfyz652f.4-cdDRVa-SJA3uQa9Y"
-ratelimit: "read";r=1129;t=60
+etag: W/"acc_01m6tq6r80xfyz652f.4-On-y_6txzS7Ml4td"
+ratelimit: "read";r=1128;t=60
 ```
 
 ```json
@@ -641,14 +641,14 @@ ratelimit: "read";r=1129;t=60
   "data": [
     {
       "object": "invitation",
-      "id": "inv_01m6tq6r80k8dnsyr7",
+      "id": "inv_01m6tq6r80mkwz1rsp",
       "account": "harbor-tools",
       "email": "yuki@example.com",
       "role": "member",
       "invited_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
       "expires_at": "2026-11-14T10:00:00.000Z",
-      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80k8dnsyr7"
+      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80mkwz1rsp"
     }
   ],
   "has_more": false,
@@ -708,20 +708,20 @@ curl -X POST "https://api.source.code/v1/accounts/harbor-tools/invitations" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=34;t=60
+ratelimit: "write";r=32;t=60
 ```
 
 ```json
 {
   "object": "invitation",
-  "id": "inv_01m6tq6r80k8dnsyr7",
+  "id": "inv_01m6tq6r80mkwz1rsp",
   "account": "harbor-tools",
   "email": "yuki@example.com",
   "role": "member",
   "invited_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
   "expires_at": "2026-11-14T10:00:00.000Z",
-  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80k8dnsyr7"
+  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80mkwz1rsp"
 }
 ```
 
@@ -762,13 +762,13 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80k8dnsyr7" \
+curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80mkwz1rsp" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=32;t=60
+ratelimit: "write";r=30;t=60
 ```
 
 ### `links.list`
@@ -805,7 +805,7 @@ curl "https://api.source.code/v1/accounts/dana/links" \
 ```http
 HTTP/1.1 200
 etag: W/"uAT56aSLO6vqD0Ud"
-ratelimit: "read";r=1136;t=60
+ratelimit: "read";r=1135;t=60
 ```
 
 ```json
@@ -861,7 +861,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/dana/links/gitlab" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=42;t=60
+ratelimit: "write";r=40;t=60
 ```
 
 ### `links.set`
@@ -909,7 +909,7 @@ curl -X PUT "https://api.source.code/v1/accounts/dana/links/gitlab" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=43;t=60
+ratelimit: "write";r=41;t=60
 ```
 
 ```json
@@ -959,8 +959,8 @@ curl "https://api.source.code/v1/accounts/harbor-tools/members" \
 
 ```http
 HTTP/1.1 200
-etag: W/"acc_01m6tq6r80xfyz652f.3-cdDRVa-SJA3uQa9Y"
-ratelimit: "read";r=1130;t=60
+etag: W/"acc_01m6tq6r80xfyz652f.3-On-y_6txzS7Ml4td"
+ratelimit: "read";r=1129;t=60
 ```
 
 ```json
@@ -1032,7 +1032,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/members/hollis"
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=31;t=60
+ratelimit: "write";r=29;t=60
 ```
 
 ### `members.set`
@@ -1087,7 +1087,7 @@ curl -X PUT "https://api.source.code/v1/accounts/harbor-tools/members/hollis" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=35;t=60
+ratelimit: "write";r=33;t=60
 ```
 
 ```json
@@ -1259,8 +1259,8 @@ curl "https://api.source.code/v1/accounts/northwind/teams" \
 
 ```http
 HTTP/1.1 200
-etag: W/"nzCbWlP5X3S-6GM4"
-ratelimit: "read";r=1128;t=60
+etag: W/"yW6Qez2EQ3Q98uJs"
+ratelimit: "read";r=1127;t=60
 ```
 
 ```json
@@ -1269,7 +1269,7 @@ ratelimit: "read";r=1128;t=60
   "data": [
     {
       "object": "team",
-      "id": "tem_01m6tq6r806x530vkt",
+      "id": "tem_01m6tq6r800w49fd6t",
       "org": "northwind",
       "slug": "support",
       "name": "Support",
@@ -1341,13 +1341,13 @@ curl -X POST "https://api.source.code/v1/accounts/northwind/teams" \
 HTTP/1.1 201
 location: https://api.source.code/v1/accounts/northwind/teams/support
 sx-outcome: created
-ratelimit: "write";r=30;t=60
+ratelimit: "write";r=28;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r806x530vkt",
+  "id": "tem_01m6tq6r800w49fd6t",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1404,7 +1404,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=24;t=60
+ratelimit: "write";r=22;t=60
 ```
 
 ### `teams.get`
@@ -1443,14 +1443,14 @@ curl "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-etag: W/"tem_01m6tq6r806x530vkt.1-On-y_6txzS7Ml4td"
-ratelimit: "read";r=1127;t=60
+etag: W/"tem_01m6tq6r800w49fd6t.1-IdiBhiRqyEgMjrlC"
+ratelimit: "read";r=1126;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r806x530vkt",
+  "id": "tem_01m6tq6r800w49fd6t",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1516,13 +1516,13 @@ curl -X PATCH "https://api.source.code/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=29;t=60
+ratelimit: "write";r=27;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r806x530vkt",
+  "id": "tem_01m6tq6r800w49fd6t",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1578,7 +1578,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/memb
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=25;t=60
+ratelimit: "write";r=23;t=60
 ```
 
 ### `teams.members.add`
@@ -1625,13 +1625,13 @@ curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/members
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=28;t=60
+ratelimit: "write";r=26;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r806x530vkt",
+  "id": "tem_01m6tq6r800w49fd6t",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1688,7 +1688,7 @@ curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/repo
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=26;t=60
+ratelimit: "write";r=24;t=60
 ```
 
 ### `teams.repos.set`
@@ -1744,13 +1744,13 @@ curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/repos/n
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=27;t=60
+ratelimit: "write";r=25;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r806x530vkt",
+  "id": "tem_01m6tq6r800w49fd6t",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1968,7 +1968,7 @@ curl "https://api.source.code/v1/inbox?limit=3" \
 ```http
 HTTP/1.1 200
 etag: W/"WY6FoRzmgXfV3vPk"
-ratelimit: "read";r=1144;t=60
+ratelimit: "read";r=1143;t=60
 ```
 
 ```json
@@ -2058,7 +2058,7 @@ Send the token from the link in the email. You join with the role the invitation
 curl -X POST "https://api.source.code/v1/invitations/accept" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"token":"sxi_3QD5L_dvuBURi4IuezruLU4nkIr8HHgX"}'
+  -d '{"token":"sxi_E8gttZn-GIfwdqr0_UBa34DV0BiIVz3h"}'
 ```
 
 ```http
@@ -2115,8 +2115,8 @@ curl "https://api.source.code/v1/notifications?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.8.2-5kAPJDP5gUHYVgeu"
-ratelimit: "read";r=1134;t=60
+etag: W/"dana.8.4-K58HAIxv5z0QxThw"
+ratelimit: "read";r=1133;t=60
 ```
 
 ```json
@@ -2182,7 +2182,7 @@ curl -X POST "https://api.source.code/v1/notifications/ntf_01m6tq6r80bcjy602t/re
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=40;t=60
+ratelimit: "write";r=38;t=60
 ```
 
 ### `notifications.count`
@@ -2214,8 +2214,8 @@ curl "https://api.source.code/v1/notifications/count" \
 
 ```http
 HTTP/1.1 200
-etag: W/"dana.8.2-yh_ZiF5ZgYOH8Vun"
-ratelimit: "read";r=1133;t=60
+etag: W/"dana.8.4-cdDRVa-SJA3uQa9Y"
+ratelimit: "read";r=1132;t=60
 ```
 
 ```json
@@ -2253,7 +2253,7 @@ curl "https://api.source.code/v1/notifications/preferences" \
 ```http
 HTTP/1.1 200
 etag: W/"NEDeJpHfBELx3I9Y"
-ratelimit: "read";r=1131;t=60
+ratelimit: "read";r=1130;t=60
 ```
 
 ```json
@@ -2314,7 +2314,7 @@ curl -X PATCH "https://api.source.code/v1/notifications/preferences" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=38;t=60
+ratelimit: "write";r=36;t=60
 ```
 
 ```json
@@ -2358,7 +2358,7 @@ curl -X POST "https://api.source.code/v1/notifications/read" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=39;t=60
+ratelimit: "write";r=37;t=60
 ```
 
 ### `people.list`
@@ -2471,8 +2471,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/integrations" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.int1.1-x2r-PLMP2JjVQMfY"
-ratelimit: "read";r=1137;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.int1.3-lg2b_cbZq8ASWDxZ"
+ratelimit: "read";r=1136;t=60
 ```
 
 ```json
@@ -2546,7 +2546,7 @@ curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/integrations/boat" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=45;t=60
+ratelimit: "write";r=43;t=60
 ```
 
 ```json

@@ -1347,8 +1347,8 @@ curl "https://api.source.code/v1/runners" \
 
 ```http
 HTTP/1.1 200
-etag: W/"g67meIo1oispYWp2"
-ratelimit: "read";r=1143;t=60
+etag: W/"PWsMs7A3cD2CT9dW"
+ratelimit: "read";r=1142;t=60
 ```
 
 ```json
@@ -1357,7 +1357,7 @@ ratelimit: "read";r=1143;t=60
   "data": [
     {
       "object": "runner",
-      "id": "rnr_01m6tq6r80396yk5m2",
+      "id": "rnr_01m6tq6r80196dnvvs",
       "name": "mac-mini",
       "account": "dana",
       "kind": "self-hosted",
@@ -1371,8 +1371,8 @@ ratelimit: "read";r=1143;t=60
       "created_at": "2026-11-07T10:00:00.000Z",
       "created_by": "dana",
       "secret": null,
-      "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2",
-      "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80396yk5m2"
+      "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+      "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
     }
   ],
   "has_more": false,
@@ -1430,14 +1430,14 @@ curl -X POST "https://api.source.code/v1/runners" \
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2
-ratelimit: "write";r=55;t=60
+location: https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs
+ratelimit: "write";r=53;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80396yk5m2",
+  "id": "rnr_01m6tq6r80196dnvvs",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1451,8 +1451,8 @@ ratelimit: "write";r=55;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": "sxr_…",
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80396yk5m2"
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1492,19 +1492,19 @@ Disables it and revokes its token in the same write: its next request is refused
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2" \
+curl -X DELETE "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=50;t=60
+ratelimit: "write";r=48;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80396yk5m2",
+  "id": "rnr_01m6tq6r80196dnvvs",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1518,8 +1518,8 @@ ratelimit: "write";r=50;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80396yk5m2"
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1550,20 +1550,20 @@ ratelimit: "write";r=50;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2" \
+curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"MQH1eVhtbdJc2sBQ"
-ratelimit: "read";r=1142;t=60
+etag: W/"bsJ9-IK9woKM_98D"
+ratelimit: "read";r=1141;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80396yk5m2",
+  "id": "rnr_01m6tq6r80196dnvvs",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1577,8 +1577,8 @@ ratelimit: "read";r=1142;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80396yk5m2"
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1627,7 +1627,7 @@ Its name, labels, repositories or concurrency. Its token follows the repositorie
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2" \
+curl -X PATCH "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
   -H "Authorization: Bearer $SX_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"labels":["macos","arm64","xcode-16","xcode-15"]}'
@@ -1635,13 +1635,13 @@ curl -X PATCH "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=54;t=60
+ratelimit: "write";r=52;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80396yk5m2",
+  "id": "rnr_01m6tq6r80196dnvvs",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1655,8 +1655,8 @@ ratelimit: "write";r=54;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80396yk5m2"
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1689,14 +1689,14 @@ Running or waiting. Readable by the runner itself and by members of its account.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2/jobs" \
+curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs/jobs" \
   -H "Authorization: Bearer $SX_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
 etag: W/"QgfydtqyGmN2TjOP"
-ratelimit: "read";r=1141;t=60
+ratelimit: "read";r=1140;t=60
 ```
 
 ```json
@@ -1748,7 +1748,7 @@ curl -X POST "https://api.source.code/v1/runners/claim" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=52;t=60
+ratelimit: "write";r=50;t=60
 ```
 
 ```json
@@ -1774,7 +1774,7 @@ ratelimit: "write";r=52;t=60
   ],
   "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2",
   "runs_on": [],
-  "runner_id": "rnr_01m6tq6r80396yk5m2",
+  "runner_id": "rnr_01m6tq6r80196dnvvs",
   "lease_expires_at": "2026-11-07T10:15:00.000Z"
 }
 ```
@@ -1808,13 +1808,13 @@ curl -X POST "https://api.source.code/v1/runners/heartbeat" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=53;t=60
+ratelimit: "write";r=51;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80396yk5m2",
+  "id": "rnr_01m6tq6r80196dnvvs",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1828,8 +1828,8 @@ ratelimit: "write";r=53;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80396yk5m2",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80396yk5m2"
+  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1876,7 +1876,7 @@ curl -X POST "https://api.source.code/v1/runners/report" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=51;t=60
+ratelimit: "write";r=49;t=60
 ```
 
 ```json
@@ -1934,7 +1934,7 @@ ratelimit: "write";r=51;t=60
       "status": "running",
       "duration_ms": 0,
       "runs_on": [],
-      "runner_id": "rnr_01m6tq6r80396yk5m2",
+      "runner_id": "rnr_01m6tq6r80196dnvvs",
       "lease_expires_at": "2026-11-07T10:15:00.000Z",
       "waiting_for_labels": null,
       "wait": null,

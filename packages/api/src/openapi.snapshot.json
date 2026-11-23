@@ -5309,6 +5309,400 @@
         "x-sx-secret-request": false
       }
     },
+    "/repos/{owner}/{repo}/access-rules/{rule}": {
+      "delete": {
+        "operationId": "access_rules.delete",
+        "summary": "Remove an access rule",
+        "description": "What it hid is visible again to everyone who can read the repository. Only an owner or admin.",
+        "tags": [
+          "repos"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "description": "The rule id: lowercase letters, digits and dashes"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-sx-safety": "destructive",
+        "x-sx-idempotent": false,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "repo:write"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      },
+      "put": {
+        "operationId": "access_rules.put",
+        "summary": "Make branches or paths private to some people",
+        "description": "Creates the rule, or replaces it. `kind: branch` hides branches matching `patterns` (`secret/*`) and the changes on them; `kind: path` hides files matching `patterns` (`finance/**`, `*.key`) and every change touching one. `readers` are handles and `team:<slug>`; the repository's owners and admins always read everything, and a rule cannot hide the default branch. Someone who does not read a rule cannot see, open, push to or edit what it hides. Only an owner or admin. At most 20 rules, 20 patterns and 50 readers each.",
+        "tags": [
+          "repos"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "description": "The rule id: lowercase letters, digits and dashes"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "branch",
+                      "path"
+                    ]
+                  },
+                  "patterns": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "readers": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    }
+                  }
+                },
+                "required": [
+                  "kind",
+                  "patterns",
+                  "readers"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRule"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "repo:write"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "limit_reached",
+          "moved",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/access-rules": {
+      "get": {
+        "operationId": "access_rules.list",
+        "summary": "Branches and paths only some people may see",
+        "description": "An administrator sees every rule; someone a rule names sees that rule; anyone else sees none, and the parts the rules hide answer `404` to them everywhere: the repository's files, its changes, search, events and notifications.",
+        "tags": [
+          "repos"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccessRule"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-sx-safety": "read",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "read",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "repo:read"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
     "/repos/{owner}/{repo}/changes/{number}/abandon": {
       "post": {
         "operationId": "changes.abandon",
@@ -27766,6 +28160,60 @@
           "languages",
           "html_url",
           "viewer_follows"
+        ]
+      },
+      "AccessRule": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "access_rule"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "branch",
+              "path"
+            ],
+            "description": "`branch`: branches matching `patterns`, and the changes on them. `path`: files matching `patterns`, and every change that touches one"
+          },
+          "patterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Globs, as policy writes them"
+          },
+          "readers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Handles, and `team:<slug>` for a team of the owning organization. Administrators always read everything"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "kind",
+          "patterns",
+          "readers",
+          "created_by",
+          "created_at",
+          "url"
         ]
       },
       "Change": {

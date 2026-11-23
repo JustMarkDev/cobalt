@@ -92,6 +92,7 @@ const SHAPE_PATHS: Record<string, string> = {
   'inbox.list': '/inbox',
   'triggers.list': `${REPO}/triggers`,
   'runners.list': '/runners',
+  'access_rules.list': `${REPO}/access-rules`,
 }
 // Checked in the shape test too, with an address that only exists once they are made.
 const SHAPE_DYNAMIC = [

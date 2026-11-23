@@ -694,6 +694,11 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       body: { status: 'success', summary: 'Plan checked, go ahead.' },
     })
     await call('triggers.list', 'GET', `${R}/triggers`)
+    await call('access_rules.put', 'PUT', `${R}/access-rules/deal`, {
+      body: { kind: 'branch', patterns: ['deal/*'], readers: ['hollis'] },
+    })
+    await call('access_rules.list', 'GET', `${R}/access-rules`)
+    await call('access_rules.delete', 'DELETE', `${R}/access-rules/deal`)
     await call('inbox.list', 'GET', '/inbox?limit=3')
     // ----- runners
     const runner = (
@@ -1173,7 +1178,7 @@ const pages: Array<{
     description:
       'The repositories you can see, creating, changing, transferring and importing one, stars, releases and the one-call context for starting work.',
     icon: 'FolderIcon',
-    match: (id) => /^(repos|stars|releases|imports)\./.test(id),
+    match: (id) => /^(repos|stars|releases|imports|access_rules)\./.test(id),
   },
   {
     file: 'pipelines',

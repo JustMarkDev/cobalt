@@ -9,6 +9,21 @@
 export const API_VERSION = '2026-11-07'
 
 // ----- Objects
+export type AccessRule = {
+  object: 'access_rule'
+  id: string
+  /** `branch`: branches matching `patterns`, and the changes on them. `path`: files matching `patterns`, and every change that touches one */
+  kind: 'branch' | 'path'
+  /** Globs, as policy writes them */
+  patterns: Array<string>
+  /** Handles, and `team:<slug>` for a team of the owning organization. Administrators always read everything */
+  readers: Array<string>
+  created_by: string
+  /** RFC 3339 time, UTC */
+  created_at: string
+  url: string
+}
+
 export type Account = {
   object: 'account'
   /** Starts with acc_ */
@@ -1959,6 +1974,42 @@ export type Webhook = {
 
 // ----- Operations
 export interface Operations {
+  /** Remove an access rule (`DELETE /repos/{owner}/{repo}/access-rules/{rule}`) */
+  'access_rules.delete': {
+    input: {
+      owner: string
+      repo: string
+      rule: string
+    }
+    output: void
+  }
+  /** Branches and paths only some people may see (`GET /repos/{owner}/{repo}/access-rules`) */
+  'access_rules.list': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: {
+      object: 'list'
+      data: Array<AccessRule>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** Make branches or paths private to some people (`PUT /repos/{owner}/{repo}/access-rules/{rule}`) */
+  'access_rules.put': {
+    input: {
+      owner: string
+      repo: string
+      rule: string
+      body: {
+        kind: 'branch' | 'path'
+        patterns: Array<string>
+        readers: Array<string>
+      }
+    }
+    output: AccessRule
+  }
   /** Create an organization (`POST /accounts`) */
   'accounts.create': {
     input: {
@@ -4580,6 +4631,39 @@ export interface Operations {
 
 /** The facts about each operation that the client needs at run time. */
 const OPERATIONS = {
+  'access_rules.delete': {
+    method: 'DELETE',
+    path: '/repos/{owner}/{repo}/access-rules/{rule}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'destructive',
+  },
+  'access_rules.list': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/access-rules',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'access_rules.put': {
+    method: 'PUT',
+    path: '/repos/{owner}/{repo}/access-rules/{rule}',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
   'accounts.create': {
     method: 'POST',
     path: '/accounts',
@@ -6772,6 +6856,20 @@ const OPERATIONS = {
 } as const
 
 export interface Client extends Core {
+  access_rules: {
+    delete: (
+      input: Operations['access_rules.delete']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['access_rules.delete']['output']>
+    list: (
+      input: Operations['access_rules.list']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['access_rules.list']['output']>
+    put: (
+      input: Operations['access_rules.put']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['access_rules.put']['output']>
+  }
   accounts: {
     create: (
       input: Operations['accounts.create']['input'],
