@@ -44,6 +44,14 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
           branch: string
           title: string
           status: string
+          jobs: Array<{
+            name: string
+            steps: Array<{
+              name: string
+              status: string
+              wait: { reason: string; target: string | null } | null
+            }>
+          }> | null
         }
       | undefined
     if (!p)
@@ -54,7 +62,22 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
         exit.notFound,
       )
     type = 'pipeline'
-    prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}, "${p.title}") ended ${p.status}. Read its jobs and the failing step's log (sx commands lists the pipelines operations), reproduce the failure, fix it on ${p.branch}, and add a patch set with sx change create. If you have not used sx, run "sx skill" first. Set SX_MODEL to the model you are, so the receipt says so.`
+    const waiting = (p.jobs ?? [])
+      .flatMap((j, ji) =>
+        j.steps.flatMap((st, si) =>
+          st.status === 'waiting' && st.wait
+            ? [{ job: ji + 1, step: si + 1, name: st.name, wait: st.wait }]
+            : [],
+        ),
+      )
+      .at(0)
+    if (waiting) {
+      // The run waits on someone: the agent does the work, then resumes it
+      // with the same login it runs under. No token travels in the prompt.
+      const resume = `sx pipeline resume ${p.number} --job ${waiting.job} --step ${waiting.step} --status success --note "<what you did>"`
+      prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}) is waiting at step "${waiting.name}": ${waiting.wait.reason}. Do that work on ${p.branch} and add a patch set with sx change create. When it is done, resume the run with exactly: ${resume} (use --status failure and say why if it cannot be done). If you have not used sx, run "sx skill" first. Set SX_MODEL to the model you are, so the receipt says so.`
+    } else
+      prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}, "${p.title}") ended ${p.status}. Read its jobs and the failing step's log (sx commands lists the pipelines operations), reproduce the failure, fix it on ${p.branch}, and add a patch set with sx change create. If you have not used sx, run "sx skill" first. Set SX_MODEL to the model you are, so the receipt says so.`
   } else {
     const n = subject.replace(/^#/, '')
     // A number is a change or an issue; the API says which.

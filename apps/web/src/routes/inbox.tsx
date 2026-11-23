@@ -1,15 +1,19 @@
 import * as React from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   ChatBubbleLeftIcon,
   ExclamationCircleIcon,
+  HandRaisedIcon,
   LinkIcon,
+  NoSymbolIcon,
+  PauseCircleIcon,
   RocketLaunchIcon,
+  ServerStackIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import type { BadgeTone } from '~/components/ui/badge'
-import type { Notification } from '@source-code/sdk'
+import type { InboxItem, Notification } from '@source-code/sdk'
 import { RequireAuth } from '~/components/forge/auth'
 import { Stagger } from '~/components/motion'
 import { GitMergeIcon } from '~/components/icons'
@@ -20,8 +24,19 @@ import { Button } from '~/components/ui/button'
 import { useOp, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
+/**
+ * Two views of the same person. "Needs you" is a queue worked out from the
+ * state of things: a review that lands or a build that goes green leaves it
+ * by itself. "Activity" is the feed of what happened. Each row in the queue
+ * has one button, and it only takes you to the thing: approving, denying or
+ * landing happen there, where their own permissions are checked.
+ */
 export const Route = createFileRoute('/inbox')({
   head: () => ({ meta: [{ title: 'Inbox · source.code' }] }),
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { tab?: 'needs' | 'activity' } =>
+    s.tab === 'activity' ? { tab: 'activity' } : {},
   component: () => (
     <RequireAuth>
       <Inbox />
@@ -29,7 +44,139 @@ export const Route = createFileRoute('/inbox')({
   ),
 })
 
+function Inbox() {
+  const { tab = 'needs' } = Route.useSearch()
+  const navigate = useNavigate()
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
+      </div>
+      <div className="mb-4">
+        <Segmented
+          label="View"
+          value={tab}
+          onChange={(t) =>
+            void navigate({
+              to: '/inbox',
+              search: t === 'needs' ? {} : { tab: t },
+            })
+          }
+          options={[
+            ['needs', 'Needs you'],
+            ['activity', 'Activity'],
+          ]}
+        />
+      </div>
+      {tab === 'needs' ? <NeedsYou /> : <Activity />}
+    </div>
+  )
+}
+
+// ---- Needs you ------------------------------------------------------------------
+
+const severities: Record<
+  InboxItem['severity'],
+  { label: string; tone: BadgeTone }
+> = {
+  stopped: { label: 'Stopped', tone: 'danger' },
+  failing: { label: 'Failing', tone: 'danger' },
+  blocked: { label: 'Blocked', tone: 'warning' },
+  review: { label: 'Review', tone: 'merged' },
+  handoff: { label: 'Waiting on you', tone: 'info' },
+  assigned: { label: 'Assigned', tone: 'info' },
+  mention: { label: 'Mention', tone: 'muted' },
+}
+
+const kindIcons: Record<InboxItem['kind'], typeof XCircleIcon> = {
+  mirror_stopped: LinkIcon,
+  main_failing: XCircleIcon,
+  change_blocked: NoSymbolIcon,
+  checks_failing: XCircleIcon,
+  review_requested: GitMergeIcon as typeof XCircleIcon,
+  pipeline_waiting: PauseCircleIcon,
+  runner_missing: ServerStackIcon,
+  issue_assigned: ExclamationCircleIcon,
+  mention: ChatBubbleLeftIcon,
+}
+
+const actions: Record<InboxItem['action'], string> = {
+  open: 'Open',
+  review: 'Review',
+  fix: 'Fix',
+  retry: 'See the run',
+  resume: 'Resume',
+  answer: 'Answer',
+}
+
+function NeedsYou() {
+  const inbox = useOp('inbox.list', { limit: 50 })
+  if (inbox.items.length === 0)
+    return (
+      <EmptyState title="Nothing needs you">
+        Reviews, failing builds and steps waiting on you show up here, and leave
+        by themselves once they are dealt with.
+      </EmptyState>
+    )
+  const more = inbox.counts.total - inbox.items.length
+  return (
+    <>
+      <Stagger
+        as="ul"
+        className="surface divide-y overflow-hidden rounded-2xl border bg-card"
+      >
+        {inbox.items.map((x) => {
+          const Icon = kindIcons[x.kind]
+          const s = severities[x.severity]
+          return (
+            <li key={x.id} className="flex items-start gap-3 px-4 py-3">
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                <Icon className="size-4 text-muted-foreground" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <Badge tone={s.tone}>{s.label}</Badge>
+                  <span className="min-w-0 text-sm font-medium break-words">
+                    {x.title}
+                  </span>
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {x.note}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {x.repo ? `${x.repo}, ` : ''}
+                  {timeAgo(x.created_at)}
+                </span>
+              </span>
+              <Button
+                size="sm"
+                variant={
+                  x.severity === 'stopped' || x.severity === 'failing'
+                    ? 'default'
+                    : 'outline'
+                }
+                className="shrink-0 self-center"
+                render={<Link to={x.path} />}
+              >
+                {actions[x.action]}
+              </Button>
+            </li>
+          )
+        })}
+      </Stagger>
+      {more > 0 && (
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          And {more} more. Deal with the ones above first.
+        </p>
+      )}
+    </>
+  )
+}
+
+// ---- Activity -------------------------------------------------------------------
+
 const icons = {
+  handoff: HandRaisedIcon,
   review: GitMergeIcon,
   mention: ChatBubbleLeftIcon,
   release: RocketLaunchIcon,
@@ -41,6 +188,7 @@ const icons = {
 /** What each kind of item is, in words. The ones that ask something of you are coloured. */
 const kinds: Record<Notification['kind'], { label: string; tone: BadgeTone }> =
   {
+    handoff: { label: 'Waiting', tone: 'info' },
     review: { label: 'Review', tone: 'merged' },
     ci: { label: 'Failed', tone: 'danger' },
     issue: { label: 'Assigned', tone: 'info' },
@@ -56,7 +204,7 @@ const filters = [
   ['release', 'Releases'],
 ] as const
 
-function Inbox() {
+function Activity() {
   const items = useOp('notifications.list', { limit: 100 }).data
   const write = useWrite()
   const navigate = useNavigate()
@@ -72,19 +220,8 @@ function Inbox() {
     void navigate({ href: `${to.pathname}${to.search}` })
   }
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={unread === 0}
-          onClick={() => void write('notifications.read_all', {})}
-        >
-          Mark all as read
-        </Button>
-      </div>
-      <div className="mb-4">
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Segmented
           label="Filter"
           value={filter}
@@ -94,6 +231,14 @@ function Inbox() {
             id === 'unread' && unread > 0 ? `${label} ${unread}` : label,
           ])}
         />
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={unread === 0}
+          onClick={() => void write('notifications.read_all', {})}
+        >
+          Mark all as read
+        </Button>
       </div>
       {shown.length === 0 ? (
         <EmptyState title="You are all caught up">
@@ -143,6 +288,6 @@ function Inbox() {
           })}
         </Stagger>
       )}
-    </div>
+    </>
   )
 }

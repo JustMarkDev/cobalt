@@ -265,6 +265,67 @@ export const schema: Array<CommandSpec> = [
     example: 'sx mirror sync m2',
   },
   {
+    command: 'pipeline resume',
+    summary:
+      'End a pipeline step that waits on a person or an agent, as success or failure. The runner holding the job carries on.',
+    args: '<run> --job N --step N --status success|failure [--note text]',
+    mutates: true,
+    idempotent: false,
+    exits: [2, 3, 5],
+    example:
+      'sx pipeline resume 1839 --job 1 --step 3 --status success --note "docs updated"',
+  },
+  {
+    command: 'pipeline wait',
+    summary:
+      'Pause a running pipeline step for a person or an agent. It fails if nobody resumes it in time (7 days by default).',
+    args: '<run> --job N --step N --reason text [--kind person|agent|approval] [--target handle] [--expires time]',
+    mutates: true,
+    idempotent: true,
+    exits: [2, 3, 5],
+    example:
+      'sx pipeline wait 1839 --job 1 --step 3 --kind agent --reason "Update the docs"',
+  },
+  {
+    command: 'runner register',
+    summary:
+      "Register a machine that runs pipeline jobs, with its labels. Prints the runner's token once.",
+    args: '<name> [--labels a,b] [--repos owner/a,owner/b] [--concurrency N] [--provider p] [--account org]',
+    mutates: true,
+    idempotent: false,
+    exits: [2, 5],
+    example: 'sx runner register mac-mini --labels macos,arm64,xcode-16',
+  },
+  {
+    command: 'runner list',
+    summary:
+      'Runners of the account: labels, status, jobs held, repositories they serve.',
+    args: '[--account org]',
+    mutates: false,
+    idempotent: true,
+    exits: [],
+    example: 'sx runner list',
+  },
+  {
+    command: 'runner revoke',
+    summary: 'Disable a runner. Its token stops working at once.',
+    args: '<id>',
+    mutates: true,
+    idempotent: true,
+    exits: [2, 3],
+    example: 'sx runner revoke rnr_01k8r2m9x4q7ab12',
+  },
+  {
+    command: 'runner start',
+    summary:
+      'With SX_RUNNER_TOKEN set: send heartbeats, claim jobs its labels cover, run each step and report it.',
+    args: '[--workdir dir] [--once]',
+    mutates: true,
+    idempotent: false,
+    exits: [1, 4],
+    example: 'SX_RUNNER_TOKEN=sxr_... sx runner start',
+  },
+  {
     command: 'agent start',
     summary:
       'Build the prompt for an issue or change and print the command that starts an agent.',

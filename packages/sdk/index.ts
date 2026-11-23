@@ -679,6 +679,62 @@ export type Import = {
   created_at: string
 }
 
+export type Inbox = {
+  object: 'inbox'
+  items: Array<InboxItem>
+  /** Everything in the queue, before `limit` */
+  counts: {
+    stopped: number
+    failing: number
+    blocked: number
+    review: number
+    handoff: number
+    assigned: number
+    mention: number
+    total: number
+  }
+}
+
+export type InboxItem = {
+  object: 'inbox_item'
+  /** Stable while the item stands: the same thing keeps the same id */
+  id: string
+  /** What it is */
+  kind:
+    | 'mirror_stopped'
+    | 'main_failing'
+    | 'change_blocked'
+    | 'checks_failing'
+    | 'review_requested'
+    | 'pipeline_waiting'
+    | 'runner_missing'
+    | 'issue_assigned'
+    | 'mention'
+  /** How costly it is to leave; the queue is in this order */
+  severity:
+    | 'stopped'
+    | 'failing'
+    | 'blocked'
+    | 'review'
+    | 'handoff'
+    | 'assigned'
+    | 'mention'
+  title: string
+  repo: string | null
+  note: string
+  /** What to do about it */
+  action: 'open' | 'review' | 'fix' | 'retry' | 'resume' | 'answer'
+  /** Where it is in the web app */
+  path: string
+  /** The change, issue or run it is about */
+  subject: {
+    type: 'change' | 'issue' | 'run'
+    number: number
+  } | null
+  /** When it started needing you */
+  created_at: string
+}
+
 export type IntegrationConnection = {
   object: 'integration_connection'
   /** Such as coderabbit or t3code */
@@ -871,8 +927,8 @@ export type Notification = {
   object: 'notification'
   /** Starts with ntf_ */
   id: string
-  /** `review`: your change was reviewed or landed. `mention`: someone wrote @you. `release`: a project you starred released. `ci`: checks failed on your change. `issue`: you were assigned. `import`: an import finished */
-  kind: 'review' | 'mention' | 'release' | 'ci' | 'issue' | 'import'
+  /** `handoff`: a pipeline step waits on you. `review`: your change was reviewed or landed. `mention`: someone wrote @you. `release`: a project you starred released. `ci`: checks failed on your change. `issue`: you were assigned. `import`: an import finished */
+  kind: 'handoff' | 'review' | 'mention' | 'release' | 'ci' | 'issue' | 'import'
   title: string
   /** `owner/name`, or a place in your account such as "Linked accounts" */
   repo: string | null
@@ -889,6 +945,8 @@ export type NotificationCount = {
 
 export type NotificationPreferences = {
   object: 'notification_preferences'
+  /** A pipeline step waits on you */
+  handoff: boolean
   review: boolean
   mention: boolean
   release: boolean
@@ -1017,6 +1075,12 @@ export type PipelineJob = {
     name: string
   }>
   url: string
+  /** The labels the job asked for; empty takes any runner */
+  runs_on: Array<string>
+  /** The registered runner that took it; null for a named one */
+  runner_id: string | null
+  /** When the job goes back to the queue unless the runner reports or sends a heartbeat */
+  lease_expires_at: string | null
 }
 
 export type PipelineLog = {
@@ -1024,7 +1088,14 @@ export type PipelineLog = {
   run: number
   job: string
   step: string
-  status: 'queued' | 'running' | 'success' | 'failure' | 'canceled' | 'skipped'
+  status:
+    | 'queued'
+    | 'running'
+    | 'waiting'
+    | 'success'
+    | 'failure'
+    | 'canceled'
+    | 'skipped'
   lines: Array<{
     text: string
     level: 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error' | null
@@ -1044,8 +1115,8 @@ export type PipelineRun = {
   title: string
   branch: string
   sha: string
-  status: 'queued' | 'running' | 'success' | 'failure' | 'canceled'
-  trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual'
+  status: 'queued' | 'running' | 'waiting' | 'success' | 'failure' | 'canceled'
+  trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual' | 'event'
   /** Handle of who or what started it */
   actor: string
   /** RFC 3339 time, UTC */
@@ -1059,16 +1130,27 @@ export type PipelineRun = {
     status:
       | 'queued'
       | 'running'
+      | 'waiting'
       | 'success'
       | 'failure'
       | 'canceled'
       | 'skipped'
     duration_ms: number
+    /** The labels it asked for; empty takes any runner */
+    runs_on: Array<string>
+    /** The registered runner that took it */
+    runner_id: string | null
+    lease_expires_at: string | null
+    /** While queued: the labels no runner that may serve this repository has. Null when one can take it */
+    waiting_for_labels: Array<string> | null
+    /** What its waiting step waits for */
+    wait: PipelineWait | null
     steps: Array<{
       name: string
       status:
         | 'queued'
         | 'running'
+        | 'waiting'
         | 'success'
         | 'failure'
         | 'canceled'
@@ -1077,6 +1159,7 @@ export type PipelineRun = {
       /** Lines in its log */
       lines: number
       log_url: string
+      wait: PipelineWait | null
     }>
   }> | null
   /** What to look at first */
@@ -1087,6 +1170,16 @@ export type PipelineRun = {
     step: string
   }>
   version: number
+}
+
+export type PipelineWait = {
+  /** What the step waits for */
+  kind: 'person' | 'agent' | 'approval'
+  reason: string
+  /** Who it waits on: a handle, or an agent as its caller named it */
+  target: string | null
+  /** When the step fails if nobody resumed it */
+  expires_at: string
 }
 
 export type PolicyEvaluation = {
@@ -1514,6 +1607,53 @@ export type Root = {
   version: string
   versions: Array<string>
   links: Record<string, string>
+}
+
+export type Runner = {
+  object: 'runner'
+  /** Starts with rnr_ */
+  id: string
+  name: string
+  /** The account the runner serves */
+  account: string
+  kind: 'self-hosted' | 'hosted'
+  /** Null for your own machine; the provider for a hosted one (`blacksmith`, `depot`) */
+  provider: string | null
+  /** Lowercase. A job runs here when every label it asks for is in this list. Declared, not verified */
+  labels: Array<string>
+  /** `owner/name` it may serve; null for every repository of the account */
+  repos: Array<string> | null
+  /** Jobs it runs at once */
+  concurrency: number
+  status: 'online' | 'busy' | 'offline' | 'disabled'
+  /** Jobs it holds, running or waiting */
+  current_jobs: number
+  last_seen_at: string | null
+  /** RFC 3339 time, UTC */
+  created_at: string
+  created_by: string
+  /** The runner's token (`SX_RUNNER_TOKEN`). Only in the response that creates it, never again */
+  secret: string | null
+  url: string
+  html_url: string
+}
+
+export type RunnerJob = {
+  object: 'runner_job'
+  repo: string
+  run: number
+  job: number
+  name: string
+  status:
+    | 'queued'
+    | 'running'
+    | 'waiting'
+    | 'success'
+    | 'failure'
+    | 'canceled'
+    | 'skipped'
+  lease_expires_at: string | null
+  url: string
 }
 
 export type SearchResult = {
@@ -2628,6 +2768,13 @@ export interface Operations {
       next_cursor: null
     }
   }
+  /** What needs you now (`GET /inbox`) */
+  'inbox.list': {
+    input: {
+      limit?: number
+    }
+    output: Inbox
+  }
   /** Connect a service to an account (`PUT /accounts/{handle}/integrations/{integration}`) */
   'integrations.connect': {
     input: {
@@ -3075,7 +3222,14 @@ export interface Operations {
       cursor?: string
       /** Only unread ones */
       unread?: 'true' | 'false'
-      kind?: 'review' | 'mention' | 'release' | 'ci' | 'issue' | 'import'
+      kind?:
+        | 'handoff'
+        | 'review'
+        | 'mention'
+        | 'release'
+        | 'ci'
+        | 'issue'
+        | 'import'
     }
     output: {
       object: 'list'
@@ -3105,6 +3259,7 @@ export interface Operations {
   'notifications.update_preferences': {
     input: {
       body: {
+        handoff?: boolean
         review?: boolean
         mention?: boolean
         release?: boolean
@@ -3252,7 +3407,13 @@ export interface Operations {
       limit?: number
       /** `next_cursor` from the previous page, exactly as returned */
       cursor?: string
-      status?: 'queued' | 'running' | 'success' | 'failure' | 'canceled'
+      status?:
+        | 'queued'
+        | 'running'
+        | 'waiting'
+        | 'success'
+        | 'failure'
+        | 'canceled'
       workflow?: string
     }
     output: {
@@ -3301,6 +3462,25 @@ export interface Operations {
     }
     output: PipelineRun
   }
+  /** Resume a waiting step with how it ended (`POST /repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/resume`) */
+  'pipelines.resume': {
+    input: {
+      owner: string
+      repo: string
+      run: number
+      job: number
+      step: number
+      body: {
+        status: 'success' | 'failure'
+        summary?: string
+        lines?: Array<{
+          text: string
+          level?: 'cmd' | 'info' | 'ok' | 'warn' | 'error' | null
+        }>
+      }
+    }
+    output: PipelineRun
+  }
   /** Start a workflow (`POST /repos/{owner}/{repo}/pipelines`) */
   'pipelines.start': {
     input: {
@@ -3309,6 +3489,25 @@ export interface Operations {
       body: {
         workflow: string
         branch?: string
+      }
+    }
+    output: PipelineRun
+  }
+  /** Pause a running step for a person or an agent (`POST /repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/wait`) */
+  'pipelines.wait': {
+    input: {
+      owner: string
+      repo: string
+      run: number
+      job: number
+      step: number
+      body: {
+        kind: 'person' | 'agent' | 'approval'
+        reason: string
+        /** A handle, or an agent as you name it */
+        target?: string | null
+        /** Within 30 days; 7 days from now if left out */
+        expires_at?: string
       }
     }
     output: PipelineRun
@@ -3800,6 +3999,107 @@ export interface Operations {
     }
     output: Review
   }
+  /** Take the next job, as the runner (`POST /runners/claim`) */
+  'runners.claim': {
+    input: Record<string, never>
+    output: PipelineJob
+  }
+  /** Register a runner (`POST /runners`) */
+  'runners.create': {
+    input: {
+      body: {
+        name: string
+        /** The account it serves; the one you act as if left out */
+        account?: string
+        kind?: 'self-hosted' | 'hosted'
+        /** For a hosted runner: `blacksmith`, `depot`, ... */
+        provider?: string | null
+        /** What the machine offers, such as `macos`, `arm64`, `xcode-16`. Stored lowercase */
+        labels?: Array<string>
+        /** `owner/name` of the account it may serve; null for all of them, now and later */
+        repos?: Array<string> | null
+        concurrency?: number
+      }
+    }
+    output: Runner
+  }
+  /** Revoke a runner (`DELETE /runners/{id}`) */
+  'runners.delete': {
+    input: {
+      id: string
+    }
+    output: Runner
+  }
+  /** One runner (`GET /runners/{id}`) */
+  'runners.get': {
+    input: {
+      id: string
+    }
+    output: Runner
+  }
+  /** Say the runner is alive, as the runner (`POST /runners/heartbeat`) */
+  'runners.heartbeat': {
+    input: Record<string, never>
+    output: Runner
+  }
+  /** The jobs a runner holds (`GET /runners/{id}/jobs`) */
+  'runners.jobs': {
+    input: {
+      id: string
+    }
+    output: {
+      object: 'list'
+      data: Array<RunnerJob>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** Runners of an account (`GET /runners`) */
+  'runners.list': {
+    input: {
+      /** The one you act as if left out */
+      account?: string
+    }
+    output: {
+      object: 'list'
+      data: Array<Runner>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** Report a step of a job it holds, as the runner (`POST /runners/report`) */
+  'runners.report': {
+    input: {
+      body: {
+        repo: string
+        run: number
+        job: number
+        step: number
+        status: 'running' | 'success' | 'failure' | 'skipped'
+        lines?: Array<{
+          text: string
+          level?: 'cmd' | 'info' | 'ok' | 'warn' | 'error' | null
+        }>
+        duration_ms?: number
+      }
+    }
+    output: PipelineRun
+  }
+  /** Change a runner (`PATCH /runners/{id}`) */
+  'runners.update': {
+    input: {
+      id: string
+      body: {
+        name?: string
+        /** What the machine offers, such as `macos`, `arm64`, `xcode-16`. Stored lowercase */
+        labels?: Array<string>
+        /** `owner/name` of the account it may serve; null for all of them, now and later */
+        repos?: Array<string> | null
+        concurrency?: number
+      }
+    }
+    output: Runner
+  }
   /** Search repositories, changes and issues (`GET /search`) */
   'search.query': {
     input: {
@@ -3988,6 +4288,9 @@ export interface Operations {
           | 'webhooks:read'
           | 'webhooks:write'
           | 'tokens:manage'
+          | 'runners:manage'
+          | 'runners:claim'
+          | 'runners:report'
         >
         expires_in_days?: 30 | 60 | 90 | 365
         /** `owner/name`. Limits the token to these repositories */
@@ -4972,6 +5275,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'read',
   },
+  'inbox.list': {
+    method: 'GET',
+    path: '/inbox',
+    query: ['limit'],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
   'integrations.connect': {
     method: 'PUT',
     path: '/accounts/{handle}/integrations/{integration}',
@@ -5555,6 +5869,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
+  'pipelines.resume': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/resume',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
   'pipelines.start': {
     method: 'POST',
     path: '/repos/{owner}/{repo}/pipelines',
@@ -5563,6 +5888,17 @@ const OPERATIONS = {
     rawBody: false,
     json: true,
     idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'pipelines.wait': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/wait',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
     secretResponse: false,
     safety: 'write',
   },
@@ -5871,6 +6207,105 @@ const OPERATIONS = {
     rawBody: false,
     json: true,
     idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'runners.claim': {
+    method: 'POST',
+    path: '/runners/claim',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'runners.create': {
+    method: 'POST',
+    path: '/runners',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: true,
+    safety: 'write',
+  },
+  'runners.delete': {
+    method: 'DELETE',
+    path: '/runners/{id}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'destructive',
+  },
+  'runners.get': {
+    method: 'GET',
+    path: '/runners/{id}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'runners.heartbeat': {
+    method: 'POST',
+    path: '/runners/heartbeat',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'runners.jobs': {
+    method: 'GET',
+    path: '/runners/{id}/jobs',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'runners.list': {
+    method: 'GET',
+    path: '/runners',
+    query: ['account'],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'runners.report': {
+    method: 'POST',
+    path: '/runners/report',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'runners.update': {
+    method: 'PATCH',
+    path: '/runners/{id}',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
     secretResponse: false,
     safety: 'write',
   },
@@ -6574,6 +7009,12 @@ export interface Client extends Core {
       options?: RequestOptions,
     ) => Promise<Operations['imports.list']['output']>
   }
+  inbox: {
+    list: (
+      input?: Operations['inbox.list']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['inbox.list']['output']>
+  }
   integrations: {
     connect: (
       input: Operations['integrations.connect']['input'],
@@ -6813,10 +7254,18 @@ export interface Client extends Core {
       input: Operations['pipelines.rerun']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['pipelines.rerun']['output']>
+    resume: (
+      input: Operations['pipelines.resume']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['pipelines.resume']['output']>
     start: (
       input: Operations['pipelines.start']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['pipelines.start']['output']>
+    wait: (
+      input: Operations['pipelines.wait']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['pipelines.wait']['output']>
   }
   policy: {
     add_exception: (
@@ -6941,6 +7390,44 @@ export interface Client extends Core {
       input: Operations['reviews.create']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['reviews.create']['output']>
+  }
+  runners: {
+    claim: (
+      input?: Operations['runners.claim']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.claim']['output']>
+    create: (
+      input: Operations['runners.create']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.create']['output']>
+    delete: (
+      input: Operations['runners.delete']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.delete']['output']>
+    get: (
+      input: Operations['runners.get']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.get']['output']>
+    heartbeat: (
+      input?: Operations['runners.heartbeat']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.heartbeat']['output']>
+    jobs: (
+      input: Operations['runners.jobs']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.jobs']['output']>
+    list: (
+      input?: Operations['runners.list']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.list']['output']>
+    report: (
+      input: Operations['runners.report']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.report']['output']>
+    update: (
+      input: Operations['runners.update']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['runners.update']['output']>
   }
   search: {
     query: (

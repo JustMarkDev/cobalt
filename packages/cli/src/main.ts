@@ -13,6 +13,8 @@ import { importCommand } from './commands/import'
 import { issue } from './commands/issue'
 import { mcp } from './commands/mcp'
 import { mirror } from './commands/mirror'
+import { pipeline } from './commands/pipeline'
+import { runner } from './commands/runner'
 import { policy } from './commands/policy'
 import { repo } from './commands/repo'
 import { commandsList, skill } from './commands/skill'
@@ -29,6 +31,8 @@ const commands: Record<string, Command> = {
   env,
   policy,
   mirror,
+  pipeline,
+  runner,
   handoff,
   context,
   config,

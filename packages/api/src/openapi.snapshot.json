@@ -4213,6 +4213,92 @@
         "x-sx-secret-request": false
       }
     },
+    "/inbox": {
+      "get": {
+        "operationId": "inbox.list",
+        "summary": "What needs you now",
+        "description": "Stopped mirrors, failing builds, your blocked changes, reviews waiting on you, pipeline steps waiting on you, runs no runner can take, issues assigned to you and unread mentions, in the repositories you can read. Most costly first, then newest. A queue is short by design: not paged, at most 100.",
+        "tags": [
+          "notifications"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Inbox"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-sx-safety": "read",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "read",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "internal",
+          "invalid_request",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
     "/invitations/accept": {
       "post": {
         "operationId": "invitations.accept",
@@ -4616,6 +4702,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "handoff": {
+                    "type": "boolean"
+                  },
                   "review": {
                     "type": "boolean"
                   },
@@ -4813,6 +4902,7 @@
             "schema": {
               "type": "string",
               "enum": [
+                "handoff",
                 "review",
                 "mention",
                 "release",
@@ -16198,6 +16288,393 @@
         "x-sx-secret-request": false
       }
     },
+    "/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/resume": {
+      "post": {
+        "operationId": "pipelines.resume",
+        "summary": "Resume a waiting step with how it ended",
+        "description": "In one write the step runs again and ends as `success` or `failure`, with the lines and summary given added to its log. A failure skips the rest of its job. The runner that holds the job carries on from the next step.",
+        "tags": [
+          "pipelines"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "run",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "The run number"
+            }
+          },
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "step",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "success",
+                      "failure"
+                    ]
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "lines": {
+                    "maxItems": 1000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "maxLength": 4000
+                        },
+                        "level": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "cmd",
+                                "info",
+                                "ok",
+                                "warn",
+                                "error"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRun"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": false,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "repo:write"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "moved",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}/wait": {
+      "post": {
+        "operationId": "pipelines.wait",
+        "summary": "Pause a running step for a person or an agent",
+        "description": "The step, its job and (when nothing else of it runs) the run wait. A waiting job keeps its runner and is never claimed again. A `person` or `approval` wait tells its `target` (or whoever started the run) in their inbox. The wait ends at `expires_at`, 7 days by default and at most 30; if nobody resumes it by then, the step and the run fail.",
+        "tags": [
+          "pipelines"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "run",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "The run number"
+            }
+          },
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "step",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "person",
+                      "agent",
+                      "approval"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "target": {
+                    "description": "A handle, or an agent as you name it",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "expires_at": {
+                    "description": "Within 30 days; 7 days from now if left out",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRun"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "repo:write"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "moved",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
     "/repos/{owner}/{repo}/pipelines/{run}/jobs/{job}/steps/{step}": {
       "post": {
         "operationId": "pipelines.report",
@@ -16793,6 +17270,7 @@
               "enum": [
                 "queued",
                 "running",
+                "waiting",
                 "success",
                 "failure",
                 "canceled"
@@ -22115,6 +22593,1037 @@
         "x-sx-secret-request": false
       }
     },
+    "/runners/{id}/jobs": {
+      "get": {
+        "operationId": "runners.jobs",
+        "summary": "The jobs a runner holds",
+        "description": "Running or waiting. Readable by the runner itself and by members of its account.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The runner `rnr_` id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RunnerJob"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-sx-safety": "read",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "read",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/runners/{id}": {
+      "delete": {
+        "operationId": "runners.delete",
+        "summary": "Revoke a runner",
+        "description": "Disables it and revokes its token in the same write: its next request is refused. Jobs it held go back to the queue when their lease runs out.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The runner `rnr_` id"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:manage"
+            ]
+          }
+        ],
+        "x-sx-safety": "destructive",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:manage"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      },
+      "get": {
+        "operationId": "runners.get",
+        "summary": "One runner",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The runner `rnr_` id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:manage"
+            ]
+          }
+        ],
+        "x-sx-safety": "read",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "read",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:manage"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      },
+      "patch": {
+        "operationId": "runners.update",
+        "summary": "Change a runner",
+        "description": "Its name, labels, repositories or concurrency. Its token follows the repositories it may serve.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The runner `rnr_` id"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "labels": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "description": "What the machine offers, such as `macos`, `arm64`, `xcode-16`. Stored lowercase"
+                  },
+                  "repos": {
+                    "anyOf": [
+                      {
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[^/\\s]+\\/[^/\\s]+$"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "`owner/name` of the account it may serve; null for all of them, now and later"
+                  },
+                  "concurrency": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:manage"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:manage"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/runners/claim": {
+      "post": {
+        "operationId": "runners.claim",
+        "summary": "Take the next job, as the runner",
+        "description": "The oldest queued job in a repository the runner may serve whose `runs-on` labels are all among the runner's (case does not matter). `204` when there is none, or when the runner already holds `concurrency` jobs. The job is leased for 15 minutes; every report and heartbeat extends it.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineJob"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:claim"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": false,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:claim"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/runners/heartbeat": {
+      "post": {
+        "operationId": "runners.heartbeat",
+        "summary": "Say the runner is alive, as the runner",
+        "description": "Send one every 30 seconds with the runner token. It extends the lease on every job the runner is running. A runner silent for 90 seconds is shown offline.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:claim"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:claim"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/runners/report": {
+      "post": {
+        "operationId": "runners.report",
+        "summary": "Report a step of a job it holds, as the runner",
+        "description": "The same report as `pipelines.report`, made with the runner token for a job this runner claimed.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string",
+                    "pattern": "^[^/\\s]+\\/[^/\\s]+$"
+                  },
+                  "run": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "job": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "running",
+                      "success",
+                      "failure",
+                      "skipped"
+                    ]
+                  },
+                  "lines": {
+                    "maxItems": 1000,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "maxLength": 4000
+                        },
+                        "level": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "cmd",
+                                "info",
+                                "ok",
+                                "warn",
+                                "error"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "duration_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "repo",
+                  "run",
+                  "job",
+                  "step",
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRun"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:report"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": false,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:report"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/runners": {
+      "get": {
+        "operationId": "runners.list",
+        "summary": "Runners of an account",
+        "description": "Newest first, with their labels, status and the jobs they hold. Never includes a secret.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "The one you act as if left out",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Runner"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:manage"
+            ]
+          }
+        ],
+        "x-sx-safety": "read",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "read",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:manage"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      },
+      "post": {
+        "operationId": "runners.create",
+        "summary": "Register a runner",
+        "description": "The response is the only time the runner's token (`secret`) is shown: put it in `SX_RUNNER_TOKEN` on the machine. It reads the repositories the runner may serve, claims and reports their jobs, and nothing else. A person registers runners for themself; an organization's owner or admin for the organization.",
+        "tags": [
+          "runners"
+        ],
+        "parameters": [
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "account": {
+                    "description": "The account it serves; the one you act as if left out",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "self-hosted",
+                      "hosted"
+                    ]
+                  },
+                  "provider": {
+                    "description": "For a hosted runner: `blacksmith`, `depot`, ...",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40,
+                        "pattern": "^[a-z0-9][a-z0-9-]*$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "labels": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "description": "What the machine offers, such as `macos`, `arm64`, `xcode-16`. Stored lowercase"
+                  },
+                  "repos": {
+                    "anyOf": [
+                      {
+                        "maxItems": 500,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[^/\\s]+\\/[^/\\s]+$"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "`owner/name` of the account it may serve; null for all of them, now and later"
+                  },
+                  "concurrency": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Runner"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "runners:manage"
+            ]
+          }
+        ],
+        "x-sx-safety": "write",
+        "x-sx-idempotent": false,
+        "x-sx-dry-run": true,
+        "x-sx-pool": "write",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "runners:manage"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "limit_reached",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": true,
+        "x-sx-secret-request": false
+      }
+    },
     "/search": {
       "get": {
         "operationId": "search.query",
@@ -22762,7 +24271,7 @@
                   },
                   "scopes": {
                     "minItems": 1,
-                    "maxItems": 15,
+                    "maxItems": 18,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -22781,7 +24290,10 @@
                         "secrets:decrypt",
                         "webhooks:read",
                         "webhooks:write",
-                        "tokens:manage"
+                        "tokens:manage",
+                        "runners:manage",
+                        "runners:claim",
+                        "runners:report"
                       ]
                     }
                   },
@@ -25491,6 +27003,198 @@
           "version"
         ]
       },
+      "Inbox": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "inbox"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InboxItem"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "stopped": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "failing": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "blocked": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "review": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "handoff": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "assigned": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "mention": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "total": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "stopped",
+              "failing",
+              "blocked",
+              "review",
+              "handoff",
+              "assigned",
+              "mention",
+              "total"
+            ],
+            "description": "Everything in the queue, before `limit`"
+          }
+        },
+        "required": [
+          "object",
+          "items",
+          "counts"
+        ]
+      },
+      "InboxItem": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "inbox_item"
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable while the item stands: the same thing keeps the same id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "mirror_stopped",
+              "main_failing",
+              "change_blocked",
+              "checks_failing",
+              "review_requested",
+              "pipeline_waiting",
+              "runner_missing",
+              "issue_assigned",
+              "mention"
+            ],
+            "description": "What it is"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "stopped",
+              "failing",
+              "blocked",
+              "review",
+              "handoff",
+              "assigned",
+              "mention"
+            ],
+            "description": "How costly it is to leave; the queue is in this order"
+          },
+          "title": {
+            "type": "string"
+          },
+          "repo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "open",
+              "review",
+              "fix",
+              "retry",
+              "resume",
+              "answer"
+            ],
+            "description": "What to do about it"
+          },
+          "path": {
+            "type": "string",
+            "description": "Where it is in the web app"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "change",
+                      "issue",
+                      "run"
+                    ]
+                  },
+                  "number": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "type",
+                  "number"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The change, issue or run it is about"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "When it started needing you"
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "kind",
+          "severity",
+          "title",
+          "repo",
+          "note",
+          "action",
+          "path",
+          "subject",
+          "created_at"
+        ]
+      },
       "Limits": {
         "type": "object",
         "properties": {
@@ -25613,6 +27317,10 @@
             "type": "string",
             "const": "notification_preferences"
           },
+          "handoff": {
+            "type": "boolean",
+            "description": "A pipeline step waits on you"
+          },
           "review": {
             "type": "boolean"
           },
@@ -25638,6 +27346,7 @@
         },
         "required": [
           "object",
+          "handoff",
           "review",
           "mention",
           "release",
@@ -25661,6 +27370,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "handoff",
               "review",
               "mention",
               "release",
@@ -25668,7 +27378,7 @@
               "issue",
               "import"
             ],
-            "description": "`review`: your change was reviewed or landed. `mention`: someone wrote @you. `release`: a project you starred released. `ci`: checks failed on your change. `issue`: you were assigned. `import`: an import finished"
+            "description": "`handoff`: a pipeline step waits on you. `review`: your change was reviewed or landed. `mention`: someone wrote @you. `release`: a project you starred released. `ci`: checks failed on your change. `issue`: you were assigned. `import`: an import finished"
           },
           "title": {
             "type": "string"
@@ -29170,6 +30880,7 @@
             "enum": [
               "queued",
               "running",
+              "waiting",
               "success",
               "failure",
               "canceled"
@@ -29182,7 +30893,8 @@
               "change",
               "tag",
               "schedule",
-              "manual"
+              "manual",
+              "event"
             ]
           },
           "actor": {
@@ -29234,6 +30946,7 @@
                       "enum": [
                         "queued",
                         "running",
+                        "waiting",
                         "success",
                         "failure",
                         "canceled",
@@ -29244,6 +30957,56 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "runs_on": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The labels it asked for; empty takes any runner"
+                    },
+                    "runner_id": {
+                      "description": "The registered runner that took it",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lease_expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "description": "RFC 3339 time, UTC"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "waiting_for_labels": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "While queued: the labels no runner that may serve this repository has. Null when one can take it"
+                    },
+                    "wait": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/PipelineWait"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "What its waiting step waits for"
                     },
                     "steps": {
                       "type": "array",
@@ -29258,6 +31021,7 @@
                             "enum": [
                               "queued",
                               "running",
+                              "waiting",
                               "success",
                               "failure",
                               "canceled",
@@ -29277,6 +31041,16 @@
                           },
                           "log_url": {
                             "type": "string"
+                          },
+                          "wait": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/PipelineWait"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -29284,7 +31058,8 @@
                           "status",
                           "duration_ms",
                           "lines",
-                          "log_url"
+                          "log_url",
+                          "wait"
                         ]
                       }
                     }
@@ -29294,6 +31069,11 @@
                     "runner",
                     "status",
                     "duration_ms",
+                    "runs_on",
+                    "runner_id",
+                    "lease_expires_at",
+                    "waiting_for_labels",
+                    "wait",
                     "steps"
                   ]
                 }
@@ -29363,6 +31143,40 @@
           "version"
         ]
       },
+      "PipelineWait": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "agent",
+              "approval"
+            ],
+            "description": "What the step waits for"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "target": {
+            "description": "Who it waits on: a handle, or an agent as its caller named it",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "When the step fails if nobody resumed it"
+          }
+        },
+        "required": [
+          "kind",
+          "reason",
+          "target",
+          "expires_at"
+        ]
+      },
       "PipelineLog": {
         "type": "object",
         "properties": {
@@ -29386,6 +31200,7 @@
             "enum": [
               "queued",
               "running",
+              "waiting",
               "success",
               "failure",
               "canceled",
@@ -29492,6 +31307,32 @@
           },
           "url": {
             "type": "string"
+          },
+          "runs_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The labels the job asked for; empty takes any runner"
+          },
+          "runner_id": {
+            "description": "The registered runner that took it; null for a named one",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the job goes back to the queue unless the runner reports or sends a heartbeat"
           }
         },
         "required": [
@@ -29504,7 +31345,10 @@
           "branch",
           "sha",
           "steps",
-          "url"
+          "url",
+          "runs_on",
+          "runner_id",
+          "lease_expires_at"
         ]
       },
       "PolicyProposal": {
@@ -30525,6 +32369,193 @@
           "created_at",
           "updated_at",
           "version"
+        ]
+      },
+      "RunnerJob": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "runner_job"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "run": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "job": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "waiting",
+              "success",
+              "failure",
+              "canceled",
+              "skipped"
+            ]
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "object",
+          "repo",
+          "run",
+          "job",
+          "name",
+          "status",
+          "lease_expires_at",
+          "url"
+        ]
+      },
+      "Runner": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "runner"
+          },
+          "id": {
+            "type": "string",
+            "description": "Starts with rnr_"
+          },
+          "name": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string",
+            "description": "The account the runner serves"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "self-hosted",
+              "hosted"
+            ]
+          },
+          "provider": {
+            "description": "Null for your own machine; the provider for a hosted one (`blacksmith`, `depot`)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Lowercase. A job runs here when every label it asks for is in this list. Declared, not verified"
+          },
+          "repos": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`owner/name` it may serve; null for every repository of the account"
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Jobs it runs at once"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "online",
+              "busy",
+              "offline",
+              "disabled"
+            ]
+          },
+          "current_jobs": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Jobs it holds, running or waiting"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "secret": {
+            "description": "The runner's token (`SX_RUNNER_TOKEN`). Only in the response that creates it, never again",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "html_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "name",
+          "account",
+          "kind",
+          "provider",
+          "labels",
+          "repos",
+          "concurrency",
+          "status",
+          "current_jobs",
+          "last_seen_at",
+          "created_at",
+          "created_by",
+          "secret",
+          "url",
+          "html_url"
         ]
       },
       "SearchResult": {
