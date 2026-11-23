@@ -1198,6 +1198,74 @@ export const Dashboard = named(
   }),
 )
 
+export const InboxItem = named(
+  'InboxItem',
+  obj({
+    object: z.literal('inbox_item'),
+    id: z
+      .string()
+      .describe(
+        'Stable while the item stands: the same thing keeps the same id',
+      ),
+    kind: z
+      .enum([
+        'mirror_stopped',
+        'main_failing',
+        'change_blocked',
+        'checks_failing',
+        'review_requested',
+        'pipeline_waiting',
+        'runner_missing',
+        'issue_assigned',
+        'mention',
+      ])
+      .describe('What it is'),
+    severity: z
+      .enum([
+        'stopped',
+        'failing',
+        'blocked',
+        'review',
+        'handoff',
+        'assigned',
+        'mention',
+      ])
+      .describe('How costly it is to leave; the queue is in this order'),
+    title: z.string(),
+    repo: z.string().nullable(),
+    note: z.string(),
+    action: z
+      .enum(['open', 'review', 'fix', 'retry', 'resume', 'answer'])
+      .describe('What to do about it'),
+    path: z.string().describe('Where it is in the web app'),
+    subject: obj({
+      type: z.enum(['change', 'issue', 'run']),
+      number: z.number().int(),
+    })
+      .nullable()
+      .describe('The change, issue or run it is about'),
+    created_at: ts.describe('When it started needing you'),
+  }),
+)
+
+export const Inbox = named(
+  'Inbox',
+  obj({
+    object: z.literal('inbox'),
+    items: z.array(InboxItem),
+    counts: obj({
+      stopped: z.number().int(),
+      failing: z.number().int(),
+      blocked: z.number().int(),
+      review: z.number().int(),
+      handoff: z.number().int(),
+      assigned: z.number().int(),
+      mention: z.number().int(),
+      total: z.number().int(),
+    }).describe('Everything in the queue, before `limit`'),
+  }),
+)
+
 export const notificationKinds = [
   'handoff',
   'review',

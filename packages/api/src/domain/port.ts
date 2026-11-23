@@ -793,6 +793,8 @@ export interface DomainPort {
     p: Viewer,
   ) => Promise<Out<typeof S.RepoInsights>>
   insightsVersion: (owner: string, name: string, p: Viewer) => Promise<string>
+  /** What needs the viewer now, worked out from the state of things. */
+  inbox: (p: Viewer, limit: number) => Promise<Out<typeof S.Inbox>>
   dashboard: (p: Viewer, account?: string) => Promise<Out<typeof S.Dashboard>>
 
   // ---- notifications --------------------------------------------------------

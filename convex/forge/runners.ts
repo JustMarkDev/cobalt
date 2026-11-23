@@ -31,6 +31,7 @@ import { mintToken, revokeToken, toRefs } from '../lib/tokens'
 import {
   applyReport,
   claimedJob,
+  expireDue,
   load,
   requeueExpired,
   runOf,
@@ -533,6 +534,7 @@ export const report = mutation({
     const repo = await resolve(ctx, o, n, p)
     if (!mayServe(await like(ctx, r), repo.owner, repo.name))
       fail('not_found', `No repository ${a.repo}.`)
+    await expireDue(ctx, repo)
     const doc = await runOf(ctx, repo, a.run)
     const run = await load(ctx, doc)
     const j = run.jobs.at(a.job - 1)

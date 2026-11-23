@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { StoreGit } from './git'
 import { sampleTokens } from './sample'
-import { clock, harness } from './testing'
-import type { GitData } from './git'
+import { clock, harness, withRunsOn } from './testing'
 
 const R = '/repos/dana/gitfs'
 
@@ -106,42 +104,6 @@ describe('runners', () => {
 })
 
 // ---- registered runners ------------------------------------------------------
-
-/** The git store, with one workflow file put in it. */
-function gitWith(files: Record<string, string>) {
-  const base = new StoreGit()
-  const git: GitData = {
-    files: (repo, ref) => base.files(repo, ref),
-    blob: async (repo, path, ref) =>
-      path in files
-        ? new TextEncoder().encode(files[path])
-        : base.blob(repo, path, ref),
-    commits: (repo, limit) => base.commits(repo, limit),
-    commit: (repo, sha) => base.commit(repo, sha),
-    diff: (repo, sha) => base.diff(repo, sha),
-    setRepo: (repo, id) => base.setRepo(repo, id),
-    dropRepo: (repo) => base.dropRepo(repo),
-    storeOf: (repo) => base.storeOf(repo),
-  }
-  return git
-}
-
-/** A harness whose `build` workflow asks for these labels on every job. */
-async function withRunsOn(labels: Array<string> | string, now = clock()) {
-  const probe = harness({ now })
-  const last = (
-    await probe.call('GET', `${R}/pipelines?workflow=build&limit=1`)
-  ).json.data[0]
-  const run = (await probe.call('GET', `${R}/pipelines/${last.number}`)).json
-  const yaml = [
-    'jobs:',
-    ...run.jobs.flatMap((j: any) => [
-      `  ${JSON.stringify(j.name)}:`,
-      `    runs-on: ${JSON.stringify(labels)}`,
-    ]),
-  ].join('\n')
-  return harness({ now, git: gitWith({ [run.file]: yaml }) })
-}
 
 async function register(
   h: ReturnType<typeof harness>,

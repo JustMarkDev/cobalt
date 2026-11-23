@@ -635,6 +635,7 @@ export const claim = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await expireDue(ctx, repo)
     const candidates: Array<Doc<'pipelineRuns'>> = []
     for (const status of ['queued', 'running'])
       candidates.push(
@@ -738,6 +739,7 @@ export const report = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await expireDue(ctx, repo)
     const doc = await runOf(ctx, repo, a.n)
     const r = await applyReport(ctx, repo, doc, a)
     return out(await shown(ctx, repo, doc, r))
@@ -755,6 +757,7 @@ export const cancel = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await expireDue(ctx, repo)
     const doc = await runOf(ctx, repo, a.n)
     const r = await load(ctx, doc)
     if (!canMove(pipelineLifecycle, r.status, 'canceled'))
@@ -813,6 +816,7 @@ export const wait = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await expireDue(ctx, repo)
     const doc = await runOf(ctx, repo, a.n)
     const r = await load(ctx, doc)
     const w: PipelineWait = {
@@ -864,6 +868,7 @@ export const resume = mutation({
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    await expireDue(ctx, repo)
     const doc = await runOf(ctx, repo, a.n)
     const r = await load(ctx, doc, true)
     const now = Date.now()
@@ -899,6 +904,55 @@ export const resume = mutation({
  * A wait ran out: the step and the run fail. Nothing happens when the step
  * was resumed, canceled or waits on a later wait, or the run is gone.
  */
+/** Fail a step's run when its wait ran out. False when there was nothing to do. */
+async function expireOne(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  doc: Doc<'pipelineRuns'>,
+  job: number,
+  step: number,
+  expires: number,
+) {
+  const r = await load(ctx, doc)
+  const s = r.jobs.at(job - 1)?.steps.at(step - 1)
+  const why = s?.wait?.reason ?? ''
+  if (!s || !expireWait(r, job, step, expires, Date.now())) return false
+  for (const j of r.jobs) j.lease = null
+  r.annotations.push({
+    level: 'error',
+    text: `Nobody resumed ${s.name} before its wait ran out: ${why}`,
+    job: r.jobs[job - 1].name,
+    step: s.name,
+  })
+  r.version++
+  await save(ctx, repo, doc, r)
+  return true
+}
+
+/**
+ * Waits in a repository that ran out, failed now. The scheduled `expire`
+ * does it at the deadline; a write that reads the runs first does it too,
+ * so it never acts on a wait that is already over.
+ */
+export async function expireDue(ctx: MutationCtx, repo: Doc<'repos'>) {
+  const now = Date.now()
+  for (const status of ['waiting', 'running'])
+    for (const doc of await ctx.db
+      .query('pipelineRuns')
+      .withIndex('by_repoId_and_status_and_started', (q) =>
+        q.eq('repoId', repo._id).eq('status', status),
+      )
+      .take(200)) {
+      const r = await load(ctx, doc)
+      for (const [ji, j] of r.jobs.entries())
+        for (const [si, st] of j.steps.entries())
+          if (st.status === 'waiting' && st.wait && st.wait.expires <= now) {
+            const fresh = (await ctx.db.get('pipelineRuns', doc._id))!
+            await expireOne(ctx, repo, fresh, ji + 1, si + 1, st.wait.expires)
+          }
+    }
+}
+
 export const expire = internalMutation({
   args: {
     runId: v.id('pipelineRuns'),
@@ -912,19 +966,7 @@ export const expire = internalMutation({
     if (!doc) return null
     const repo = await ctx.db.get('repos', doc.repoId)
     if (!repo) return null
-    const r = await load(ctx, doc)
-    const s = r.jobs.at(a.job - 1)?.steps.at(a.step - 1)
-    const why = s?.wait?.reason ?? ''
-    if (!expireWait(r, a.job, a.step, a.expires, Date.now())) return null
-    for (const j of r.jobs) j.lease = null
-    r.annotations.push({
-      level: 'error',
-      text: `Nobody resumed ${s!.name} before its wait ran out: ${why}`,
-      job: r.jobs[a.job - 1].name,
-      step: s!.name,
-    })
-    r.version++
-    await save(ctx, repo, doc, r)
+    await expireOne(ctx, repo, doc, a.job, a.step, a.expires)
     return null
   },
 })
@@ -950,6 +992,22 @@ export async function requeueExpired(
       if (!repo || (only && !only(repo))) continue
       const r = await load(ctx, doc)
       let changed = false
+      // A wait that ran out fails the run first.
+      for (const [ji, j] of r.jobs.entries())
+        for (const [si, st] of j.steps.entries())
+          if (st.status === 'waiting' && st.wait && st.wait.expires <= now) {
+            const why = st.wait.reason
+            if (expireWait(r, ji + 1, si + 1, st.wait.expires, now)) {
+              for (const x of r.jobs) x.lease = null
+              r.annotations.push({
+                level: 'error',
+                text: `Nobody resumed ${st.name} before its wait ran out: ${why}`,
+                job: j.name,
+                step: st.name,
+              })
+              changed = true
+            }
+          }
       for (const [ji, j] of r.jobs.entries())
         if (j.status === 'running' && j.lease && j.lease <= now) {
           const who = j.runner

@@ -14,6 +14,7 @@ import { presentRepo } from '../lib/present'
 import { countsOf } from './health'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
+import type { Actor } from '../lib/actor'
 
 /**
  * The facts insights, the dashboard and the status page add up, with who
@@ -150,7 +151,7 @@ type Pipeline = {
   jobs: Array<{ status: string }>
 }
 
-async function pipelines(ctx: QueryCtx, r: Doc<'repos'>) {
+export async function pipelines(ctx: QueryCtx, r: Doc<'repos'>) {
   return (
     await ctx.db
       .query('pipelineRuns')
@@ -161,7 +162,7 @@ async function pipelines(ctx: QueryCtx, r: Doc<'repos'>) {
 }
 
 /** The repositories a person can change: their own, and their organizations'. */
-async function reach(ctx: QueryCtx, handle: string) {
+export async function reach(ctx: QueryCtx, handle: string) {
   const owners = [handle]
   const me = await accountByHandle(ctx, handle)
   if (me)
@@ -175,11 +176,97 @@ async function reach(ctx: QueryCtx, handle: string) {
   return owners
 }
 
-async function reposOf(ctx: QueryCtx, owner: string) {
+export async function reposOf(ctx: QueryCtx, owner: string) {
   return await ctx.db
     .query('repos')
     .withIndex('by_owner_and_created_and_publicId', (q) => q.eq('owner', owner))
     .take(2000)
+}
+
+/**
+ * The repositories a person reaches: their own, their organizations', and
+ * those granted to them, each once.
+ */
+export async function reachable(ctx: QueryCtx, me: string) {
+  const seen = new Set<Id<'repos'>>()
+  const found: Array<Doc<'repos'>> = []
+  const granted: Array<Doc<'repos'>> = []
+  for (const g of await ctx.db
+    .query('repoGrants')
+    .withIndex('by_handle', (q) => q.eq('handle', me))
+    .take(2000)) {
+    const r = await ctx.db.get('repos', g.repoId)
+    if (r) granted.push(r)
+  }
+  for (const r of [
+    ...(
+      await Promise.all((await reach(ctx, me)).map((o) => reposOf(ctx, o)))
+    ).flat(),
+    ...granted,
+  ])
+    if (!seen.has(r._id)) {
+      seen.add(r._id)
+      found.push(r)
+    }
+  return found
+}
+
+/**
+ * Changes waiting on this person's review (open, by someone else, in a
+ * repository they write to, with no current review of theirs), and open
+ * issues given to them. The dashboard and the inbox both show these.
+ */
+export async function reviewsAndAssigned(ctx: QueryCtx, p: Actor) {
+  const me = p.handle
+  const full = (r: Doc<'repos'>) => `${r.owner}/${r.name}`
+  const toReview = []
+  const assigned = []
+  for (const r of await reachable(ctx, me)) {
+    if (await canWrite(ctx, r, p))
+      for (const c of await ctx.db
+        .query('changes')
+        .withIndex('by_repoId_and_number', (q) => q.eq('repoId', r._id))
+        .take(5000)) {
+        if (c.state !== 'open' || c.author.handle === me) continue
+        const reviews = (
+          await ctx.db
+            .query('changeParts')
+            .withIndex('by_changeId_and_kind_and_seq', (q) =>
+              q.eq('changeId', c._id).eq('kind', 'review'),
+            )
+            .take(500)
+        ).map(
+          (x) =>
+            JSON.parse(x.json) as {
+              actor: { handle: string }
+              carries: boolean
+            },
+        )
+        if (!reviews.some((x) => x.actor.handle === me && x.carries))
+          toReview.push({
+            repo: full(r),
+            number: c.number,
+            title: c.title,
+            author: c.author.handle,
+            updated: c.updated,
+          })
+      }
+  }
+  for (const g of await ctx.db
+    .query('issueAssignees')
+    .withIndex('by_handle', (q) => q.eq('handle', me))
+    .take(2000)) {
+    const i = await ctx.db.get('issues', g.issueId)
+    const r = i && (await ctx.db.get('repos', i.repoId))
+    if (i && r && i.state === 'open' && (await canRead(ctx, r, p)))
+      assigned.push({
+        repo: full(r),
+        number: i.number,
+        title: i.title,
+        updated: i.updated,
+      })
+  }
+  return { toReview, assigned }
 }
 
 export const dashboardFacts = query({
@@ -259,70 +346,7 @@ export const dashboardFacts = query({
       })
     }
     // Changes waiting on this person's review, and issues given to them.
-    const toReview = []
-    const assigned = []
-    const seen = new Set<Id<'repos'>>()
-    const granted: Array<Doc<'repos'>> = []
-    for (const g of await ctx.db
-      .query('repoGrants')
-      .withIndex('by_handle', (q) => q.eq('handle', me))
-      .take(2000)) {
-      const r = await ctx.db.get('repos', g.repoId)
-      if (r) granted.push(r)
-    }
-    const scopes = [
-      ...(
-        await Promise.all((await reach(ctx, me)).map((o) => reposOf(ctx, o)))
-      ).flat(),
-      ...granted,
-    ]
-    for (const r of scopes) {
-      if (seen.has(r._id)) continue
-      seen.add(r._id)
-      if (await canWrite(ctx, r, p))
-        for (const c of await ctx.db
-          .query('changes')
-          .withIndex('by_repoId_and_number', (q) => q.eq('repoId', r._id))
-          .take(5000)) {
-          if (c.state !== 'open' || c.author.handle === me) continue
-          const reviews = (
-            await ctx.db
-              .query('changeParts')
-              .withIndex('by_changeId_and_kind_and_seq', (q) =>
-                q.eq('changeId', c._id).eq('kind', 'review'),
-              )
-              .take(500)
-          ).map(
-            (x) =>
-              JSON.parse(x.json) as {
-                actor: { handle: string }
-                carries: boolean
-              },
-          )
-          if (!reviews.some((x) => x.actor.handle === me && x.carries))
-            toReview.push({
-              repo: full(r),
-              number: c.number,
-              title: c.title,
-              author: c.author.handle,
-              updated: c.updated,
-            })
-        }
-    }
-    for (const g of await ctx.db
-      .query('issueAssignees')
-      .withIndex('by_handle', (q) => q.eq('handle', me))
-      .take(2000)) {
-      const i = await ctx.db.get('issues', g.issueId)
-      const r = i && (await ctx.db.get('repos', i.repoId))
-      if (i && r && i.state === 'open' && (await canRead(ctx, r, p)))
-        assigned.push({
-          repo: full(r),
-          number: i.number,
-          title: i.title,
-          updated: i.updated,
-        })
-    }
+    const { toReview, assigned } = await reviewsAndAssigned(ctx, p)
     const since = a.at - 56 * DAY
     const mine = await ctx.db
       .query('contributions')

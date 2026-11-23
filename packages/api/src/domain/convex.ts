@@ -1,5 +1,7 @@
 import { receiptFor } from '../receipt'
 import { runsOnOf } from '../workflow'
+import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
+import type { NeedsFacts } from '../inbox'
 import { ConvexError } from 'convex/values'
 import { apiError } from '../problem'
 import { Pre } from '../registry'
@@ -1451,6 +1453,36 @@ export class ConvexDomain implements DomainPort {
       p,
     )
 
+  private failingMirrors(
+    repos: Array<string>,
+    mirrorsOf: Map<string, Array<MirrorRec>>,
+  ) {
+    return repos.flatMap((repo) =>
+      (mirrorsOf.get(repo) ?? [])
+        .filter((m) => m.state === 'failing')
+        .map((m) => ({
+          repo,
+          host: m.host,
+          detail: m.detail ?? null,
+          lastSync: m.lastSync,
+        })),
+    )
+  }
+
+  inbox: Port['inbox'] = async (p, limit) => {
+    if (!p) throw apiError('unauthenticated', 'Sign in to see your inbox.')
+    const f = await this.q<
+      Omit<NeedsFacts, 'mirrors'> & { owned: Array<string> }
+    >('inbox:facts', { at: this.now() }, p)
+    const mirrorsOf = new Map<string, Array<MirrorRec>>()
+    for (const repo of f.owned)
+      mirrorsOf.set(repo, (await this.svc.extras.open(repo)).mirrors)
+    return presentInbox(
+      needsFrom({ ...f, mirrors: this.failingMirrors(f.owned, mirrorsOf) }),
+      Math.min(limit, INBOX_MAX),
+    )
+  }
+
   dashboard: Port['dashboard'] = async (p, as) => {
     if (!p) throw apiError('unauthenticated', 'Sign in to see your dashboard.')
     const now = this.now()
@@ -1514,59 +1546,36 @@ export class ConvexDomain implements DomainPort {
         (x) =>
           x.branch === 'main' &&
           x.status !== 'queued' &&
-          x.status !== 'running',
+          x.status !== 'running' &&
+          x.status !== 'waiting',
       )
-    const needs: Awaited<ReturnType<Port['dashboard']>>['needs_you'] = []
     const mirrorsOf = new Map<string, Array<MirrorRec>>()
     for (const r of f.owned)
       mirrorsOf.set(r.repo, (await this.svc.extras.open(r.repo)).mirrors)
-    for (const r of f.owned)
-      for (const m of mirrorsOf.get(r.repo) ?? [])
-        if (m.state === 'failing')
-          needs.push({
-            severity: 'stopped',
-            title: `Mirror to ${m.host} stopped`,
-            repo: r.repo,
-            note: m.detail ?? 'It stopped syncing.',
-            at: ago(m.lastSync),
-            action: 'Reconnect',
-            path: path(r.repo, '/settings?section=mirrors'),
-          })
-    for (const r of f.owned) {
-      const main = mainOf(r.runs)
-      if (main?.status === 'failure')
-        needs.push({
-          severity: 'failing',
-          title: `${main.workflow} is failing on main`,
-          repo: r.repo,
-          note: main.title,
-          at: ago(main.started),
-          action: 'See the run',
-          path: path(r.repo, `/pipelines?n=${main.number}`),
-        })
-    }
-    for (const c of f.toReview)
-      needs.push({
-        severity: 'review',
-        title: `Review #${c.number} ${c.title}`,
-        repo: c.repo,
-        note: `${c.author} opened it.`,
-        at: ago(c.updated),
-        action: 'Review',
-        path: path(c.repo, `/changes?n=${c.number}`),
-      })
-    for (const i of f.assigned)
-      needs.push({
-        severity: 'assigned',
-        title: `#${i.number} ${i.title}`,
-        repo: i.repo,
-        note: 'Assigned to you.',
-        at: ago(i.updated),
-        action: 'Open',
-        path: path(i.repo, `/issues?n=${i.number}`),
-      })
-    const rank = { stopped: 0, failing: 1, review: 2, assigned: 3 }
-    needs.sort((a, b) => rank[a.severity] - rank[b.severity])
+    const needs = dashboardNeeds(
+      needsFrom({
+        mirrors: this.failingMirrors(
+          f.owned.map((r) => r.repo),
+          mirrorsOf,
+        ),
+        mainFailures: f.owned.flatMap((r) => {
+          const main = mainOf(r.runs)
+          return main?.status === 'failure'
+            ? [
+                {
+                  repo: r.repo,
+                  number: main.number,
+                  workflow: main.workflow,
+                  title: main.title,
+                  started: main.started,
+                },
+              ]
+            : []
+        }),
+        toReview: f.toReview,
+        assigned: f.assigned,
+      }),
+    )
     const progress: Awaited<ReturnType<Port['dashboard']>>['in_progress'] = []
     for (const r of f.owned) {
       for (const c of r.agentChanges)
