@@ -609,6 +609,16 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.PipelineRun>>
 
+  // ---- triggers -------------------------------------------------------------
+
+  /** The triggers in force, their files and what they did lately. */
+  getTriggers: (
+    owner: string,
+    name: string,
+    p: Viewer,
+  ) => Promise<Out<typeof S.TriggerSet>>
+  triggersVersion: (owner: string, name: string, p: Viewer) => Promise<string>
+
   // ---- runners --------------------------------------------------------------
 
   createRunner: (

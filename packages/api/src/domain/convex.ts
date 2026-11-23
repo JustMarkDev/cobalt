@@ -1109,6 +1109,13 @@ export class ConvexDomain implements DomainPort {
   ) =>
     this.m('pipelines:resume', { owner, name, n, job, step, ...body, dry }, p)
 
+  // ---- triggers --------------------------------------------------------------------
+
+  getTriggers: Port['getTriggers'] = (owner, name, p) =>
+    this.q('triggers:get', { owner, name }, p)
+  triggersVersion: Port['triggersVersion'] = (owner, name, p) =>
+    this.q('triggers:version', { owner, name }, p)
+
   // ---- runners ---------------------------------------------------------------------
 
   createRunner: Port['createRunner'] = (p, body, dry) =>

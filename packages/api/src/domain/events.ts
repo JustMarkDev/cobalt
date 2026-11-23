@@ -84,7 +84,7 @@ export abstract class DomainEvents extends DomainPresent {
     extra?: Record<string, unknown>,
   ) {
     repo.changeRev++
-    this.emit(
+    return this.emit(
       repo,
       type,
       by,

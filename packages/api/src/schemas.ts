@@ -878,6 +878,67 @@ export const RunnerJob = named(
   }),
 )
 
+export const TriggerSet = named(
+  'TriggerSet',
+  obj({
+    object: z.literal('trigger_set'),
+    repo: z.string(),
+    path: z.string().describe('The folder the trigger files are in'),
+    sha: z
+      .string()
+      .nullable()
+      .describe(
+        'The commit the files were last read at; null when there are none',
+      ),
+    files: z.array(obj({ path: z.string(), html_url: z.string() })),
+    triggers: z
+      .array(
+        obj({
+          id: z.string(),
+          on: z
+            .array(z.string())
+            .describe('Event types; `change.*` matches the family'),
+          filter: obj({
+            paths: z.array(z.string()).nullable(),
+            labels: z.array(z.string()).nullable(),
+            actor: z.array(z.string()).nullable(),
+            model: z.array(z.string()).nullable(),
+          }),
+          action: obj({ run: z.string().describe('The workflow it starts') }),
+          file: z.string(),
+          html_url: z.string(),
+        }),
+      )
+      .describe(
+        'The triggers in force: the last set that read. At most 20; at most 3 start for one event',
+      ),
+    errors: z
+      .array(
+        obj({
+          file: z.string(),
+          path: z.string(),
+          line: z.number().int().nullable(),
+          message: z.string(),
+        }),
+      )
+      .describe(
+        'Why the newest files did not read. While there are any, the last valid triggers stay in force',
+      ),
+    recent: z
+      .array(
+        obj({
+          trigger: z.string(),
+          event_sequence: z.number().int(),
+          state: z.enum(['started', 'failed', 'capped']),
+          run: z.number().int().nullable(),
+          error: z.string().nullable(),
+          at: ts,
+        }),
+      )
+      .describe('What triggers did lately, newest first'),
+  }),
+)
+
 export const PolicyException = named(
   'PolicyException',
   obj({

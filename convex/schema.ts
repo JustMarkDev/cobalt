@@ -295,6 +295,7 @@ export default defineSchema({
     pipelineNumber: v.optional(v.number()),
     pipelineRev: v.optional(v.number()),
     automationRev: v.optional(v.number()),
+    triggersRev: v.optional(v.number()),
   }).index('by_repoId', ['repoId']),
 
   // A renamed or transferred repository keeps answering at its old address.
@@ -596,6 +597,42 @@ export default defineSchema({
     sourceText: v.optional(v.string()),
     errors: v.optional(v.string()),
   }).index('by_repoId', ['repoId']),
+
+  // `.source/triggers/*.yml` as last landed. `sourceText` is JSON of every
+  // trigger file by path; `triggersJson` the set in force (the last that
+  // read); `errors` JSON of why the newest did not read.
+  repoTriggers: defineTable({
+    repoId: v.id('repos'),
+    sourceText: v.string(),
+    sourceSha: v.string(),
+    triggersJson: v.string(),
+    errors: v.string(),
+    rev: v.number(),
+  }).index('by_repoId', ['repoId']),
+
+  // What a trigger did for an event, written before the run starts: the same
+  // event never starts the same trigger twice.
+  triggerRuns: defineTable({
+    repoId: v.id('repos'),
+    triggerId: v.string(),
+    // The repository's event sequence of the event.
+    eventSequence: v.number(),
+    runId: v.union(v.null(), v.string()),
+    run: v.union(v.null(), v.number()),
+    state: v.union(
+      v.literal('started'),
+      v.literal('failed'),
+      v.literal('capped'),
+    ),
+    error: v.union(v.null(), v.string()),
+    at: v.number(),
+  })
+    .index('by_repoId_and_triggerId_and_eventSequence', [
+      'repoId',
+      'triggerId',
+      'eventSequence',
+    ])
+    .index('by_repoId_and_at', ['repoId', 'at']),
 
   // Long operations (landing a stack), watched with GET /operations/{id}.
   operations: defineTable({

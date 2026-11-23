@@ -1041,3 +1041,21 @@ export const sweepLeases = internalMutation({
     return null
   },
 })
+
+/**
+ * A run an event started (a trigger): no person asked, so no principal is
+ * checked. Its jobs and labels are the workflow's last run's, and it says
+ * they may be stale. Throws `not_found` (before writing anything) when the
+ * workflow never ran.
+ */
+export async function startPipelineForEvent(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  at: { workflow: string; branch: string; sha: string; actor: string },
+) {
+  return await startWorkflow(ctx, repo, at.workflow, at.actor, {
+    branch: at.branch,
+    sha: at.sha,
+    trigger: 'event',
+  })
+}

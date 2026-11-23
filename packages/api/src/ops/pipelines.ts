@@ -411,3 +411,27 @@ export const pipelineOps = [
   waitPipelineStep,
   resumePipelineStep,
 ]
+
+export const listTriggers = defineOp({
+  ...read,
+  id: 'triggers.list',
+  summary: 'What starts a workflow in a repository',
+  description:
+    'The triggers in `.source/triggers/*.yml` on the default branch, as they were read when they last landed, with any errors and what each did lately. Read-only: the files are the API, and a change to them is a change.',
+  method: 'GET',
+  path: '/repos/{owner}/{repo}/triggers',
+  params: repoParams,
+  response: S.TriggerSet,
+  errors: ['not_found', 'moved'],
+  probe: (ctx, d) =>
+    d.triggersVersion(ctx.params.owner, ctx.params.repo, ctx.principal),
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      return yield* run((d) =>
+        d.getTriggers(ctx.params.owner, ctx.params.repo, ctx.principal),
+      )
+    }),
+})
+
+export const triggerOps = [listTriggers]

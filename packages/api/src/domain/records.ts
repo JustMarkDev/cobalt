@@ -3,6 +3,7 @@ import type { SecretBox } from '../secret-box'
 import type { Receipt } from '../via'
 import type { LandingStepRec } from '../landing'
 import type { FileError, Landing } from '../policy-file'
+import type { Trigger, FileError as TriggerFileError } from '../trigger-file'
 import type { Addressed, Anchor, Placement } from '../anchors'
 import type { HookPort } from '../webhooks'
 import type { SearchIndex } from '../search'
@@ -372,6 +373,20 @@ export type RepoRec = {
   }
   /** How changes land: from the policy file, or the defaults. */
   landing?: Landing
+  /**
+   * `.source/triggers/*.yml` as last landed: every file's text, the commit,
+   * the triggers in force (the last valid set) and why the newest did not
+   * read, if it did not.
+   */
+  triggers?: {
+    files: Record<string, string>
+    sha: string
+    set: Array<Trigger>
+    errors: Array<TriggerFileError>
+    rev: number
+  }
+  /** What each trigger did for each event, by `trigger:event`. */
+  triggerRuns?: Map<string, TriggerRunRec>
   /** By lowercase name. */
   labels: Map<string, LabelRec>
   /** Bumped by every label write, for the list's version. */
@@ -533,6 +548,18 @@ export type ReleaseRec = {
 export type { PipelineStatus } from '../lifecycles'
 import type { PipelineStatus, PipelineWait } from '../lifecycles'
 export type LogLevel = 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error'
+/** One trigger, for one event: started (with its run), failed, or over the cap. */
+export type TriggerRunRec = {
+  triggerId: string
+  /** The repository's event revision of the event that started it. */
+  eventSequence: number
+  runId: string | null
+  run: number | null
+  state: 'started' | 'failed' | 'capped'
+  error: string | null
+  at: number
+}
+
 /** A machine that takes pipeline jobs (`runners.ts`). */
 export type RunnerRec = {
   id: string

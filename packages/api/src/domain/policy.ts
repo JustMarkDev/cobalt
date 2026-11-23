@@ -12,6 +12,15 @@ import {
   unifiedDiff,
 } from '../policy-file'
 import { proposalEdits, proposalTitle } from '../policy-proposals'
+import {
+  MAX_RUNS_PER_EVENT,
+  isTriggerFile,
+  parseTriggerFiles,
+  triggersFor,
+} from '../trigger-file'
+import { presentTriggers } from '../triggers'
+import { touchedFiles } from '../paths'
+import type { EventRecord } from '../events'
 import type { Principal } from '../auth'
 import type { PolicyContent } from '../policy-file'
 import type { LandingStepRec } from '../landing'
@@ -24,6 +33,7 @@ import type {
   RepoRec,
   Requirement,
   RuleMode,
+  TriggerRunRec,
   Viewer,
 } from './records'
 import { DomainPipelines } from './pipelines'
@@ -165,10 +175,144 @@ export abstract class DomainPolicy extends DomainPipelines {
    * On code.storage this runs from the push that lands it.
    */
   protected override doLand(repo: RepoRec, c: ChangeRec, by: ActorRec) {
-    super.doLand(repo, c, by)
+    const landed = super.doLand(repo, c, by)
     const head = this.head(c)
     const text = head.contents?.[POLICY_FILE]
     if (typeof text === 'string') this.readPolicyFile(repo, text, head.sha, by)
+    // Right after the policy: the triggers it landed, then the ones it starts.
+    this.readTriggerFiles(repo, c, by)
+    this.dispatchTriggers(repo, c, landed.event, landed.rev)
+    return landed
+  }
+
+  // ---- triggers --------------------------------------------------------------
+
+  /**
+   * A change that edits trigger files landed. Every trigger file is read
+   * together; when they read, their triggers are in force, and when they do
+   * not, the last valid set stays and the errors are shown. A trigger file
+   * that does not read never blocks the change itself.
+   */
+  protected readTriggerFiles(repo: RepoRec, c: ChangeRec, by: ActorRec) {
+    const head = this.head(c)
+    const touched = Object.entries(head.contents ?? {}).filter(([path]) =>
+      isTriggerFile(path),
+    )
+    if (!touched.length) return
+    const files = { ...repo.triggers?.files }
+    for (const [path, text] of touched)
+      if (typeof text === 'string') files[path] = text
+      else delete files[path]
+    const { triggers, errors } = parseTriggerFiles(files)
+    repo.triggers = {
+      files,
+      sha: head.sha,
+      set: triggers ?? repo.triggers?.set ?? [],
+      errors,
+      rev: (repo.triggers?.rev ?? 0) + 1,
+    }
+    this.emit(
+      repo,
+      'repo.triggers_changed',
+      by,
+      { object: 'repo', id: repo.id, number: null },
+      [errors.length ? 'source.errors' : 'source'],
+      null,
+    )
+  }
+
+  /**
+   * Starts what a landed change triggers: each matching trigger once per
+   * event (a retry finds it recorded), at most three. A workflow that never
+   * ran is recorded and its author told; the land itself never fails here.
+   */
+  protected dispatchTriggers(
+    repo: RepoRec,
+    c: ChangeRec,
+    e: EventRecord,
+    sequence: number,
+  ) {
+    const set = repo.triggers?.set ?? []
+    if (!set.length) return
+    const head = this.head(c)
+    const { start, capped } = triggersFor(set, {
+      type: e.type,
+      actor: e.actor.handle,
+      model: e.via?.model ?? null,
+      files: [...touchedFiles(head)],
+      labels: c.labels,
+    })
+    const runs = (repo.triggerRuns ??= new Map())
+    const at = this.now()
+    const record = (r: TriggerRunRec) =>
+      runs.set(`${r.triggerId}:${r.eventSequence}`, r)
+    for (const t of capped)
+      if (!runs.has(`${t.id}:${sequence}`))
+        record({
+          triggerId: t.id,
+          eventSequence: sequence,
+          runId: null,
+          run: null,
+          state: 'capped',
+          error: `More than ${MAX_RUNS_PER_EVENT} triggers matched; this one did not start.`,
+          at,
+        })
+    for (const t of start) {
+      if (runs.has(`${t.id}:${sequence}`)) continue
+      try {
+        const r = this.startPipelineForEvent(repo, t.run, {
+          branch: c.base,
+          sha: head.sha,
+          actor: e.actor.handle,
+        })
+        record({
+          triggerId: t.id,
+          eventSequence: sequence,
+          runId: r.id,
+          run: r.number,
+          state: 'started',
+          error: null,
+          at,
+        })
+      } catch (err) {
+        const why =
+          (err as { detail?: string }).detail ??
+          (err instanceof Error ? err.message : String(err))
+        record({
+          triggerId: t.id,
+          eventSequence: sequence,
+          runId: null,
+          run: null,
+          state: 'failed',
+          error: why,
+          at,
+        })
+        const full = `${repo.owner}/${repo.name}`
+        this.notify(c.author.handle, {
+          kind: 'ci',
+          title: `Trigger ${t.id} did not start ${t.run}: ${why}`,
+          repo: full,
+          path: `/${full}/settings?section=automations`,
+        })
+      }
+    }
+  }
+
+  async getTriggers(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    const t = repo.triggers
+    return presentTriggers(
+      `${repo.owner}/${repo.name}`,
+      this.urls.html,
+      repo.defaultBranch,
+      t ?? null,
+      [...(repo.triggerRuns?.values() ?? [])],
+    )
+  }
+
+  async triggersVersion(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    return `${repo.id}.t${repo.triggers?.rev ?? 0}.${repo.triggerRuns?.size ?? 0}.${this.accessRevision}`
   }
 
   protected readPolicyFile(

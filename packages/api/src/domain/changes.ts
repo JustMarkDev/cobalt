@@ -1,3 +1,4 @@
+import type { EventRecord } from '../events'
 import { assertWithinPaths, touchedFiles } from '../paths'
 import { contributionRefusal, serverReceipt } from '../via'
 import { rulesReadChangedFiles } from '../policy-builtins'
@@ -1454,7 +1455,11 @@ export abstract class DomainChanges extends DomainIssues {
       )
   }
 
-  protected doLand(repo: RepoRec, c: ChangeRec, by: ActorRec) {
+  protected doLand(
+    repo: RepoRec,
+    c: ChangeRec,
+    by: ActorRec,
+  ): { event: EventRecord; rev: number } {
     if (!changeTarget('land', c))
       throw apiError(
         'invalid_state',
@@ -1464,7 +1469,11 @@ export abstract class DomainChanges extends DomainIssues {
       c.state = 'landed'
       c.landed = this.now()
     })
-    this.changeEvent(repo, c, 'change.landed', by, ['state', 'landed_at'])
+    const event = this.changeEvent(repo, c, 'change.landed', by, [
+      'state',
+      'landed_at',
+    ])
+    const landed = { event, rev: repo.rev }
     // Changes above it are rebased onto the result. Their trees do not change,
     // so approvals and evidence stay valid.
     if (c.stackId) {
@@ -1477,6 +1486,7 @@ export abstract class DomainChanges extends DomainIssues {
           note: `Rebased onto main after #${c.number} landed`,
         })
     }
+    return landed
   }
 
   async landStack(

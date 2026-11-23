@@ -35,6 +35,8 @@ import {
 } from '@source-code/api/landing'
 import type { LandingStepRec } from '@source-code/api/landing'
 import { readLandedPolicy } from '../lib/policyFile'
+import { readLandedTriggers } from '../lib/triggerFile'
+import { dispatchTriggers } from './triggers'
 import { issueRefs } from '@source-code/api/references'
 import { fileKey, presentSeen } from '@source-code/api/seen'
 import { checkGuide, presentGuide } from '@source-code/api/guides'
@@ -1519,8 +1521,19 @@ async function doLand(
     changes: ['state', 'landed_at'],
     via,
   })
+  // The repository's event revision of the land, for triggers to key on.
+  const landedRev = (await counters(ctx, repo)).rev
+  const landedVia = via ?? (await viaOf(ctx))
   // A change to the policy file that lands is the repository's rules now.
   await readLandedPolicy(ctx, repo, c, by)
+  // Then its trigger files, then what the land triggers.
+  await readLandedTriggers(ctx, repo, c, by)
+  await dispatchTriggers(ctx, repo, c, {
+    type: 'change.landed',
+    actor: by.handle,
+    model: landedVia.model,
+    sequence: landedRev,
+  })
   // Changes above it are rebased onto the result. Their trees do not change,
   // so approvals and evidence stay valid.
   if (c.stackId) {
