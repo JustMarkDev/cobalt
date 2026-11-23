@@ -480,6 +480,7 @@ export abstract class DomainPolicy extends DomainPipelines {
       required_check: ['check'],
       path_approval: ['paths'],
       max_lines: ['max_lines'],
+      allowed_paths: ['paths'],
     }
     for (const k of need[body.kind])
       if (body[k] === undefined)
@@ -501,6 +502,7 @@ export abstract class DomainPolicy extends DomainPipelines {
           }
         : {}),
       ...(body.kind === 'max_lines' ? { maxLines: body.max_lines } : {}),
+      ...(body.kind === 'allowed_paths' ? { paths: body.paths } : {}),
       createdBy: have?.createdBy ?? p!.handle,
       created: have?.created ?? this.now(),
     }

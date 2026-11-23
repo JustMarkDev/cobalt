@@ -1871,6 +1871,12 @@ export const Token = named(
       .describe('The machine it was made for, as its owner named it'),
     scopes: z.array(z.string()),
     repos: z.array(z.string()).nullable(),
+    paths: z
+      .array(z.string())
+      .nullable()
+      .describe(
+        'Globs a change made with it may touch, in its one repository; null for any path. Covers the API, sx and MCP, not `git push`',
+      ),
     prefix: z
       .string()
       .describe('The first characters, to recognise a token by'),

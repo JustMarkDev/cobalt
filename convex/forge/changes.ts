@@ -1,3 +1,4 @@
+import { pathRefusal, touchedFiles } from '@source-code/api/paths'
 import { attachUpload, evidenceFits, evidenceUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
 import { changeTarget } from '@source-code/api/lifecycles'
@@ -571,6 +572,15 @@ const patchSetEvent = (
   extra: addressed.length ? { addressed } : undefined,
 })
 
+/** Refuses a patch set that touches paths outside a token's. */
+function withinPaths(
+  ps: { files: Record<string, unknown>; contents?: Record<string, unknown> },
+  globs: ReadonlyArray<string> | null | undefined,
+) {
+  const r = pathRefusal(touchedFiles(ps), globs)
+  if (r) fail(r.code, r.detail, { hint: r.hint })
+}
+
 export const create = mutation({
   args: {
     owner: v.string(),
@@ -613,6 +623,8 @@ export const create = mutation({
         via,
         addresses: a.addresses,
       })
+      // A token limited to paths changes nothing outside them.
+      withinPaths(l.rec.patchSets[l.rec.patchSets.length - 1], p.paths)
       await commit(ctx, repo, l, was, patchSetEvent(by, addressed))
       return finish(a.dry, {
         change: await shown(ctx, repo, l.rec, p, at),
@@ -673,6 +685,7 @@ export const create = mutation({
       landed: null,
       version: 1,
     }
+    withinPaths(rec.patchSets[0], p.paths)
     const l = { rec, parts: new Map() } as unknown as Loaded
     await commit(ctx, repo, l, null, {
       type: 'change.opened',
@@ -889,6 +902,8 @@ export const addPatchSet = mutation({
         via: await viaOf(ctx),
       })
     }
+    // A token limited to paths changes nothing outside them; deleting is changing.
+    withinPaths(c.patchSets[c.patchSets.length - 1], p.paths)
     await commit(ctx, repo, l, c.state, patchSetEvent(by, addressed))
     return finish(
       a.dry,

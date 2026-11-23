@@ -58,6 +58,11 @@ function describeCustomRule(r: CustomRuleRec) {
       when: 'any change',
       requires: [`at most ${r.maxLines} lines added and removed`],
     }
+  if (r.kind === 'allowed_paths')
+    return {
+      when: 'any change',
+      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
+    }
   const n = r.approvals ?? 1
   return {
     when: `paths ${(r.paths ?? []).join(', ')}`,
@@ -473,6 +478,7 @@ export const createRule = mutation({
       v.literal('required_check'),
       v.literal('path_approval'),
       v.literal('max_lines'),
+      v.literal('allowed_paths'),
     ),
     check: v.optional(v.string()),
     paths: v.optional(v.array(v.string())),
@@ -511,6 +517,7 @@ export const createRule = mutation({
       required_check: ['check'],
       path_approval: ['paths'],
       max_lines: ['max_lines'],
+      allowed_paths: ['paths'],
     }
     for (const k of need[a.kind])
       if (a[k] === undefined) bad(`/body/${k}`, `A ${a.kind} rule needs ${k}.`)
@@ -529,6 +536,7 @@ export const createRule = mutation({
         ? { paths: a.paths, approvals: a.approvals ?? 1, from: a.from ?? [] }
         : {}),
       ...(a.kind === 'max_lines' ? { maxLines: a.max_lines } : {}),
+      ...(a.kind === 'allowed_paths' ? { paths: a.paths } : {}),
       createdBy: have?.createdBy ?? p.handle,
       created: have?.created ?? Date.now(),
     }

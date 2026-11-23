@@ -1,3 +1,4 @@
+import { assertWithinPaths, touchedFiles } from '../paths'
 import { contributionRefusal, serverReceipt } from '../via'
 import { rulesReadChangedFiles } from '../policy-builtins'
 import {
@@ -351,6 +352,8 @@ export abstract class DomainChanges extends DomainIssues {
           change: this.presentChange(repo, existing, p),
           outcome: 'unchanged' as const,
         }
+      // A token limited to paths changes nothing outside them.
+      assertWithinPaths(touchedFiles(this.head(existing)), p!.paths)
       if (body.dry_run) {
         const prev = this.head(existing)
         const preview = {
@@ -437,6 +440,7 @@ export abstract class DomainChanges extends DomainIssues {
       kind: 'initial',
       via,
     })
+    assertWithinPaths(touchedFiles(c.patchSets[0]), p!.paths)
     if (body.dry_run)
       return {
         change: this.presentChange(repo, c, p),
@@ -668,6 +672,8 @@ export abstract class DomainChanges extends DomainIssues {
         false,
       )
     if (body.files) return this.patchSetFromFiles(repo, c, p!, body, dry)
+    // A token limited to paths changes nothing outside them.
+    assertWithinPaths(touchedFiles(this.head(c)), p!.paths)
     if (!body.sha)
       throw apiError('invalid_request', 'Send `sha`, or `files`.', {
         errors: [
@@ -738,6 +744,8 @@ export abstract class DomainChanges extends DomainIssues {
           ],
         })
     const contents = { ...prev.contents, ...body.files }
+    // A token limited to paths changes nothing outside them; deleting is changing.
+    assertWithinPaths(touchedFiles({ files: prev.files, contents }), p.paths)
     const sha = createHash('sha1')
       .update(
         JSON.stringify(

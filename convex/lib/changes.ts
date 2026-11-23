@@ -1,5 +1,6 @@
 import { globMatcher } from '@source-code/api/glob'
 import {
+  allowedPathsRequirement,
   approvalsOf,
   policyRules,
   reviewedRequirement,
@@ -591,6 +592,7 @@ export class ChangeView {
         blocking: [],
       }
     }
+    if (r.kind === 'allowed_paths') return allowedPathsRequirement(r, head)
     const globs = (r.paths ?? []).map((g) => globMatcher(g))
     const touched = Object.keys(head.files).filter((f) =>
       globs.some((g) => g.test(f)),

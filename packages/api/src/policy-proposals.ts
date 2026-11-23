@@ -12,7 +12,7 @@ export type ProposalEditBody =
       op: 'create_rule'
       id: string
       name: string
-      kind: 'required_check' | 'path_approval' | 'max_lines'
+      kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
       check?: string
       paths?: Array<string>
       approvals?: number
@@ -64,6 +64,7 @@ export function proposalEdits(
         required_check: 'check',
         path_approval: 'paths',
         max_lines: 'max_lines',
+        allowed_paths: 'paths',
       }
       if (e[need[e.kind]] === undefined)
         bad(
@@ -90,6 +91,7 @@ export function proposalEdits(
               }
             : {}),
           ...(e.kind === 'max_lines' ? { maxLines: e.max_lines } : {}),
+          ...(e.kind === 'allowed_paths' ? { paths: e.paths } : {}),
           mode: e.mode,
         },
       }

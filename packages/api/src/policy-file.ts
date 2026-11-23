@@ -46,7 +46,7 @@ export const RETIRED_RULES: ReadonlySet<string> = new Set([
 export type CustomRule = {
   id: string
   name: string
-  kind: 'required_check' | 'path_approval' | 'max_lines'
+  kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
   check?: string
   paths?: Array<string>
   approvals?: number
@@ -145,6 +145,8 @@ function ruleNode(r: CustomRule, mode: RuleMode): Record<string, unknown> {
     }
   if (r.kind === 'max_lines')
     return { ...head, require: [{ max_lines: r.maxLines }] }
+  if (r.kind === 'allowed_paths')
+    return { ...head, require: [{ allowed_paths: r.paths ?? [] }] }
   return {
     ...head,
     when: { paths: r.paths ?? [] },
@@ -335,7 +337,7 @@ function readRule(
   if (!Array.isArray(require) || require.length !== 1) {
     err(
       'require',
-      'A rule of your own has one require item: approval, evidence or max_lines.',
+      'A rule of your own has one require item: approval, evidence, max_lines or allowed_paths.',
     )
     return null
   }
@@ -357,6 +359,21 @@ function readRule(
       return null
     }
     return { ...base, kind: 'max_lines', maxLines: n }
+  }
+  if ('allowed_paths' in q) {
+    const paths = q.allowed_paths
+    if (
+      !Array.isArray(paths) ||
+      !paths.length ||
+      !paths.every((p) => typeof p === 'string' && p)
+    ) {
+      err(
+        'require[0].allowed_paths',
+        'allowed_paths is a list of globs, such as docs/** or *.md.',
+      )
+      return null
+    }
+    return { ...base, kind: 'allowed_paths', paths: paths as Array<string> }
   }
   if ('approval' in q) {
     const a = (q.approval ?? {}) as Record<string, unknown>
@@ -392,7 +409,7 @@ function readRule(
       from: from,
     }
   }
-  err('require[0]', 'Require approval, evidence or max_lines.')
+  err('require[0]', 'Require approval, evidence, max_lines or allowed_paths.')
   return null
 }
 

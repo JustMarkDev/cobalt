@@ -609,7 +609,7 @@ export type PolicyExceptionRec = {
 export type CustomRuleRec = {
   id: string
   name: string
-  kind: 'required_check' | 'path_approval' | 'max_lines'
+  kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
   /** required_check: the check that has to pass on the tree that lands. */
   check?: string
   /** path_approval: globs, such as `docs/**` or `*.sql`. */

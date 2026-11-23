@@ -168,7 +168,7 @@ export type PolicyExceptionRec = {
 export type CustomRuleRec = {
   id: string
   name: string
-  kind: 'required_check' | 'path_approval' | 'max_lines'
+  kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
   check?: string
   paths?: Array<string>
   approvals?: number
