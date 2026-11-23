@@ -939,6 +939,28 @@ export const TriggerSet = named(
   }),
 )
 
+export const AccessRule = named(
+  'AccessRule',
+  obj({
+    object: z.literal('access_rule'),
+    id: z.string(),
+    kind: z
+      .enum(['branch', 'path'])
+      .describe(
+        '`branch`: branches matching `patterns`, and the changes on them. `path`: files matching `patterns`, and every change that touches one',
+      ),
+    patterns: z.array(z.string()).describe('Globs, as policy writes them'),
+    readers: z
+      .array(z.string())
+      .describe(
+        'Handles, and `team:<slug>` for a team of the owning organization. Administrators always read everything',
+      ),
+    created_by: z.string(),
+    created_at: ts,
+    url: z.string(),
+  }),
+)
+
 export const PolicyException = named(
   'PolicyException',
   obj({

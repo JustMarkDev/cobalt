@@ -207,7 +207,8 @@ export abstract class DomainInsights extends DomainImports {
           if (
             c.state === 'open' &&
             c.author.handle !== me &&
-            !c.reviews.some((x) => x.actor.handle === me && x.carries)
+            !c.reviews.some((x) => x.actor.handle === me && x.carries) &&
+            this.seesChange(r, c, p)
           )
             f.toReview.push({
               repo: full(r),

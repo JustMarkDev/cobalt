@@ -1,4 +1,5 @@
 import { newId } from '../ids'
+import { personPrincipal } from '../auth'
 import { apiError } from '../problem'
 import type { CursorPosition } from '../cursor'
 import type { EventRecord } from '../events'
@@ -73,6 +74,9 @@ export abstract class DomainNotifications extends DomainSync {
       assignees?: Array<{ handle: string }>
       issue?: number
     }
+    // A change under an access rule is never told to someone who cannot see it.
+    const about =
+      n !== null && !type.startsWith('issue.') ? repo.changes.get(n) : undefined
     const tell = (
       who: string | undefined,
       kind: NotificationKind,
@@ -80,6 +84,12 @@ export abstract class DomainNotifications extends DomainSync {
       path: string,
     ) => {
       if (!who || who === by.handle) return
+      if (
+        about &&
+        repo.accessRules?.length &&
+        !this.seesChange(repo, about, personPrincipal(who, this.now()))
+      )
+        return
       this.notify(who, { kind, title, repo: full, path })
     }
     if (type === 'issue.created' || type === 'issue.updated') {

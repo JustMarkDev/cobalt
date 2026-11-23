@@ -1,3 +1,4 @@
+import { seesChange } from './accessRules'
 import { globMatcher } from '@source-code/api/glob'
 import {
   allowedPathsRequirement,
@@ -194,15 +195,23 @@ export async function hydrate(
   return { doc, rec, parts }
 }
 
-/** The change `ref` (a number or a `chg_` id) in a repository. */
+/**
+ * The change `ref` (a number or a `chg_` id) in a repository. A change under
+ * an access rule the viewer does not read answers like one that does not
+ * exist; `internal` is the forge itself (a landing step).
+ */
 export async function loadChange(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
   ref: string,
+  viewer: Actor | null | 'internal',
 ): Promise<Loaded> {
   const doc = await findChange(ctx, repo, ref)
   if (!doc) fail('not_found', `No change ${ref} in ${repo.owner}/${repo.name}.`)
-  return await hydrate(ctx, doc)
+  const l = await hydrate(ctx, doc)
+  if (viewer !== 'internal' && !(await seesChange(ctx, repo, l.rec, viewer)))
+    fail('not_found', `No change ${ref} in ${repo.owner}/${repo.name}.`)
+  return l
 }
 
 export async function findChange(

@@ -4,7 +4,7 @@ import { PRESENCE_INTERVAL } from '@source-code/api/presence'
 import { components } from '../_generated/api'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
-import { signedIn } from '../lib/actor'
+import { actorOf, signedIn } from '../lib/actor'
 import { resolve } from '../lib/access'
 import { fail, out } from '../lib/errors'
 import { actorFor } from '../lib/events'
@@ -42,7 +42,7 @@ async function roomOf(
   ref: string,
 ): Promise<{ room: string; number: number }> {
   if (k === 'change') {
-    const { rec } = await loadChange(ctx, repo, ref)
+    const { rec } = await loadChange(ctx, repo, ref, await actorOf(ctx))
     return { room: `change:${rec.id}`, number: rec.number }
   }
   const i = await issueOf(ctx, repo, Number(ref))

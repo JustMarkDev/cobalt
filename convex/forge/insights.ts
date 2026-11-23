@@ -1,3 +1,4 @@
+import { hiddenChangeNumbers } from '../lib/accessRules'
 import { v } from 'convex/values'
 import { query } from '../_generated/server'
 import { actorOf, signedIn, system } from '../lib/actor'
@@ -222,6 +223,7 @@ export async function reviewsAndAssigned(ctx: QueryCtx, p: Actor) {
   const toReview = []
   const assigned = []
   for (const r of await reachable(ctx, me)) {
+    let hidden: Set<number> | undefined
     if (await canWrite(ctx, r, p))
       for (const c of await ctx.db
         .query('changes')
@@ -242,7 +244,10 @@ export async function reviewsAndAssigned(ctx: QueryCtx, p: Actor) {
               carries: boolean
             },
         )
-        if (!reviews.some((x) => x.actor.handle === me && x.carries))
+        if (
+          !reviews.some((x) => x.actor.handle === me && x.carries) &&
+          !(hidden ??= await hiddenChangeNumbers(ctx, r, p)).has(c.number)
+        )
           toReview.push({
             repo: full(r),
             number: c.number,

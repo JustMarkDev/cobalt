@@ -9,7 +9,7 @@ import { pageSorted } from '../cursor'
 import { heldKey } from '../idempotency'
 import { healthAreas, reportFrom } from '../health'
 import type { HealthReader } from '../health'
-import { parseEvent } from '../events'
+import { hiddenEvent, parseEvent } from '../events'
 import type { StoredEvent } from '../events'
 import type { SearchDoc } from '../search'
 import type { MirrorRec } from '../extras'
@@ -885,15 +885,24 @@ export class ConvexDomain implements DomainPort {
     // Access is asked of Convex, so it is worked out for the repositories in
     // the window first, then the page is read as the memory domain reads it.
     const allowed = new Map<string | null, boolean>()
+    const hidden = new Map<string | null, Set<number>>()
     for (const e of source)
-      if (!allowed.has(e.repoId)) allowed.set(e.repoId, await can(e.repoId))
+      if (!allowed.has(e.repoId)) {
+        allowed.set(e.repoId, await can(e.repoId))
+        // Changes under an access rule the viewer does not read leave no trace.
+        if (allowed.get(e.repoId))
+          hidden.set(e.repoId, await this.hiddenChanges(e.repoId, p))
+      }
     const page = pageSorted(source, (e) => e.sequence, seqId, {
       limit: q.limit,
       after: q.after,
       desc: false,
       stored: 'asc',
       match: (e) =>
-        typeOk(e.type) && scopeOk(e.type) && !!allowed.get(e.repoId),
+        typeOk(e.type) &&
+        scopeOk(e.type) &&
+        !!allowed.get(e.repoId) &&
+        !hiddenEvent(e, hidden.get(e.repoId)),
     })
     return {
       items: page.items.map(
@@ -921,6 +930,12 @@ export class ConvexDomain implements DomainPort {
     }>('sync:snapshot', { full, at: this.now() }, p)
     const repoId = snap.id
     const head = this.events.head
+    // Changes under an access rule the viewer does not read leave no trace.
+    const hidden = await this.hiddenChanges(repoId, p)
+    if (hidden.size)
+      snap.objects = snap.objects.filter(
+        (o) => !(o.object === 'change' && hidden.has(o.number as number)),
+      )
     const snapshot = (from: number, at: number, reset: boolean) => {
       const slice = snap.objects.slice(from, from + q.limit)
       const more = from + q.limit < snap.objects.length
@@ -982,7 +997,8 @@ export class ConvexDomain implements DomainPort {
       (e) =>
         e.repoId === repoId &&
         scopeOk(e.type) &&
-        /^(repo|change|issue|finding|check|ci)\./.test(e.type),
+        /^(repo|change|issue|finding|check|ci)\./.test(e.type) &&
+        !hiddenEvent(e, hidden),
     )
     const latest = new Map<string, Record<string, unknown>>()
     const deleted = new Map<string, { object: string; id: string }>()
@@ -1108,6 +1124,28 @@ export class ConvexDomain implements DomainPort {
     dry,
   ) =>
     this.m('pipelines:resume', { owner, name, n, job, step, ...body, dry }, p)
+
+  // ---- access rules ----------------------------------------------------------------
+
+  listAccessRules: Port['listAccessRules'] = (owner, name, p) =>
+    this.q('access:list', { owner, name }, p)
+  putAccessRule: Port['putAccessRule'] = (owner, name, id, p, body, dry) =>
+    this.m('access:put', { owner, name, id, ...body, dry }, p)
+  deleteAccessRule: Port['deleteAccessRule'] = async (
+    owner,
+    name,
+    id,
+    p,
+    dry,
+  ) => {
+    await this.m('access:remove', { owner, name, id, dry }, p)
+  }
+  accessView: Port['accessView'] = (owner, name, p) =>
+    this.q('access:view', { owner, name }, p)
+  hiddenChanges: Port['hiddenChanges'] = async (id, p) =>
+    id
+      ? new Set(await this.q<Array<number>>('access:hiddenChanges', { id }, p))
+      : new Set()
 
   // ---- triggers --------------------------------------------------------------------
 

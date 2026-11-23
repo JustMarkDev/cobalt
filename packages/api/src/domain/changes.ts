@@ -81,7 +81,7 @@ export abstract class DomainChanges extends DomainIssues {
     if (!repo || !by) return null
     let c: ChangeRec
     try {
-      c = this.getChangeRec(repo, ref)
+      c = this.getChangeRec(repo, ref, 'internal')
     } catch {
       return null
     }
@@ -128,7 +128,11 @@ export abstract class DomainChanges extends DomainIssues {
     const repo = this.repos.get(ready.full)!
     this.viaOverride = serverReceipt('auto-land')
     try {
-      this.doLand(repo, this.getChangeRec(repo, ref), this.actorFor(ready.by))
+      this.doLand(
+        repo,
+        this.getChangeRec(repo, ref, 'internal'),
+        this.actorFor(ready.by),
+      )
     } finally {
       this.viaOverride = null
     }
@@ -144,7 +148,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const by = this.asActor(p!)
     const rec: EvidenceRec = {
       id: newId('evidence', this.now()),
@@ -171,7 +175,7 @@ export abstract class DomainChanges extends DomainIssues {
     find: (id: string) => UploadRec | null | Promise<UploadRec | null>,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const shown = []
     for (const e of c.evidence ?? []) {
       const u = await find(e.uploadId)
@@ -180,12 +184,22 @@ export abstract class DomainChanges extends DomainIssues {
     return shown
   }
 
-  protected getChangeRec(repo: RepoRec, ref: string): ChangeRec {
+  /**
+   * A change by number or id. A change under an access rule the viewer does
+   * not read answers like one that does not exist; `internal` is the forge
+   * itself (auto-land, a landing step).
+   */
+  protected getChangeRec(
+    repo: RepoRec,
+    ref: string,
+    p: Viewer | 'internal',
+  ): ChangeRec {
     const n = /^\d+$/.test(ref) ? Number(ref) : undefined
     let c: ChangeRec | undefined
     if (n !== undefined) c = repo.changes.get(n)
     else if (ref.startsWith('chg_'))
       for (const x of repo.changes.values()) if (x.id === ref) c = x
+    if (c && p !== 'internal' && !this.seesChange(repo, c, p)) c = undefined
     if (!c)
       throw apiError(
         'not_found',
@@ -227,7 +241,9 @@ export abstract class DomainChanges extends DomainIssues {
             : c.state === 'open' || c.state === 'draft')) &&
         (!q.author || c.author.handle === q.author) &&
         (!q.branch || c.branch === q.branch) &&
-        (!q.label || c.labels.includes(q.label)),
+        (!q.label || c.labels.includes(q.label)) &&
+        // A change under an access rule the viewer does not read is not listed.
+        this.seesChange(repo, c, p),
     })
     return {
       items: page.items.map((c) => this.shownChange(repo, c, p, q.expand)),
@@ -243,7 +259,7 @@ export abstract class DomainChanges extends DomainIssues {
     expand: ReadonlyArray<string> = [],
   ) {
     const repo = this.resolve(owner, name, p)
-    return this.shownChange(repo, this.getChangeRec(repo, ref), p, expand)
+    return this.shownChange(repo, this.getChangeRec(repo, ref, p), p, expand)
   }
 
   async changeVersion(
@@ -254,7 +270,7 @@ export abstract class DomainChanges extends DomainIssues {
     expand: ReadonlyArray<string> = [],
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     // The change's own version covers everything in its representation.
     // The repository version covers the `repo` stub and the stack's other members.
     // The id keeps a deleted change's cached body from matching a new one.
@@ -279,7 +295,7 @@ export abstract class DomainChanges extends DomainIssues {
     let c: ChangeRec | undefined
     let ps: PatchSetRec | undefined
     if (q.change !== undefined) {
-      c = this.getChangeRec(repo, String(q.change))
+      c = this.getChangeRec(repo, String(q.change), p)
       const at = changeBlame(c, q.path, q.line, (code, detail, more) => {
         throw apiError(code as never, detail, more)
       })
@@ -329,6 +345,7 @@ export abstract class DomainChanges extends DomainIssues {
   ) {
     const repo = this.resolve(owner, name, p, 'write')
     this.assertMayContribute(repo, p!, 'change')
+    this.assertMayTouch(repo, p, body.branch, [])
     const by = this.asActor(p!)
     const via = this.viaOf(p!)
     const sha = body.sha ?? this.fakeSha(repo, body.branch)
@@ -442,6 +459,7 @@ export abstract class DomainChanges extends DomainIssues {
       via,
     })
     assertWithinPaths(touchedFiles(c.patchSets[0]), p!.paths)
+    this.assertMayTouch(repo, p, c.branch, touchedFiles(c.patchSets[0]))
     if (body.dry_run)
       return {
         change: this.presentChange(repo, c, p),
@@ -557,7 +575,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     this.assertMatch(ifMatch, `${c.id}.${c.version}`, () =>
       this.presentChange(repo, c, p),
     )
@@ -590,7 +608,7 @@ export abstract class DomainChanges extends DomainIssues {
 
   async listPatchSets(owner: string, name: string, ref: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     return c.patchSets.map((ps) => this.presentPatchSet(repo, c, ps))
   }
 
@@ -622,7 +640,7 @@ export abstract class DomainChanges extends DomainIssues {
     p: Viewer,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const ps = c.patchSets[n - 1] as (typeof c.patchSets)[number] | undefined
     if (!ps)
       throw apiError('not_found', `Change #${c.number} has no patch set ${n}.`)
@@ -645,7 +663,7 @@ export abstract class DomainChanges extends DomainIssues {
   ) {
     const repo = this.resolve(owner, name, p, 'write')
     this.assertMayContribute(repo, p!, 'change')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     if (c.state === 'landed' || c.state === 'abandoned')
       throw apiError('invalid_state', `Change #${c.number} is ${c.state}.`)
     // A denounced author's change takes no more work, from anyone: the same
@@ -747,6 +765,12 @@ export abstract class DomainChanges extends DomainIssues {
     const contents = { ...prev.contents, ...body.files }
     // A token limited to paths changes nothing outside them; deleting is changing.
     assertWithinPaths(touchedFiles({ files: prev.files, contents }), p.paths)
+    this.assertMayTouch(
+      repo,
+      p,
+      c.branch,
+      touchedFiles({ files: prev.files, contents }),
+    )
     const sha = createHash('sha1')
       .update(
         JSON.stringify(
@@ -797,7 +821,7 @@ export abstract class DomainChanges extends DomainIssues {
     p: Viewer,
   ): Promise<z.infer<typeof S.PatchSetFiles>> {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const ps = c.patchSets[n - 1] as (typeof c.patchSets)[number] | undefined
     if (!ps)
       throw apiError('not_found', `Change #${c.number} has no patch set ${n}.`)
@@ -828,7 +852,7 @@ export abstract class DomainChanges extends DomainIssues {
     p: Viewer,
   ): Promise<z.infer<typeof S.PatchSetComparison>> {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const a = c.patchSets[from - 1] as (typeof c.patchSets)[number] | undefined
     const b = c.patchSets[to - 1] as (typeof c.patchSets)[number] | undefined
     if (!a || !b)
@@ -874,7 +898,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const by = this.asActor(p!)
     if (c.state !== 'open' && c.state !== 'draft')
       throw apiError('invalid_state', `Change #${c.number} is ${c.state}.`)
@@ -939,7 +963,7 @@ export abstract class DomainChanges extends DomainIssues {
     state?: string,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     return c.findings
       .filter((f) => !state || state === 'all' || f.state === state)
       .map((f) => this.presentFinding(repo, c, f))
@@ -967,7 +991,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     if (c.state !== 'open' && c.state !== 'draft')
       throw apiError('invalid_state', `Change #${c.number} is ${c.state}.`)
     const head = this.head(c)
@@ -1032,7 +1056,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const f = c.findings.find(
       (x) => x.id === findingId || x.label === findingId,
     )
@@ -1079,7 +1103,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const found = c.checks.find(
       (k) => k.key === body.key && k.tree === body.tree,
     )
@@ -1148,7 +1172,7 @@ export abstract class DomainChanges extends DomainIssues {
 
   async listChecks(owner: string, name: string, ref: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     return c.checks.map((k) => this.presentCheck(k))
   }
 
@@ -1160,7 +1184,7 @@ export abstract class DomainChanges extends DomainIssues {
     assume?: Assume,
   ): Promise<z.infer<typeof S.PolicyEvaluation>> {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const reqs = this.evaluate(repo, c, assume)
     const assumed: Array<string> = []
     for (const h of assume?.approve ?? []) assumed.push(`approve:${h}`)
@@ -1187,7 +1211,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     if (!p!.scopes.has('pulls:write'))
       throw apiError('insufficient_scope', 'This needs pulls:write.', {
         extra: {
@@ -1240,7 +1264,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     this.checkLandable(repo, c, p!, body.expected_tree)
     // With steps after landing, it is an operation: a stack of one.
     const landing = repo.landing ?? DEFAULT_LANDING
@@ -1628,7 +1652,7 @@ export abstract class DomainChanges extends DomainIssues {
     q: { file?: string; unresolved?: boolean },
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const all = c.comments ?? []
     const open = new Set(
       all.filter((x) => !x.replyTo && !x.resolved).map((x) => x.id),
@@ -1649,7 +1673,7 @@ export abstract class DomainChanges extends DomainIssues {
     p: Viewer,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     return `${c.id}.rc${c.commentRev ?? 0}.${this.accessRevision}`
   }
 
@@ -1670,7 +1694,7 @@ export abstract class DomainChanges extends DomainIssues {
   ) {
     // Anyone who can read the repository may comment, as on an issue.
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const latest = c.patchSets.at(-1)!.n
     let file = body.file ?? null
     let line = body.line ?? null
@@ -1815,7 +1839,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const x = this.reviewCommentOf(c, id)
     const head = this.head(c).n
     const patchSet = body.patch_set ?? head
@@ -1883,7 +1907,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const x = this.reviewCommentOf(c, id)
     if (body.body !== undefined && x.author.handle !== p!.handle)
       throw apiError('forbidden', 'Only its author can edit a comment.')
@@ -1945,7 +1969,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const x = this.reviewCommentOf(c, id)
     if (x.author.handle !== p!.handle && !this.canWrite(repo, p))
       throw apiError(
@@ -1968,7 +1992,7 @@ export abstract class DomainChanges extends DomainIssues {
 
   async getGuide(owner: string, name: string, ref: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     if (!c.guide) throw apiError('not_found', `#${c.number} has no guide yet.`)
     return this.presentGuide(c, c.guide)
   }
@@ -1982,7 +2006,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p, 'write')
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const n = checkGuide(c.patchSets, body, (code, detail, more) => {
       throw apiError(code as never, detail, more)
     })
@@ -2009,7 +2033,7 @@ export abstract class DomainChanges extends DomainIssues {
 
   async changeSeen(owner: string, name: string, ref: string, p: Principal) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     return presentSeen(
       c.number,
       this.head(c),
@@ -2026,7 +2050,7 @@ export abstract class DomainChanges extends DomainIssues {
     dry: boolean,
   ) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const head = this.head(c)
     for (const [k, path] of body.paths.entries())
       if (!(path in head.files))
@@ -2069,7 +2093,7 @@ export abstract class DomainChanges extends DomainIssues {
   ) {
     const repo = this.resolve(owner, name, p)
     if (subject.kind === 'change') {
-      const c = this.getChangeRec(repo, subject.ref)
+      const c = this.getChangeRec(repo, subject.ref, p)
       return { room: `change:${c.id}`, number: c.number }
     }
     const n = Number(subject.ref)
@@ -2161,7 +2185,7 @@ export abstract class DomainChanges extends DomainIssues {
     const repo = this.resolve(owner, name, p)
     const n =
       subject.kind === 'change'
-        ? this.getChangeRec(repo, subject.ref).number
+        ? this.getChangeRec(repo, subject.ref, p).number
         : Number(subject.ref)
     const out: Array<Entry> = []
     const entry = (
@@ -2209,7 +2233,7 @@ export abstract class DomainChanges extends DomainIssues {
       return from ?? first
     }
     if (subject.kind === 'change') {
-      const c = this.getChangeRec(repo, subject.ref)
+      const c = this.getChangeRec(repo, subject.ref, p)
       for (const ps of c.patchSets)
         entry(
           'patch_set',

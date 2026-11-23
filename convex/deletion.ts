@@ -77,6 +77,7 @@ export const TABLES: Record<TableNames, string> = {
   presenceRooms: 'none: rooms, not people',
   repoPolicy: 'wipe: with its repository',
   repoTriggers: 'wipe: with its repository',
+  repoAccessRules: 'wipe: with its repository',
   triggerRuns: 'wipe: with its repository',
   operations: 'none: expire on their own',
   pipelineRuns: 'wipe: with its repository',
@@ -588,6 +589,16 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
       await ctx.db
         .query('repoPolicy')
         .withIndex('by_repoId', (q) => q.eq('repoId', id))
+        .take(BATCH),
+    ),
+  )
+  await add(
+    drop(
+      ctx,
+      'repoAccessRules',
+      await ctx.db
+        .query('repoAccessRules')
+        .withIndex('by_repoId_and_ruleId', (q) => q.eq('repoId', id))
         .take(BATCH),
     ),
   )

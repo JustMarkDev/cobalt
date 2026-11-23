@@ -598,6 +598,19 @@ export default defineSchema({
     errors: v.optional(v.string()),
   }).index('by_repoId', ['repoId']),
 
+  // Parts of a repository only some people may see: branches (and the
+  // changes on them) and paths (and every change touching one).
+  repoAccessRules: defineTable({
+    repoId: v.id('repos'),
+    ruleId: v.string(),
+    kind: v.union(v.literal('branch'), v.literal('path')),
+    patterns: v.array(v.string()),
+    // Handles, and `team:<slug>` for a team of the owning organization.
+    readers: v.array(v.string()),
+    createdBy: v.string(),
+    created: v.number(),
+  }).index('by_repoId_and_ruleId', ['repoId', 'ruleId']),
+
   // `.source/triggers/*.yml` as last landed. `sourceText` is JSON of every
   // trigger file by path; `triggersJson` the set in force (the last that
   // read); `errors` JSON of why the newest did not read.

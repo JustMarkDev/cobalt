@@ -2,7 +2,16 @@ import { apiError } from '../problem'
 import type { SearchDoc } from '../search'
 import type { Principal } from '../auth'
 import { Moved } from './records'
-import type { AccountRec, RepoRec, Viewer } from './records'
+import type { AccountRec, ChangeRec, RepoRec, Viewer } from './records'
+import {
+  branchHidden,
+  changeVisible,
+  hiddenRules,
+  pathHidden,
+  rulesOverChange,
+} from '../access-rules'
+import type { RuleViewer } from '../access-rules'
+import { touchedFiles } from '../paths'
 import { DomainState } from './state'
 
 /** Who may see and change what. */
@@ -93,6 +102,106 @@ export abstract class DomainAccess extends DomainState {
         'You can read this repository but not change it.',
       )
     return repo
+  }
+
+  // ---- access rules -------------------------------------------------------------
+
+  /** Who is asking, as a repository's access rules see them. */
+  protected ruleViewer(repo: RepoRec, p: Viewer): RuleViewer | null {
+    if (!p) return null
+    const owner = this.accounts.get(repo.owner)
+    const role =
+      repo.owner === p.handle ? 'owner' : owner?.members.get(p.handle)
+    // A runner serving the repository builds all of it.
+    const runner =
+      !!p.runnerId && repo.owner.toLowerCase() === p.actingAs.toLowerCase()
+    const teams = new Set<string>()
+    for (const k of this.teamsOf.get(p.handle) ?? []) {
+      const t = this.teams.get(k)
+      if (t && t.org === repo.owner) teams.add(t.slug)
+    }
+    return {
+      handle: p.handle,
+      teams,
+      all: runner || role === 'owner' || role === 'admin',
+    }
+  }
+
+  /** The rules of a repository a viewer may not read. */
+  protected hiddenFor(repo: RepoRec, p: Viewer) {
+    const rules = repo.accessRules ?? []
+    return rules.length ? hiddenRules(rules, this.ruleViewer(repo, p)) : []
+  }
+
+  /** The rules a change falls under, by its branch and the files its newest patch set touches. */
+  protected rulesOver(repo: RepoRec, c: ChangeRec) {
+    const rules = repo.accessRules ?? []
+    if (!rules.length) return []
+    const head = c.patchSets[c.patchSets.length - 1] as
+      | ChangeRec['patchSets'][number]
+      | undefined
+    return rulesOverChange(rules, {
+      branch: c.branch,
+      files: head ? touchedFiles(head) : [],
+    })
+  }
+
+  /** Whether a viewer may see a change at all. */
+  seesChange(repo: RepoRec, c: ChangeRec, p: Viewer) {
+    const over = this.rulesOver(repo, c)
+    return (
+      !over.length ||
+      changeVisible(repo.accessRules ?? [], over, this.ruleViewer(repo, p))
+    )
+  }
+
+  /**
+   * Refuses a write to a private branch, or touching a private path, by
+   * someone who does not read the rule. Writing would show it to them.
+   */
+  protected assertMayTouch(
+    repo: RepoRec,
+    p: Viewer,
+    branch: string,
+    files: Iterable<string>,
+  ) {
+    const hidden = this.hiddenFor(repo, p)
+    if (!hidden.length) return
+    if (branchHidden(hidden, branch))
+      throw apiError(
+        'forbidden',
+        `${branch} is a private branch of ${repo.owner}/${repo.name}.`,
+        { hint: 'Its access rule names who may work on it. Ask an admin.' },
+      )
+    const hit = [...files].filter((f) => pathHidden(hidden, f))
+    if (hit.length)
+      throw apiError(
+        'forbidden',
+        `${hit.slice(0, 3).join(', ')} ${hit.length === 1 ? 'is' : 'are'} private in ${repo.owner}/${repo.name}.`,
+        { hint: 'Its access rule names who may change it. Ask an admin.' },
+      )
+  }
+
+  /** The numbers of a repository's changes a viewer may not see. */
+  async hiddenChanges(repoId: string | null, p: Viewer): Promise<Set<number>> {
+    const repo = repoId ? this.reposById.get(repoId) : undefined
+    const out = new Set<number>()
+    if (!repo?.accessRules?.length) return out
+    for (const c of repo.changes.values())
+      if (!this.seesChange(repo, c, p)) out.add(c.number)
+    return out
+  }
+
+  /** What a viewer may not see in a repository's files and branches. */
+  async accessView(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    return {
+      hidden: this.hiddenFor(repo, p).map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        patterns: [...r.patterns],
+      })),
+    }
   }
 
   /** Whether a viewer may read a repository's files. */

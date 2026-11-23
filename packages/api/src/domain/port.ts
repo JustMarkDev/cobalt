@@ -609,6 +609,48 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.PipelineRun>>
 
+  // ---- access rules ---------------------------------------------------------
+
+  /** The rules the viewer administers or reads. */
+  listAccessRules: (
+    owner: string,
+    name: string,
+    p: Viewer,
+  ) => Promise<Array<Out<typeof S.AccessRule>>>
+  putAccessRule: (
+    owner: string,
+    name: string,
+    id: string,
+    p: Viewer,
+    body: {
+      kind: 'branch' | 'path'
+      patterns: Array<string>
+      readers: Array<string>
+    },
+    dry: Dry,
+  ) => Promise<{ rule: Out<typeof S.AccessRule>; created: boolean }>
+  deleteAccessRule: (
+    owner: string,
+    name: string,
+    id: string,
+    p: Viewer,
+    dry: Dry,
+  ) => Promise<void>
+  /** What a viewer may not see in a repository: hidden branch and path globs. */
+  accessView: (
+    owner: string,
+    name: string,
+    p: Viewer,
+  ) => Promise<{
+    hidden: Array<{
+      id: string
+      kind: 'branch' | 'path'
+      patterns: Array<string>
+    }>
+  }>
+  /** The numbers of a repository's changes the viewer may not see. */
+  hiddenChanges: (repoId: string | null, p: Viewer) => Promise<Set<number>>
+
   // ---- triggers -------------------------------------------------------------
 
   /** The triggers in force, their files and what they did lately. */

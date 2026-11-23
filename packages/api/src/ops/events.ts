@@ -1,3 +1,4 @@
+import { hiddenEvent } from '../events'
 import { Effect } from 'effect'
 import { z } from 'zod'
 import { hashToken, principalOf } from '../auth'
@@ -220,6 +221,7 @@ export const streamEvents = defineOp({
                   ? canPull
                   : true
             const { events: scanned, scannedTo } = events.since(after, 100)
+            const hidden = new Map<string, Set<number>>()
             const batch: typeof scanned = []
             for (const e of scanned) {
               if (repo && e.repoId !== repoId) continue
@@ -234,6 +236,14 @@ export const streamEvents = defineOp({
               )
                 continue
               if (!(await can(e.repoId))) continue
+              if (e.repoId) {
+                if (!hidden.has(e.repoId))
+                  hidden.set(
+                    e.repoId,
+                    await domain.hiddenChanges(e.repoId, current),
+                  )
+                if (hiddenEvent(e, hidden.get(e.repoId))) continue
+              }
               batch.push(e)
             }
             for (const e of batch) {

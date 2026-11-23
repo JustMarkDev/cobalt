@@ -19,6 +19,8 @@ import {
   triggersFor,
 } from '../trigger-file'
 import { presentTriggers } from '../triggers'
+import { MAX_ACCESS_RULES, readsRule, ruleProblems } from '../access-rules'
+import type { AccessRule } from '../access-rules'
 import { touchedFiles } from '../paths'
 import type { EventRecord } from '../events'
 import type { Principal } from '../auth'
@@ -298,6 +300,105 @@ export abstract class DomainPolicy extends DomainPipelines {
     }
   }
 
+  // ---- access rules ---------------------------------------------------------
+
+  private presentAccessRule(repo: RepoRec, r: AccessRule) {
+    return {
+      object: 'access_rule' as const,
+      id: r.id,
+      kind: r.kind,
+      patterns: [...r.patterns],
+      readers: [...r.readers],
+      created_by: r.createdBy,
+      created_at: new Date(r.created).toISOString(),
+      url: `${this.repoUrl(repo)}/access-rules/${r.id}`,
+    }
+  }
+
+  /** Administrators see every rule; a reader sees the rules they read; others none. */
+  async listAccessRules(owner: string, name: string, p: Viewer) {
+    const repo = this.resolve(owner, name, p)
+    const v = this.ruleViewer(repo, p)
+    return (repo.accessRules ?? [])
+      .filter((r) => readsRule(r, v))
+      .map((r) => this.presentAccessRule(repo, r))
+  }
+
+  async putAccessRule(
+    owner: string,
+    name: string,
+    id: string,
+    p: Viewer,
+    body: {
+      kind: 'branch' | 'path'
+      patterns: Array<string>
+      readers: Array<string>
+    },
+    dry: boolean,
+  ) {
+    const repo = this.resolve(owner, name, p, 'write')
+    this.assertAdmin(repo, p!)
+    const problems = ruleProblems(body, repo.defaultBranch)
+    for (const [i, r] of body.readers.entries())
+      if (r.startsWith('team:')) {
+        if (!this.teams.has(`${repo.owner}/${r.slice(5)}`))
+          problems.push([
+            `/body/readers/${i}`,
+            `${repo.owner} has no team ${r.slice(5)}.`,
+          ])
+      } else if (this.accounts.get(r)?.kind !== 'person')
+        problems.push([`/body/readers/${i}`, `${r} is not a person.`])
+    if (problems.length)
+      throw apiError('invalid_request', problems[0][1], {
+        errors: problems.map(([pointer, message]) => ({
+          pointer,
+          code: 'invalid',
+          message,
+        })),
+      })
+    const rules = repo.accessRules ?? []
+    const had = rules.find((r) => r.id === id)
+    if (!had && rules.length >= MAX_ACCESS_RULES)
+      throw apiError(
+        'limit_reached',
+        `A repository has at most ${MAX_ACCESS_RULES} access rules.`,
+      )
+    const rule: AccessRule = {
+      id,
+      kind: body.kind,
+      patterns: [...new Set(body.patterns)],
+      readers: [...new Set(body.readers)],
+      createdBy: had?.createdBy ?? p!.handle,
+      created: had?.created ?? this.now(),
+    }
+    if (!dry) {
+      repo.accessRules = [...rules.filter((r) => r.id !== id), rule]
+      // Who sees what changed: nothing cached may outlive it.
+      this.accessRevision++
+      for (const c of repo.changes.values()) c.version++
+      repo.changeRev++
+    }
+    return { rule: this.presentAccessRule(repo, rule), created: !had }
+  }
+
+  async deleteAccessRule(
+    owner: string,
+    name: string,
+    id: string,
+    p: Viewer,
+    dry: boolean,
+  ) {
+    const repo = this.resolve(owner, name, p, 'write')
+    this.assertAdmin(repo, p!)
+    if (!(repo.accessRules ?? []).some((r) => r.id === id))
+      throw apiError('not_found', `No access rule ${id}.`)
+    if (dry) return
+    repo.accessRules = (repo.accessRules ?? []).filter((r) => r.id !== id)
+    this.accessRevision++
+    for (const c of repo.changes.values()) c.version++
+    repo.changeRev++
+  }
+
   async getTriggers(owner: string, name: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
     const t = repo.triggers
@@ -524,7 +625,7 @@ export abstract class DomainPolicy extends DomainPipelines {
 
   async landability(owner: string, name: string, ref: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
-    const c = this.getChangeRec(repo, ref)
+    const c = this.getChangeRec(repo, ref, p)
     const head = this.head(c)
     const requirements = this.evaluate(repo, c)
     const blockers = [

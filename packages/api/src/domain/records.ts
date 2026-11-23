@@ -3,6 +3,7 @@ import type { SecretBox } from '../secret-box'
 import type { Receipt } from '../via'
 import type { LandingStepRec } from '../landing'
 import type { FileError, Landing } from '../policy-file'
+import type { AccessRule } from '../access-rules'
 import type { Trigger, FileError as TriggerFileError } from '../trigger-file'
 import type { Addressed, Anchor, Placement } from '../anchors'
 import type { HookPort } from '../webhooks'
@@ -387,6 +388,8 @@ export type RepoRec = {
   }
   /** What each trigger did for each event, by `trigger:event`. */
   triggerRuns?: Map<string, TriggerRunRec>
+  /** Parts only some people may see: branches and paths (`access-rules.ts`). */
+  accessRules?: Array<AccessRule>
   /** By lowercase name. */
   labels: Map<string, LabelRec>
   /** Bumped by every label write, for the list's version. */

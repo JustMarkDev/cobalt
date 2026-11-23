@@ -29,6 +29,7 @@ import { releaseOps } from './ops/releases'
 import { pipelineOps, triggerOps } from './ops/pipelines'
 import { runnerOps } from './ops/runners'
 import { inboxOps } from './ops/inbox'
+import { accessOps } from './ops/access'
 import { policyRuleOps } from './ops/policy-rules'
 import { integrationOps } from './ops/integrations'
 import { importOps } from './ops/imports'
@@ -65,6 +66,7 @@ export type DomainFactory = (from: {
 export const operations: ReadonlyArray<Op> = [
   ...metaOps,
   ...repoOps,
+  ...accessOps,
   ...changeOps,
   ...issueOps,
   ...eventOps,
