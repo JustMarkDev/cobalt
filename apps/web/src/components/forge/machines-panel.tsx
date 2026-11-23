@@ -91,7 +91,7 @@ export function MachinesPanel() {
                 key={t.id}
                 icon={KeyIcon}
                 title={t.device ? `${t.name} on ${t.device}` : t.name}
-                detail={`${t.repos ? t.repos.join(', ') : 'All repositories'}, expires ${new Date(t.expires_at).toLocaleDateString('en', { dateStyle: 'medium', timeZone: 'UTC' })}${t.last_used_at ? `, last used ${timeAgo(t.last_used_at)}` : ', never used'}`}
+                detail={`${t.repos ? t.repos.join(', ') : 'All repositories'}${t.paths ? ` (only ${t.paths.join(', ')})` : ''}, expires ${new Date(t.expires_at).toLocaleDateString('en', { dateStyle: 'medium', timeZone: 'UTC' })}${t.last_used_at ? `, last used ${timeAgo(t.last_used_at)}` : ', never used'}`}
                 secrets={t.scopes.includes('secrets:decrypt')}
                 onRevoke={() => revoke('tokens.revoke', t.id)}
                 revokeLabel="Revoke"
