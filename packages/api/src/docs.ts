@@ -679,6 +679,61 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
         },
       },
     )
+    // A step that waits on a person, and its answer.
+    const step2 = `${R}/pipelines/${claimed.run as number}/jobs/${claimed.job as number}/steps/2`
+    await call(null, 'POST', step2, { body: { status: 'running' } })
+    await call('pipelines.wait', 'POST', `${step2}/wait`, {
+      body: {
+        kind: 'person',
+        reason: 'Check the migration plan before it runs',
+        target: 'hollis',
+        expires_at: new Date(now() + 3 * 86_400_000).toISOString(),
+      },
+    })
+    await call('pipelines.resume', 'POST', `${step2}/resume`, {
+      body: { status: 'success', summary: 'Plan checked, go ahead.' },
+    })
+    await call('triggers.list', 'GET', `${R}/triggers`)
+    await call('inbox.list', 'GET', '/inbox?limit=3')
+    // ----- runners
+    const runner = (
+      await call('runners.create', 'POST', '/runners', {
+        body: {
+          name: 'mac-mini',
+          labels: ['macos', 'arm64', 'xcode-16'],
+          repos: ['dana/gitfs'],
+          concurrency: 2,
+        },
+      })
+    ).json as Json
+    const rt = runner.secret as string
+    await call('runners.list', 'GET', '/runners')
+    await call('runners.get', 'GET', `/runners/${runner.id as string}`)
+    await call('runners.update', 'PATCH', `/runners/${runner.id as string}`, {
+      body: { labels: ['macos', 'arm64', 'xcode-16', 'xcode-15'] },
+    })
+    await call('runners.heartbeat', 'POST', '/runners/heartbeat', {
+      token: rt,
+    })
+    const rjob = (
+      await call('runners.claim', 'POST', '/runners/claim', { token: rt })
+    ).json as Json | null
+    if (rjob)
+      await call('runners.report', 'POST', '/runners/report', {
+        token: rt,
+        body: {
+          repo: 'dana/gitfs',
+          run: rjob.run,
+          job: rjob.job,
+          step: 1,
+          status: 'running',
+          lines: [{ text: 'cargo build --release', level: 'cmd' }],
+        },
+      })
+    await call('runners.jobs', 'GET', `/runners/${runner.id as string}/jobs`, {
+      token: rt,
+    })
+    await call('runners.delete', 'DELETE', `/runners/${runner.id as string}`)
     await call('releases.list', 'GET', `${R}/releases?limit=1`)
     await call('releases.get', 'GET', `${R}/releases/v0.9.0`)
     await call('releases.create', 'POST', `${R}/releases`, {
@@ -1108,7 +1163,7 @@ const pages: Array<{
       'Who you can act as, profiles, organizations, members, invitations and teams, follows and the directory of people, your preferences, inbox and dashboard, connected services and linked accounts.',
     icon: 'UsersIcon',
     match: (id) =>
-      /^(accounts|members|invitations|teams|people|follows|preferences|notifications|integrations|links|dashboard)\./.test(
+      /^(accounts|members|invitations|teams|people|follows|preferences|notifications|inbox|integrations|links|dashboard)\./.test(
         id,
       ),
   },
@@ -1124,9 +1179,9 @@ const pages: Array<{
     file: 'pipelines',
     title: 'Pipelines',
     description:
-      'Pipeline runs on your own runners, their jobs, steps and logs.',
+      'Pipeline runs, their jobs, steps and logs; steps that wait on a person; the runners that take jobs; the triggers that start them.',
     icon: 'PlayIcon',
-    match: (id) => id.startsWith('pipelines.'),
+    match: (id) => /^(pipelines|runners|triggers)\./.test(id),
   },
   {
     file: 'git-data',

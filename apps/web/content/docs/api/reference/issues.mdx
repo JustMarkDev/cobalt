@@ -60,7 +60,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues?state=all&limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.0.1.0-vQ8TjphmO-Te1LnY"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.0.1.0-ug0rcma9XAYQN7o8"
 ratelimit: "read";r=1185;t=60
 ```
 
@@ -265,7 +265,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues/4" \
 
 ```http
 HTTP/1.1 200
-etag: W/"iss_01m60vspm0e27awv79.1.1.0-XXOZRe1tchpBajOB"
+etag: W/"iss_01m60vspm0e27awv79.1.1.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1184;t=60
 ```
 
@@ -356,7 +356,7 @@ Send If-Match with the ETag you read. `state: closed` closes.
 ```bash
 curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/4" \
   -H "Authorization: Bearer $SX_TOKEN" \
-  -H "if-match: W/\"iss_01m60vspm0e27awv79.1.1.0-XXOZRe1tchpBajOB\"" \
+  -H "if-match: W/\"iss_01m60vspm0e27awv79.1.1.0-Fo5kJPZtZazuIpIR\"" \
   -H "Content-Type: application/json" \
   -d '{"state":"closed"}'
 ```
@@ -449,7 +449,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/comments" \
 
 ```http
 HTTP/1.1 200
-etag: W/"iss_01m60vspm0e27awv79.2.c.0-XXOZRe1tchpBajOB"
+etag: W/"iss_01m60vspm0e27awv79.2.c.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1181;t=60
 ```
 
@@ -970,7 +970,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/labels" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.0.2.0-XXOZRe1tchpBajOB"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.0.2.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1182;t=60
 ```
 

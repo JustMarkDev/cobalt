@@ -89,6 +89,9 @@ const SHAPE_PATHS: Record<string, string> = {
   'pipelines.log': `${REPO}/pipelines/1839/jobs/1/steps/2/log`,
   'notifications.count': '/notifications/count',
   'notifications.preferences': '/notifications/preferences',
+  'inbox.list': '/inbox',
+  'triggers.list': `${REPO}/triggers`,
+  'runners.list': '/runners',
 }
 // Checked in the shape test too, with an address that only exists once they are made.
 const SHAPE_DYNAMIC = [
@@ -100,6 +103,8 @@ const SHAPE_DYNAMIC = [
   'git.commit',
   'git.diff',
   'teams.get',
+  'runners.get',
+  'runners.jobs',
 ]
 const SHAPE_CHECKED = new Set([...Object.keys(SHAPE_PATHS), ...SHAPE_DYNAMIC])
 const T = (h: ReturnType<typeof harness>) => h.tokens
@@ -179,6 +184,28 @@ describe('shape', () => {
     const sha = (await h.call('GET', `${REPO}/git/commits`)).json.data[0].sha
     dynamic['git.commit'] = `${REPO}/git/commits/${sha}`
     dynamic['git.diff'] = `${REPO}/git/commits/${sha}/diff`
+    const runner = (
+      await h.call('POST', '/runners', {
+        body: { name: 'shape', labels: ['linux'] },
+      })
+    ).json
+    await h.call('POST', '/runners/claim', { token: runner.secret })
+    dynamic['runners.get'] = `/runners/${runner.id}`
+    dynamic['runners.jobs'] = `/runners/${runner.id}/jobs`
+    // A step that waits, so a run shows a wait.
+    const job = (
+      await h.call('POST', `${REPO}/pipelines/claim`, {
+        body: { runner: 'shape' },
+      })
+    ).json
+    if (job) {
+      const step = `${REPO}/pipelines/${job.run}/jobs/${job.job}/steps/1`
+      await h.call('POST', step, { body: { status: 'running' } })
+      await h.call('POST', `${step}/wait`, {
+        body: { kind: 'person', reason: 'shape' },
+      })
+      dynamic['pipelines.get'] = `${REPO}/pipelines/${job.run}`
+    }
     Object.assign(paths, dynamic)
     for (const op of h.api.ops.filter(
       (o) => o.method === 'GET' && o.id in paths,

@@ -141,7 +141,7 @@ curl "https://api.source.code/v1/tokens" \
 
 ```http
 HTTP/1.1 200
-etag: W/"FRVv2HDZXtXfwsFX"
+etag: W/"EgMPVSXJDm3fo_HP"
 ratelimit: "read";r=1172;t=60
 ```
 
@@ -155,8 +155,9 @@ ratelimit: "read";r=1172;t=60
       "name": "dana",
       "kind": "personal",
       "device": "Laptop",
-      "scopes": ["repo:read", "repo:write", "…and 13 more"],
+      "scopes": ["repo:read", "repo:write", "…and 14 more"],
       "repos": null,
+      "paths": null,
       "prefix": "sxp_dana",
       "secret": null,
       "url": "https://api.source.code/v1/tokens/tok_01m6tkrwm0bw4d69nd",
@@ -172,6 +173,7 @@ ratelimit: "read";r=1172;t=60
       "device": "Laptop",
       "scopes": ["repo:read", "repo:write", "…and 5 more"],
       "repos": ["dana/gitfs"],
+      "paths": null,
       "prefix": "sxp_dana",
       "secret": null,
       "url": "https://api.source.code/v1/tokens/tok_01m6tkrwm03xzhzwj8",
@@ -211,13 +213,14 @@ The response is the only time the secret is shown. A token can never have a scop
 
 **Request body**
 
-| Member            | Type                                                                                                                                                                                                                                                                                   | Notes                                                                                                                |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `name`            | string (up to 100 characters, at least 1)                                                                                                                                                                                                                                              | Required.                                                                                                            |
-| `scopes`          | array of `repo:read` or `repo:write` or `issues:read` or `issues:comment` or `issues:write` or `pulls:read` or `pulls:comment` or `pulls:write` or `pulls:merge` or `secrets:schema` or `secrets:write` or `secrets:decrypt` or `webhooks:read` or `webhooks:write` or `tokens:manage` | Required.                                                                                                            |
-| `expires_in_days` | `30` or `60` or `90` or `365`                                                                                                                                                                                                                                                          | Default `90`.                                                                                                        |
-| `repos`           | array of string (pattern)                                                                                                                                                                                                                                                              | `owner/name`. Limits the token to these repositories                                                                 |
-| `device`          | string (up to 80 characters, at least 1)                                                                                                                                                                                                                                               | The machine it is for, as you name it. Receipts and production confirmations show it; it is your label, not verified |
+| Member            | Type                                                                                                                                                                                                                                                                                                                                              | Notes                                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | string (up to 100 characters, at least 1)                                                                                                                                                                                                                                                                                                         | Required.                                                                                                                                                       |
+| `scopes`          | array of `repo:read` or `repo:write` or `issues:read` or `issues:comment` or `issues:write` or `pulls:read` or `pulls:comment` or `pulls:write` or `pulls:merge` or `secrets:schema` or `secrets:write` or `secrets:decrypt` or `webhooks:read` or `webhooks:write` or `tokens:manage` or `runners:manage` or `runners:claim` or `runners:report` | Required.                                                                                                                                                       |
+| `expires_in_days` | `30` or `60` or `90` or `365`                                                                                                                                                                                                                                                                                                                     | Default `90`.                                                                                                                                                   |
+| `repos`           | array of string (pattern)                                                                                                                                                                                                                                                                                                                         | `owner/name`. Limits the token to these repositories                                                                                                            |
+| `paths`           | array of string (up to 200 characters, at least 1)                                                                                                                                                                                                                                                                                                | Globs such as `docs/**` or `*.sql`, as policy writes them. A change made with the token may touch nothing else. Only with `repos` naming exactly one repository |
+| `device`          | string (up to 80 characters, at least 1)                                                                                                                                                                                                                                                                                                          | The machine it is for, as you name it. Receipts and production confirmations show it; it is your label, not verified                                            |
 
 **Errors**
 
@@ -247,6 +250,7 @@ ratelimit: "write";r=94;t=60
   "device": null,
   "scopes": ["repo:read", "pulls:read"],
   "repos": ["dana/gitfs"],
+  "paths": null,
   "prefix": "sxp_dn2i",
   "secret": "sxp_…",
   "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8",
@@ -334,7 +338,7 @@ curl "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
 
 ```http
 HTTP/1.1 200
-etag: W/"RmCcG4YUBoKtJF97"
+etag: W/"FFB_dg_RHVEY0Xhc"
 ratelimit: "read";r=1171;t=60
 ```
 
@@ -347,6 +351,7 @@ ratelimit: "read";r=1171;t=60
   "device": null,
   "scopes": ["repo:read", "pulls:read"],
   "repos": ["dana/gitfs"],
+  "paths": null,
   "prefix": "sxp_dn2i",
   "secret": null,
   "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8",

@@ -1836,6 +1836,8 @@ export type Token = {
   device: string | null
   scopes: Array<string>
   repos: Array<string> | null
+  /** Globs a change made with it may touch, in its one repository; null for any path. Covers the API, sx and MCP, not `git push` */
+  paths: Array<string> | null
   /** The first characters, to recognise a token by */
   prefix: string
   /** The token itself. Only in the response that creates it, never again */
@@ -1846,6 +1848,54 @@ export type Token = {
   /** RFC 3339 time, UTC */
   created_at: string
   last_used_at: string | null
+}
+
+export type TriggerSet = {
+  object: 'trigger_set'
+  repo: string
+  /** The folder the trigger files are in */
+  path: string
+  /** The commit the files were last read at; null when there are none */
+  sha: string | null
+  files: Array<{
+    path: string
+    html_url: string
+  }>
+  /** The triggers in force: the last set that read. At most 20; at most 3 start for one event */
+  triggers: Array<{
+    id: string
+    /** Event types; `change.*` matches the family */
+    on: Array<string>
+    filter: {
+      paths: Array<string> | null
+      labels: Array<string> | null
+      actor: Array<string> | null
+      model: Array<string> | null
+    }
+    action: {
+      /** The workflow it starts */
+      run: string
+    }
+    file: string
+    html_url: string
+  }>
+  /** Why the newest files did not read. While there are any, the last valid triggers stay in force */
+  errors: Array<{
+    file: string
+    path: string
+    line: number | null
+    message: string
+  }>
+  /** What triggers did lately, newest first */
+  recent: Array<{
+    trigger: string
+    event_sequence: number
+    state: 'started' | 'failed' | 'capped'
+    run: number | null
+    error: string | null
+    /** RFC 3339 time, UTC */
+    at: string
+  }>
 }
 
 export type Upload = {
@@ -3534,7 +3584,7 @@ export interface Operations {
       body: {
         id: string
         name: string
-        kind: 'required_check' | 'path_approval' | 'max_lines'
+        kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
         check?: string
         paths?: Array<string>
         approvals?: number
@@ -3602,7 +3652,11 @@ export interface Operations {
               op: 'create_rule'
               id: string
               name: string
-              kind: 'required_check' | 'path_approval' | 'max_lines'
+              kind:
+                | 'required_check'
+                | 'path_approval'
+                | 'max_lines'
+                | 'allowed_paths'
               check?: string
               paths?: Array<string>
               approvals?: number
@@ -4295,6 +4349,8 @@ export interface Operations {
         expires_in_days?: 30 | 60 | 90 | 365
         /** `owner/name`. Limits the token to these repositories */
         repos?: Array<string>
+        /** Globs such as `docs/**` or `*.sql`, as policy writes them. A change made with the token may touch nothing else. Only with `repos` naming exactly one repository */
+        paths?: Array<string>
         /** The machine it is for, as you name it. Receipts and production confirmations show it; it is your label, not verified */
         device?: string
       }
@@ -4324,6 +4380,14 @@ export interface Operations {
       id: string
     }
     output: void
+  }
+  /** What starts a workflow in a repository (`GET /repos/{owner}/{repo}/triggers`) */
+  'triggers.list': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: TriggerSet
   }
   /** Read the file (`GET /uploads/{id}/content`) */
   'uploads.content': {
@@ -6529,6 +6593,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'destructive',
   },
+  'triggers.list': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/triggers',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
   'uploads.content': {
     method: 'GET',
     path: '/uploads/{id}/content',
@@ -7526,6 +7601,12 @@ export interface Client extends Core {
       input: Operations['tokens.revoke']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['tokens.revoke']['output']>
+  }
+  triggers: {
+    list: (
+      input: Operations['triggers.list']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['triggers.list']['output']>
   }
   uploads: {
     content: (

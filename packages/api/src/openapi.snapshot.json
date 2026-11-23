@@ -17904,7 +17904,8 @@
                               "enum": [
                                 "required_check",
                                 "path_approval",
-                                "max_lines"
+                                "max_lines",
+                                "allowed_paths"
                               ]
                             },
                             "check": {
@@ -18560,7 +18561,7 @@
       "post": {
         "operationId": "policy.create_rule",
         "summary": "Write a rule of the repository's own",
-        "description": "Three kinds. `required_check`: `check` has to pass on the tree that lands. `path_approval`: a change touching `paths` (globs, `**` crosses folders) needs `approvals` human approvals, from the people in `from` if given. `max_lines`: a change may add and remove at most `max_lines`. Sending the same `id` again replaces the rule. Every open change's requirements are worked out again. When the policy lives in the repository, this proposes instead of applying: it answers `202` with a `PolicyProposal`, a change to the policy file that applies once it lands.",
+        "description": "Four kinds. `required_check`: `check` has to pass on the tree that lands. `path_approval`: a change touching `paths` (globs, `**` crosses folders) needs `approvals` human approvals, from the people in `from` if given. `max_lines`: a change may add and remove at most `max_lines`. `allowed_paths`: a change may touch only `paths` (deleting a file is touching it), however it arrived, `git push` included. Sending the same `id` again replaces the rule. Every open change's requirements are worked out again. When the policy lives in the repository, this proposes instead of applying: it answers `202` with a `PolicyProposal`, a change to the policy file that applies once it lands.",
         "tags": [
           "changes"
         ],
@@ -18614,7 +18615,8 @@
                     "enum": [
                       "required_check",
                       "path_approval",
-                      "max_lines"
+                      "max_lines",
+                      "allowed_paths"
                     ]
                   },
                   "check": {
@@ -20450,6 +20452,106 @@
           "token_revoked",
           "unauthenticated",
           "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-sx-async": false,
+        "x-sx-secret-response": false,
+        "x-sx-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/triggers": {
+      "get": {
+        "operationId": "triggers.list",
+        "summary": "What starts a workflow in a repository",
+        "description": "The triggers in `.source/triggers/*.yml` on the default branch, as they were read when they last landed, with any errors and what each did lately. Read-only: the files are the API, and a change to them is a change.",
+        "tags": [
+          "pipelines"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Sx-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerSet"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-sx-safety": "read",
+        "x-sx-idempotent": true,
+        "x-sx-dry-run": false,
+        "x-sx-pool": "read",
+        "x-sx-cost": 1,
+        "x-sx-scopes": [
+          "repo:read"
+        ],
+        "x-sx-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
           "unsupported_version"
         ],
         "x-sx-async": false,
@@ -24325,6 +24427,17 @@
                     "items": {
                       "type": "string",
                       "pattern": "^[^/\\s]+\\/[^/\\s]+$"
+                    }
+                  },
+                  "paths": {
+                    "description": "Globs such as `docs/**` or `*.sql`, as policy writes them. A change made with the token may touch nothing else. Only with `repos` naming exactly one repository",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
                     }
                   },
                   "device": {
@@ -32092,6 +32205,256 @@
           "stars"
         ]
       },
+      "TriggerSet": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "trigger_set"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "The folder the trigger files are in"
+          },
+          "sha": {
+            "description": "The commit the files were last read at; null when there are none",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "html_url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "html_url"
+              ]
+            }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "on": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Event types; `change.*` matches the family"
+                },
+                "filter": {
+                  "type": "object",
+                  "properties": {
+                    "paths": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "labels": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "actor": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "model": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "paths",
+                    "labels",
+                    "actor",
+                    "model"
+                  ]
+                },
+                "action": {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "type": "string",
+                      "description": "The workflow it starts"
+                    }
+                  },
+                  "required": [
+                    "run"
+                  ]
+                },
+                "file": {
+                  "type": "string"
+                },
+                "html_url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "on",
+                "filter",
+                "action",
+                "file",
+                "html_url"
+              ]
+            },
+            "description": "The triggers in force: the last set that read. At most 20; at most 3 start for one event"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "line": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file",
+                "path",
+                "line",
+                "message"
+              ]
+            },
+            "description": "Why the newest files did not read. While there are any, the last valid triggers stay in force"
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "trigger": {
+                  "type": "string"
+                },
+                "event_sequence": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "started",
+                    "failed",
+                    "capped"
+                  ]
+                },
+                "run": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "at": {
+                  "type": "string",
+                  "description": "RFC 3339 time, UTC"
+                }
+              },
+              "required": [
+                "trigger",
+                "event_sequence",
+                "state",
+                "run",
+                "error",
+                "at"
+              ]
+            },
+            "description": "What triggers did lately, newest first"
+          }
+        },
+        "required": [
+          "object",
+          "repo",
+          "path",
+          "sha",
+          "files",
+          "triggers",
+          "errors",
+          "recent"
+        ]
+      },
       "Delivery": {
         "type": "object",
         "properties": {
@@ -32944,6 +33307,20 @@
               }
             ]
           },
+          "paths": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Globs a change made with it may touch, in its one repository; null for any path. Covers the API, sx and MCP, not `git push`"
+          },
           "prefix": {
             "type": "string",
             "description": "The first characters, to recognise a token by"
@@ -32986,6 +33363,7 @@
           "device",
           "scopes",
           "repos",
+          "paths",
           "prefix",
           "secret",
           "url",

@@ -54,7 +54,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/policy" \
 
 ```http
 HTTP/1.1 200
-etag: W/"chg_01m6dqs9m0g7q74420.1.3.chg_01m6dqs9m0g7q74420.1.0-XXOZRe1tchpBajOB"
+etag: W/"chg_01m6dqs9m0g7q74420.1.3.chg_01m6dqs9m0g7q74420.1.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1187;t=60
 ```
 
@@ -212,7 +212,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/policy" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.pol0.19.1-7pElIC77C7_aUa4w"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.pol0.19.1-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1148;t=60
 ```
 
@@ -485,7 +485,7 @@ ratelimit: "write";r=64;t=60
 
 **Write a rule of the repository's own**
 
-Three kinds. `required_check`: `check` has to pass on the tree that lands. `path_approval`: a change touching `paths` (globs, `**` crosses folders) needs `approvals` human approvals, from the people in `from` if given. `max_lines`: a change may add and remove at most `max_lines`. Sending the same `id` again replaces the rule. Every open change's requirements are worked out again. When the policy lives in the repository, this proposes instead of applying: it answers `202` with a `PolicyProposal`, a change to the policy file that applies once it lands.
+Four kinds. `required_check`: `check` has to pass on the tree that lands. `path_approval`: a change touching `paths` (globs, `**` crosses folders) needs `approvals` human approvals, from the people in `from` if given. `max_lines`: a change may add and remove at most `max_lines`. `allowed_paths`: a change may touch only `paths` (deleting a file is touching it), however it arrived, `git push` included. Sending the same `id` again replaces the rule. Every open change's requirements are worked out again. When the policy lives in the repository, this proposes instead of applying: it answers `202` with a `PolicyProposal`, a change to the policy file that applies once it lands.
 
 | About      |                                                                                                                                  |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -512,17 +512,17 @@ Three kinds. `required_check`: `check` has to pass on the tree that lands. `path
 
 **Request body**
 
-| Member      | Type                                               | Notes     |
-| ----------- | -------------------------------------------------- | --------- |
-| `id`        | string (pattern)                                   | Required. |
-| `name`      | string (up to 100 characters, at least 1)          | Required. |
-| `kind`      | `required_check` or `path_approval` or `max_lines` | Required. |
-| `check`     | string (up to 100 characters, at least 1)          |           |
-| `paths`     | array of string (up to 200 characters, at least 1) |           |
-| `approvals` | integer (min 1, max 5)                             |           |
-| `from`      | array of string                                    |           |
-| `max_lines` | integer (min 1, max 100000)                        |           |
-| `mode`      | `enforce` or `dry-run` or `off`                    |           |
+| Member      | Type                                                                  | Notes     |
+| ----------- | --------------------------------------------------------------------- | --------- |
+| `id`        | string (pattern)                                                      | Required. |
+| `name`      | string (up to 100 characters, at least 1)                             | Required. |
+| `kind`      | `required_check` or `path_approval` or `max_lines` or `allowed_paths` | Required. |
+| `check`     | string (up to 100 characters, at least 1)                             |           |
+| `paths`     | array of string (up to 200 characters, at least 1)                    |           |
+| `approvals` | integer (min 1, max 5)                                                |           |
+| `from`      | array of string                                                       |           |
+| `max_lines` | integer (min 1, max 100000)                                           |           |
+| `mode`      | `enforce` or `dry-run` or `off`                                       |           |
 
 **Errors**
 

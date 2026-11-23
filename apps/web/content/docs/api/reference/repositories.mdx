@@ -40,7 +40,7 @@ curl "https://api.source.code/v1/imports" \
 ```http
 HTTP/1.1 200
 etag: W/"5oyWwZ9tk8dor04o"
-ratelimit: "read";r=1140;t=60
+ratelimit: "read";r=1135;t=60
 ```
 
 ```json
@@ -118,13 +118,13 @@ curl -X POST "https://api.source.code/v1/imports" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=50;t=60
+ratelimit: "write";r=41;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r809qd3c51t",
+  "id": "rep_01m6tq6r80cx4d9mcd",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -410,7 +410,7 @@ curl -X DELETE "https://api.source.code/v1/repos/northwind/scratch2?confirm=nort
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=30;t=60
+ratelimit: "write";r=21;t=60
 ```
 
 ### `repos.get`
@@ -456,7 +456,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-XXOZRe1tchpBajOB"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1196;t=60
 ```
 
@@ -569,7 +569,7 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=32;t=60
+ratelimit: "write";r=23;t=60
 ```
 
 ```json
@@ -653,7 +653,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/context" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-XXOZRe1tchpBajOB"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.1.0.6.3.0-Fo5kJPZtZazuIpIR"
 ratelimit: "read";r=1195;t=60
 ```
 
@@ -866,7 +866,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/insights" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.ins22.19.8.2406.20764.1-7pElIC77C7_aUa4w"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.ins22.19.8.2406.20764.1-x2r-PLMP2JjVQMfY"
 ratelimit: "heavy";r=115;t=60
 ```
 
@@ -1002,7 +1002,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/provenance?path=src/refs.rs&li
 ```http
 HTTP/1.1 200
 etag: W/"cZT0HblWb3YD4kYf"
-ratelimit: "read";r=1127;t=60
+ratelimit: "read";r=1122;t=60
 ```
 
 ```json
@@ -1070,8 +1070,8 @@ curl "https://api.source.code/v1/repos/dana/gitfs/releases?limit=1" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.r3.3.1-26Jh1l153BimF7kC"
-ratelimit: "read";r=1145;t=60
+etag: W/"rep_01m3kkw4m0zvf3zfc9.r3.3.1-1d73TDmQzoBB-FoK"
+ratelimit: "read";r=1140;t=60
 ```
 
 ```json
@@ -1193,13 +1193,13 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases" \
 ```http
 HTTP/1.1 201
 sx-outcome: created
-ratelimit: "write";r=58;t=60
+ratelimit: "write";r=49;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r80jb3b4psr",
+  "id": "rel_01m6tq6r80bpbxy06d",
   "tag": "v0.9.1",
   "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://source.code/dana/gitfs/releases",
@@ -1271,7 +1271,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0" \
 ```http
 HTTP/1.1 200
 etag: W/"Xw_hF8guRecTZnyS"
-ratelimit: "read";r=1144;t=60
+ratelimit: "read";r=1139;t=60
 ```
 
 ```json
@@ -1383,13 +1383,13 @@ curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=57;t=60
+ratelimit: "write";r=48;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r80jb3b4psr",
+  "id": "rel_01m6tq6r80bpbxy06d",
   "tag": "v0.9.1",
   "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://source.code/dana/gitfs/releases",
@@ -1466,7 +1466,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0/assets
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=56;t=60
+ratelimit: "write";r=47;t=60
 ```
 
 ```json
@@ -1573,7 +1573,7 @@ curl "https://api.source.code/v1/repos/dana/gitfs/star" \
 
 ```http
 HTTP/1.1 200
-etag: W/"rep_01m3kkw4m0zvf3zfc9.2.22.7.5.1.dana-7pElIC77C7_aUa4w"
+etag: W/"rep_01m3kkw4m0zvf3zfc9.2.22.7.5.1.dana-x2r-PLMP2JjVQMfY"
 ratelimit: "read";r=1154;t=60
 ```
 
@@ -1695,7 +1695,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=31;t=60
+ratelimit: "write";r=22;t=60
 ```
 
 ```json
