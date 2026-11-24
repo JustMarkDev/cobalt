@@ -197,10 +197,8 @@ function Field({
 
 const input = cn(field, 'h-9 disabled:opacity-60')
 
-// ---------------------------------------------------------------------------
 function ProfileSettings() {
   const { data: session } = authClient.useSession()
-  // The route is behind RequireAuth, so there is always a person here.
   if (!session) return null
   return <ProfileForm user={session.user} />
 }
@@ -246,7 +244,6 @@ function ProfileForm({ user }: { user: AuthUser }) {
     !!user.handle,
   )
   const mine = (owned?.data ?? []).map((r) => toRepo(r))
-  // Nothing pinned means all of them, until pinning is saved with the profile.
   const [unpinned, setUnpinned] = React.useState<Set<string>>(new Set())
   const pinned = new Set(
     mine.map((r) => r.name).filter((n) => !unpinned.has(n)),
@@ -391,7 +388,6 @@ function ProfileForm({ user }: { user: AuthUser }) {
   )
 }
 
-// ---------------------------------------------------------------------------
 const hosts = [
   {
     id: 'github',
@@ -659,7 +655,6 @@ function Accounts() {
   )
 }
 
-// ---------------------------------------------------------------------------
 function Privacy() {
   const prefs = useOp('preferences.get', {})
   const write = useWrite()
@@ -775,9 +770,6 @@ function Privacy() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// What is picked here is kept with the account, so it follows you to another
-// browser (`useTarget` saves it as it is picked).
 function Downloads() {
   return (
     <div className="max-w-2xl">

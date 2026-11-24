@@ -15,7 +15,6 @@ export const changeParams = repoParams.extend({
   number: z.string().describe('The change number, or its `chg_` id'),
 })
 
-/** `limit` and `cursor` for every list. */
 export const pageShape = {
   limit: z.coerce
     .number()

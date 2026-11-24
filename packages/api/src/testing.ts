@@ -3,7 +3,6 @@ import { T0, sampleTokens } from './sample'
 import { createSampleApi } from './index'
 import type { GitData } from './git'
 
-/** A fixed clock the tests can move. */
 export function clock(start = T0 + 3_600_000) {
   let t = start
   const now = () => t
@@ -22,10 +21,6 @@ export type Reply = {
   res: Response
 }
 
-/**
- * Which domain the suite runs on: memory by default, Convex when
- * `CB_DOMAIN=convex` (`bun run test:convex`).
- */
 export const onConvex = process.env.CB_DOMAIN === 'convex'
 
 export function harness(overrides: Parameters<typeof createSampleApi>[0] = {}) {
@@ -74,7 +69,6 @@ export function harness(overrides: Parameters<typeof createSampleApi>[0] = {}) {
   return { api, call, now, tokens: sampleTokens }
 }
 
-/** The sample git store, with these files put in it at every ref. */
 export function gitWith(files: Record<string, string>): GitData {
   const base = new StoreGit()
   return {
@@ -92,7 +86,6 @@ export function gitWith(files: Record<string, string>): GitData {
   }
 }
 
-/** A call as a person signed in to the app, the way the web app makes one. */
 export async function asPerson(
   h: ReturnType<typeof harness>,
   handle: string,
@@ -113,7 +106,6 @@ export async function asPerson(
   return { status: res.status, json: text ? JSON.parse(text) : null }
 }
 
-/** A harness whose `build` workflow asks for these labels on every job. */
 export async function withRunsOn(
   labels: Array<string> | string,
   now = clock(),

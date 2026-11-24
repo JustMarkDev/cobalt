@@ -8,16 +8,8 @@ type Viewer = {
   seen_at: string
 }
 
-/**
- * One session per process: an MCP server or a long `cb` loop is one viewer
- * however many calls it makes. `CB_SESSION` names it across processes.
- */
 const session = process.env.CB_SESSION ?? `cb-${randomUUID().slice(0, 13)}`
 
-/**
- * Who is looking at a change or an issue. With `here`, `path` or `leave`,
- * say first that you are (or no longer are).
- */
 export async function showPresence(
   ctx: Ctx,
   path: string,
@@ -48,11 +40,8 @@ export async function showPresence(
   )
 }
 
-/** A heartbeat that never fails the call it rides along with. */
 export async function heartbeat(ctx: Ctx, path: string) {
   try {
     await ctx.api().put(path, { body: { session, path: null, leave: false } })
-  } catch {
-    // Presence is a courtesy; the work goes on without it.
-  }
+  } catch {}
 }

@@ -1,19 +1,3 @@
-/**
- * Load test for the API over real HTTP.
- *
- * The server runs in its own process (Bun's HTTP server in front of the same
- * `fetch` handler the app mounts). Load comes from several other processes, so
- * the generator is not the thing being measured. It reports how busy the
- * server's CPU was: near 100% means the server was the limit, much lower means
- * the clients were. It does not include TanStack Start, a real database or the
- * git store.
- *
- *   bun scripts/api-bench.ts                          all scenarios
- *   bun scripts/api-bench.ts --only change-hot,list-50
- *   bun scripts/api-bench.ts --out before.json
- *   bun scripts/api-bench.ts --compare before.json    show the difference
- *   bun scripts/api-bench.ts --quick                  2 s each
- */
 import { spawn } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { sampleTokens } from '@cobaltforge/api/sample'
@@ -29,9 +13,6 @@ const arg = (name: string, fallback: string) => {
 }
 const PORT = Number(arg('port', '4010'))
 const BASE = `http://127.0.0.1:${PORT}/v1`
-
-// ---------------------------------------------------------------------------
-// Mode 1: the server.
 
 if (flag('serve')) {
   const api = buildWorld(PORT, { allowPrivateWebhooks: flag('allow-private') })
@@ -52,14 +33,9 @@ if (flag('serve')) {
       return api.fetch(req)
     },
   })
-  // A clean stop writes the CPU profile when one was asked for.
   process.on('SIGTERM', () => process.exit(0))
   console.log('ready')
-}
-
-// ---------------------------------------------------------------------------
-// Mode 2: a load-generating client.
-else if (flag('client')) {
+} else if (flag('client')) {
   const spec = JSON.parse(arg('client', '{}')) as {
     scenario: string
     seconds: number
@@ -102,12 +78,7 @@ else if (flag('client')) {
     JSON.stringify({ hist, errors, elapsed: (performance.now() - t0) / 1000 }),
   )
   process.exit(0)
-}
-
-// ---------------------------------------------------------------------------
-// Mode 2b: a fan-out listener. Holds `count` connections and reports when the event reaches each.
-// Several of these run side by side, because one process holds at most 256 connections.
-else if (flag('fan')) {
+} else if (flag('fan')) {
   const kind = arg('fan', 'sse')
   const count = Number(arg('count', '250'))
   const dana = { authorization: `Bearer ${sampleTokens.dana}` }
@@ -122,7 +93,6 @@ else if (flag('fan')) {
   }
   for (let i = 0; i < count; i++) {
     void (async () => {
-      // Open connections in small groups: a burst of hundreds overflows the listen backlog.
       await new Promise((r) => setTimeout(r, Math.floor(i / 20) * 8))
       if (kind === 'poll') {
         ready++
@@ -156,11 +126,7 @@ else if (flag('fan')) {
       }
     })()
   }
-}
-
-// ---------------------------------------------------------------------------
-// Mode 3: the conductor.
-else {
+} else {
   type Row = {
     id: string
     title: string
@@ -258,7 +224,6 @@ else {
       errors += r.errors
       elapsed = Math.max(elapsed, r.elapsed)
     }
-    // The server also served the clients' warm-up second; CPU is compared against the whole window.
     const window = secs + 1
     return {
       id,
@@ -295,7 +260,6 @@ else {
     )
   }
 
-  // ----- special scenarios --------------------------------------------------
   const wantsExtra = (name: string) => only.length === 0 || only.includes(name)
 
   if (wantsExtra('sweep')) {
@@ -322,7 +286,6 @@ else {
     console.log('\n**Fan-out: one write, many listeners**\n')
     const PER = 250
     const PROCS = 4
-    /** Starts listener processes, waits until every connection is open, makes one write, times the last arrival. */
     const fan = async (
       kind: 'poll' | 'sse',
       write: () => Promise<unknown>,

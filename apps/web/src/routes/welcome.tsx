@@ -39,7 +39,6 @@ const hosts = [
   },
 ] as const
 
-/** Step 2 of 2. Optional: say who you are elsewhere, then bring projects over. */
 function Welcome() {
   const { redirect } = Route.useSearch()
   const router = useRouter()

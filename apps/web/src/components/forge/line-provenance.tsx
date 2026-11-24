@@ -6,11 +6,6 @@ import { Modal } from '~/components/ui/dialog'
 import { useOpMaybe } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
-/**
- * "Why is this line here?": from a line of code to the commit that wrote
- * it, the change it landed through, the patch set, and that patch set's
- * receipt: the machine, the tool and the model it was written with.
- */
 export function LineProvenance({
   repo,
   path,
@@ -23,7 +18,6 @@ export function LineProvenance({
   path: string
   line: number | null
   gitRef?: string
-  /** Ask about the line in this change's newest patch set. */
   change?: number
   onClose: () => void
 }) {

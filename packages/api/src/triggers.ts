@@ -1,11 +1,6 @@
 import { TRIGGERS_DIR } from './trigger-file'
 import type { FileError, Trigger } from './trigger-file'
 
-/**
- * A repository's triggers as the API shows them: what is in force, the files
- * they come from, why the newest files did not read (if they did not), and
- * what each trigger did lately. Shared by both domains.
- */
 export function presentTriggers(
   repo: string,
   html: string,

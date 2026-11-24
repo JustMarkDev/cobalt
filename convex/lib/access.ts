@@ -4,11 +4,6 @@ import type { Actor } from './actor'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * Who may see and change what. Every forge function asks here; nothing
- * decides access on its own. A private thing a caller cannot see is
- * `not_found`, never `forbidden`, so its existence does not leak.
- */
 type Ctx = Pick<QueryCtx, 'db'>
 
 export type Role = 'owner' | 'admin' | 'member'
@@ -37,7 +32,6 @@ export async function roleIn(
   return m?.role ?? null
 }
 
-/** Whether `who` is the account `handle` or a member of it. */
 export async function isMember(ctx: Ctx, handle: string, who: string) {
   if (handle === who) return !!(await accountByHandle(ctx, handle))
   const acc = await accountByHandle(ctx, handle)
@@ -45,7 +39,6 @@ export async function isMember(ctx: Ctx, handle: string, who: string) {
   return (await roleIn(ctx, acc, who)) !== null
 }
 
-/** What the teams someone is in give them on a repository. */
 export async function teamLevel(
   ctx: Ctx,
   repo: Doc<'repos'>,
@@ -80,7 +73,6 @@ export async function hasAccess(ctx: Ctx, repo: Doc<'repos'>, a: Actor) {
 
 export async function canRead(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   if (a?.system) return true
-  // A runner reads only the repositories of the account it serves.
   if (a?.runnerId && repo.owner.toLowerCase() !== a.actingAs.toLowerCase())
     return repo.visibility === 'public'
   if (a?.repos && !a.repos.includes(full(repo).toLowerCase()))
@@ -95,7 +87,6 @@ export async function canRead(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
 
 export async function canWrite(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   if (!a) return false
-  // A runner changes nothing through the repository; it reports its jobs.
   if (a.runnerId) return false
   if (a.repos && !a.repos.includes(full(repo).toLowerCase())) return false
   return (
@@ -104,12 +95,6 @@ export async function canWrite(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   )
 }
 
-/**
- * Who may have a repository's secret values: its team. That is the account
- * that owns it (the person, or the organization's members) and teams given
- * write access. A collaborator, a read-only team or anyone reading a public
- * repository sees variable names only.
- */
 export async function inSecretsTeam(
   ctx: Ctx,
   repo: Doc<'repos'>,
@@ -123,7 +108,6 @@ export async function inSecretsTeam(
   )
 }
 
-/** A relationship with the repository, not just its being public. */
 export async function hasGrant(ctx: Ctx, repo: Doc<'repos'>, a: Actor | null) {
   if (!a) return false
   if (a.repos && !a.repos.includes(full(repo).toLowerCase())) return false
@@ -147,17 +131,6 @@ export async function repoByPublicId(ctx: Ctx, id: string) {
     .unique()
 }
 
-/**
- * The repository at `owner/name` (or `rep_.../~`), if the caller may read it,
- * and write it when `need` says so. An old address of a repository the caller
- * can read answers `moved`.
- *
- * `write` is a change to what is in the repository, and a repository that
- * only reads (a private one on the Free plan, or one of an account waiting to
- * be deleted) refuses it. `manage` is the permission to write without that
- * check, for what has to stay possible on a read-only repository: making it
- * public, moving it, deleting it.
- */
 export async function resolve(
   ctx: Ctx,
   owner: string,
@@ -198,7 +171,6 @@ export async function resolve(
   return repo
 }
 
-/** Who may rename, hide or delete a repository: an owner or admin of its account. */
 export async function assertAdmin(ctx: Ctx, repo: Doc<'repos'>, a: Actor) {
   const role =
     repo.owner === a.handle
@@ -210,7 +182,6 @@ export async function assertAdmin(ctx: Ctx, repo: Doc<'repos'>, a: Actor) {
     })
 }
 
-/** An organization the caller belongs to, with the role it needs. */
 export async function orgFor(
   ctx: Ctx,
   handle: string,
@@ -241,10 +212,6 @@ export async function orgFor(
   return { acct, role }
 }
 
-/**
- * Whether the caller may read what happened in a repository, by public id,
- * including a deleted one whose history stays with who administered it.
- */
 export async function mayReadId(ctx: Ctx, id: string | null, a: Actor | null) {
   if (!id) return !!a
   const r = await repoByPublicId(ctx, id)
@@ -261,16 +228,11 @@ export async function mayReadId(ctx: Ctx, id: string | null, a: Actor | null) {
   return role === 'owner' || role === 'admin'
 }
 
-/**
- * What a cached answer about a repository depends on for access: the owning
- * account's and the repository's own access revisions. No global counter.
- */
 export async function accessStamp(ctx: Ctx, repo: Doc<'repos'>) {
   const owner = await ctx.db.get('accounts', repo.ownerId)
   return `${owner?.aclRev ?? 0}-${repo.aclRev}`
 }
 
-/** `If-Match` carries the ETag the client read: `W/"<version>"`. */
 export function assertMatch(
   ifMatch: string | null | undefined,
   version: string,

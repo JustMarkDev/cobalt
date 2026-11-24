@@ -9,23 +9,6 @@ import type { EventLog, EventRecord } from './events'
 
 const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
 
-/**
- * Webhooks. An endpoint receives the events of one repository.
- *
- *  - The payload is the event object, the same one `GET /events` returns.
- *  - Deliveries are signed with the Standard Webhooks scheme: `webhook-id`,
- *    `webhook-timestamp`, `webhook-signature` (HMAC-SHA256 over
- *    `id.timestamp.body`), so existing verification libraries work.
- *  - At least once. A delivery is retried on any failure, with growing delays,
- *    for about 28 hours. `webhook-id` is the event id and stays the same across
- *    retries and redeliveries, so a receiver can deduplicate.
- *  - Order is not promised. Each event has a `sequence`.
- *  - An endpoint that keeps failing is disabled, and says why.
- *  - Any range of the event log can be replayed with a call.
- *  - A delivery never reaches a private, loopback, link-local or metadata
- *    address, checked when the endpoint is saved and again, on the resolved
- *    address the connection is pinned to, at every attempt.
- */
 export const RETRY_DELAYS_MS = [
   5_000, 300_000, 1_800_000, 7_200_000, 18_000_000, 36_000_000, 36_000_000,
 ]
@@ -61,9 +44,6 @@ export type Transport = {
   }) => Promise<SendResult>
 }
 
-// ---------------------------------------------------------------------------
-// Where a delivery may go.
-
 export function isBlockedAddress(ip: string): boolean {
   const kind = isIP(ip)
   if (kind === 4) {
@@ -93,7 +73,6 @@ export function isBlockedAddress(ip: string): boolean {
         `${(n >>> 24) & 255}.${(n >>> 16) & 255}.${(n >>> 8) & 255}.${n & 255}`,
       )
     }
-    // 6to4 embeds an IPv4 address in the first two groups after 2002::.
     if (v.startsWith('2002:')) {
       const groups = v.split(':')
       const g1 = parseInt(groups[1] ?? '', 16)
@@ -111,8 +90,6 @@ export function isBlockedAddress(ip: string): boolean {
       v.startsWith('ff') ||
       v.startsWith('64:ff9b:') ||
       v.startsWith('2001:db8') ||
-      // Teredo tunnels carry an obfuscated client IPv4 address; treat the
-      // whole 2001:0000::/32 range as private.
       v === '2001::' ||
       v.startsWith('2001::') ||
       v.startsWith('2001:0:')
@@ -121,7 +98,6 @@ export function isBlockedAddress(ip: string): boolean {
   return false
 }
 
-/** Why a URL may not be used as an endpoint, or null if it may. Checked when it is saved. */
 export function endpointProblem(
   raw: string,
   allowPrivate: boolean,
@@ -152,7 +128,6 @@ export function endpointProblem(
   return null
 }
 
-/** Sends with the connection pinned to an address that was checked, so DNS cannot be flipped between check and use. */
 export class HttpTransport implements Transport {
   constructor(private readonly allowPrivate = false) {}
 
@@ -199,7 +174,6 @@ export class HttpTransport implements Transport {
             ...req.headers,
             'content-length': String(Buffer.byteLength(req.body)),
           },
-          // The pin: connect to the address we checked, whatever DNS says now.
           lookup: (_h, _o, cb) =>
             (cb as (e: null, a: string, f: number) => void)(
               null,
@@ -225,8 +199,6 @@ export class HttpTransport implements Transport {
   }
 }
 
-// ---------------------------------------------------------------------------
-
 export type Attempt = {
   number: number
   at: number
@@ -238,7 +210,6 @@ export type Attempt = {
 export type Delivery = {
   id: string
   hookId: string
-  /** Monotonic within the process, for stable pagination when ids share a millisecond. */
   sequence: number
   event: EventRecord
   state: 'pending' | 'succeeded' | 'failed'
@@ -251,7 +222,6 @@ export type Delivery = {
 export type Hook = {
   id: string
   repo: string
-  /** Stable id, so a reused repository name cannot deliver another repository's events. */
   repoId: string
   url: string
   description: string
@@ -281,10 +251,6 @@ export function sign(
 
 type MaybePromise<T> = T | Promise<T>
 
-/**
- * Webhooks, wherever they are kept: `WebhookService` in memory,
- * `ConvexHooks` (`stores/convex-hooks.ts`) in the database.
- */
 export interface HookPort {
   readonly allowPrivate: boolean
   list: (repo: string) => MaybePromise<Array<Hook>>
@@ -306,13 +272,11 @@ export interface HookPort {
   remove: (hook: Hook) => MaybePromise<void>
   rotate: (hook: Hook) => MaybePromise<string>
   getDelivery: (id: string) => MaybePromise<Delivery | null>
-  /** Newest first, below a sequence, at most `limit + 1` so a page knows there is more. */
   listDeliveries: (
     hook: Hook,
     q: { state?: Delivery['state']; before: number; limit: number },
   ) => MaybePromise<Array<Delivery>>
   ping: (hook: Hook) => MaybePromise<Delivery>
-  /** One event to one webhook, whatever it subscribes to: a landing's webhook step. */
   deliver: (hook: Hook, event: EventRecord) => MaybePromise<Delivery>
   redeliver: (hook: Hook, d: Delivery) => MaybePromise<Delivery>
   replay: (
@@ -322,11 +286,9 @@ export interface HookPort {
   ) => MaybePromise<{ count: number; last: number }>
   rename: (from: string, to: string) => void
   dropRepo: (repo: string) => void
-  /** Resolves once nothing is being sent. For tests. */
   idle: () => Promise<void>
 }
 
-/** The headers of one signed delivery. */
 export function deliveryHeaders(
   event: { id: string; type: string },
   delivery: string,
@@ -366,7 +328,6 @@ export class WebhookService implements HookPort {
       transport: Transport
       scheduler?: Scheduler
       now?: () => number
-      /** Tests and local development. Never in production. */
       allowPrivate?: boolean
     },
   ) {
@@ -389,8 +350,6 @@ export class WebhookService implements HookPort {
     this.off?.()
     for (const c of this.cancel.values()) c()
   }
-
-  // ----- endpoints ---------------------------------------------------------
 
   list(repo: string) {
     return [...(this.byRepo.get(repo) ?? [])]
@@ -455,7 +414,6 @@ export class WebhookService implements HookPort {
     if (patch.description !== undefined) hook.description = patch.description
     if (patch.active !== undefined) {
       hook.active = patch.active
-      // Turning it back on clears the reason it was turned off.
       if (patch.active) {
         hook.disabledReason = null
         hook.failures = 0
@@ -465,7 +423,6 @@ export class WebhookService implements HookPort {
     hook.version++
   }
 
-  /** A renamed repository keeps its webhooks. */
   rename(from: string, to: string) {
     const ids = this.byRepo.get(from)
     if (!ids) return
@@ -477,7 +434,6 @@ export class WebhookService implements HookPort {
     }
   }
 
-  /** A deleted repository takes its webhooks with it. */
   dropRepo(repo: string) {
     for (const id of Array.from(this.byRepo.get(repo) ?? [])) {
       const h = this.hooks.get(id)
@@ -496,7 +452,6 @@ export class WebhookService implements HookPort {
     }
   }
 
-  /** A new secret signs from now on; the old one keeps signing for a day so receivers can switch. */
   rotate(hook: Hook) {
     const t = this.now()
     for (const s of hook.secrets) s.expiresAt ??= t + SECRET_OVERLAP_MS
@@ -522,8 +477,6 @@ export class WebhookService implements HookPort {
       .filter((x) => (!q.state || x.state === q.state) && x.sequence < q.before)
       .slice(0, q.limit + 1)
   }
-
-  // ----- delivering --------------------------------------------------------
 
   private onEvent(e: EventRecord) {
     if (!e.repo || !e.repo_id) return
@@ -560,7 +513,6 @@ export class WebhookService implements HookPort {
     if (hook.deliveries.length > MAX_DELIVERIES_PER_HOOK)
       for (const old of hook.deliveries.splice(MAX_DELIVERIES_PER_HOOK)) {
         this.deliveries.delete(old.id)
-        // Stop a retry that would otherwise outlive the delivery it belongs to.
         this.cancel.get(old.id)?.()
         this.cancel.delete(old.id)
         old.state = 'failed'
@@ -603,7 +555,6 @@ export class WebhookService implements HookPort {
     return this.enqueue(hook, event, null)
   }
 
-  /** Re-send every matching event after a sequence, for a receiver that was down. */
   replay(hook: Hook, after: number, limit: number) {
     const { events, scannedTo } = this.o.events.since(
       after,
@@ -611,8 +562,6 @@ export class WebhookService implements HookPort {
       (e) => e.repoId === hook.repoId && matchesType(hook.events, e.type),
     )
     for (const e of events) this.enqueue(hook, parseEvent(e), null)
-    // Report how far the scan got, so a page with no matching events still
-    // advances the caller instead of replaying the same window forever.
     return { count: events.length, last: scannedTo }
   }
 
@@ -633,7 +582,6 @@ export class WebhookService implements HookPort {
   private async attempt(hook: Hook, d: Delivery) {
     this.cancel.delete(d.id)
     if (!this.hooks.has(hook.id)) return
-    // An evicted delivery must not keep sending or count failures.
     if (this.deliveries.get(d.id) !== d) return
     if (!hook.active && d.event.type !== 'webhook.ping') {
       d.state = 'failed'
@@ -665,8 +613,6 @@ export class WebhookService implements HookPort {
       'cb-event': d.event.type,
     }
     await this.slot()
-    // The delivery may have been evicted, or the endpoint deleted, while it
-    // waited for a slot.
     if (!this.hooks.has(hook.id) || this.deliveries.get(d.id) !== d) {
       this.release()
       return
@@ -681,8 +627,6 @@ export class WebhookService implements HookPort {
         timeoutMs: TIMEOUT_MS,
       })
     } catch (e) {
-      // A transport that rejects is a failed attempt, not a delivery that
-      // stays pending forever and not an unhandled rejection.
       result = {
         status: null,
         error:
@@ -692,7 +636,6 @@ export class WebhookService implements HookPort {
     } finally {
       this.release()
     }
-    // Evicted during the send: do not count the result on a record no one keeps.
     if (this.deliveries.get(d.id) !== d) return
     const attempt: Attempt = {
       number: d.attempts.length + 1,
@@ -708,7 +651,6 @@ export class WebhookService implements HookPort {
       hook.failures = 0
       return
     }
-    // 410 Gone is the receiver saying it no longer wants these.
     if (result.status === 410)
       return this.fail(hook, d, 'The endpoint answered 410 Gone.')
     if (d.attempts.length >= MAX_ATTEMPTS) return this.fail(hook, d, null)
@@ -748,7 +690,6 @@ export class WebhookService implements HookPort {
     }
   }
 
-  /** For tests: wait until nothing is being sent. */
   async idle() {
     for (let i = 0; i < 50 && (this.inFlight > 0 || this.queue.length > 0); i++)
       await new Promise((r) => setTimeout(r, 2))

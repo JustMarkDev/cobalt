@@ -6,7 +6,6 @@ import type { ActorRef } from './events'
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/** Where answers link to. */
 export function urls() {
   const html = (env.SITE_URL ?? 'https://cobaltforge.dev').replace(/\/$/, '')
   return {
@@ -61,7 +60,6 @@ export async function presentAccount(
   }
 }
 
-/** Stars given in the day before `at`. */
 export async function starsToday(ctx: QueryCtx, r: Doc<'repos'>, at: number) {
   const recent = await ctx.db
     .query('stars')

@@ -73,7 +73,6 @@ describe('labels', () => {
     })
     expect(r.status).toBe(403)
     expect(r.json.code).toBe('forbidden')
-    // Reading is open to anyone who can read the repository.
     expect((await h.call('GET', `${R}/labels`, stranger)).status).toBe(200)
   })
 })
@@ -133,7 +132,6 @@ describe('issue comments', () => {
       ...stranger,
       body: { body: 'Me too' },
     })
-    // dana can change the repository, so she can delete someone else's.
     expect(
       (await h.call('DELETE', `${R}/issues/comments/${mine.json.id}`)).status,
     ).toBe(204)

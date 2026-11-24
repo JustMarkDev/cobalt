@@ -1,29 +1,8 @@
 import { findQuote, mapLines, splitLines } from './lines'
 
-/**
- * Comments that follow the code they are about.
- *
- * A comment on a line keeps what it was about: the quoted text and three
- * lines on each side (its anchor). When a patch set arrives, each thread is
- * placed in it:
- *
- *  1. the line is mapped through the diff between the patch set the thread
- *     was last placed in and the new one;
- *  2. if the text there no longer matches the quote, the new file is searched
- *     for the quote and the lines around it, and the nearest match wins;
- *  3. if nothing matches, the thread is outdated in that patch set.
- *
- * `line` keeps its meaning: the line in the patch set the comment was
- * written on. A change has tens of comments, so this runs in the same
- * transaction as the patch set.
- *
- * Plain JavaScript with no dependencies: the Convex functions import it too.
- */
-
 export const CONTEXT_LINES = 3
 
 export type Anchor = {
-  /** The commented text, one entry per line. */
   quote: Array<string>
   before: Array<string>
   after: Array<string>
@@ -43,10 +22,6 @@ type CommentLike = {
 
 type PatchSetLike = { n: number; contents?: Record<string, string | null> }
 
-/**
- * The anchor for a comment on `line` of `text`. A `quote` the commenter sent
- * names the text; without one the line itself is the quote.
- */
 export function anchorAt(
   text: string | null | undefined,
   line: number,
@@ -64,11 +39,6 @@ export function anchorAt(
   }
 }
 
-/**
- * Where a thread's start was last seen before patch set `n`: the patch set
- * and line, and whether that line can be mapped forward (it cannot when the
- * thread was outdated there; its quote is searched for instead).
- */
 function lastPlaced(
   c: CommentLike & { line: number },
   n: number,
@@ -86,11 +56,6 @@ function lastPlaced(
   return out
 }
 
-/**
- * Places every thread that starts on a line in patch set `ps`. Answers how
- * many placements changed. Threads written on `ps` itself, and patch sets
- * that came without their files, are left alone.
- */
 export function placeThreads(
   comments: Array<CommentLike>,
   patchSets: ReadonlyArray<PatchSetLike>,
@@ -134,11 +99,6 @@ function place(
   return found === null ? 'outdated' : { line: found }
 }
 
-/**
- * Where a comment is at the head patch set: its line there, or that its code
- * is gone. A reply is wherever its thread is. Unknown (a patch set without
- * its files) reads as the last place it was seen.
- */
 export function currentPosition(
   c: CommentLike,
   root: CommentLike | undefined,
@@ -167,7 +127,6 @@ export function currentPosition(
   return { current_line: line, outdated }
 }
 
-/** An anchor as the API shows it. */
 export function presentAnchor(a: Anchor) {
   return {
     quote: a.quote.join('\n'),
@@ -176,8 +135,6 @@ export function presentAnchor(a: Anchor) {
     side: a.side,
   }
 }
-
-// ---- fixes that answer comments ---------------------------------------------
 
 export type Addressed = {
   patchSet: number
@@ -194,12 +151,6 @@ type Fail = (
   },
 ) => never
 
-/**
- * Marks threads as answered by patch set `patchSet`. Each must start a thread
- * on this change and be older than the fix. Marking does not resolve: the
- * thread stays open until someone settles it. Answers who to tell. With
- * `apply` false it only checks.
- */
 export function addressThreads(
   comments: Array<
     CommentLike & {

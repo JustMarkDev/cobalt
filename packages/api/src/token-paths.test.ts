@@ -3,12 +3,6 @@ import { principalOf } from './auth'
 import { outsidePaths } from './paths'
 import { harness } from './testing'
 
-/**
- * A token can name paths inside its one repository: a token for `docs/**`
- * changes nothing else, through the API, cb and MCP. A direct `git push`
- * does not carry a token, so the `allowed-paths` rule covers that path.
- */
-
 const R = '/repos/dana/gitfs'
 
 async function pathToken(h: ReturnType<typeof harness>, paths: Array<string>) {
@@ -42,7 +36,6 @@ describe('tokens with paths', () => {
     const listed = (await h.call('GET', '/tokens')).json.data
     expect(listed.find((t: any) => t.id === docs.id).paths).toEqual(['docs/**'])
     expect(listed.every((t: any) => 'paths' in t)).toBe(true)
-    // An older token has none.
     expect(
       listed.filter((t: any) => t.id !== docs.id && t.id !== src.id)[0].paths,
     ).toBeNull()
@@ -75,7 +68,6 @@ describe('tokens with paths', () => {
   test('a change inside the paths is made; one outside is refused', async () => {
     const h = harness()
     const src = await pathToken(h, ['src/**'])
-    // A new change from a branch touches src/<branch>.rs in the sample store.
     const ok = await h.call('POST', `${R}/changes`, {
       token: src.secret,
       body: { branch: 'inside-paths' },
@@ -90,7 +82,6 @@ describe('tokens with paths', () => {
     expect(no.json.code).toBe('forbidden')
     expect(no.json.detail).toContain('src/outside_paths.rs')
     expect(no.json.hint).toContain('src/outside_paths.rs')
-    // Nothing was made.
     const list = (await h.call('GET', `${R}/changes?limit=50&state=all`)).json
     expect(
       list.data.some((c: any) => c.title === 'Changes from outside-paths'),
@@ -99,7 +90,6 @@ describe('tokens with paths', () => {
 
   test('editing a file outside is refused, and so is deleting one', async () => {
     const h = harness()
-    // #216 holds src/refs.rs and tests/refs_test.rs.
     const both = await pathToken(h, ['src/**', 'tests/**'])
     const src = await pathToken(h, ['src/**'])
     const edit = (token: string, files: Record<string, string | null>) =>
@@ -110,7 +100,6 @@ describe('tokens with paths', () => {
     expect(
       (await edit(both.secret, { 'src/refs.rs': 'pub struct Refs;\n' })).status,
     ).toBe(201)
-    // The change also holds tests/: a token for src/** alone may not write it.
     const outside = await edit(src.secret, { 'src/refs.rs': 'x\n' })
     expect(outside.status).toBe(403)
     expect(outside.json.detail).toContain('tests/refs_test.rs')
@@ -161,12 +150,10 @@ describe('the allowed-paths rule', () => {
       },
     })
     expect([201, 202]).toContain(made.status)
-    // #216 touches src/refs.rs and tests/refs_test.rs.
     const p = (await h.call('GET', `${R}/changes/216/policy`)).json
     const req = p.requirements.find((r: any) => r.id === 'allowed-paths')
     expect(req.state).toBe('fail')
     expect(req.detail).toContain('tests/refs_test.rs')
-    // A change from a branch touches only src/ in the sample store.
     const c = (
       await h.call('POST', `${R}/changes`, { body: { branch: 'only-src' } })
     ).json

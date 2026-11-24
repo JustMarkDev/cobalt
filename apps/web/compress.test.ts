@@ -159,7 +159,6 @@ describe('serveBuilt', () => {
     expect(plain.headers.get('content-encoding')).toBeNull()
     expect(plain.headers.get('vary')).toBe('Accept-Encoding')
     expect(await plain.text()).toBe(big)
-    // A copy only brotli made smaller still varies on the encoding.
     const brOnly = pick('gzip, br', new Set([path, `${path}.br`]))
     expect(brOnly.headers.get('content-encoding')).toBe('br')
     expect(brOnly.headers.get('vary')).toBe('Accept-Encoding')

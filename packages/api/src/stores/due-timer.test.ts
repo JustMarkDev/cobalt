@@ -8,7 +8,6 @@ import {
   followDeliveries,
 } from './convex-hooks'
 
-/** A clock and timers that move only when told to. */
 function fakeTime() {
   let t = 1_000_000
   const timers: Array<{ at: number; fn: () => void; live: boolean }> = []
@@ -19,7 +18,6 @@ function fakeTime() {
       timers.push(timer)
       return () => (timer.live = false)
     },
-    /** The time the one live timer fires at, or null. */
     next() {
       const live = timers.filter((x) => x.live)
       expect(live.length).toBeLessThanOrEqual(1)
@@ -32,7 +30,6 @@ function fakeTime() {
           x.live = false
           x.fn()
         }
-      // Let the send and what follows it settle.
       for (let i = 0; i < 5; i++) await Promise.resolve()
     },
   }
@@ -93,7 +90,6 @@ describe('dueTimer', () => {
     await time.advance(0)
     expect(sends).toBe(1)
     expect(time.next()).toBe(time.now() + DUE_RECHECK_MS)
-    // The send settled it: Convex answers with the next one.
     due.update(time.now() + 120_000)
     expect(time.next()).toBe(time.now() + 120_000)
   })
@@ -109,11 +105,9 @@ describe('dueTimer', () => {
     await time.advance(0)
     await time.advance(DUE_RECHECK_MS)
     expect(sends).toBe(2)
-    // Then it backs off: 2 s, 4 s, … up to a minute, not a call a second.
     expect(time.next()).toBe(time.now() + 2 * DUE_RECHECK_MS)
     for (let i = 0; i < 10; i++) await time.advance(DUE_RECHECK_MAX_MS)
     expect(time.next()).toBe(time.now() + DUE_RECHECK_MAX_MS)
-    // A new answer starts over at a second.
     due.update(time.now())
     await time.advance(0)
     expect(time.next()).toBe(time.now() + DUE_RECHECK_MS)
@@ -143,8 +137,6 @@ describe('followDeliveries', () => {
         },
       },
     )
-    // Until the first answer it asks, as servers did before: a subscription
-    // that never connects must not stop deliveries.
     expect(f.polling).toBe(true)
     expect(intervals.filter((i) => i.live)).toEqual([
       { ms: DUE_POLL_MS, live: true },
@@ -154,7 +146,6 @@ describe('followDeliveries', () => {
     expect(intervals.filter((i) => i.live)).toEqual([])
     fail()
     fail()
-    // One fallback, not one per error, and no due timer meanwhile.
     expect(intervals.filter((i) => i.live)).toEqual([
       { ms: DUE_POLL_MS, live: true },
     ])

@@ -1,14 +1,8 @@
-/**
- * The sample repositories' releases: what the Releases tab, the download
- * button and the about panel show. Sizes are bytes, dates are UTC midnight.
- */
 import type { ReleaseRec } from './domain/records'
 
 type Seed = Omit<ReleaseRec, 'id' | 'author' | 'version'>
 
-/** The usual five builds of a release; nightlies skip Windows and arm64 Linux. */
 const builds: Array<[string, string, string, number, number]> = [
-  // platform, arch, file suffix, MB, share of the release's downloads
   ['macos', 'arm64', 'aarch64-apple-darwin.dmg', 14.2, 0.46],
   ['macos', 'x64', 'x86_64-apple-darwin.dmg', 15.1, 0.12],
   ['windows', 'x64', 'x86_64-windows.msi', 16.8, 0.17],
@@ -16,7 +10,6 @@ const builds: Array<[string, string, string, number, number]> = [
   ['linux', 'arm64', 'aarch64-linux.tar.gz', 12.4, 0.06],
 ]
 
-/** A made-up but stable checksum per build. */
 const sha = (name: string, n: number) =>
   Array.from({ length: 64 }, (_, i) =>
     ((i * 7 + n * 13 + name.length * 5) % 16).toString(16),

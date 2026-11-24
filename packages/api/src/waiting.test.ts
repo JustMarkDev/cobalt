@@ -11,16 +11,9 @@ import {
 import { sampleTokens } from './sample'
 import { clock, harness } from './testing'
 
-/**
- * A run can pause for a person or an outside agent and resume with how the
- * step ended. cobalt starts no agent: it records the wait, tells whom
- * it waits on, and fails the run when nobody answers in time.
- */
-
 const R = '/repos/dana/gitfs'
 const DAY = 86_400_000
 
-/** A run of `build`, its first job claimed and its first step running. */
 async function running(h: ReturnType<typeof harness>) {
   const run = (
     await h.call('POST', `${R}/pipelines`, { body: { workflow: 'build' } })
@@ -89,7 +82,6 @@ describe('the moves', () => {
     expect(resumeStep(run(), 1, 1, 'success', 5)?.refusal).toContain(
       'only a waiting step',
     )
-    // A wait replaced by another is not ended by the first one's timer.
     expect(expireWait(r, 1, 1, 9, 20)).toBe(false)
     expect(resumeStep(r, 1, 1, 'success', 5)).toBeNull()
     expect(r.status).toBe('running')
@@ -119,7 +111,6 @@ describe('waiting and resuming', () => {
     })
     expect(Date.parse(j.wait.expires_at) - h.now()).toBe(7 * DAY)
     expect(j.steps[0].wait.target).toBe('hollis')
-    // A runner cannot report a waiting step; it resumes.
     expect(
       (await h.call('POST', step, { body: { status: 'success' } })).status,
     ).toBe(409)
@@ -135,7 +126,6 @@ describe('waiting and resuming', () => {
     })
     const log = (await h.call('GET', `${step}/log`)).json
     expect(JSON.stringify(log)).toContain('docs updated')
-    // The next step is reported as before.
     const next = await h.call(
       'POST',
       `${R}/pipelines/${run}/jobs/${job}/steps/2`,
@@ -175,14 +165,12 @@ describe('waiting and resuming', () => {
       },
     })
     now.advance(DAY + 60_000)
-    // Something is written, so the timer that came due has run.
     await h.call('POST', `${R}/pipelines/claim`, { body: { runner: 'r9' } })
     const after = (await h.call('GET', `${R}/pipelines/${run}`)).json
     expect(after.status).toBe('failure')
     expect(after.finished_at).not.toBeNull()
     expect(after.jobs[job - 1].steps[0].status).toBe('failure')
     expect(after.annotations.at(-1).text).toContain('Sign off the migration')
-    // Too late to resume.
     expect(
       (await h.call('POST', `${step}/resume`, { body: { status: 'success' } }))
         .status,
@@ -247,7 +235,6 @@ describe('waiting and resuming', () => {
     await h.call('POST', `${step}/wait`, {
       body: { kind: 'person', reason: 'Look at this', target: 'hollis' },
     })
-    // Anyone who can read the repository sees what it waits for.
     const seen = await h.call('GET', `${R}/pipelines/${run}`, { token: null })
     expect(seen.status).toBe(200)
     expect(seen.json.status).toBe('waiting')
@@ -259,7 +246,6 @@ describe('waiting and resuming', () => {
         })
       ).status,
     ).toBe(403)
-    // Nor a token that holds no repo:write, even a collaborator's.
     expect(
       (
         await h.call('POST', `${step}/resume`, {
@@ -296,7 +282,6 @@ describe('waiting and resuming', () => {
       action: 'resume',
       subject: { type: 'run', number: run },
     })
-    // Not on dana's: it does not wait on her.
     const hers = (await h.call('GET', '/inbox')).json
     expect(
       hers.items.some(

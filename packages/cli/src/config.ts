@@ -3,10 +3,8 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { CbError, exit } from './output'
 
-/** Every key cb reads, with its default. Documented in docs/cli/config. */
 export const defaults = {
   host: 'https://cobaltforge.dev',
-  /** The API to talk to. Empty runs the preview's sample data in this process. */
   api: '',
   account: '',
   output: 'auto',
@@ -51,7 +49,6 @@ export function writeConfig(next: Partial<Record<Key, string>>) {
   writeFileSync(p, JSON.stringify(next, null, 2) + '\n')
 }
 
-/** Environment beats the file, the file beats the default. `CB_HOST`, `CB_HANDOFF_TO`, … */
 export function resolve(key: Key): { value: string; from: string } {
   const env = process.env[`CB_${key.toUpperCase().replace('.', '_')}`]
   if (env) return { value: env, from: 'env' }

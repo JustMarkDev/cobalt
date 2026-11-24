@@ -59,7 +59,6 @@ describe('profiles', () => {
     expect(seen.contributions.by_day).toEqual([])
     expect(seen.activity_hidden).toBe(true)
     expect(seen.agent_share).toBeNull()
-    // They still see their own.
     const own = (await h.call('GET', '/accounts/hollis/profile', hollis)).json
     expect(own.activity_hidden).toBe(false)
   })

@@ -5,12 +5,6 @@ import { system } from '../lib/actor'
 import { out } from '../lib/errors'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * The OAuth server's memory between requests (`packages/api/src/oauth.ts`).
- * Only the API server calls these. `use` is one transaction, so of two
- * requests redeeming the same code at once exactly one sees it unused.
- */
-
 const entry = (ctx: QueryCtx, kind: string, key: string) =>
   ctx.db
     .query('oauthState')
@@ -74,10 +68,6 @@ export const use = mutation({
   },
 })
 
-/**
- * Replaces an entry only while its `field` is still `from`, in one step: of
- * two writes racing to move it on, exactly one does. Answers whether it did.
- */
 export const swap = mutation({
   args: {
     kind: v.string(),
@@ -115,7 +105,6 @@ export const count = query({
   },
 })
 
-/** Forgets what expired, a batch at a time. */
 export const sweep = internalMutation({
   args: {},
   returns: v.null(),

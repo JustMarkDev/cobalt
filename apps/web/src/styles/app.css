@@ -29,14 +29,6 @@
     background: var(--brand);
     color: var(--brand-foreground);
   }
-  /*
-   * One focus mark for everything that takes focus, so a keyboard user never
-   * loses their place: an outline, never a box-shadow ring, so it can't erase
-   * a control's elevation. :where keeps it at zero specificity; components
-   * that set outline-none use the focus-ring utility, which wins over it.
-   * The one exception is the command palette's field: it is focused as the
-   * palette opens, and its caret and highlighted row mark the place.
-   */
   :where(
     a,
     button,
@@ -52,36 +44,20 @@
     outline: 2px solid var(--ring);
     outline-offset: var(--focus-offset, 2px);
   }
-  /*
-   * A control that is a direct child of an overflow-hidden container is flush
-   * with its clip, so its outward outline would be cut off: draw it inside.
-   * Rows nested deeper say so themselves with focus-ring-inset or row-link;
-   * padded controls keep the normal outline.
-   * It sets the offset variable rather than the offset, so focus-ring (which
-   * reads the same variable) can't win it back.
-   */
   :where(
     .overflow-hidden > :where(a, button, summary, input, textarea, select)
   ) {
     --focus-offset: -2px;
   }
-  /*
-   * The first and last rows of a clipped list follow its corners (the
-   * panel's radius minus its border), so a hover tint or an inset focus
-   * outline bends with the panel instead of being cut off mid-curve.
-   */
   .overflow-hidden.rounded-2xl {
     --flush-r: calc(var(--radius-2xl) - 1px);
   }
   .overflow-hidden.rounded-xl {
     --flush-r: calc(var(--radius-xl) - 1px);
   }
-  /* A clip without a radius stops an outer panel's radius from leaking in. */
   .overflow-hidden:not(.rounded-2xl, .rounded-xl) {
     --flush-r: 0px;
   }
-  /* Only a list that meets the clip's edge: the clip itself, or its first or
-     last child. A list under a header keeps square top corners. */
   :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:first-child)
     > :first-child,
   :where(.overflow-hidden.divide-y, .overflow-hidden > .divide-y:first-child)
@@ -104,13 +80,6 @@
     border-bottom-left-radius: var(--flush-r, 0);
     border-bottom-right-radius: var(--flush-r, 0);
   }
-  /*
-   * Checkboxes are drawn by the system too: a small recessed box on the xs
-   * radius that fills with the brand key and a check when on. The check is
-   * an SVG, so it can't read a variable: %23ffffff is --brand-foreground
-   * (white), the same in both themes. Change both
-   * together.
-   */
   input[type='checkbox'] {
     appearance: none;
     flex-shrink: 0;
@@ -150,7 +119,6 @@
     cursor: default;
     opacity: 0.6;
   }
-  /* A radio is the round sibling: a recessed well that holds a brand key. */
   input[type='radio'] {
     appearance: none;
     flex-shrink: 0;
@@ -179,7 +147,6 @@
       inset 0 1px 0 var(--edge),
       inset 0 -1px 0 var(--bevel);
   }
-  /* A range is a recessed track with a raised thumb, like a trough. */
   input[type='range'] {
     appearance: none;
     height: 1.25rem;
@@ -189,7 +156,6 @@
   input[type='range']::-webkit-slider-runnable-track {
     height: 6px;
     border-radius: 9999px;
-    /* --range-fill is the value as a percentage, set where the range is used. */
     background: linear-gradient(
       to right,
       var(--brand) var(--range-fill, 0%),
@@ -200,7 +166,6 @@
   input[type='range']::-moz-range-track {
     height: 6px;
     border-radius: 9999px;
-    /* --range-fill is the value as a percentage, set where the range is used. */
     background: linear-gradient(
       to right,
       var(--brand) var(--range-fill, 0%),
@@ -230,13 +195,10 @@
       inset 0 1px 0 var(--edge),
       var(--thumb);
   }
-  /* Forced colours drop our fills and keep the hard-coded check: hand the
-     controls back to the system so checked stays visible. */
   @media (forced-colors: active) {
     input[type='checkbox'],
     input[type='radio'],
     input[type='range'] {
-      /* Important: the :checked and :hover rules are more specific. */
       appearance: auto !important;
       border: revert !important;
       border-radius: revert !important;
@@ -246,16 +208,9 @@
   }
 }
 
-/*
- * The header's progressive blur. Stacked layers each blur more and are masked
- * to a shorter band, so the page fades into the bar with no edge. It shows
- * once the page scrolls; an open menu gets a solid panel instead.
- */
 .progressive-blur {
   position: absolute;
   inset: 0 0 auto;
-  /* The bar plus a fade below it, so a taller header (the phone's second row
-     of tabs) is covered just as well. */
   height: calc(100% + 80px);
   pointer-events: none;
   opacity: 0;
@@ -274,8 +229,6 @@ header[data-open] {
   content: '';
   position: absolute;
   inset: 0;
-  /* Solid behind the whole bar (both rows on a phone), then a fade over the
-     80px below it. */
   background: linear-gradient(
     var(--background) 0,
     var(--background) calc(100% - 80px),
@@ -287,8 +240,6 @@ header[data-open] {
 .progressive-blur > i {
   position: absolute;
   inset: 0;
-  /* Unprefixed only: the build adds the -webkit- form where needed, and
-     writing both lets the minifier keep just the prefixed one. */
   backdrop-filter: blur(var(--b));
   mask-image: linear-gradient(#000 0%, #000 var(--s), transparent var(--e));
 }
@@ -328,12 +279,6 @@ header[data-open] {
   }
 }
 
-/*
- * Clearance for the site header: its bar plus the 80px progressive-blur fade
- * below it (one row on desktop, two on a phone). Anchored sections scroll to
- * just below it, and sticky side columns stick below it, so neither sits in
- * the blur.
- */
 @utility scroll-mt-header {
   scroll-margin-top: 13rem;
   @media (width >= 48rem) {
@@ -344,7 +289,6 @@ header[data-open] {
   top: 9rem;
 }
 
-/* The first thing a keyboard user can reach: jump past the header to the page. */
 @utility skip-link {
   position: fixed;
   top: 0.75rem;
@@ -362,25 +306,6 @@ header[data-open] {
   }
 }
 
-/*
- * Shape rule used everywhere: controls 12px (rounded-lg), menus and popovers
- * 17.2px (rounded-xl) and blocks inside a panel too, panels rounded-2xl, badges,
- * small chips and tips rounded-sm. Anything nested is
- * concentric when it sits close: inner radius = outer radius - the gap. With a
- * wide gap (a p-6 dialog around inputs) the inner shape keeps its own radius.
- * A trough is a control, so it shares the 12px of the buttons beside it, and
- * the thumb inside it is 12px - 4px = 8px. Never put a plain ring-* on an
- * elevated surface: rings are box-shadows and the elevation erases them. Use
- * an outline.
- * One accent (brand, cobalt #2e5bff) used sparingly: the primary action, the
- * current item and the charts. Everything else is ink on paper.
- * Semantic colours (success, warning, info, danger, merged) flip per theme so
- * components never need dark: variants.
- */
-/*
- * Registered so it computes to a px length: the sliding pill reads it from
- * JavaScript (see Pill in components/motion.tsx).
- */
 @property --radius-thumb {
   syntax: '<length>';
   inherits: true;
@@ -432,9 +357,6 @@ header[data-open] {
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  /* The steps by role: xs keys and logos, lg controls, xl menus (radius plus
-     the p-1 gap and the popup's 1px border around their rounded-lg items, so
-     the two stay concentric at any root size), 2xl panels. */
   --radius-xs: calc(var(--radius) - 7px);
   --radius-xl: calc(var(--radius) + 0.25rem + 1px);
   --radius-2xl: calc(var(--radius) * 1.8);
@@ -443,7 +365,6 @@ header[data-open] {
 }
 
 :root {
-  /* Light: cool paper and deep ink, with the same cobalt key as dark. */
   --background: #f6f7fb;
   --foreground: #03050c;
   --card: #ffffff;
@@ -461,23 +382,13 @@ header[data-open] {
   --destructive: #d42a2a;
   --border: #dde1ea;
   --input: #d3d8e3;
-  /* The edge of a small control that is nothing but its edge (checkbox,
-     radio, range thumb): 3:1 against the card, as WCAG 1.4.11 asks. */
   --control-border: #8a90a1;
   --ring: #2e5bff;
-  /*
-   * Chart series, in this order and never cycled: cobalt (the brand's hue),
-   * teal, amber, magenta; --chart-5 is "Other". Amber is under 3:1 on light,
-   * so charts always print their values.
-   */
   --chart-1: #2e5bff;
   --chart-2: #0f9fae;
   --chart-3: #d98a00;
   --chart-4: #c03fd8;
   --chart-5: #a3a9b8;
-  /* px, not rem: nested radii subtract px insets, and the sliding thumb needs a
-     number for Motion to keep its corners round while it moves. So radii
-     don't grow with a text-only zoom; browser zoom scales them as usual. */
   --radius: 12px;
   --trough-inset: 4px;
   --radius-thumb: calc(var(--radius) - var(--trough-inset));
@@ -494,7 +405,6 @@ header[data-open] {
   --brand-foreground: #ffffff;
   --brand-ink: #2347d9;
   --brand-glow: rgb(46 91 255 / 28%);
-  /* Dark enough to read at 4.5:1 on their own 12% tint (badges). */
   --success: #0e6c3b;
   --warning: #8a5200;
   --info: #2347d9;
@@ -504,7 +414,6 @@ header[data-open] {
 }
 
 .dark {
-  /* Dark first: near-black blue, cool white ink, one cobalt key. */
   --background: #03050c;
   --foreground: #f4f5f8;
   --card: #0b0e17;
@@ -550,29 +459,9 @@ header[data-open] {
   --pop: var(--brand);
 }
 
-/*
- * Tactile surfaces: one elevation scale, lit from above.
- *
- *   well     pressed into the page: troughs, inputs, switches, and recessed
- *            content blocks inside a panel (code, hints, readouts), rounded-xl
- *   surface  a panel resting on the page: a contact shadow and a soft spread
- *   raised   a control you press, like a key: top highlight, bottom bevel,
- *            a tight shadow; it sinks into a well when pressed
- *   thumb    the selected segment sitting in a trough, crisper than a panel
- *   floating menus, popovers and dialogs that hover above everything;
- *            tooltips use the small step, `tip`
- *
- * Height sets the blur: a surface casts a soft shadow and a floating layer a
- * longer one, while raised and thumb stay tight because they sit on a panel,
- * not above the page. So depth says what you can press and what is on top. Dark mode keeps the same steps but
- * leans on the top edge, since shadows read less on a dark page.
- */
 :root {
   --edge: oklch(1 0 0 / 80%);
-  /* A thumb is a key sitting in a trough, so it is lighter than the trough in
-     both themes: the card in light, a raised grey in dark. */
   --thumb-bg: var(--card);
-  /* The inverted tooltip's edge: dim white on its near-black chip. */
   --tip-edge: oklch(1 0 0 / 12%);
   --bevel: oklch(0.2 0.02 265 / 5%);
   --well:
@@ -601,7 +490,6 @@ header[data-open] {
 .dark {
   --edge: oklch(1 0 0 / 7%);
   --thumb-bg: var(--accent);
-  /* In dark the tooltip chip is near-white: a soft dark edge instead. */
   --tip-edge: oklch(0 0 0 / 8%);
   --bevel: oklch(0 0 0 / 25%);
   --well:
@@ -623,8 +511,6 @@ header[data-open] {
     inset 0 1px 0 var(--edge),
     inset 0 -1px 0 var(--bevel),
     var(--lift);
-  /* The whole press eases: colour, shadow, the 1px sink and the brand
-     hover's brightness. Owns the transition, so don't add transition-*. */
   transition-property:
     color, background-color, border-color, box-shadow, transform, filter;
   transition-duration: 120ms;
@@ -634,11 +520,6 @@ header[data-open] {
   }
 }
 
-/*
- * The brand key: a raised control in cobalt glass. A lighter top half reads as
- * light falling on it, and a soft glow of its own colour lifts it off the page.
- * Owns its fill, shadow and press, like raised.
- */
 @utility key-brand {
   background-image: linear-gradient(
     180deg,
@@ -664,12 +545,6 @@ header[data-open] {
   }
 }
 
-/*
- * For a surface whose children are opaque and flush with its top (a grid of
- * cells, a sticky table column, a code viewer): the inset top edge is painted
- * under them, so draw it again above. The ::after is out of flow, so it never
- * takes a grid cell, and it does not take clicks.
- */
 @utility lit-edge {
   position: relative;
   &::after {
@@ -692,10 +567,6 @@ header[data-open] {
     var(--rest);
 }
 
-/* Owns its radius and fill: pair it with no bg-* and no rounded-* other than
-   rounded-(--radius-thumb), or the dark-mode fill and the concentric 8px are
-   silently lost. Its shadow reaches 4px down, the trough's inset, so a
-   trough that scrolls (and clips) never cuts it. */
 @utility thumb {
   border-radius: var(--radius-thumb);
   background-color: var(--thumb-bg);
@@ -704,10 +575,6 @@ header[data-open] {
     var(--thumb);
 }
 
-/*
- * Keyboard focus as an outline, never a ring: a ring is a box-shadow and would
- * replace the elevation of the control it marks. Beats outline-none.
- */
 @utility focus-ring {
   &:focus-visible {
     outline: 2px solid var(--ring);
@@ -715,33 +582,23 @@ header[data-open] {
   }
 }
 
-/* The same outline drawn inside: for a control that fills its container (a
-   chart plot, an input's trailing button, the palette's input), where an
-   outward outline would cross the container's edge. */
 @utility focus-ring-inset {
   &:focus-visible {
-    /* --focus-color lets a control on a brand fill keep it visible. */
     outline: 2px solid var(--focus-color, var(--ring));
     outline-offset: -2px;
   }
-  /* The current item's sliding pill is painted over its own outline: draw the
-     ring on the pill instead, so the current tab shows focus too. */
   &:focus-visible > .thumb {
     outline: 2px solid var(--focus-color, var(--ring));
     outline-offset: -2px;
   }
 }
 
-/* Small overlays (chart tips): the small floating step with the usual top
-   edge. */
 @utility tip {
   box-shadow:
     inset 0 1px 0 var(--edge),
     var(--float-sm);
 }
 
-/* The inverted tooltip (bg-foreground) gets a dim edge of its own: --edge is
-   80% white in light mode and would glare on a near-black chip. */
 @utility tip-inverse {
   box-shadow:
     inset 0 1px 0 var(--tip-edge),
@@ -754,11 +611,6 @@ header[data-open] {
     var(--float);
 }
 
-/*
- * A link that makes its whole row clickable (a list row in a clipped panel).
- * Its ::before covers the row, so focus is drawn there, inset, instead of
- * around the title alone. The row needs `relative`.
- */
 @utility row-link {
   &::before {
     content: '';
@@ -774,18 +626,8 @@ header[data-open] {
   }
 }
 
-/*
- * Its padding, gap and radius are the concentric maths: don't add p-*, gap-*
- * or rounded-* next to it (custom utilities come before core ones, so those
- * would silently win).
- * A recessed track for tabs and segmented controls; the selected child is a
- * thumb. Give it h-9 so it lines up with the h-9 buttons beside it, or h-8
- * in a compact text-xs row next to h-8 controls.
- */
 @utility trough {
   gap: 2px;
-  /* A tab strip that scrolls keeps its height: a classic scrollbar would eat
-     into the h-9 and clip the thumb. It still scrolls by touch, wheel and keys. */
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
@@ -796,16 +638,6 @@ header[data-open] {
   box-shadow: var(--well);
 }
 
-/*
- * The scrolling part of a trough that can overflow: it sits inside the
- * trough's padding, so the trough keeps drawing the whole track (fill, well,
- * rounded ends) while only the tabs move. With the scrollbar gone, the tabs
- * fade out at the side that has more, so the strip reads as cut off rather
- * than finished. The scroll timeline is inactive while nothing overflows,
- * which leaves no fade. Only where scroll timelines exist: elsewhere the
- * zero-length animation would finish at once and pin its last keyframe, so
- * those browsers get no mask at all.
- */
 @utility trough-scroll {
   display: flex;
   flex: 1 1 auto;
@@ -816,10 +648,7 @@ header[data-open] {
   &::-webkit-scrollbar {
     display: none;
   }
-  /* Its clip edge is concentric with the track, like the thumb. */
   border-radius: var(--radius-thumb);
-  /* A tab focused from the keyboard scrolls clear of the fade, so its
-     outline is never dimmed and the far side keeps its cue. */
   scroll-padding-inline: 2.5rem;
   @supports (animation-timeline: scroll()) {
     --fade-l: 0px;
@@ -862,12 +691,6 @@ header[data-open] {
   }
 }
 
-/*
- * Overlays. Base UI sets data-starting-style while a popup opens and
- * data-ending-style while it closes, so this is plain CSS: compositor-only,
- * no JavaScript. Backdrops fade, popups fade and settle from 96%. The scale
- * uses the `scale` property so it composes with Tailwind's `translate`.
- */
 @utility overlay-backdrop {
   transition: opacity 160ms ease-out;
   &[data-starting-style],
@@ -896,7 +719,6 @@ header[data-open] {
   }
 }
 
-/* Quiet hover for things you can open: the border darkens, nothing moves. */
 @utility pop {
   transition:
     border-color 150ms,
@@ -906,10 +728,6 @@ header[data-open] {
   }
 }
 
-/*
- * Pierre's file tree and diff viewer take their colours from CSS variables.
- * Point them at ours so they read as part of the page and not as a widget.
- */
 .pierre {
   --trees-bg-override: transparent;
   --trees-fg-override: var(--foreground);
@@ -965,7 +783,6 @@ header[data-open] {
   --diffs-deletion-color-override: var(--danger);
 }
 
-/* Vertical commit rail used by timelines and activity feeds. */
 @utility rail {
   position: relative;
   &::before {
@@ -979,7 +796,6 @@ header[data-open] {
   }
 }
 
-/* The home page's strip of hosts: two copies side by side, moved by half. */
 @keyframes marquee {
   to {
     transform: translateX(-50%);
@@ -995,7 +811,6 @@ header[data-open] {
   }
 }
 
-/* Docs use Fumadocs. Point its tokens at ours so both follow the same theme. */
 @theme inline {
   --color-fd-background: var(--background);
   --color-fd-foreground: var(--foreground);
@@ -1015,7 +830,6 @@ header[data-open] {
   --color-fd-ring: var(--ring);
 }
 
-/* Docs, in the product's tactile look. Fumadocs markup, our surfaces. */
 #nd-sidebar,
 #nd-sidebar-mobile {
   background: var(--background);
@@ -1045,8 +859,6 @@ header[data-open] {
 #nd-page h1 {
   letter-spacing: -0.02em;
 }
-/* Long paths and ids in running text and headings wrap instead of pushing the
-   page sideways on a phone. */
 #nd-page :not(pre) > code,
 #nd-page :is(h1, h2, h3, h4) {
   overflow-wrap: anywhere;
@@ -1054,13 +866,9 @@ header[data-open] {
 #nd-page :is(h1, h2, h3, h4) {
   min-width: 0;
 }
-/* GitHub Dark's comment grey is 4:1 on the docs card: lift it to 4.5:1.
-   The token's inline style sets the variable, so only !important wins. */
 .dark #nd-page [style*='--shiki-dark:#6A737D'] {
   --shiki-dark: #8b949e !important;
 }
-/* Tables keep their own sideways scroll: code and right-aligned numbers stay
-   whole inside a cell instead of squeezing the table to the screen. */
 #nd-page :is(td, th) code {
   overflow-wrap: normal;
   white-space: nowrap;
@@ -1077,9 +885,6 @@ header[data-open] {
     inset 0 1px 0 var(--edge),
     var(--rest);
 }
-/* A sideways scroller fades at its right edge until its end is reached, so a
-   cut-off column or line reads as more to scroll. Where scroll timelines are
-   missing, or nothing overflows, there is no fade. */
 @supports (animation-timeline: scroll()) {
   .scroll-fade-x,
   #nd-page div:has(> table),

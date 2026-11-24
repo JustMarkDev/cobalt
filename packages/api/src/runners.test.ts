@@ -12,7 +12,6 @@ describe('runners', () => {
     })
     expect(run.status).toBe(201)
     expect(run.json.status).toBe('queued')
-    // Older queued runs may exist: claim until we get this one's job.
     let job
     for (let i = 0; i < 20; i++) {
       const c = await h.call('POST', `${R}/pipelines/claim`, {
@@ -103,8 +102,6 @@ describe('runners', () => {
   })
 })
 
-// ---- registered runners ------------------------------------------------------
-
 async function register(
   h: ReturnType<typeof harness>,
   body: Record<string, unknown>,
@@ -114,7 +111,6 @@ async function register(
   return r.json
 }
 
-/** Every queued job the runner may take, until it gets this run's. */
 async function claimRun(
   h: ReturnType<typeof harness>,
   secret: string,
@@ -124,7 +120,6 @@ async function claimRun(
     const c = await h.call('POST', '/runners/claim', { token: secret })
     if (c.status === 204) return null
     if (c.json.run === run) return c.json
-    // Something older: finish it, so the next claim moves on.
     for (const s of c.json.steps)
       await h.call('POST', '/runners/report', {
         token: secret,
@@ -156,10 +151,8 @@ describe('registered runners', () => {
     expect(list.data.map((r: any) => r.id)).toContain(made.id)
     expect(list.data.every((r: any) => r.secret === null)).toBe(true)
     expect((await h.call('GET', `/runners/${made.id}`)).json.secret).toBeNull()
-    // Runner tokens are not personal tokens.
     const tokens = (await h.call('GET', '/tokens')).json.data
     expect(tokens.some((t: any) => t.prefix.startsWith('cbr_'))).toBe(false)
-    // A heartbeat brings it online.
     const beat = await h.call('POST', '/runners/heartbeat', {
       token: made.secret,
     })
@@ -174,7 +167,6 @@ describe('registered runners', () => {
       (await h.call('GET', `${R}/git/commits?limit=1`, { token: made.secret }))
         .status,
     ).toBe(200)
-    // It cannot open a change, read issues, manage runners or make tokens.
     expect(
       (
         await h.call('POST', `${R}/issues`, {
@@ -194,7 +186,6 @@ describe('registered runners', () => {
         })
       ).status,
     ).toBe(403)
-    // And a person's token cannot act as a runner.
     expect((await h.call('POST', '/runners/claim')).status).toBe(403)
   })
 
@@ -265,7 +256,6 @@ describe('registered runners', () => {
     const still = (await h.call('GET', `${R}/pipelines/${run.number}`)).json
     expect(still.jobs[0].status).toBe('queued')
     expect(still.jobs[0].waiting_for_labels).toEqual(['macos', 'xcode-16'])
-    // A named runner without labels does not take it either.
     for (let i = 0; i < 30; i++) {
       const c = await h.call('POST', `${R}/pipelines/claim`, {
         body: { runner: 'old' },
@@ -303,11 +293,9 @@ describe('registered runners', () => {
     })
     expect(org.account).toBe('northwind')
     expect(await claimRun(h, org.secret, run.number)).toBeNull()
-    // Nor can it read a private repository of the person who made it.
     expect(
       (await h.call('GET', '/repos/dana/notes', { token: org.secret })).status,
     ).toBe(404)
-    // And it cannot be registered for an account you only belong to.
     const member = await h.call('POST', '/runners', {
       body: { name: 'x', account: 'lumen-studio' },
     })
@@ -351,7 +339,6 @@ describe('registered runners', () => {
     const extended = (await h.call('GET', `${R}/pipelines/${run.number}`)).json
       .jobs[job.job - 1]
     expect(Date.parse(extended.lease_expires_at)).toBeGreaterThan(leased)
-    // Silent past its lease: the next runner gets the job.
     now.advance(16 * 60_000)
     const b = await register(h, { name: 'b', labels: ['linux'] })
     const again = await claimRun(h, b.secret, run.number)
@@ -362,7 +349,6 @@ describe('registered runners', () => {
     expect(
       shown.annotations.some((x: any) => x.text.includes('Runner a')),
     ).toBe(true)
-    // The first runner may no longer report it.
     const late = await h.call('POST', '/runners/report', {
       token: a.secret,
       body: {
@@ -445,7 +431,6 @@ describe('registered runners', () => {
         })
       ).status,
     ).toBe(409)
-    // Someone outside the account does not see it at all.
     expect(
       (
         await h.call('GET', `/runners/${made.id}`, {
@@ -477,13 +462,11 @@ describe('a runner pauses a step it is running', () => {
       reason: 'Sign off the release',
       target: 'hollis',
     }
-    // Another runner cannot pause a job it does not hold.
     const theirs = await h.call('POST', '/runners/wait', {
       token: b.secret,
       body: wait,
     })
     expect(theirs.status).toBe(403)
-    // Nor can a person's token use the runner's door.
     expect((await h.call('POST', '/runners/wait', { body: wait })).status).toBe(
       403,
     )
@@ -496,7 +479,6 @@ describe('a runner pauses a step it is running', () => {
     const j = paused.json.jobs[job.job - 1]
     expect(j).toMatchObject({ status: 'waiting', runner_id: a.id })
     expect(j.wait.target).toBe('hollis')
-    // A waiting job has no lease to run out: it stays with its runner.
     now.advance(20 * 60_000)
     await h.call('POST', '/runners/heartbeat', { token: b.secret })
     const held = (await h.call('GET', `${R}/pipelines/${run.number}`)).json
@@ -504,7 +486,6 @@ describe('a runner pauses a step it is running', () => {
       status: 'waiting',
       runner_id: a.id,
     })
-    // The runner cannot answer its own wait; a login with repo:write can.
     expect(
       (
         await h.call(
@@ -521,7 +502,6 @@ describe('a runner pauses a step it is running', () => {
     )
     expect(resumed.status).toBe(200)
     expect(resumed.json.jobs[job.job - 1].lease_expires_at).not.toBeNull()
-    // The runner carries on with the next step.
     const next = await h.call('POST', '/runners/report', {
       token: a.secret,
       body: { ...at, step: 2, status: 'running' },

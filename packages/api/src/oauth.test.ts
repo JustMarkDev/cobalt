@@ -61,7 +61,6 @@ function setup(opts: Parameters<typeof harness>[0] = {}) {
     return `/oauth/authorize?${p}`
   }
 
-  /** Runs the whole browser leg and returns the code. */
   const approve = async (
     client: string,
     challenge: string,
@@ -233,7 +232,6 @@ describe('authorization code with PKCE', () => {
     expect(who.status).toBe(200)
     expect(who.json.login).toBe('dana')
     expect(who.json.scopes).toEqual(['issues:read', 'pulls:read', 'repo:read'])
-    // The scopes it was given are all it has: no writes.
     const write = await h.call('POST', '/repos/dana/gitfs/issues', {
       token: t.json.access_token,
       body: { title: 'x' },
@@ -268,7 +266,6 @@ describe('authorization code with PKCE', () => {
       h.tokenRequest(client, code, randomBytes(32).toString('base64url')),
     )
     expect(bad.json.error).toBe('invalid_grant')
-    // The right verifier still works: a wrong guess does not burn the code.
     expect(
       (await h.exchange(h.tokenRequest(client, code, verifier))).status,
     ).toBe(200)
@@ -322,7 +319,6 @@ describe('authorization code with PKCE', () => {
     const unknown = await h.fetchRaw(h.authorizeUrl('cl_doesnotexist', c))
     expect(unknown.status).toBe(400)
     expect(unknown.headers.get('location')).toBeNull()
-    // And the code cannot be redeemed at a different redirect.
     const { client: c2, code, verifier } = await h.getCode()
     const wrong = await h.exchange({
       ...h.tokenRequest(c2, code, verifier),
@@ -369,7 +365,6 @@ describe('authorization code with PKCE', () => {
     const h = setup()
     const client = (await h.register()).json.client_id
     const { challenge } = h.pkce()
-    // Signed out: a sign-in page, not consent.
     const out = await h.fetchRaw(h.authorizeUrl(client, challenge))
     expect(await out.text()).toContain('Continue as dana')
     const cookie = await h.signIn()
@@ -383,7 +378,6 @@ describe('authorization code with PKCE', () => {
       requestId: /name="request_id" value="([^"]+)"/.exec(html)![1],
       csrf: /name="csrf" value="([^"]+)"/.exec(html)![1],
     }
-    // The same decision without the token is refused.
     const noCsrf = await h.fetchRaw('/oauth/authorize', {
       ...h.form({ request_id: r.requestId, decision: 'approve' }),
       headers: {
@@ -449,7 +443,6 @@ describe('authorization code with PKCE', () => {
   test('you cannot delegate more than you hold, and unknown scopes are refused', async () => {
     const h = setup()
     const client = (await h.register()).json.client_id
-    // hollis is a member, not an owner: no repo:write to hand out.
     const cookie = await h.signIn('hollis')
     const res = await h.fetchRaw(
       h.authorizeUrl(client, h.pkce().challenge, { scope: 'repo:write' }),
@@ -523,7 +516,6 @@ describe('authorization code with PKCE', () => {
     expect(refused.json.detail).toContain('not valid for the API')
     expect((await h.api.verifyToken(m.json.access_token, 'mcp')).ok).toBe(true)
 
-    // With no resource, one token serves both.
     const both = await h.getCode()
     const b = await h.exchange(
       h.tokenRequest(both.client, both.code, both.verifier),
@@ -531,7 +523,6 @@ describe('authorization code with PKCE', () => {
     expect((await h.api.verifyToken(b.json.access_token, 'api')).ok).toBe(true)
     expect((await h.api.verifyToken(b.json.access_token, 'mcp')).ok).toBe(true)
 
-    // A token exchange may narrow the audience even when the grant was wider.
     const narrow = await h.getCode()
     const n = await h.exchange({
       ...h.tokenRequest(narrow.client, narrow.code, narrow.verifier),
@@ -603,7 +594,6 @@ describe('tokens expire, refresh rotates, and a replay takes everything back', (
       client_id: client,
     })
     expect(replay.json.error).toBe('invalid_grant')
-    // The thief and the owner both lose: the newest tokens are dead too.
     expect(
       (await h.call('GET', '/auth/principal', { token: r.json.access_token }))
         .json.code,
@@ -630,7 +620,6 @@ describe('tokens expire, refresh rotates, and a replay takes everything back', (
       scope: 'repo:read repo:write',
     })
     expect(wide.json.error).toBe('invalid_scope')
-    // That attempt used the token; take a fresh one.
     const again = await h.getCode()
     const t2 = await h.exchange(
       h.tokenRequest(again.client, again.code, again.verifier),
@@ -765,7 +754,6 @@ describe('device authorization', () => {
       (await h.call('GET', '/auth/principal', { token: t.json.access_token }))
         .json.scopes,
     ).toEqual(['pulls:read', 'repo:read'])
-    // The code works once.
     now.advance(6000)
     expect((await poll()).json.error).toBe('invalid_grant')
   })
@@ -911,7 +899,6 @@ describe('tokens API', () => {
 
   test('a token can never have more than its creator', async () => {
     const h = setup()
-    // hollis has no tokens:manage.
     expect(
       (
         await h.call('POST', '/tokens', {
@@ -920,7 +907,6 @@ describe('tokens API', () => {
         })
       ).json.code,
     ).toBe('insufficient_scope')
-    // A limited token can only make limited tokens.
     const limited = (
       await h.call('POST', '/tokens', {
         body: {

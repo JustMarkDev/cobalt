@@ -58,7 +58,6 @@ describe('the TypeScript client', () => {
     expect(made.title).toBe('From the SDK')
     const principal = await cb.auth.principal()
     expect(principal.login).toBe('dana')
-    // The same call by id.
     const again = await cb.call('issues.get', {
       owner: 'dana',
       repo: 'gitfs',
@@ -186,7 +185,6 @@ describe('the TypeScript client', () => {
         return h.api.fetch(new Request(url, init))
       }) as unknown as typeof fetch,
     })
-    // A write with an explicit key is retried with that same key.
     const made = await cb.repos.create(
       { body: { name: 'retried-once' } },
       { idempotencyKey: 'retry-key' },

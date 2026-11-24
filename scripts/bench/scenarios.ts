@@ -1,19 +1,12 @@
 import { HUGE, manyToken, sampleTokens } from './world'
 
-/**
- * Every scenario is a function of a counter that makes one logical operation
- * and says whether it worked. Closed loop: a connection sends the next one when
- * the last has answered.
- */
 export type Ctx = { base: string; setup: Record<string, string> }
 export type Scenario = {
   id: string
   title: string
   group: 'read' | 'list' | 'agent' | 'write' | 'auth'
-  /** Runs once, in the parent, before the clients start. Returns values for `setup`. */
   prepare?: (base: string) => Promise<Record<string, string>>
   exec: (i: number, c: Ctx) => Promise<number>
-  /** Connections per client process, where the API's own limits would otherwise be what is measured. */
   connections?: number
 }
 
@@ -37,7 +30,6 @@ const post = async (
   await r.arrayBuffer()
   return r.status
 }
-// A small deterministic generator, so runs repeat.
 const rnd = (i: number) => {
   let x = (i + 1) * 2654435761
   x ^= x >>> 15
@@ -227,7 +219,6 @@ export const scenarios: Array<Scenario> = [
     title: 'POST a review',
     group: 'write',
     exec: (i, c) => {
-      // Bot-authored (number ≡ 1 mod 4) and not landed (every 10th is): j is never a multiple of 5.
       let j = 1 + Math.floor(rnd(i) * 2000)
       if (j % 5 === 0) j++
       return post(`${R(c.base)}/changes/${1 + 4 * j}/reviews`, {

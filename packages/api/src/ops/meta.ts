@@ -151,8 +151,6 @@ export function openapiOp(spec: () => unknown): Op {
     method: 'GET',
     path: '/openapi.json',
     response: z.record(z.string(), z.unknown()),
-    // The document is large and changes only when the code does. Keep the
-    // bytes, and answer a conditional request without touching them.
     handler: (ctx) =>
       Effect.sync(() => {
         if (built === null) {
@@ -219,8 +217,6 @@ export const batchOp = defineOp({
           headers: Record<string, string>
           body: unknown
         }> = []
-        // A batch holds one concurrency slot; run a few at a time so a full
-        // batch of 25 does not collide with the per-token cap.
         for (let i = 0; i < ctx.body.requests.length; i += 5) {
           const part = await Promise.all(
             ctx.body.requests.slice(i, i + 5).map(async (r) => {

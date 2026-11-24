@@ -31,7 +31,6 @@ export const env: Command = async (
   const dry = has(flags, 'dry-run')
 
   if (sub === 'list') {
-    // Names, kinds and which environments have a value. Never a value.
     const rows = (
       await api.get(`${repo.path}/env`, {
         query: { environment: environment as 'development' },
@@ -60,8 +59,6 @@ export const env: Command = async (
         'Example: cb env set STRIPE_KEY - --env production  (reads the value from stdin)',
         exit.usage,
       )
-    // A value on the command line lands in shell history and the process
-    // list. It comes from stdin, always.
     if (value !== '-')
       throw new CbError(
         'value_on_command_line',
@@ -72,7 +69,6 @@ export const env: Command = async (
         exit.usage,
       )
     value = (await Bun.stdin.text()).replace(/\n$/, '')
-    // Sent over TLS and sealed the moment it arrives; it is never answered back.
     let v: Var
     try {
       v = (
@@ -93,8 +89,6 @@ export const env: Command = async (
   }
 
   if (sub === 'pull') {
-    // A plaintext file is what leaks: into a commit, a backup, an agent's
-    // context. `cb env run` is the way to use values; a file is opt-in.
     if (!has(flags, 'plaintext'))
       throw new CbError(
         'plaintext_refused',
@@ -121,7 +115,6 @@ export const env: Command = async (
         .join('\n')}\n`
       writeFileSync('.env.local', text, { mode: 0o600 })
       chmodSync('.env.local', 0o600)
-      // A file git would commit is the leak this is meant to avoid.
       const ignored =
         Bun.spawnSync(['git', 'check-ignore', '-q', '.env.local']).exitCode ===
         0
@@ -175,7 +168,6 @@ export const env: Command = async (
   }
 
   if (sub === 'confirmations') {
-    // Your own production confirmations: what is waiting, and what is live.
     const rows = (await api.get(`${repo.path}/env/confirmations`)).json
       .data as Array<Confirmation>
     print(ctx, rows, () =>

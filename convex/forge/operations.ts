@@ -5,7 +5,6 @@ import { system } from '../lib/actor'
 import { out } from '../lib/errors'
 import type { MutationCtx } from '../_generated/server'
 
-/** Operations over for more than a week, a batch at a time. */
 async function sweepOld(ctx: MutationCtx) {
   const cutoff = Date.now() - 7 * 86_400_000
   for (const o of await ctx.db
@@ -24,7 +23,6 @@ export const sweep = internalMutation({
   },
 })
 
-/** The same, now, for the API server's housekeeping call. */
 export const sweepNow = mutation({
   args: {},
   returns: v.string(),

@@ -14,16 +14,6 @@ import type { GenericCtx } from '@convex-dev/better-auth'
 import type { AuthFunctions } from '@convex-dev/better-auth'
 import type { DataModel } from './_generated/dataModel'
 
-/**
- * Sign-in: Better Auth, with its users, sessions and credentials in the
- * `betterAuth` component's own tables. A login is one person.
- *
- * The person's address is Better Auth's `username`. This file keeps our
- * `accounts` table in step with it: signing up creates the person's account,
- * and changing the address moves the account and leaves the old address
- * redirecting (`handleAliases`), in the same transaction as the change.
- */
-
 const authFunctions: AuthFunctions = internal.auth
 
 export const authComponent = createClient<DataModel>(components.betterAuth, {
@@ -31,10 +21,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
   triggers: {
     user: {
       onCreate: async (ctx, user) => {
-        // Sign-up always sends an address; an account without one has no page.
         if (!user.username) return
-        // `mayTake` let this through, so an account already at the address
-        // is an unclaimed sample one on a development deployment.
         const sample = await ctx.db
           .query('accounts')
           .withIndex('by_handle', (q) => q.eq('handle', user.username!))
@@ -69,7 +56,6 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
           await ctx.db.patch('accounts', account._id, { name: user.name })
         if (!user.username || user.username === before.username) return
         await ctx.db.patch('accounts', account._id, { handle: user.username })
-        // Taking back one's own earlier address ends its redirect.
         const own = await ctx.db
           .query('handleAliases')
           .withIndex('by_handle', (q) => q.eq('handle', user.username!))
@@ -93,15 +79,6 @@ const taken = () =>
     message: 'That address is already taken.',
   })
 
-/**
- * Better Auth only knows its own users. An address is also taken when an
- * organization has it or when it still redirects to someone else, so every
- * sign-up and every change of address asks the `accounts` table too.
- *
- * The seeded sample people (`seed.ts`) have no login. On a deployment whose
- * site is this machine, signing up with one of their addresses claims it,
- * which is how the demo account gets its sample data.
- */
 async function mayTake(
   ctx: GenericCtx<DataModel>,
   handle: string,
@@ -116,12 +93,6 @@ async function mayTake(
   return local && authId === null && holder.kind === 'person' && !holder.alias
 }
 
-/**
- * Attempts per account, whatever address they come from: password guessing
- * against one account, or a flood of reset or verification mail to one
- * inbox, stops after a few tries in the window. Only the HTTP routes can
- * write the count; a query building the auth object skips it.
- */
 const THROTTLED: Partial<
   Record<string, { field: string; limit: number; windowMs: number }>
 > = {
@@ -154,12 +125,6 @@ async function throttle(
     })
 }
 
-/**
- * Convex builds this once while loading `http.ts`, before any request, so a
- * missing setting must not throw here: it would block every deploy. Instead
- * an unconfigured deployment refuses each sign-in request, and the stand-in
- * secret below never signs anything.
- */
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   const siteUrl = env.SITE_URL
   const secret = env.BETTER_AUTH_SECRET
@@ -182,10 +147,6 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     user: {
       changeEmail: {
         enabled: true,
-        // A new address takes effect only once its owner opens the link,
-        // and a verified address must approve the move first: someone who
-        // borrows a session cannot move the account (and its password
-        // resets) to an address they own.
         updateEmailWithoutVerification: false,
         sendChangeEmailConfirmation: ({ user, newEmail, url }) =>
           sendMail(
@@ -218,9 +179,6 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         },
       },
     },
-    // Sent through Resend when RESEND_API_KEY and MAIL_FROM are set on the
-    // deployment; otherwise the link goes to the deployment's log, which is
-    // enough while developing. Signing in does not wait for verification.
     emailVerification: {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
@@ -253,7 +211,6 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
   })
 }
 
-/** The signed-in person, or null. */
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {

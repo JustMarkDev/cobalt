@@ -6,7 +6,6 @@ import type { Principal } from '../auth'
 import type { ActorRec, ChangeRec, RepoRec, ViaRec } from './records'
 import { DomainPresent } from './present'
 
-/** Every mutation writes one event; these build and emit it. */
 export abstract class DomainEvents extends DomainPresent {
   protected emit(
     repo: RepoRec,
@@ -30,24 +29,16 @@ export abstract class DomainEvents extends DomainPresent {
     })
   }
 
-  /** A receipt that replaces the request's, while the server acts on its own. */
   protected viaOverride: ViaRec | null = null
 
   protected asActor(p: Principal): ActorRec {
     return this.actorFor(p.handle)
   }
 
-  /** The receipt for a write by this caller: machine, tool, declared model. */
   protected viaOf(p: Principal): ViaRec {
     return this.viaOverride ?? receiptFor(p)
   }
 
-  /**
-   * Whether this caller may add to a repository: a denounced account may not
-   * open changes or issues, and a change declared with a model the repository
-   * declines is refused. The model is what the tool declared; it stops tools
-   * that report honestly, and every receipt keeps the claim.
-   */
   protected assertMayContribute(
     repo: RepoRec,
     p: Principal,
@@ -57,7 +48,6 @@ export abstract class DomainEvents extends DomainPresent {
     if (no) throw apiError(no.code, no.detail)
   }
 
-  /** Who an action is recorded as: the account, whatever typed the request. */
   protected actorFor(handle: string): ActorRec {
     return this.actors.get(handle) ?? this.seedActor(handle, this.now())
   }

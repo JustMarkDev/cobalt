@@ -10,12 +10,6 @@ import { Button } from '~/components/ui/button'
 import { useOp, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
-/**
- * Where you are signed in. A machine signs in once (`cb auth login`) and every
- * agent on it works under that login, so this list is the whole of who can
- * act as you: machines, applications, and tokens you made. Revoking one ends
- * it on its next request.
- */
 export function MachinesPanel() {
   const logins = useOp('authorizations.list', {}).data
   const tokens = useOp('tokens.list', {}).data

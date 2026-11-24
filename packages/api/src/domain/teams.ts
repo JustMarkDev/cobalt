@@ -7,7 +7,6 @@ import { iso } from './records'
 import type { TeamRec } from './records'
 import { DomainRepos } from './repos'
 
-/** Teams and their access to repositories. */
 export abstract class DomainTeams extends DomainRepos {
   protected teamRec(org: string, slug: string): TeamRec {
     const t = this.teams.get(`${org}/${slug}`)
@@ -187,7 +186,6 @@ export abstract class DomainTeams extends DomainRepos {
     this.orgFor(org, p, 'admin')
     const t = this.teamRec(org, slug)
     const repo = this.resolve(owner, name, p, 'read')
-    // A team belongs to an organization and reaches only that organization's repositories.
     if (repo.owner !== org)
       throw apiError(
         'invalid_request',
@@ -203,7 +201,6 @@ export abstract class DomainTeams extends DomainRepos {
       t.updated = this.now()
       t.version++
       this.accessRevision++
-      // Visibility changed, so cached search results may be stale.
       this.svc.search.reset()
     }
     if (dry)

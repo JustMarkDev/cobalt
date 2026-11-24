@@ -4,11 +4,6 @@ import { fanOutEvent } from './notifications'
 import { contributionsFrom } from './people'
 import { deliverEvent } from './webhooks'
 
-/**
- * What follows from events once they are numbered: webhooks, inboxes and
- * contributions. It runs after the write that caused it, in batches, so a
- * write never waits on everyone it tells.
- */
 export const process = internalMutation({
   args: { from: v.number(), to: v.number() },
   returns: v.null(),

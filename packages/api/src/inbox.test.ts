@@ -2,11 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { sampleTokens } from './sample'
 import { asPerson, harness, withRunsOn } from './testing'
 
-/**
- * The inbox is "what needs me", worked out from the state of things: each
- * item stands while its cause does and leaves with it, with no clean-up.
- */
-
 const R = '/repos/dana/gitfs'
 
 type Item = {
@@ -60,7 +55,6 @@ describe('the inbox', () => {
   test('each kind appears for the right person', async () => {
     const h = harness()
     const dana = (await inboxOf(h, 'dana')).items
-    // Her repository's mirror stopped; her change is blocked.
     expect(about(dana, 'mirror_stopped')[0]).toMatchObject({
       severity: 'stopped',
       action: 'fix',
@@ -73,12 +67,10 @@ describe('the inbox', () => {
     })
     expect(about(dana, 'review_requested', 212)[0].action).toBe('review')
     expect(about(dana, 'issue_assigned', 4)[0].action).toBe('open')
-    // ines wrote #212: it is blocked and its checks fail, for her.
     const ines = (await inboxOf(h, 'ines')).items
     expect(about(ines, 'checks_failing', 212)).toHaveLength(1)
     expect(about(ines, 'change_blocked', 212)).toHaveLength(1)
     expect(about(ines, 'change_blocked', 216)).toHaveLength(0)
-    // hollis does not own the mirror, nor the blocked change.
     const hollis = (await inboxOf(h, 'hollis')).items
     expect(about(hollis, 'mirror_stopped')).toHaveLength(0)
     expect(about(hollis, 'change_blocked')).toHaveLength(0)
@@ -108,7 +100,6 @@ describe('the inbox', () => {
         body: { title: 'Secret plans' },
       })
     ).json
-    // A mention reaches hollis's feed, but hollis cannot read dana/notes.
     await h.call('POST', `/repos/dana/notes/issues/${issue.number}/comments`, {
       body: { body: '@hollis' },
     })
@@ -120,7 +111,6 @@ describe('the inbox', () => {
   test('your own change is never a review item', async () => {
     const h = harness()
     const dana = (await inboxOf(h, 'dana')).items
-    // #216 and #218 are dana's.
     expect(about(dana, 'review_requested', 216)).toHaveLength(0)
     expect(about(dana, 'review_requested', 218)).toHaveLength(0)
   })
@@ -145,7 +135,6 @@ describe('the inbox', () => {
     expect(
       about((await inboxOf(h, 'dana')).items, 'change_blocked', 216),
     ).toHaveLength(1)
-    // What blocks #216 is an open finding; resolving it leaves CI pending.
     const findings = (await h.call('GET', `${R}/changes/216/findings`)).json
     for (const f of findings.data)
       if (f.state === 'open')
@@ -172,11 +161,9 @@ describe('the inbox', () => {
     expect(item).toHaveLength(1)
     expect(item[0].note).toBe('Waiting for a runner with: macos, xcode-16.')
     expect(item[0].severity).toBe('blocked')
-    // Not for someone who did not start it.
     expect(
       about((await inboxOf(h, 'hollis')).items, 'runner_missing'),
     ).toHaveLength(0)
-    // A runner with those labels clears it, without anything being written to the item.
     await h.call('POST', '/runners', {
       body: { name: 'mac', labels: ['macos', 'xcode-16', 'arm64'] },
     })

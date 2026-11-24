@@ -1,11 +1,3 @@
-/**
- * What the API measures about itself, for the status page: every request it
- * answers, by area, with how long it took and whether it failed on our side.
- *
- * Kept small on purpose. Days hold two counters each, for 90 days. The last
- * hour keeps up to 2,000 durations per area, enough for a median and a 95th
- * percentile without holding every request.
- */
 export const healthAreas = [
   'api',
   'git',
@@ -23,11 +15,6 @@ const KEEP_SAMPLES = 2_000
 type Day = { requests: number; errors: number }
 type Sample = { at: number; ms: number; error: boolean }
 
-/**
- * Upper bounds, in milliseconds, of the latency buckets servers share. The
- * last bucket is everything slower. A percentile from shared buckets is the
- * bound of the bucket it falls in.
- */
 export const LATENCY_BOUNDS = [
   5, 10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000,
 ] as const
@@ -37,30 +24,21 @@ const bucketOf = (ms: number) => {
   return i === -1 ? LATENCY_BOUNDS.length : i
 }
 
-/** One area's requests in one minute, as a server hands them to the shared store. */
 export type MinuteBucket = {
   area: HealthArea
-  /** Minutes since the epoch. */
   minute: number
   requests: number
   errors: number
-  /** Counts per latency bucket, `LATENCY_BOUNDS.length + 1` of them. */
   hist: Array<number>
 }
 
 export type AreaReport = ReturnType<Health['report']>
 
-/** What the status page reads: one report per area. */
 export interface HealthReader {
   report: (area: HealthArea) => AreaReport
-  /** When measuring began. */
   since: number
 }
 
-/**
- * A report from the buckets every server shared: days with their two counts,
- * and the last hour's minutes with their latency buckets.
- */
 export function reportFrom(
   now: number,
   days: ReadonlyArray<{ day: number; requests: number; errors: number }>,
@@ -113,7 +91,6 @@ export function reportFrom(
   }
 }
 
-/** Which area a request belongs to, from its path under the mount. */
 export function areaOf(path: string): HealthArea {
   if (path.includes('/oauth/') || path.endsWith('/auth/principal'))
     return 'signin'
@@ -124,11 +101,9 @@ export function areaOf(path: string): HealthArea {
 }
 
 export class Health {
-  /** When this process started measuring. */
   readonly since: number
   private readonly days = new Map<HealthArea, Map<number, Day>>()
   private readonly recent = new Map<HealthArea, Array<Sample>>()
-  /** Buckets not yet handed to the shared store, by area and minute. */
   private pending = new Map<string, MinuteBucket>()
 
   constructor(private readonly now: () => number = Date.now) {
@@ -154,7 +129,6 @@ export class Health {
     const k = `${area}:${minute}`
     let b = this.pending.get(k)
     if (!b) {
-      // A store that stays unreachable must not fill memory: keep two hours.
       if (this.pending.size >= healthAreas.length * 120)
         this.pending.delete(this.pending.keys().next().value!)
       b = {
@@ -171,14 +145,12 @@ export class Health {
     b.hist[bucketOf(ms)]++
   }
 
-  /** The buckets since the last call, for the shared store. */
   drain(): Array<MinuteBucket> {
     const out = [...this.pending.values()]
     this.pending = new Map()
     return out
   }
 
-  /** Puts back buckets the store did not take, to send with the next ones. */
   restore(buckets: ReadonlyArray<MinuteBucket>) {
     for (const b of buckets) {
       const k = `${b.area}:${b.minute}`
@@ -192,7 +164,6 @@ export class Health {
     }
   }
 
-  /** One area, as the status page shows it. */
   report(area: HealthArea) {
     const at = this.now()
     const today = Math.floor(at / DAY)

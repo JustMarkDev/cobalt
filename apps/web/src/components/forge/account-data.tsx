@@ -7,12 +7,6 @@ import { billingMessage } from '~/components/forge/checkout-button'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 
-/**
- * The plan the signed-in account is on, a copy of its data to take away, and
- * deleting it. Deleting waits 30 days; in them nothing is lost and one click
- * takes it back (`convex/deletion.ts`).
- */
-
 type Mine = {
   handle: string
   plan: 'free' | 'solo' | 'team' | 'business'
@@ -37,7 +31,6 @@ const size = (gb: number) =>
 
 const used = (bytes: number) => size(bytes / 1_000_000_000)
 
-/** What a refusal from Convex says, for a person. */
 function message(e: unknown): string {
   if (e instanceof ConvexError) {
     const d = e.data as { detail?: unknown }
@@ -136,7 +129,6 @@ function Plan({ mine }: { mine: Mine }) {
   )
 }
 
-/** Card, invoices and cancelling live on Polar's page for the customer. */
 function Billing() {
   const portal = useAction(api.billing.portal)
   const [busy, setBusy] = React.useState(false)

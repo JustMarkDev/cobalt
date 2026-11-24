@@ -7,7 +7,6 @@ import type { Repo } from '~/lib/model/data'
 import { ForgeRefused, loadOp, useOp } from '~/lib/forge'
 import { toRelease, toRepo } from '~/lib/repo'
 
-/** URL segment -> the tab it highlights. */
 const activeOf: Partial<Record<string, RepoPage>> = {
   code: 'code',
   issues: 'issues',
@@ -18,10 +17,6 @@ const activeOf: Partial<Record<string, RepoPage>> = {
   settings: 'settings',
 }
 
-/**
- * A module loaded once, that React's `use` reads at once when it is ready:
- * React looks at `status` and `value` before it waits on a promise.
- */
 function once<T>(load: () => Promise<T>): () => Promise<T> {
   let loading: Promise<T> | undefined
   return () => {
@@ -32,7 +27,6 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
         tracked.value = value
         return value
       })
-      // A chunk that failed to arrive is asked for again next time.
       void p.catch(() => {
         if (loading === p) loading = undefined
       })
@@ -42,15 +36,6 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
   }
 }
 
-/**
- * Each tab's code, loaded only when that tab is shown. They differ a lot in
- * size: the code and changes tabs carry the file tree and the diff viewer,
- * which the others do not need, and only one tab needs settings, runs or
- * reviews. The loader waits for the tab's module with its data, so a server
- * render and a move between tabs render it at once. When the browser first
- * takes over a page, React waits for it with the server's HTML still on
- * screen.
- */
 const modules = {
   variants: once(() => import('~/components/forge/repo-variants')),
   releases: once(() => import('~/components/forge/repo-releases')),
@@ -69,7 +54,6 @@ const moduleOf: Partial<Record<string, keyof typeof modules>> = {
   settings: 'settings',
 }
 
-/** The tab's module; an unknown tab has none, and is the router's 404. */
 function loadTab(tab: string) {
   const name = moduleOf[tab]
   return name ? modules[name]() : null
@@ -78,14 +62,12 @@ function loadTab(tab: string) {
 type TabSearch = {
   n?: number
   section?: string
-  /** A production confirmation to open, from the link `cb` prints. */
   confirm?: string
   path?: string
   view?: 'history'
 }
 
 export const Route = createFileRoute('/$handle/$repo/$tab')({
-  // The tab was called Actions. Old links lead to the same page under its name.
   beforeLoad: ({ params }) => {
     if (params.tab === 'actions')
       throw redirect({
@@ -112,11 +94,7 @@ export const Route = createFileRoute('/$handle/$repo/$tab')({
     path: typeof s.path === 'string' && s.path ? s.path : undefined,
     view: s.view === 'history' ? 'history' : undefined,
   }),
-  // A repository that does not exist, or that this person may not read, is
-  // the router's 404.
   loader: ({ context, params }) =>
-    // A repository that moved (renamed or transferred) sends people to where
-    // it is now, as the API's 308 does.
     Promise.all([
       loadOp(context.queryClient, 'repos.get', {
         owner: params.handle,
@@ -129,7 +107,6 @@ export const Route = createFileRoute('/$handle/$repo/$tab')({
       }),
       loadTab(params.tab),
     ])
-      // The module is code, not data: it stays out of what goes to the browser.
       .then(([repo, releases]) => [repo, releases] as const)
       .catch((e: unknown) => {
         const to =
@@ -162,13 +139,6 @@ function RepoTab() {
   const active = activeOf[tab]
   if (!active) throw notFound()
 
-  // The page below the header reads data the loader does not fetch, such as
-  // the issue list, so the first visit to a tab suspends. A move between tabs
-  // reaches React as a router store update, not a transition, and a suspend
-  // there hides the whole frame behind the router's empty fallback: the
-  // screen goes black. The page renders from a deferred copy of where we are
-  // instead, so the tab on screen stays until the next one is ready, while the
-  // tab bar shows the new tab at once.
   const shown = React.useDeferredValue(
     React.useMemo(
       () => ({ tab, n, section, path, view }),
@@ -177,8 +147,6 @@ function RepoTab() {
   )
 
   return (
-    // The frame is keyed by repository only, so switching tabs keeps the
-    // header mounted and swaps just the page below it.
     <RepoFrame
       key={repo.name}
       repo={repo}

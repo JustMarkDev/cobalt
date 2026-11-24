@@ -12,12 +12,6 @@ import { presentComment, presentIssueEvidence } from './issues'
 import type { ActorRef } from '../lib/events'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * One timeline per change and per issue: its parts, the notes of the runs
- * that worked on it, its state changes and, for an issue, the changes that
- * link it. The same entries `MemoryDomain.timeline` makes.
- */
-
 type Entry = {
   object: 'timeline_entry'
   id: string
@@ -248,15 +242,12 @@ export const get = query({
     }
     return out(
       entries.sort(
-        (x, y) =>
-          // Stable: entries at the same moment keep the order they were made in.
-          Date.parse(x.created_at) - Date.parse(y.created_at),
+        (x, y) => Date.parse(x.created_at) - Date.parse(y.created_at),
       ),
     )
   },
 })
 
-/** The actor a handle acts as, without writing anything. */
 async function agentOf(ctx: QueryCtx, handle: string): Promise<ActorRef> {
   const account = await ctx.db
     .query('accounts')

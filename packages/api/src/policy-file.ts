@@ -1,42 +1,11 @@
 import { LineCounter, isMap, isSeq, parseDocument } from 'yaml'
 import type { Document, YAMLMap, YAMLSeq } from 'yaml'
 
-/**
- * The policy file, `.source/policy/main.yml`: the rules a repository lands
- * changes under, kept in the repository like its code.
- *
- *   rules:
- *     - id: reviewed            # a built-in rule: its mode only
- *       mode: enforce
- *     - id: docs-review         # a rule of the repository's own
- *       name: Docs need a writer
- *       when: { paths: ["docs/**"] }
- *       require:
- *         - approval: { min: 1, from: [hollis] }
- *   exceptions:
- *     - { id: exc_…, rule: reviewed, for: hollis, reason: "…", expires: 2026-12-01 }
- *   landing:
- *     strategy: squash
- *     fresh_approvals: true
- *     resolve: author
- *     steps:
- *       - wait_checks: [ci/test]
- *
- * Reading it, writing it from settings, and editing it in place so the
- * comments and layout a person gave it stay. Plain JavaScript and the `yaml`
- * package: the Convex functions import it too.
- */
-
 export const POLICY_FILE = '.source/policy/main.yml'
 export const POLICY_DIR = '.source/policy/'
 
 export type RuleMode = 'enforce' | 'dry-run' | 'off'
 
-/**
- * Built-in rules that were retired when changes stopped being judged by who
- * typed them (a person, an agent or a bot). A file that still names one reads
- * as before, and the rule does nothing.
- */
 export const RETIRED_RULES: ReadonlySet<string> = new Set([
   'core-paths',
   'agent-authored',
@@ -73,14 +42,11 @@ export type LandingStep =
 
 export type Landing = {
   strategy: 'squash' | 'rebase' | 'merge'
-  /** Approvals count only on the newest patch set, not carried over a rebase. */
   fresh_approvals: boolean
-  /** Who may settle a review thread: the person who started it, or any reviewer. */
   resolve: 'author' | 'any_reviewer'
   steps: Array<LandingStep>
 }
 
-/** How changes land when the file says nothing: today's behaviour. */
 export const DEFAULT_LANDING: Landing = {
   strategy: 'squash',
   fresh_approvals: false,
@@ -88,7 +54,6 @@ export const DEFAULT_LANDING: Landing = {
   steps: [],
 }
 
-/** What a policy file says. */
 export type PolicyContent = {
   modes: Record<string, RuleMode>
   custom: Array<CustomRule>
@@ -101,12 +66,6 @@ export type FileError = { path: string; line: number | null; message: string }
 const MODES = ['enforce', 'dry-run', 'off']
 const day = (t: number) => new Date(t).toISOString().slice(0, 10)
 
-// ---- writing the file from settings ----------------------------------------------
-
-/**
- * The file for a repository whose rules are still settings: what the move to
- * the file writes. After the move nothing writes the file from settings.
- */
 export function policyYaml(
   content: PolicyContent,
   builtins: ReadonlyArray<{ id: string; mode: RuleMode }>,
@@ -126,7 +85,6 @@ export function policyYaml(
   }
   const d = parseDocument('{}')
   d.contents = d.createNode(doc) as never
-  // Flow style for the small maps inside a rule, so a rule reads as one block.
   flowSmall(d)
   return [
     `# ${POLICY_FILE}`,
@@ -176,7 +134,6 @@ function exceptionNode(e: PolicyException): Record<string, unknown> {
 function flowSmall(d: Document, from: unknown = d.contents, start = 0) {
   const visit = (n: unknown, depth: number) => {
     if (isMap(n) || isSeq(n)) {
-      // `when: { paths: [...] }` and each `- approval: { … }` on one line.
       if (isMap(n) ? depth === 3 || depth >= 5 : depth >= 4)
         (n as YAMLMap).flow = true
       for (const item of (n as YAMLSeq).items)
@@ -186,12 +143,6 @@ function flowSmall(d: Document, from: unknown = d.contents, start = 0) {
   visit(from, start)
 }
 
-// ---- reading it -------------------------------------------------------------------
-
-/**
- * What a policy file says, or why it cannot be read. A file with errors
- * gives no content: the last valid rules stay in force.
- */
 export function parsePolicy(
   text: string,
   builtins: ReadonlyArray<{ id: string; mode: RuleMode }>,
@@ -239,7 +190,6 @@ export function parsePolicy(
       if (!raw || typeof raw !== 'object' || Array.isArray(raw))
         return err(at, node, 'A rule is a map with an id.')
       const r = raw as Record<string, unknown>
-      // A field's own line, where it has one.
       const field = (key: string) =>
         (isMap(node) ? node.get(key, true) : undefined) ?? node
       const id = r.id
@@ -247,8 +197,6 @@ export function parsePolicy(
         return err(`${at}.id`, node, 'id is lowercase letters, digits and -.')
       if (ids.has(id)) return err(`${at}.id`, node, `${id} appears twice.`)
       ids.add(id)
-      // A built-in rule that no longer exists: an older file still reads,
-      // and its line is left alone.
       if (RETIRED_RULES.has(id) && !known.has(id)) return
       if (r.mode !== undefined) {
         if (!MODES.includes(r.mode as string))
@@ -298,7 +246,6 @@ export function parsePolicy(
         reason: e.reason,
         createdBy: typeof e.created_by === 'string' ? e.created_by : e.for,
         created: Number.isNaN(created) ? expires : created,
-        // A date is the whole of that day.
         expires:
           String(e.expires).length <= 10 ? expires + 86_400_000 - 1 : expires,
       })
@@ -474,8 +421,6 @@ function readLanding(
   return out
 }
 
-// ---- editing it in place ------------------------------------------------------------
-
 export type PolicyEdit =
   | { op: 'set_mode'; rule: string; mode: RuleMode }
   | {
@@ -493,10 +438,6 @@ export type PolicyEdit =
   | { op: 'remove_exception'; exception: string }
   | { op: 'set_landing'; landing: Partial<Landing> }
 
-/**
- * The file with the edits made, through the document so comments and layout
- * stay. Answers the new text and, when it no longer reads, why.
- */
 export function editPolicy(
   text: string,
   edits: ReadonlyArray<PolicyEdit>,
@@ -609,9 +550,6 @@ export function editPolicy(
   return next
 }
 
-// ---- what an edit changed --------------------------------------------------------
-
-/** A unified diff of two texts, for a person to read before the change lands. */
 export function unifiedDiff(path: string, before: string, after: string) {
   const x = before.split('\n')
   const y = after.split('\n')
@@ -636,7 +574,6 @@ export function unifiedDiff(path: string, before: string, after: string) {
       i < x.length &&
       (j >= y.length || dp[i + 1][j] >= dp[i][j + 1])
     ) {
-      // What goes comes before what replaces it, as `diff -u` writes it.
       lines.push(`-${x[i]}`)
       i++
     } else {
@@ -648,7 +585,6 @@ export function unifiedDiff(path: string, before: string, after: string) {
   return [`--- a/${path}`, `+++ b/${path}`, ...lines].join('\n')
 }
 
-/** Lines added and removed, for a patch set's file stats. */
 export function lineStats(before: string, after: string) {
   const d = unifiedDiff('', before, after).split('\n').slice(2)
   return {
@@ -657,15 +593,8 @@ export function lineStats(before: string, after: string) {
   }
 }
 
-// ---- the rules protect themselves ---------------------------------------------------
-
 export const POLICY_RULE = 'policy-file'
 
-/**
- * What a change to the policy folder needs: a maintainer's approval, and a
- * policy file that reads. Null for a change that leaves the folder alone.
- * Not a rule a repository can turn off or bend.
- */
 export function policyFileCheck(
   head: {
     n: number
@@ -710,10 +639,6 @@ export function policyFileCheck(
   }
 }
 
-/**
- * The landing steps that hold a change back now: the checks `wait_checks`
- * names that have not passed on the tree that lands.
- */
 export function landingWaits(
   landing: Landing,
   checks: ReadonlyArray<{

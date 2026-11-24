@@ -37,7 +37,6 @@ const labelTone: Record<LabelColor, string> = {
   purple: 'bg-merged/15 text-merged',
 }
 
-/** A repository's labels by name, for their colours. */
 function useLabelColors(repo: Repo) {
   const labels = useOpMaybe('labels.list', {
     owner: repo.owner,
@@ -73,9 +72,6 @@ function Labels({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Issues
-// ---------------------------------------------------------------------------
 const ISSUES_PAGE = 100
 
 export function IssuesPage({ repo, n }: { repo: Repo; n?: number }) {
@@ -261,14 +257,12 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
   const [attaching, setAttaching] = React.useState('')
   const colors = useLabelColors(repo)
   const me = useMe()
-  // The API decides; this only hides a button that would be refused.
   const canClose = manages(useAccount(repo.owner))
   const write = useWrite()
   const [text, setText] = React.useState('')
   const [error, setError] = React.useState('')
   const [busy, setBusy] = React.useState(false)
 
-  /** Upload a file to its signed address, then attach it to the issue. */
   async function attach(file: File) {
     setError('')
     const types = [
@@ -488,9 +482,6 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Insights
-// ---------------------------------------------------------------------------
 export function InsightsPage({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const ins = useOp('repos.insights', at)
@@ -505,7 +496,6 @@ export function InsightsPage({ repo }: { repo: Repo }) {
     label: `W${i + 1}`,
     value,
   }))
-  // By the model each patch set declared; none declared is shown as such.
   const byModel = ins.commits.by_model.map((m) => ({
     name: m.model ?? 'No model declared',
     value: m.count,
@@ -598,9 +588,5 @@ export function InsightsPage({ repo }: { repo: Repo }) {
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Settings (owner only). This is the one repo screen that may mention an origin.
-// ---------------------------------------------------------------------------
 
 export { SwitchRow as Toggle } from '~/components/ui/switch'

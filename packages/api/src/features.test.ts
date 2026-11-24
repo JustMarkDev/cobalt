@@ -13,9 +13,6 @@ import type { Scheduler, SendResult, Transport } from './webhooks'
 
 const REPO = '/repos/dana/gitfs'
 
-// ---------------------------------------------------------------------------
-// Webhooks
-
 class ManualScheduler implements Scheduler {
   private jobs: Array<{ at: number; fn: () => void; live: boolean }> = []
   constructor(private readonly now: ReturnType<typeof clock>) {}
@@ -74,7 +71,6 @@ function hooksHarness() {
     expect(r.status, r.text).toBe(201)
     return r.json
   }
-  // Waits until nothing is being sent, rather than for a fixed time.
   const settle = async () => {
     await new Promise((r) => setTimeout(r, 10))
     await h.api.port.svc.hooks.idle()
@@ -225,7 +221,6 @@ describe('webhooks: deliveries', () => {
     )
     expect(sent.headers['cb-event']).toBe('issue.created')
     expect(verify(made.secret, sent)).toBe(true)
-    // Not a valid signature for another secret or a tampered body.
     expect(
       verify(made.secret, {
         ...sent,
@@ -277,7 +272,6 @@ describe('webhooks: deliveries', () => {
     expect(full.attempts.map((a: { status: number }) => a.status)).toEqual([
       503, 503, 200,
     ])
-    // Every attempt carries the same webhook-id: the receiver can deduplicate.
     expect(
       new Set(h.transport.sent.map((s) => s.headers['webhook-id'])).size,
     ).toBe(1)
@@ -311,7 +305,6 @@ describe('webhooks: deliveries', () => {
     expect(
       (await h.call('GET', '/events?type=webhook.disabled')).json.data.length,
     ).toBe(1)
-    // Turning it back on clears the reason.
     const on = await h.call('PATCH', `${REPO}/webhooks/${made.id}`, {
       body: { active: true },
     })
@@ -347,7 +340,6 @@ describe('webhooks: deliveries', () => {
     })
     await h.settle()
     const sentBefore = h.transport.sent.length
-    // Redeliver one: same webhook-id, a new delivery pointing at the old.
     const list = (await h.call('GET', `${REPO}/webhooks/${made.id}/deliveries`))
       .json.data
     const target = list.find(
@@ -360,7 +352,6 @@ describe('webhooks: deliveries', () => {
     expect(re.json.redelivery_of).toBe(target.id)
     await h.settle()
     expect(h.transport.sent.at(-1)!.headers['webhook-id']).toBe(target.event.id)
-    // Replay everything this endpoint subscribes to since before the issues.
     const replay = await h.call('POST', `${REPO}/webhooks/${made.id}/replay`, {
       body: { after_sequence: before },
     })
@@ -408,10 +399,8 @@ describe('webhooks: deliveries', () => {
     const h = hooksHarness()
     const made = await h.create(['issue.created'])
     const hook = `${REPO}/webhooks/${made.id}`
-    // Off while 150 events happen, then all of them at once.
     await h.call('PATCH', hook, { body: { active: false } })
     for (let i = 0; i < 150; i++) {
-      // A minute on every twenty, so the writes stay within the rate limit.
       if (i % 20 === 0) h.now.advance(61_000)
       const r = await h.call('POST', `${REPO}/issues`, {
         body: { title: `Burst ${i}` },
@@ -421,7 +410,6 @@ describe('webhooks: deliveries', () => {
     await h.call('PATCH', hook, { body: { active: true } })
     h.transport.delay = 5
     await h.call('POST', `${hook}/replay`, {
-      // The sample starts with no events: these are the only issues opened.
       body: { after_sequence: 0, limit: 1000 },
     })
     for (let i = 0; i < 60 && h.transport.sent.length < 150; i++)
@@ -516,9 +504,6 @@ describe('webhooks: where a delivery may go', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Search
-
 describe('search', () => {
   const titles = (r: { json: { data: Array<{ title: string }> } }) =>
     r.json.data.map((x) => x.title)
@@ -562,8 +547,6 @@ describe('search', () => {
       titles(
         await h.call('GET', `/search?q=${encodeURIComponent('author:ines')}`),
       ),
-      // Her change, the issue she opened in each sample repository, and the
-      // repositories she owns.
     ).toEqual([
       'Normalize Windows path separators',
       ...Array(5).fill('Panic on ref names with a trailing dot'),
@@ -578,8 +561,6 @@ describe('search', () => {
         ),
       ),
     ).toEqual(['Panic on trailing-dot ref names'])
-    // `is:` is a state shorthand where the value is a state, and a type
-    // shorthand otherwise.
     expect(
       titles(
         await h.call(
@@ -692,7 +673,6 @@ describe('search', () => {
     expect(
       titles(await h.call('GET', '/search?q=xylophone', { token: null })),
     ).toEqual([])
-    // A token limited to another repository has the same view as a stranger to private things.
     expect(
       titles(
         await h.call('GET', '/search?q=xylophone', { token: h.tokens.limited }),
@@ -752,9 +732,6 @@ describe('search', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Uploads and evidence
-
 const PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4,
 ])
@@ -797,7 +774,6 @@ describe('uploads', () => {
     expect(made.status).toBe(201)
     expect(made.json).toMatchObject({ state: 'pending', content_url: null })
     expect(made.json.upload_url).toContain('/data?exp=')
-    // No token on the PUT: the address is the credential.
     const sent = await put(h, made.json.upload_url, PNG)
     expect(sent.status).toBe(200)
     const done = await sent.json()
@@ -904,7 +880,7 @@ describe('uploads', () => {
     const made = (await start(h)).json
     await put(h, made.upload_url, PNG)
     now.advance(25 * 3_600_000)
-    await start(h) // creating the next upload runs the sweep
+    await start(h)
     expect((await h.call('GET', `/uploads/${made.id}/content`)).status).toBe(
       404,
     )
@@ -1022,7 +998,6 @@ describe('uploads', () => {
       (await h.call('GET', `${REPO}/changes/216/evidence`, { token: null }))
         .json.data.length,
     ).toBe(1)
-    // Public repository: anyone can read the attached file. Before attaching, nobody else could.
     const url = ev.json.upload.content_url.replace(
       'https://api.cobaltforge.dev/v1',
       'https://api.test/v1',
@@ -1123,7 +1098,6 @@ describe('uploads', () => {
       headers: { 'if-none-match': got.headers.get('etag')! },
     })
     expect(again.status).toBe(304)
-    // A list and `*` are the same question, and both get the same answer.
     expect(
       (
         await h.call('GET', `/uploads/${made.id}/content`, {
@@ -1140,9 +1114,6 @@ describe('uploads', () => {
     ).toBe(304)
   })
 })
-
-// ---------------------------------------------------------------------------
-// Repositories, mirrors, environment and grants
 
 describe('creating repositories', () => {
   test('a bare name goes in the account you act as, and creating twice returns the first', async () => {
@@ -1183,7 +1154,6 @@ describe('creating repositories', () => {
       body: { name: 'tools', owner: 'northwind' },
     })
     expect(org.json.full_name).toBe('northwind/tools')
-    // hollis is a member of northwind: not allowed to create there.
     const denied = await h.call('POST', '/repos', {
       token: h.tokens.hollis,
       body: { name: 'x', owner: 'northwind' },
@@ -1262,7 +1232,6 @@ describe('mirrors', () => {
 describe('router', () => {
   test('two operations may name the same position differently', async () => {
     const h = harness()
-    // env/{name}/{environment} and env/{environment}/values share the second segment.
     expect(
       (
         await h.call('PUT', '/repos/dana/gitfs/env/API_PORT/development', {

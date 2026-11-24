@@ -1,7 +1,7 @@
 # The HTTP API
 
-The public contract is in `apps/web/content/docs/api/`. The reasoning and the evidence
-behind it are in `docs/api-design.md`. This file is for changing the code.
+The public contract is in `apps/web/content/docs/api/`. This file is for changing
+the code.
 
 ## The shape
 
@@ -91,5 +91,4 @@ when the deployment and the API's signing key are set (see the README's
 "Running on Convex"). `MemoryDomain` is the sample the CLI, the docs examples
 and the fast test suite run on; `bun run test:convex` runs the same suite on
 Convex. Git still comes from the local store until code.storage is connected,
-and uploaded files from a folder or a bucket. See
-`apps/web/content/docs/api/roadmap.mdx`.
+and uploaded files from a folder or a bucket.

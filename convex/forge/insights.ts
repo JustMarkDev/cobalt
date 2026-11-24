@@ -17,12 +17,6 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 import type { Actor } from '../lib/actor'
 
-/**
- * The facts insights, the dashboard and the status page add up, with who
- * may see them decided here. The API server adds what it holds itself (git
- * history, mirrors, its own request health) and does the arithmetic.
- */
-
 const DAY = 86_400_000
 
 async function downloads(
@@ -81,8 +75,6 @@ export const repoFacts = query({
   returns: v.string(),
   handler: async (ctx, a) => {
     const r = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
-    // Patch sets by the model their tool declared, over the newest changes:
-    // the repository's own record of which models' work it took.
     const models = new Map<string | null, number>()
     for (const c of await ctx.db
       .query('changes')
@@ -162,7 +154,6 @@ export async function pipelines(ctx: QueryCtx, r: Doc<'repos'>) {
   ).map((d) => JSON.parse(d.json) as Pipeline)
 }
 
-/** The repositories a person can change: their own, and their organizations'. */
 export async function reach(ctx: QueryCtx, handle: string) {
   const owners = [handle]
   const me = await accountByHandle(ctx, handle)
@@ -184,10 +175,6 @@ export async function reposOf(ctx: QueryCtx, owner: string) {
     .take(2000)
 }
 
-/**
- * The repositories a person reaches: their own, their organizations', and
- * those granted to them, each once.
- */
 export async function reachable(ctx: QueryCtx, me: string) {
   const seen = new Set<Id<'repos'>>()
   const found: Array<Doc<'repos'>> = []
@@ -212,11 +199,6 @@ export async function reachable(ctx: QueryCtx, me: string) {
   return found
 }
 
-/**
- * Changes waiting on this person's review (open, by someone else, in a
- * repository they write to, with no current review of theirs), and open
- * issues given to them. The dashboard and the inbox both show these.
- */
 export async function reviewsAndAssigned(ctx: QueryCtx, p: Actor) {
   const me = p.handle
   const full = (r: Doc<'repos'>) => `${r.owner}/${r.name}`
@@ -312,8 +294,6 @@ export const dashboardFacts = query({
         openIssues: shown.open_issues,
         size,
         runs,
-        // Open work whose newest patch set came from a tool that declared a
-        // model: an agent at work, whoever's account it is.
         agentChanges: (
           await Promise.all(
             changes
@@ -350,7 +330,6 @@ export const dashboardFacts = query({
         ).filter((c) => !!c.via?.model),
       })
     }
-    // Changes waiting on this person's review, and issues given to them.
     const { toReview, assigned } = await reviewsAndAssigned(ctx, p)
     const since = a.at - 56 * DAY
     const mine = await ctx.db
@@ -376,7 +355,6 @@ export const statusFacts = query({
     await system(ctx)
     let waiting = 0
     let oldest = Infinity
-    // Runs that are not finished, oldest first, across every repository.
     for (const status of ['queued', 'running'])
       for (const d of await ctx.db
         .query('pipelineRuns')

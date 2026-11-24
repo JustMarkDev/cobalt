@@ -4,12 +4,6 @@ import type { Actor } from './actor'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 
-/**
- * Attaches an upload to what a write adds (evidence, a release's file), in
- * that write's own transaction: of two writes that use one upload at once,
- * exactly one gets it. An upload is attached once, and only once its file
- * has arrived (`uploadLifecycle`).
- */
 export async function attachUpload(
   ctx: MutationCtx,
   uploadId: string,
@@ -21,8 +15,6 @@ export async function attachUpload(
     .query('uploads')
     .withIndex('by_publicId', (q) => q.eq('publicId', uploadId))
     .unique()
-  // Only its owner may attach a file: a page can call the write directly,
-  // and an upload not attached yet is private to whoever sent it.
   if (!u || (!by.system && u.owner !== by.handle))
     fail('not_found', `No upload ${uploadId}.`)
   if (fits && !fits(u.contentType))
@@ -40,7 +32,6 @@ export async function attachUpload(
   return u
 }
 
-/** What evidence of each kind may be: the same rule the API checks first. */
 export const evidenceFits: Record<string, (type: string) => boolean> = {
   image: (t) => t.startsWith('image/'),
   recording: (t) => t.startsWith('video/'),
@@ -48,7 +39,6 @@ export const evidenceFits: Record<string, (type: string) => boolean> = {
   test_results: (t) => t === 'application/json' || t === 'text/plain',
 }
 
-/** The upload as evidence records it: from the stored file, not the caller. */
 export const evidenceUpload = (u: Doc<'uploads'>) => ({
   id: u.publicId,
   contentType: u.contentType,

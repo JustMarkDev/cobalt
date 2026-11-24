@@ -4,12 +4,6 @@ import { has, str } from '../args'
 import { resolve } from '../config'
 import type { Command } from './types'
 
-/**
- * Hand an issue or a change to an orchestrator. cobalt runs no agent and
- * hosts no model: the orchestrator (T3 Code, and boat.dev beneath it) starts
- * one on your machine or its own, under your login. Whatever it writes comes
- * back with a receipt naming the machine, the tool and the model.
- */
 const targets = ['t3', 'boat'] as const
 
 export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
@@ -34,7 +28,6 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
   let prompt: string
   let type: string
   if (run) {
-    // A pipeline run: the failure is the task. Its log is read through cb.
     const p = (
       await api.get(`${repo.path}/pipelines/${run[1]}`).catch(() => null)
     )?.json as
@@ -72,15 +65,12 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
       )
       .at(0)
     if (waiting) {
-      // The run waits on someone: the agent does the work, then resumes it
-      // with the same login it runs under. No token travels in the prompt.
       const resume = `cb pipeline resume ${p.number} --job ${waiting.job} --step ${waiting.step} --status success --note "<what you did>"`
       prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}) is waiting at step "${waiting.name}": ${waiting.wait.reason}. Do that work on ${p.branch} and add a patch set with cb change create. When it is done, resume the run with exactly: ${resume} (use --status failure and say why if it cannot be done). If you have not used cb, run "cb skill" first. Set CB_MODEL to the model you are, so the receipt says so.`
     } else
       prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}, "${p.title}") ended ${p.status}. Read its jobs and the failing step's log (cb commands lists the pipelines operations), reproduce the failure, fix it on ${p.branch}, and add a patch set with cb change create. If you have not used cb, run "cb skill" first. Set CB_MODEL to the model you are, so the receipt says so.`
   } else {
     const n = subject.replace(/^#/, '')
-    // A number is a change or an issue; the API says which.
     const ref = (await api.get(`${repo.path}/numbers/${n}`).catch(() => null))
       ?.json
     if (!ref)
@@ -96,8 +86,6 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
       )
     ).json.title as string
     type = ref.type as string
-    // Names and structure only. Values never travel in a prompt: the agent
-    // runs commands with `cb env run`, under the login of the machine it is on.
     prompt = `Work on ${repo.slug} #${n}: ${title}. Open a draft change. If you have not used cb, run "cb skill" first, then "cb context" for policies and the env schema. Set CB_MODEL to the model you are, so the receipt says so.`
   }
   const command =

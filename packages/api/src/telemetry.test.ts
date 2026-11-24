@@ -2,7 +2,6 @@ import { afterEach, expect, test } from 'bun:test'
 import { createSampleApi } from './index'
 import { headersOf } from './telemetry'
 
-/** Spans go to whatever OTLP receiver the environment names, and nowhere without one. */
 type Attr = { key: string; value: Record<string, unknown> }
 type Span = {
   name: string
@@ -79,7 +78,6 @@ test('every request is a span, with its operation as a child span', async () => 
     'repos.get',
     'repos.get',
   ])
-  // The route, never the query string.
   expect(attr(roots[0], 'url.path')).toBe('/v1/repos/dana/gitfs')
   const op = spans.find((s) => s.name === 'api.repos.get')!
   expect(op.parentSpanId).toBe(roots[0].spanId)
@@ -99,7 +97,6 @@ test('headers for one signal go only to that signal, and the others stay off', a
   expect(traces.length).toBeGreaterThan(0)
   expect(traces.map((t) => t.dataset)).toEqual(traces.map(() => 'traces-set'))
   expect(traces[0].auth).toBe('Bearer xaat-1')
-  // Metrics were not named, so none are sent.
   expect(got.filter((g) => g.path === '/v1/metrics')).toHaveLength(0)
 })
 

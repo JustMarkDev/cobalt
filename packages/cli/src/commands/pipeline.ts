@@ -3,14 +3,6 @@ import { CbError, exit, print } from '../output'
 import { has, str } from '../args'
 import type { Command } from './types'
 
-/**
- * A pipeline step that waits on a person or an agent, and its answer.
- *
- *   cb pipeline wait 1839 --job 1 --step 3 --reason "Update the docs" --kind agent
- *   cb pipeline resume 1839 --job 1 --step 3 --status success --note "docs updated"
- *
- * Both run under your own login, which needs write access to the repository.
- */
 export const pipeline: Command = async (
   { rest: [sub, runArg], flags },
   ctx,

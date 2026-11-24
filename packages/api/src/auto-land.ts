@@ -1,15 +1,6 @@
 import { isSensitivePath } from './sensitive'
 import type { DomainPort } from './domain/port'
 
-/**
- * A repository that lands by itself lands a change once nothing stands in
- * its way, and never one that touches what protects the repository: its
- * policy, CI workflows or env schema. The backends answer everything but
- * that; this reads it from git, comparing those files between the base and
- * the head commit, tree to tree, so a change cannot hide a path behind a
- * later push. Anything git cannot answer counts as touched: when in doubt,
- * a person presses Land.
- */
 export async function tryAutoLand(
   d: DomainPort,
   owner: string,
@@ -23,7 +14,6 @@ export async function tryAutoLand(
       return false
     return await d.autoLand(owner, name, ref, ready.sha)
   } catch {
-    // Auto-land is a convenience: a failure leaves the change for a person.
     return false
   }
 }
@@ -39,7 +29,6 @@ async function touchesProtected(
     git.files(full, base),
     git.files(full, head),
   ])
-  // A listing that might be missing a path cannot clear one.
   if (before.complete !== true || after.complete !== true) return true
   const paths = new Set(
     [...before.paths, ...after.paths].filter(isSensitivePath),

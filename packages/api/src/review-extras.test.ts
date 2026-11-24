@@ -20,7 +20,6 @@ describe('the files of a patch set', () => {
     )
     expect(refs.base).toContain('self.disk.read_ref(name)')
     expect(refs.content).toContain('neg: NegCache,')
-    // Patch set 1 is an earlier version of the same file.
     const first = (await h.call('GET', `${C}/patch-sets/1/files`)).json
     expect(first.files[0].content).not.toBe(refs.content)
   })
@@ -62,14 +61,12 @@ describe('a patch set made from edited files', () => {
     expect(
       files.find((f: { path: string }) => f.path === 'src/refs.rs').content,
     ).toBe(after)
-    // The test file was not edited and is carried over.
     expect(
       files.find((f: { path: string }) => f.path === 'tests/refs_test.rs')
         .content,
     ).toContain('lookup_reads_disk_once')
     const change = (await h.call('GET', C)).json
     expect(change.head.patch_set).toBe(4)
-    // The code changed, so earlier approvals no longer count for the head.
     expect(
       change.reviewers.every(
         (r: { carries_to_head: boolean }) => !r.carries_to_head,

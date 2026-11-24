@@ -1,10 +1,3 @@
-// How cobalt compares with other hosts, as a checklist: a short title, one
-// line under it, and a mark per product. A note sits only on the marks that
-// need one. These are claims about other people's products, so a mark is never
-// better for us than what we could confirm: what we could not confirm is
-// `unclear`, not `no`. The research behind each mark, with its sources, is in
-// this file's git history (November 2026).
-
 export type Product =
   | 'us'
   | 'github'
@@ -24,7 +17,6 @@ export const products: Array<{ id: Product; name: string; note?: string }> = [
   { id: 'forgejo', name: 'Forgejo' },
 ]
 
-/** `unclear` is for what we could not confirm from public documentation. */
 export type Level = 'yes' | 'partly' | 'no' | 'unclear'
 
 export const levelLabel: Record<Level, string> = {
@@ -39,7 +31,6 @@ export type Cell = { level: Level; note?: string }
 export type Row = {
   id: string
   title: string
-  /** One short line under the title, in plain words. */
   detail: string
   cells: Record<Product, Cell>
 }
@@ -51,10 +42,6 @@ const unclear: Cell = { level: 'unclear' }
 
 export const rows: Array<Row> = [
   {
-    // Ours is the storage underneath (code.storage's SLA), not a measured
-    // track record: we have none until we are hosted. GitHub's figure is The
-    // Missing GitHub Status Page (mrshu.github.io/github-statuses), rebuilt
-    // from its incident history, because GitHub no longer publishes one.
     id: 'uptime',
     title: 'Built to stay up',
     detail: 'Git on replicated storage with a 99.99% uptime SLA.',
@@ -105,8 +92,6 @@ export const rows: Array<Row> = [
     },
   },
   {
-    // No hosted CI is a choice: the runner, its hardware and its bill are
-    // yours, and we never sell compute.
     id: 'runners',
     title: 'Your runners, no minutes to buy',
     detail: 'Run CI on Blacksmith or your own machines.',
@@ -121,8 +106,6 @@ export const rows: Array<Row> = [
     },
   },
   {
-    // An estimate, not a measurement: we are not hosted yet. It assumes a
-    // network like GitCafe's and a server that adds little on top.
     id: 'speed',
     title: 'Fast API',
     detail: 'About 100 to 150 ms for a single issue, most of it the network.',

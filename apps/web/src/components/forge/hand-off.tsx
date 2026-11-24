@@ -16,11 +16,6 @@ type Subject = {
   title: string
 }
 
-/**
- * Hand an issue, a change or a failing run to an orchestrator. cobalt
- * starts no agent and hosts no model: T3 Code (and boat.dev beneath it) runs
- * the agent under your login, and what it writes comes back with a receipt.
- */
 const targets = [
   {
     id: 't3',

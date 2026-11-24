@@ -77,8 +77,6 @@ import type {
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** Changes: patch sets, reviews, checks, findings, policy, landing and stacks. */
-
 const position = v.union(
   v.null(),
   v.object({ key: v.union(v.string(), v.number()), id: v.string() }),
@@ -87,13 +85,11 @@ const hex = (s: string) => bytesToHex(sha1(utf8ToBytes(s)))
 
 const isOpen = (s: ChangeRec['state']) => s === 'open' || s === 'draft'
 
-/** Stamps a change as changed: a newer `updated`, a higher version. */
 function touch(c: ChangeRec) {
   c.updated = Math.max(Date.now(), c.updated + 1)
   c.version++
 }
 
-/** Keeps the issues a change names in step with its title and description. */
 async function syncIssueRefs(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -118,7 +114,6 @@ async function syncIssueRefs(
       })
 }
 
-/** Writes the change, keeps the open count, and emits its one event. */
 async function commit(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -130,7 +125,6 @@ async function commit(
     changes: Array<string>
     data?: unknown
     extra?: Record<string, unknown>
-    /** A receipt for something the server did on its own. */
     via?: Via
   } | null,
 ) {
@@ -163,12 +157,6 @@ async function commit(
   )
 }
 
-/**
- * Whether a change could land by itself now, all but the paths it touches,
- * which the API server reads from git before it calls `autoLand`. Never a
- * draft, a change in a stack, a landing with steps after it, or one whose
- * enabler can no longer write here. The same rules as `MemoryDomain`.
- */
 async function autoLandReady(
   ctx: QueryCtx,
   owner: string,
@@ -183,8 +171,6 @@ async function autoLandReady(
   const l = await hydrate(ctx, doc)
   const c = l.rec
   if (c.state !== 'open' || c.stackId) return null
-  // A rebase keeps the old tree's checks and approvals on the client's
-  // word; nothing lands by itself on that word.
   if (c.patchSets[c.patchSets.length - 1].kind === 'rebase') return null
   const as: Actor = {
     handle: by,
@@ -200,7 +186,6 @@ async function autoLandReady(
   const view = await viewFor(ctx, repo, as, Date.now(), [c])
   if (hasAfterSteps(view.policy.landing)) return null
   if (rulesReadChangedFiles(view.policy.customRules)) return null
-  // The repository's own rules on who and what it takes hold here too.
   if (
     contributionRefusal(
       repo,
@@ -212,7 +197,6 @@ async function autoLandReady(
     return null
   if (view.policyState(view.evaluate(c)) !== 'met') return null
   const head = c.patchSets[c.patchSets.length - 1]
-  // The landing's own gates (checks it waits on) hold as for a person.
   if (landingWaits(view.policy.landing, c.checks, head).length) return null
   return { repo, l, by, base: c.base, sha: head.sha }
 }
@@ -236,7 +220,6 @@ export const autoLandCandidate = query({
   },
 })
 
-/** Lands it under the account that turned auto-land on, if still at `sha`. */
 export const autoLand = mutation({
   args: {
     owner: v.string(),
@@ -274,8 +257,6 @@ async function shown(
   return view.presentChange(c, p, expand)
 }
 
-// ---- reading -----------------------------------------------------------------
-
 export const list = query({
   args: {
     owner: v.string(),
@@ -295,7 +276,6 @@ export const list = query({
   handler: async (ctx, q) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, q.owner, q.name, p)
-    // A change under an access rule the viewer does not read is not listed.
     const hidden = await hiddenChangeNumbers(ctx, repo, p)
     const states = q.state && q.state !== 'all' ? q.state.split(',') : null
     const everything = q.state === 'all'
@@ -421,8 +401,6 @@ export const version = query({
   },
 })
 
-// ---- where a line came from -------------------------------------------------------
-
 export const provenance = query({
   args: {
     owner: v.string(),
@@ -485,8 +463,6 @@ export const provenance = query({
   },
 })
 
-// ---- opening and updating ----------------------------------------------------------
-
 function patchFiles(prev: ChangeRec['patchSets'][number]) {
   return Object.fromEntries(
     Object.entries(prev.files).map(([path, f]) => [
@@ -533,9 +509,7 @@ function pushPatchSet(
         ? { contents: prev.contents }
         : {}),
   })
-  // An approval follows a rewrite only when the code did not change.
   if (ps.kind === 'update') for (const r of c.reviews) r.carries = false
-  // Comments follow the code they are about into the new patch set.
   if (
     placeThreads(
       c.comments ?? [],
@@ -544,7 +518,6 @@ function pushPatchSet(
     )
   )
     c.commentRev = (c.commentRev ?? 0) + 1
-  // And the threads it answers say so, in the same write.
   let addressed: ReturnType<typeof addressThreads> = []
   if (ps.addresses?.length) {
     addressed = addressThreads(
@@ -578,7 +551,6 @@ const patchSetEvent = (
   extra: addressed.length ? { addressed } : undefined,
 })
 
-/** Refuses a patch set that touches paths outside a token's. */
 function withinPaths(
   ps: { files: Record<string, unknown>; contents?: Record<string, unknown> },
   globs: ReadonlyArray<string> | null | undefined,
@@ -630,7 +602,6 @@ export const create = mutation({
         via,
         addresses: a.addresses,
       })
-      // A token limited to paths changes nothing outside them.
       withinPaths(l.rec.patchSets[l.rec.patchSets.length - 1], p.paths)
       await commit(ctx, repo, l, was, patchSetEvent(by, addressed))
       return finish(a.dry, {
@@ -755,8 +726,6 @@ export const update = mutation({
   },
 })
 
-// ---- patch sets ------------------------------------------------------------------
-
 export const listPatchSets = query({
   args: {
     owner: v.string(),
@@ -798,7 +767,6 @@ export const getPatchSet = query({
   },
 })
 
-/** Lines added and removed between two texts, by a longest common subsequence. */
 function lineCounts(before: string | null, after: string | null) {
   const x = before === null ? [] : before.split('\n')
   const y = after === null ? [] : after.split('\n')
@@ -823,7 +791,6 @@ export const addPatchSet = mutation({
     sha: v.optional(v.string()),
     kind: v.union(v.literal('update'), v.literal('rebase')),
     note: v.optional(v.string()),
-    // Edited files as `[path, text or null]`: paths are not field names.
     files: v.optional(v.array(v.array(v.union(v.string(), v.null())))),
     addresses: v.optional(
       v.array(v.object({ comment: v.string(), note: v.optional(v.string()) })),
@@ -839,8 +806,6 @@ export const addPatchSet = mutation({
     const c = l.rec
     if (c.state === 'landed' || c.state === 'abandoned')
       fail('invalid_state', `Change #${c.number} is ${c.state}.`)
-    // A denounced author's change takes no more work, from anyone: the same
-    // rule a push meets.
     const authorRefused = contributionRefusal(
       repo,
       c.author.handle,
@@ -853,8 +818,6 @@ export const addPatchSet = mutation({
     const addresses = a.addresses ?? []
     let addressed: ReturnType<typeof addressThreads> = []
     if (a.files) {
-      // A patch set made from files edited in the browser: the head's files with
-      // these on top. Its commit id is a hash of what it holds.
       const prev = c.patchSets[c.patchSets.length - 1]
       if (!prev.contents)
         fail(
@@ -916,7 +879,6 @@ export const addPatchSet = mutation({
         via: await viaOf(ctx),
       })
     }
-    // A token limited to paths changes nothing outside them; deleting is changing.
     withinPaths(c.patchSets[c.patchSets.length - 1], p.paths)
     await assertMayTouch(
       ctx,
@@ -1011,8 +973,6 @@ export const comparePatchSets = query({
     })
   },
 })
-
-// ---- reviews, findings, checks -------------------------------------------------------
 
 export const review = mutation({
   args: {
@@ -1336,7 +1296,6 @@ export const listChecks = query({
 const assume = v.optional(
   v.object({
     approve: v.optional(v.array(v.string())),
-    // `[check, state]` pairs: check names are not field names.
     checks: v.optional(v.array(v.array(v.string()))),
     resolve: v.optional(v.array(v.string())),
   }),
@@ -1392,8 +1351,6 @@ export const policy = query({
     })
   },
 })
-
-// ---- state: ready, abandon, restore, land ------------------------------------------------
 
 export const transition = mutation({
   args: {
@@ -1506,7 +1463,6 @@ export function checkLandable(
           : 'Wait for the pending requirements, then try again.',
       },
     )
-  // The policy file's landing steps: checks landing waits for.
   const waits = landingWaits(view.policy.landing, c.checks, head)
   if (waits.length)
     fail(
@@ -1540,12 +1496,9 @@ async function doLand(
     changes: ['state', 'landed_at'],
     via,
   })
-  // The repository's event revision of the land, for triggers to key on.
   const landedRev = (await counters(ctx, repo)).rev
   const landedVia = via ?? (await viaOf(ctx))
-  // A change to the policy file that lands is the repository's rules now.
   await readLandedPolicy(ctx, repo, c, by)
-  // Then its trigger files, then what the land triggers.
   await readLandedTriggers(ctx, repo, c, by)
   await dispatchTriggers(ctx, repo, c, {
     type: 'change.landed',
@@ -1553,8 +1506,6 @@ async function doLand(
     model: landedVia.model,
     sequence: landedRev,
   })
-  // Changes above it are rebased onto the result. Their trees do not change,
-  // so approvals and evidence stay valid.
   if (c.stackId) {
     const members = await stackMembers(ctx, repo, c.stackId)
     const i = members.findIndex((m) => m.number === c.number)
@@ -1573,7 +1524,6 @@ async function doLand(
   }
 }
 
-/** What stops a change from landing now, and how it will land. */
 export const landability = query({
   args: {
     owner: v.string(),
@@ -1649,7 +1599,6 @@ export const land = mutation({
     const l = await loadChange(ctx, repo, a.ref, p)
     const view = await viewFor(ctx, repo, p, Date.now(), [l.rec])
     checkLandable(view, l.rec, p, a.expectedTree)
-    // With steps after landing, it is an operation: a stack of one.
     if (hasAfterSteps(view.policy.landing))
       return finish(a.dry, {
         operation: await startLanding(
@@ -1690,10 +1639,6 @@ function presentOp(o: Doc<'operations'>) {
   }
 }
 
-/**
- * A landing as an operation: each change lands in its own step, then the
- * policy file's landing steps run (`forge/stackLanding.ts`).
- */
 async function startLanding(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -1741,7 +1686,6 @@ export const landStack = mutation({
     owner: v.string(),
     name: v.string(),
     stackId: v.string(),
-    // `[number, tree]` pairs.
     trees: v.array(v.array(v.string())),
     dry: v.optional(v.boolean()),
   },
@@ -1850,8 +1794,6 @@ export const operationRepoId = query({
   },
 })
 
-// ---- evidence ---------------------------------------------------------------------
-
 export const addEvidence = mutation({
   args: {
     owner: v.string(),
@@ -1928,8 +1870,6 @@ export const listEvidence = query({
   },
 })
 
-// ---- line comments ---------------------------------------------------------------------
-
 export const listReviewComments = query({
   args: {
     owner: v.string(),
@@ -2002,7 +1942,6 @@ export const createReviewComment = mutation({
       })),
     }
     const p = await signedIn(ctx)
-    // Anyone who can read the repository may comment, as on an issue.
     const repo = await resolve(ctx, a.owner, a.name, p)
     const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
@@ -2103,7 +2042,6 @@ export const createReviewComment = mutation({
     const shownComment = view.presentReviewComment(c, x)
     comments.push(x)
     c.commentRev = (c.commentRev ?? 0) + 1
-    // A reply reopens a settled thread: someone still has something to say.
     if (replyTo) {
       const start = comments.find((y) => y.id === replyTo)!
       if (start.resolved) {
@@ -2134,7 +2072,6 @@ function reviewCommentOf(c: ChangeRec, id: string) {
   return x
 }
 
-/** Marks a thread as answered by a patch set. It stays open. */
 export const addressReviewComment = mutation({
   args: {
     owner: v.string(),
@@ -2244,7 +2181,6 @@ export const updateReviewComment = mutation({
           'forbidden',
           "Only the thread's author, the change's author or someone who can change the repository settles a thread.",
         )
-      // The policy file can narrow it to the person who started the thread.
       if (
         x.author.handle !== p.handle &&
         (await loadPolicy(ctx, repo)).landing.resolve === 'author'
@@ -2285,7 +2221,6 @@ export const deleteReviewComment = mutation({
         'forbidden',
         'Only its author or someone who can change the repository can delete a comment.',
       )
-    // Deleting the comment that starts a thread deletes the thread.
     c.comments = (c.comments ?? []).filter(
       (y) => y.id !== x.id && y.replyTo !== x.id,
     )
@@ -2294,8 +2229,6 @@ export const deleteReviewComment = mutation({
     return finish(a.dry, null)
   },
 })
-
-// ---- what each reviewer has seen ---------------------------------------------------
 
 async function seenMarks(
   ctx: QueryCtx,
@@ -2334,7 +2267,6 @@ export const seen = query({
   },
 })
 
-/** Personal state: no event, and nobody else's answer changes. */
 export const setSeen = mutation({
   args: {
     owner: v.string(),
@@ -2403,8 +2335,6 @@ export const setSeen = mutation({
     )
   },
 })
-
-// ---- change guides ---------------------------------------------------------------
 
 export const guide = query({
   args: { owner: v.string(), name: v.string(), ref: v.string() },

@@ -3,7 +3,6 @@ import type * as React from 'react'
 import { Button } from '~/components/ui/button'
 import { refusalOf } from '~/lib/forge'
 
-/** Shown for an address that leads nowhere. Says what happened and where to go next. */
 export function NotFoundPage({
   title = 'We could not find that page',
   children,
@@ -41,7 +40,6 @@ export function NotFoundPage({
   )
 }
 
-/** Shown when a page fails to load. A person gets a way forward, a developer gets the reason. */
 export function ErrorPage({
   error,
   reset,
@@ -49,7 +47,6 @@ export function ErrorPage({
   error: unknown
   reset: () => void
 }) {
-  // What a page read live and may not see (or that is gone) is not found.
   if (refusalOf(error)?.code === 'not_found') return <NotFoundPage />
   return (
     <div className="mx-auto max-w-lg space-y-6 py-16 text-center">

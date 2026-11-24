@@ -1,9 +1,3 @@
-/**
- * Runs after `vp build`: writes a brotli (`.br`) and a gzip (`.gz`) copy next
- * to every built file worth compressing, at the best setting of each. The
- * files never change once built, so `server.ts` sends these copies and
- * compresses nothing for them while it runs.
- */
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -35,7 +29,6 @@ await Promise.all(
       }),
       gz(bytes, { level: 9 }),
     ])
-    // A copy that is not smaller is not worth sending.
     if (b.byteLength < bytes.byteLength) await Bun.write(`${path}.br`, b)
     if (g.byteLength < bytes.byteLength) await Bun.write(`${path}.gz`, g)
     before += bytes.byteLength

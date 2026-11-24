@@ -1,6 +1,3 @@
-// Pipeline runs as the Pipelines tab shows them (`lib/pipeline.ts` turns
-// the API's runs into these).
-
 export type RunStatus =
   | 'success'
   | 'failure'
@@ -23,7 +20,6 @@ export type Run = {
   trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual' | 'event'
 }
 
-/** What a waiting step waits for. */
 export type Wait = {
   kind: 'person' | 'agent' | 'approval'
   reason: string
@@ -49,9 +45,7 @@ export type Job = {
   status: StepStatus
   time: string
   steps: Array<Step>
-  /** The labels it asked for (`runs-on`). */
   runsOn: Array<string>
-  /** While queued: the labels no runner of the repository has, or null. */
   waitingFor: Array<string> | null
 }
 
@@ -59,7 +53,6 @@ export type RunDetail = {
   run: Run
   file: string
   jobs: Array<Job>
-  /** What a person should look at first, with where it came from. */
   annotations: Array<{
     level: 'error' | 'warn'
     text: string
@@ -67,10 +60,6 @@ export type RunDetail = {
     step: string
   }>
 }
-
-// ---------------------------------------------------------------------------
-// Runs per repository
-// ---------------------------------------------------------------------------
 
 export function failureOf(detail: RunDetail) {
   for (const j of detail.jobs)

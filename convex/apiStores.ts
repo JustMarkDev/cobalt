@@ -4,17 +4,6 @@ import { env, internalMutation, mutation } from './_generated/server'
 import { heldBy } from './lib/idempotency'
 import type { MutationCtx } from './_generated/server'
 
-/**
- * The shared stores behind the HTTP API: rate-limit counters and idempotency
- * keys. Each function is one transaction, so two API nodes asking at the same
- * moment are ordered by the database and cannot both be told yes to the last
- * unit, or both be told they are first.
- *
- * They are public mutations because the API servers are not signed-in users.
- * Every one needs `secret`, which must equal the deployment's
- * `API_STORE_SECRET`. Without that variable set they all refuse.
- */
-
 const stateValidator = v.union(
   v.object({ state: v.literal('new'), lease: v.string() }),
   v.object({ state: v.literal('conflict') }),
@@ -31,7 +20,6 @@ const stateValidator = v.union(
 
 export function assertSecret(secret: string) {
   const want = env.API_STORE_SECRET
-  // Compared in full whatever the length, so the answer does not leak how much matched.
   let diff = want === undefined || want.length < 16 ? 1 : 0
   const a = want ?? ''
   const n = Math.max(a.length, secret.length)
@@ -41,13 +29,6 @@ export function assertSecret(secret: string) {
   if (diff !== 0) throw new Error('not allowed')
 }
 
-// ----- rate limits -----------------------------------------------------------
-
-/**
- * Takes up to `want` units from the window that contains now, for `key`. The
- * grant is `min(want, limit - used)`, so the total handed out in a window can
- * never pass the limit however many nodes ask.
- */
 export const takeLimit = mutation({
   args: {
     secret: v.string(),
@@ -67,10 +48,6 @@ export const takeLimit = mutation({
   },
 })
 
-/**
- * The same counter for sign-in (`auth.ts`), keyed by the account a request
- * names rather than by address, so a spoofed `X-Forwarded-For` buys nothing.
- */
 export const takeAuthLimit = internalMutation({
   args: { key: v.string(), limit: v.number(), windowMs: v.number() },
   returns: v.object({
@@ -110,20 +87,11 @@ async function take(
   }
 }
 
-// ----- idempotency -----------------------------------------------------------
-
-/** First sight of a key claims it; later sights learn what became of it. */
-/**
- * How long a request may hold its key before another one may look at what it
- * did. Longer than any request runs.
- */
 const LEASE_MS = 10 * 60_000
 
-/** The answer for a request that changed something and then lost its reply. */
 const lost = {
   status: 409,
   headers: JSON.stringify({ 'content-type': 'application/problem+json' }),
-  // The same problem the API answers for `request_outcome_unknown`.
   body: JSON.stringify({
     type: 'https://cobaltforge.dev/docs/api/errors#request_outcome_unknown',
     title:
@@ -164,13 +132,8 @@ export const beginIdempotency = mutation({
         return { state: 'conflict' as const }
       if (row.response)
         return { state: 'replay' as const, response: row.response }
-      // The request that held the key went quiet. If it wrote nothing, it is
-      // safe to run again; if it wrote, it must not run twice, and its answer
-      // is gone.
       if (now - (row.started ?? now) > LEASE_MS) {
         if (row.effect === undefined) {
-          // A new lease: the request that went quiet no longer holds the
-          // key, so it can neither write under it nor finish it.
           const lease = leaseId(now)
           await ctx.db.patch('apiIdempotency', row._id, { started: now, lease })
           return { state: 'new' as const, lease }
@@ -194,8 +157,6 @@ export const beginIdempotency = mutation({
   },
 })
 
-// A Convex document holds about 1 MiB. A response that cannot fit is replaced by
-// a short one that says so, which still stops a retry from doing the work twice.
 const MAX_BODY = 900_000
 
 export const completeIdempotency = mutation({
@@ -217,7 +178,6 @@ export const completeIdempotency = mutation({
         q.eq('scope', args.scope).eq('key', args.key),
       )
       .unique()
-    // Finished by a request that no longer holds the key: not its to finish.
     if (!heldBy(row, args.lease) || row.response) return null
     const tooBig = args.body.length + args.headers.length > MAX_BODY
     await ctx.db.patch('apiIdempotency', row._id, {
@@ -257,8 +217,6 @@ export const abortIdempotency = mutation({
       )
       .unique()
     if (!heldBy(row, args.lease) || row.response) return null
-    // A request that failed after one of its writes committed must not run
-    // again: its key keeps an answer that says so.
     if (row.effect !== undefined)
       await ctx.db.patch('apiIdempotency', row._id, { response: lost })
     else await ctx.db.delete('apiIdempotency', row._id)
@@ -266,17 +224,13 @@ export const abortIdempotency = mutation({
   },
 })
 
-// ----- housekeeping ----------------------------------------------------------
-
 const SWEEP_BATCH = 500
 
-/** Deletes finished windows and expired keys, a batch at a time, and schedules itself again if there is more. */
 export const sweep = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     const now = Date.now()
-    // A window that ended an hour ago cannot matter to any node.
     const windows = await ctx.db
       .query('apiLimits')
       .withIndex('by_start', (q) => q.lt('start', now - 3_600_000))
@@ -287,7 +241,6 @@ export const sweep = internalMutation({
       .withIndex('by_expires', (q) => q.lt('expires', now))
       .take(SWEEP_BATCH)
     for (const k of keys) await ctx.db.delete('apiIdempotency', k._id)
-    // A full batch means there may be more; go again rather than hold one transaction open.
     if (windows.length === SWEEP_BATCH || keys.length === SWEEP_BATCH)
       await ctx.scheduler.runAfter(0, internal.apiStores.sweep, {})
     return null

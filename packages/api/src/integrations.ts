@@ -1,8 +1,3 @@
-/**
- * The services an account can connect. What each one is, in words and logos,
- * is the web app's to say; the API only needs to know which exist, whether
- * they can be connected yet, and which take a key instead of a sign-in.
- */
 export const integrations: ReadonlyArray<{
   id: string
   status: 'available' | 'planned'

@@ -12,10 +12,6 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { authClient, safeRedirect } from '~/lib/auth/client'
 
-/**
- * The frame every account screen shares: a quiet page, the logo, one card.
- * The site header and footer are left out so the only way forward is the form.
- */
 export function AuthShell({
   step,
   title,
@@ -23,7 +19,6 @@ export function AuthShell({
   children,
   footer,
 }: {
-  /** "Step 1 of 2": shown above the title on multi-step flows. */
   step?: string
   title: string
   subtitle?: React.ReactNode
@@ -105,7 +100,6 @@ export function PasswordInput({
   )
 }
 
-/** The submit button: the screen's one primary action. */
 export function SubmitButton({
   pending,
   children,
@@ -127,30 +121,19 @@ export function SubmitButton({
   )
 }
 
-/**
- * Wraps a page only a signed-in person can use. Signed out, it sends them to
- * sign in and brings them back here afterwards. While the session is still
- * being read it shows nothing, so a signed-in reload never flashes the form.
- */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession()
   const navigate = useNavigate()
   const href = useRouterState({ select: (s) => s.location.href })
-  // The page to come back to. Read when the redirect fires, not as a
-  // dependency: this component stays mounted for a moment after the URL
-  // changes, and a dependency would redirect again with the sign-in URL.
   const back = React.useRef(href)
   back.current = href
   const signedOut = !isPending && !data
-  // `navigate` changes identity whenever the location does, so the effect
-  // cannot depend on it: it would fire again from the sign-in URL.
   const sent = React.useRef(false)
   React.useEffect(() => {
     if (!signedOut) {
       sent.current = false
       return
     }
-    // Already on the way: the route change can run this a second time.
     if (sent.current || safeRedirect(back.current) === undefined) return
     sent.current = true
     void navigate({
@@ -163,10 +146,6 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   return children
 }
 
-/**
- * For buttons that need an account (Star, Fork, Follow). Signed in, it runs
- * the action. Signed out, it opens sign in and returns to this page after.
- */
 export function useSignInGate() {
   const { data } = authClient.useSession()
   const navigate = useNavigate()
@@ -180,7 +159,6 @@ export function useSignInGate() {
   )
 }
 
-/** Label, control, then a hint or an error. `aside` sits opposite the label. */
 export function AuthField({
   id,
   label,

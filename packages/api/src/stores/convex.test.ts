@@ -13,10 +13,8 @@ import schema from '../../../../convex/schema'
 import { ConvexIdempotencyStore, ConvexLimitStore } from './convex'
 import type { ConvexCall } from './convex'
 
-// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
-// The Convex functions, loaded the way Vite's `import.meta.glob` would load them.
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
 for (const f of new Bun.Glob('**/*.{ts,js}').scanSync(dir))
@@ -117,7 +115,6 @@ describe('rate limits on Convex', () => {
   })
 })
 
-/** The lease a `new` answer gives. */
 const leaseOf = (b: { state: string; lease?: string }) => {
   if (b.state !== 'new' || !b.lease) throw new Error(`not held: ${b.state}`)
   return b.lease
@@ -146,7 +143,6 @@ describe('idempotency on Convex', () => {
     expect(await store.begin('tok', 'k1', 'fp-b')).toEqual({
       state: 'conflict',
     })
-    // The same key under another scope is another key.
     expect((await store.begin('other', 'k1', 'fp-a')).state).toBe('new')
   })
 
@@ -227,7 +223,6 @@ describe('when Convex cannot be reached', () => {
       const store = new ConvexLimitStore(down, SECRET)
       const policy = { limit: 1000, windowMs: 60_000 }
       expect((await store.take('k', 50, policy, 0)).granted).toBe(10)
-      // One block per window, not one per request.
       expect((await store.take('k', 50, policy, 1)).granted).toBe(0)
       const small = await new ConvexLimitStore(down, SECRET).take(
         'k',

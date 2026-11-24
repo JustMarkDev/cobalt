@@ -192,7 +192,6 @@ function General({ repo }: { repo: Repo }) {
   )
 }
 
-/** Give the repository to another account the person owns or administers. */
 function Transfer({
   repo,
   onCancel,
@@ -480,7 +479,6 @@ function Mirrors({ repo }: { repo: Repo }) {
     state: m.state,
     last: timeAgo(m.last_sync_at),
     detail: m.detail ?? undefined,
-    // Git history travels; the API does not carry issues or changes yet.
     carries: { issues: false, changes: false, releases: false, wiki: false },
   }))
   const [adding, setAdding] = React.useState(false)
@@ -585,10 +583,6 @@ function Mirrors({ repo }: { repo: Repo }) {
   )
 }
 
-/**
- * Who and what this repository takes, and whether a change lands by itself.
- * The same checks hold for everyone: vouching changes order, never the rules.
- */
 function Contributions({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const shown = useOp('repos.get', at)

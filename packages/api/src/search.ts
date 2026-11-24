@@ -2,18 +2,6 @@ import { pageSorted } from './cursor'
 import type { CursorPosition } from './cursor'
 import type { EventLog, EventRecord } from './events'
 
-/**
- * Search over repositories, changes and issues.
- *
- * An inverted index kept current from the event log: every write already
- * produces an event that carries the object, so the index needs no hook of its
- * own in the write path. There is no result cap: results are one ordered list
- * and a cursor walks it. Visibility is applied at query time, so a private
- * repository's titles never reach someone who cannot read it.
- *
- * Query: words (all must match, the last one as a prefix), "quoted phrases",
- * and `type:` `repo:` `state:` `author:` `label:` qualifiers.
- */
 export type SearchDoc = {
   key: string
   type: 'change' | 'issue' | 'repo'
@@ -32,12 +20,10 @@ export type SearchDoc = {
 export type SearchHit = {
   doc: SearchDoc
   score: number
-  /** Made when a hit is shown, not when it is found: most hits are never on the page. */
   snippet: string
   shown?: true
 }
 
-/** The two halves of a result's JSON that do not depend on the query, kept on the document. */
 const fragments = new WeakMap<SearchDoc, { head: string; tail: string }>()
 export function fragmentsOf(doc: SearchDoc, iso: (ms: number) => string) {
   let f = fragments.get(doc)
@@ -88,8 +74,6 @@ export function parseQuery(q: string): ParsedQuery {
     if (qual) {
       const k = qual[1].toLowerCase()
       const v = qual[2].replace(/^"|"$/g, '')
-      // `is:open` is a state, while `is:issue` is a type. Keep the shorthand
-      // useful instead of treating every `is:` value as a document type.
       if (
         k === 'is' &&
         ['open', 'closed', 'merged', 'draft'].includes(v.toLowerCase())
@@ -102,7 +86,6 @@ export function parseQuery(q: string): ParsedQuery {
   return out
 }
 
-/** The terms a document is indexed under. */
 function termsOf(d: SearchDoc): Set<string> {
   const out = new Set<string>()
   for (const w of words(d.title)) out.add(w)
@@ -123,7 +106,6 @@ const has = (list: Array<number>, x: number) => {
   return lo < list.length && list[lo] === x
 }
 
-/** Inserts `x` keeping the list sorted. New documents have the largest number, so this is a push. */
 function insert(list: Array<number>, x: number) {
   if (list.length === 0 || list[list.length - 1] < x) return void list.push(x)
   let lo = 0
@@ -147,24 +129,18 @@ function erase(list: Array<number>, x: number) {
   if (list[lo] === x) list.splice(lo, 1)
 }
 
-/** The most recent changes remembered, so a cached result can be kept when none of them could affect it. */
 const CHANGE_LOG = 256
-/** The most hits held across all cached results. */
 const CACHE_HITS = 150_000
 
 export class SearchIndex {
-  /** Documents by number. A number is never reused; a removed document leaves a hole. */
   private readonly slots: Array<SearchDoc | null> = []
   private readonly numberOf = new Map<string, number>()
-  /** Term to the numbers of the documents that have it, ascending. */
   private readonly terms = new Map<string, Array<number>>()
   private readonly byRepo = new Map<string, Array<number>>()
   private live = 0
-  /** Terms in sorted order, plus those added since it was sorted. */
   private vocab: Array<string> = []
   private vocabNew: Array<string> = []
   private built = false
-  /** Bumps on every change. */
   version = 0
   private readonly changes: Array<{
     v: number
@@ -183,7 +159,6 @@ export class SearchIndex {
     private readonly events: EventLog,
   ) {}
 
-  /** Builds on first use, then follows the event log. */
   ensure() {
     if (this.built) return
     this.built = true
@@ -194,7 +169,6 @@ export class SearchIndex {
     })
   }
 
-  /** Adds a document if the index is already live; otherwise the first search will find it. */
   upsertIfBuilt(doc: SearchDoc) {
     if (this.built) this.upsert(doc)
   }
@@ -203,7 +177,6 @@ export class SearchIndex {
     this.off?.()
   }
 
-  /** Forgets everything; the next search builds it again from the source. Used when repositories are renamed or deleted. */
   reset() {
     this.off?.()
     this.off = null
@@ -238,7 +211,6 @@ export class SearchIndex {
       n = known
       this.slots[n] = doc
     }
-    // Only the terms that changed are touched: an update that keeps its words costs nothing here.
     const now = termsOf(doc)
     const was = before ? termsOf(before) : null
     if (was) for (const t of was) if (!now.has(t)) this.unlink(t, n)
@@ -266,7 +238,6 @@ export class SearchIndex {
     erase(list, n)
     if (list.length === 0) {
       this.terms.delete(term)
-      // Leaves the word in the sorted vocabulary; `prefix` skips words with no list.
     }
   }
 
@@ -284,12 +255,9 @@ export class SearchIndex {
       this.changes.splice(0, this.changes.length - CHANGE_LOG)
   }
 
-  /** The numbers of the documents with a word that starts with `p`, ascending. */
   private prefix(p: string): Array<number> {
     if (this.vocabNew.length) {
-      // A handful of new words are scanned; many are merged in, once.
       if (this.vocabNew.length > 512) {
-        // Words whose last document is gone are dropped here, so the vocabulary does not outgrow the data.
         this.vocab = mergeSorted(
           this.vocab.filter((w) => this.terms.has(w)),
           [...new Set(this.vocabNew)].filter((w) => this.terms.has(w)).sort(),
@@ -323,7 +291,6 @@ export class SearchIndex {
     return [...new Set(lists.flat())].sort((a, b) => a - b)
   }
 
-  /** Does this document match the query, ignoring who is asking? Same rules as a search. */
   private matches(q: ParsedQuery, d: SearchDoc): boolean {
     if (q.terms.length) {
       const own = termsOf(d)
@@ -345,7 +312,6 @@ export class SearchIndex {
     return this.score(q, d, wantedTypes(q)) !== null
   }
 
-  /** The filters that do not depend on the word index, and the score. Null when the document is out. */
   private score(
     q: ParsedQuery,
     d: SearchDoc,
@@ -358,7 +324,6 @@ export class SearchIndex {
     if (q.label.length && !q.label.every((l) => d.labels.includes(l)))
       return null
     if (q.terms.length === 0 && q.phrases.length === 0) return 1
-    // The title is short; the body is only read when a phrase asks for it.
     const title = d.title.toLowerCase()
     if (q.phrases.length) {
       const body = d.text.toLowerCase()
@@ -382,7 +347,6 @@ export class SearchIndex {
       .trim()
   }
 
-  /** All matches, best first. Cached per query until a change could alter them. */
   search(
     q: ParsedQuery,
     canSee: (repo: string) => boolean,
@@ -392,12 +356,8 @@ export class SearchIndex {
     const cacheKey = `${viewer}|${JSON.stringify(q)}`
     const cached = this.cache.get(cacheKey)
     if (cached) {
-      // Access can change without a write (a team membership, a collaborator),
-      // so a cached result still has to pass the caller's current view.
       const visible = () => cached.hits.filter((h) => canSee(h.doc.repo))
       if (cached.version === this.version) return visible()
-      // Writes happen all the time and most do not touch a given query. If the
-      // changes since this result was made cannot match it, it is still right.
       const floor = this.changes.length ? this.changes[0].v : this.version + 1
       if (cached.version + 1 >= floor) {
         let touched = false
@@ -468,7 +428,6 @@ export class SearchIndex {
     q?: ParsedQuery,
   ) {
     const page = this.pageOf(hits, limit, after)
-    // Snippets are made here, for the page only, and kept on the hit for the next reader.
     if (q)
       for (const h of page.items)
         if (!h.shown) {
@@ -492,7 +451,6 @@ export class SearchIndex {
   }
 }
 
-/** The searchable fields of an event that carries a change or an issue. */
 export function docFromEvent(e: EventRecord): SearchDoc | null {
   const d = e.data as Record<string, any> | null
   if (!d || (d.object !== 'change' && d.object !== 'issue')) return null
@@ -512,7 +470,6 @@ export function docFromEvent(e: EventRecord): SearchDoc | null {
   }
 }
 
-/** The `type:` qualifiers as document types (`issues` means `issue`), or null for no filter. */
 function wantedTypes(q: ParsedQuery): Array<string> | null {
   return q.types.length ? q.types.map((t) => t.replace(/s$/, '')) : null
 }

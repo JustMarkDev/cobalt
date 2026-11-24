@@ -12,11 +12,6 @@ import {
   repoParams,
 } from './common'
 
-/**
- * One timeline per change and per issue: everything that happened to it, in
- * time order, so a person or an agent reads the whole story in one call.
- */
-
 const base = {
   auth: 'optional' as const,
   pool: 'read' as const,
@@ -32,8 +27,6 @@ const page = (
   q: { cursor?: string; limit: number },
   f: string,
 ) => {
-  // Entries come in time order; several in one millisecond keep theirs, so
-  // the key is the time and the place within that millisecond.
   const keyOf = new Map<string, number>()
   let last = Number.NaN
   let k = 0

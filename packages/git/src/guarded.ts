@@ -1,14 +1,5 @@
 import type { GitRepo } from './index'
 
-/**
- * Every call to code.storage goes through here. It respects their limits:
- *
- *  - a `429` on a read waits for `Retry-After` (or backs off) and tries again,
- *    a few times at most;
- *  - a write is never retried blind: one that timed out may have gone through,
- *    and the caller checks the branch before trying again.
- */
-
 const READS = new Set([
   'listFiles',
   'getFileStream',
@@ -18,7 +9,6 @@ const READS = new Set([
 ])
 const MAX_RETRIES = 3
 
-/** How long a refusal says to wait, in milliseconds, or a backoff. */
 function waitFor(e: unknown, attempt: number) {
   const h = (e as { headers?: Headers | Record<string, string> }).headers
   const raw = h instanceof Headers ? h.get('retry-after') : h?.['retry-after']

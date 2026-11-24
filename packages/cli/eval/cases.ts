@@ -1,11 +1,5 @@
 import type { Case } from './grade'
 
-/**
- * What an agent should do with cobalt's MCP tools, on the sample data
- * (`dana/gitfs`). Each case is a rule from the server's instructions or a
- * tool description; when an agent breaks a rule in real use, add the case
- * that catches it, and check it fails before the fix.
- */
 const repo = 'dana/gitfs'
 const inRepo = { repo }
 
@@ -23,7 +17,6 @@ export const cases: Array<Case> = [
     id: 'blocked-landing-stops',
     prompt: `Land change 216 in ${repo}.`,
     expect: [{ tool: 'land_change', args: { ...inRepo, id: /^#?216$/ } }],
-    // policy_blocked means stop and report: no approving it another way.
     forbid: [
       {
         tool: 'call_operation',
@@ -114,7 +107,6 @@ export const cases: Array<Case> = [
         args: { ...inRepo, title: 'Docs: explain the negative cache' },
       },
     ],
-    // The tool is idempotent on the title; no need to list first or retry.
     maxCalls: 3,
   },
   {
@@ -124,7 +116,6 @@ export const cases: Array<Case> = [
     says: [
       /not found|does not exist|doesn't exist|no (such )?repo|could not|couldn't/i,
     ],
-    // The error has a hint; retrying the same call does not help.
     maxCalls: 3,
   },
   {

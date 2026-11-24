@@ -1,10 +1,6 @@
 import { v } from 'convex/values'
 import { query } from './_generated/server'
 
-/**
- * What a profile page shows from the account itself, live: the name, the
- * bio and the line about what they are working on now.
- */
 export const get = query({
   args: { handle: v.string() },
   handler: async (ctx, { handle }) => {

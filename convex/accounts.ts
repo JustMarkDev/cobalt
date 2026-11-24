@@ -2,12 +2,6 @@ import { v } from 'convex/values'
 import { internalQuery } from './_generated/server'
 import { retiredHash } from './deletion'
 
-/**
- * Who holds an address, if anyone. People and organizations share one
- * namespace, and an old address that still redirects counts as held by the
- * account it leads to. `authId` is the sign-in user behind a person's
- * account; organizations and seeded sample accounts have none.
- */
 export const handleHolder = internalQuery({
   args: { handle: v.string() },
   handler: async (ctx, { handle }) => {
@@ -21,8 +15,6 @@ export const handleHolder = internalQuery({
         authId: account.authId ?? null,
         alias: false,
       }
-    // The address of an account that was deleted stays taken: as far as
-    // sign-up is concerned it is held by a login that no longer exists.
     const retired = await ctx.db
       .query('retiredHandles')
       .withIndex('by_hash', (q) => q.eq('hash', retiredHash(handle)))

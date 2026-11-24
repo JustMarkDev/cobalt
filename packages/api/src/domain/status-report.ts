@@ -1,6 +1,5 @@
 import type { HealthArea, HealthReader } from '../health'
 
-/** A wait in the unit a person reads it in: minutes, hours or days. */
 const span = (ms: number) => {
   const m = Math.round(ms / 60_000)
   if (m < 120) return `${m} minute${m === 1 ? '' : 's'}`
@@ -9,11 +8,6 @@ const span = (ms: number) => {
   return `${Math.round(h / 24)} days`
 }
 
-/**
- * The status page: each area as this server measured it, mirrors and
- * runners as the domain holds them, and the days something actually
- * failed. Shared by both domains, which only gather the facts.
- */
 export function statusReport(o: {
   now: number
   health: HealthReader | undefined
@@ -105,7 +99,6 @@ export function statusReport(o: {
           detail: `${d.errors} of ${d.requests} requests failed on our side that day.`,
         })
   }
-  // Mirrors: their own state, kept with each repository.
   const failing: Array<string> = []
   let mirrors = 0
   for (const m of o.mirrors) {
@@ -137,7 +130,6 @@ export function statusReport(o: {
       detail:
         'Nothing is lost: everything is kept here first, and a mirror catches up when it syncs again.',
     })
-  // Runners: how long the oldest queued job has waited.
   const waiting = o.waiting
   const oldest = o.oldest ?? Infinity
   const waited = waiting ? now - oldest : 0

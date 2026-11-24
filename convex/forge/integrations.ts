@@ -19,12 +19,6 @@ import type { Actor } from '../lib/actor'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Services connected to an account, and which of them each repository uses.
- * A repository can only use what its owner has connected; disconnecting
- * turns it off everywhere. Linked accounts on other hosts, and imports.
- */
-
 function known(id: string) {
   const i = integrations.find((x) => x.id === id)
   if (!i) fail('not_found', `No integration ${id}.`)
@@ -149,7 +143,6 @@ export const connect = mutation({
       by: p.handle,
       connected: Date.now(),
     }
-    // Replaced, not edited, so it keeps its place at the end of the list as a new connection.
     if (have) await ctx.db.delete('connections', have._id)
     await ctx.db.insert('connections', c)
     await bump(ctx, a.handle)
@@ -276,8 +269,6 @@ export const setRepoIntegration = mutation({
   },
 })
 
-// ---- linked accounts ------------------------------------------------------------
-
 async function self(ctx: QueryCtx, handle: string, p: Actor | null) {
   if (
     !p ||
@@ -380,9 +371,6 @@ export const unlink = mutation({
   },
 })
 
-// ---- imports -----------------------------------------------------------------------
-
-/** After an imported repository was made: remember where it came from. */
 export const markImported = mutation({
   args: {
     owner: v.string(),
@@ -410,7 +398,6 @@ export const markImported = mutation({
   },
 })
 
-/** What the person imported: repositories they can change that came from another host. */
 export const listImports = query({
   args: {},
   returns: v.string(),

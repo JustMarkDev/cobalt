@@ -11,9 +11,7 @@ import { seqId } from './records'
 import type { Viewer } from './records'
 import { DomainChanges } from './changes'
 
-/** The event feed and the sync snapshot. */
 export abstract class DomainSync extends DomainChanges {
-  /** The event log's position, for conditional reads of the log itself. */
   eventVersion() {
     return `${this.events.head}.${this.events.oldest}`
   }
@@ -23,7 +21,6 @@ export abstract class DomainSync extends DomainChanges {
     return `${this.repoKey(this.repoForSync(full, p))}.${this.events.oldest}`
   }
 
-  /** Sync accepts an old name and the current name; it resolves the stable id. */
   protected repoForSync(full: string, p: Viewer) {
     const id = this.repoIdForHistory(full)
     const r = id ? this.reposById.get(id) : null
@@ -34,7 +31,6 @@ export abstract class DomainSync extends DomainChanges {
     return r
   }
 
-  /** The event log's position for one repository, after checking the caller may read it. */
   async repoHistoryVersion(full: string, p: Viewer) {
     const id = this.repoIdForHistory(full)
     if (!id) throw apiError('not_found', `No repository ${full}.`)
@@ -46,7 +42,6 @@ export abstract class DomainSync extends DomainChanges {
     return `${id}.${list.at(-1)?.sequence ?? 0}.${this.events.oldest}`
   }
 
-  /** The current owner/name for an address, following rename aliases without a permission check. */
   canonicalRepoName(full: string): string {
     const direct = this.repos.get(full) ?? this.byLower(full.toLowerCase())
     if (direct) return `${direct.owner}/${direct.name}`
@@ -62,12 +57,6 @@ export abstract class DomainSync extends DomainChanges {
     return repo ? `${repo.owner}/${repo.name}` : full
   }
 
-  /**
-   * The stable repository identity and access stamp for a keyed write. It is
-   * built from the routed parameters, so empty or extra slashes and rename
-   * aliases cannot change it. A bare repository delete keeps only the id, so a
-   * retry can still replay 204 once the repository is gone.
-   */
   replayKey(
     opId: string,
     params: Record<string, string>,
@@ -86,7 +75,6 @@ export abstract class DomainSync extends DomainChanges {
     return { id, stamp: `${id}:${repo ? this.canWrite(repo, p) : false}` }
   }
 
-  /** The stable id behind a repository address, without requiring that it still exists. */
   repoIdForHistory(full: string): string | null {
     if (full.startsWith('rep_'))
       return this.reposById.has(full) || this.deletedRepos.has(full)
@@ -136,16 +124,12 @@ export abstract class DomainSync extends DomainChanges {
         : /^(change|finding|check|ci|operation)\./.test(t)
           ? canPull
           : true
-    // A repository's own list when one is asked for, so a quiet repository is not
-    // found by reading everyone else's events. The key is the stable id, so a
-    // rename does not split the history.
     const repoId = q.repo ? this.repoIdForHistory(q.repo) : null
     const source = q.repo
       ? repoId
         ? this.events.repoEvents(repoId)
         : []
       : this.events.all()
-    // Changes under an access rule the viewer does not read leave no trace.
     const hidden = new Map<string, Set<number>>()
     for (const e of source)
       if (e.repoId && !hidden.has(e.repoId))
@@ -161,7 +145,6 @@ export abstract class DomainSync extends DomainChanges {
         can(e.repoId) &&
         !hiddenEvent(e, hidden.get(e.repoId ?? '')),
     })
-    // An event never changes, so its text is its own version.
     return {
       items: page.items.map(
         (e: StoredEvent) =>
@@ -294,8 +277,6 @@ export abstract class DomainSync extends DomainChanges {
         /^(repo|change|issue|finding|check|ci)\./.test(e.type) &&
         !hiddenEvent(e, hidden),
     )
-    // Keep only the newest state of each object, and remember what was deleted
-    // after the cursor so a local copy can remove it.
     const latest = new Map<string, Record<string, unknown>>()
     const deleted = new Map<string, { object: string; id: string }>()
     for (const s of stored) {

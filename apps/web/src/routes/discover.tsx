@@ -84,8 +84,6 @@ function Discover() {
   const set = (patch: Partial<Search>) =>
     void navigate({ search: (prev) => ({ ...prev, ...patch }) })
 
-  // Every public repository. A listing by category on the server comes when
-  // there are more than a page of them.
   const repos = useOp('repos.list', { limit: 200 })
     .data.filter((r) => r.visibility === 'public')
     .map((r) => toRepo(r))
@@ -167,7 +165,6 @@ function Discover() {
           )}
         >
           {view === 'projects' && (
-            // On a phone the filters are two menus, so results start on the first screen.
             <div className="grid grid-cols-2 gap-2 lg:hidden">
               <Select
                 value={category ?? ''}
@@ -230,7 +227,6 @@ function Discover() {
             </div>
           )}
 
-          {/* Results get their own heading, so project names are never h3s straight under the h1. */}
           <h2 className="sr-only">
             {view === 'projects' ? 'Projects' : 'People'}
           </h2>

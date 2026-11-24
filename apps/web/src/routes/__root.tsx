@@ -27,8 +27,6 @@ export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
   convexQueryClient: ConvexQueryClient
 }>()({
-  // The server render reads Convex as the person, so the first paint has
-  // what they may see. In the browser the Convex client signs in itself.
   beforeLoad: async ({ context }) => {
     const server = context.convexQueryClient.serverHttpClient
     if (!server) return
@@ -87,11 +85,9 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  // Docs bring their own navigation.
   const docs = useRouterState({
     select: (s) => s.location.pathname.startsWith('/docs'),
   })
-  // Account screens are one card on a quiet page, with no header or footer.
   const bare = useRouterState({
     select: (s) =>
       [
@@ -102,17 +98,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         '/welcome',
       ].includes(s.location.pathname),
   })
-  // The home page is full bleed: its sections set their own widths.
   const home = useRouterState({ select: (s) => s.location.pathname === '/' })
-  // The leaf route, not the URL: moving between tabs of one route keeps the
-  // page mounted, and the page animates its own tab content.
   const routeId = useRouterState({ select: (s) => s.matches.at(-1)?.routeId })
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        {/* Written here, not in head(): the router keeps one meta per name,
-            and the browser bar needs one colour per scheme. */}
         <meta
           name="theme-color"
           media="(prefers-color-scheme: light)"
@@ -133,8 +124,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         )}
         <RootProvider
           theme={{ defaultTheme: 'system', enableSystem: true }}
-          // The app has its own palette on ⌘K. Fumadocs' search would open a
-          // second dialog on top of it, so it only runs inside the docs.
           search={{ enabled: docs }}
         >
           <MotionProvider>

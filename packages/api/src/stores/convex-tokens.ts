@@ -13,10 +13,6 @@ import type { OAuthKind, OAuthState } from '../oauth-state'
 
 type Expiring = { ok: false; reason: 'audience'; expiresAt: number }
 
-/**
- * Tokens in Convex (`convex/forge/tokens.ts`). Every lookup asks the
- * database, so a revoked token stops working on the very next request.
- */
 export class ConvexTokens implements TokenService {
   constructor(private readonly call: ConvexCall) {}
 
@@ -28,10 +24,6 @@ export class ConvexTokens implements TokenService {
     return run<T>(this.call, 'mutation', `forge/tokens:${name}`, args, 'system')
   }
 
-  /**
-   * Leaves the time out of the arguments, so Convex can answer from its query
-   * cache, and checks expiry here, in the order the function would.
-   */
   async find(hash: string, audience: Audience, now: number) {
     const found = await this.q<FindResult | Expiring>('find', {
       hash,
@@ -64,7 +56,6 @@ export class ConvexTokens implements TokenService {
     })
   }
 
-  /** A token whose secret already exists, as sample data has. */
   add(secret: string, input: CreateToken & { id?: string }) {
     return this.m<{ record: TokenRecord }>('create', {
       ...input,
@@ -113,14 +104,11 @@ export class ConvexTokens implements TokenService {
     return this.q<Array<Authorization>>('listAuthorizations', { handle })
   }
 
-  /** Tokens keep repository ids, so a rename needs nothing. */
   renameRepo() {}
 
-  /** A deleted repository's id no longer resolves, so it drops out by itself. */
   dropRepo() {}
 }
 
-/** The OAuth server's memory in Convex (`convex/forge/oauth.ts`). */
 export class ConvexOAuthState implements OAuthState {
   constructor(private readonly call: ConvexCall) {}
 
@@ -175,6 +163,5 @@ export class ConvexOAuthState implements OAuthState {
     return this.q<number>('count', { kind, upTo })
   }
 
-  /** The deployment sweeps on a schedule (`crons.ts`). */
   async sweep() {}
 }

@@ -16,10 +16,6 @@ import { Tip } from '~/components/ui/tooltip'
 import { latestStable } from '~/lib/model/data'
 import { useOpMaybe } from '~/lib/forge'
 
-// ---------------------------------------------------------------------------
-// Code: the file table, with the download button where the clone button lives.
-// ---------------------------------------------------------------------------
-/** Buttons that sit on the right of the repository tabs while on the Code tab. */
 export function CodeActions({
   repo,
   onFind,
@@ -66,7 +62,6 @@ export function CodePage({
   finding: boolean
   onFinding: (open: boolean) => void
 }) {
-  // A repository nobody has pushed to has no tree and no history yet.
   const head = useOpMaybe('git.commits', {
     owner: repo.owner,
     repo: repo.name,

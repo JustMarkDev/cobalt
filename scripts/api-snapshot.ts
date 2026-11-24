@@ -1,11 +1,3 @@
-/**
- * Regenerates the committed OpenAPI snapshot, and refuses to if the change is
- * not additive. Run it in the same commit as an API change, so the contract
- * change is in the diff for review:
- *
- *   bun scripts/api-snapshot.ts
- *   bun scripts/api-snapshot.ts --allow-breaking   (a new major version only)
- */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { allOperations } from '@cobaltforge/api'
 import { buildOpenApi } from '@cobaltforge/api/openapi'

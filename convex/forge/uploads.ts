@@ -12,12 +12,6 @@ import { fail, out } from '../lib/errors'
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * Upload records. The API checks who may do what and keeps the bytes in the
- * bucket; this keeps what it knows about each file, so any server can
- * finish an upload another one started.
- */
-
 const TTL = 3_600_000
 const purpose = v.union(
   v.literal('evidence'),
@@ -86,11 +80,6 @@ export const get = query({
   },
 })
 
-/**
- * Saves what a request changed: the file arrived, or it was attached
- * somewhere. Only a move `uploadLifecycle` allows is saved; saving what it
- * already is changes nothing.
- */
 export const save = mutation({
   args: {
     id: v.string(),
@@ -111,11 +100,6 @@ export const save = mutation({
   },
 })
 
-/**
- * The file arrived: a pending upload is uploaded, once. Of two requests
- * sending its file at once, exactly one is answered null; the other is told
- * why not, before it keeps any bytes.
- */
 export const receive = mutation({
   args: { id: v.string(), sha256: v.string() },
   returns: v.string(),
@@ -136,7 +120,6 @@ export const receive = mutation({
   },
 })
 
-/** Its bytes could not be kept after all: back to waiting, if nothing uses it yet. */
 export const unreceive = mutation({
   args: { id: v.string(), sha256: v.string() },
   returns: v.string(),
@@ -154,7 +137,6 @@ export const unreceive = mutation({
   },
 })
 
-/** Deletes one upload's record. The API drops its bytes. */
 export const remove = mutation({
   args: { id: v.string() },
   returns: v.string(),
@@ -181,7 +163,6 @@ export const countPending = query({
   },
 })
 
-/** A deleted repository takes its attached files with it. Answers the ids, for the bucket. */
 export const dropRepo = mutation({
   args: { repoId: v.string() },
   returns: v.string(),
@@ -199,10 +180,6 @@ export const dropRepo = mutation({
   },
 })
 
-/**
- * Forgets announced uploads whose time ran out without a file, and files
- * never attached a day after that. Answers the ids whose bytes to drop.
- */
 export const sweep = mutation({
   args: {},
   returns: v.string(),

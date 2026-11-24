@@ -1,18 +1,8 @@
-/**
- * The TypeScript client, generated from the OpenAPI document.
- *
- * Nothing in the generated file is written by hand except the runtime at the
- * bottom of this module, which is copied in as it is. The types come from the
- * schemas the server validates against, so a client cannot drift from the
- * server: change a schema, run `bun scripts/api-sdk.ts`, and the types change.
- * A test fails until you do.
- */
 type Json = Record<string, any>
 
 const identifier = (s: string) =>
   /^[A-Za-z_$][\w$]*$/.test(s) ? s : JSON.stringify(s)
 
-/** A JSON Schema, as TypeScript. `$ref` becomes the name of a generated type. */
 export function tsOf(schema: Json | undefined, indent = ''): string {
   if (!schema || Object.keys(schema).length === 0) return 'unknown'
   if (schema.$ref) return String(schema.$ref).split('/').pop()!
@@ -81,7 +71,6 @@ type Op = {
   body: string | null
   bodyRequired: boolean
   response: string | null
-  /** True when the answer is not JSON, so the method returns the Response. */
   raw: boolean
   idempotent: boolean
   safety: string
@@ -121,7 +110,6 @@ function readOps(doc: Json): Array<Op> {
           ? tsOf(bodyContent['application/json'].schema)
           : null,
         bodyRequired: !!op.requestBody?.required,
-        // Every JSON answer the operation can give, such as a 202 proposal.
         response: (() => {
           const all = Object.entries<Json>(op.responses ?? {})
             .filter(
@@ -133,7 +121,6 @@ function readOps(doc: Json): Array<Op> {
               tsOf((r.content as Json)['application/json'].schema),
             )
           if (!all.length) return null
-          // A 204 next to a JSON answer is a void one.
           if ('204' in (op.responses ?? {})) all.push('void')
           return all.join(' | ')
         })(),
@@ -148,12 +135,10 @@ function readOps(doc: Json): Array<Op> {
   return out.sort((a, b) => (a.id < b.id ? -1 : 1))
 }
 
-/** `changes.land` input: path and query parameters flat, the body under `body`. */
 function inputOf(op: Op): string {
   const fields: Array<string> = []
   for (const p of op.pathParams) fields.push(`${identifier(p.name)}: ${p.type}`)
   for (const q of op.queryParams) {
-    // `dry_run` is a request option, not an input.
     if (q.name === 'dry_run') continue
     fields.push(
       `${q.doc ? `/** ${q.doc.replace(/\*\//g, '* /').replace(/\n/g, ' ')} */\n` : ''}${identifier(q.name)}${q.required ? '' : '?'}: ${q.type}`,
@@ -215,7 +200,6 @@ export function generateSdk(doc: Json): string {
   out.push('} as const')
   out.push('')
 
-  // One method per operation, grouped by the first segment of its id.
   out.push('export interface Client extends Core {')
   const groups = new Map<string, Array<Op>>()
   for (const op of ops) {
@@ -223,7 +207,6 @@ export function generateSdk(doc: Json): string {
     groups.set(g, [...(groups.get(g) ?? []), op])
   }
   const nest = (list: Array<Op>, depth: number): Array<string> => {
-    // Ids with more than two segments (webhooks.deliveries.list) nest one level deeper.
     const lines: Array<string> = []
     const direct = list.filter((o) => o.id.split('.').length === depth + 1)
     const deeper = new Map<string, Array<Op>>()
@@ -259,7 +242,6 @@ function inputIsEmpty(op: Op) {
   )
 }
 
-/** The part of the client that is not generated. */
 const RUNTIME = `// ----- Runtime
 
 export type OperationId = keyof Operations

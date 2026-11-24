@@ -1,10 +1,5 @@
 import { Data } from 'effect'
 
-/**
- * Every error the API can return, in one table. `GET /v1/errors` serves it, so
- * an agent can read all of it once. A code is added here before it is thrown:
- * `ErrorCode` is derived from this object, so an unknown code does not compile.
- */
 export const errorCatalog = {
   invalid_request: {
     status: 400,
@@ -269,18 +264,14 @@ export type FieldError = {
   message: string
 }
 
-/** An expected failure, with everything the response needs. */
 export class ApiError extends Data.TaggedError('ApiError')<{
   readonly code: ErrorCode
   readonly detail: string
-  /** Replaces the catalog hint when we know something more specific. */
   readonly hint?: string
   readonly errors?: ReadonlyArray<FieldError>
-  /** Extra members merged into the problem body (requirements, current, ...). */
   readonly extra?: Record<string, unknown>
   readonly retryAfter?: number
   readonly headers?: Record<string, string>
-  /** Overrides `retryable` from the catalog. */
   readonly retryable?: boolean
 }> {}
 

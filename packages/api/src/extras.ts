@@ -1,15 +1,5 @@
 import { newId } from './ids'
 
-/**
- * Per-repository things beyond code and review: mirrors on other hosts, the
- * environment schema with its sealed values, and the confirmations that
- * let a login use production values.
- *
- * Values are the point of care here. Names and kinds are ordinary data.
- * Values are kept sealed (`secret-box.ts`) and opened only in `env.values`,
- * for the repository's team, with production confirmed from a signed-in page
- * first; every read is audited and none is cached.
- */
 import type { GrantState } from './lifecycles'
 
 export const ENVIRONMENTS = ['development', 'preview', 'production'] as const
@@ -24,7 +14,6 @@ export type MirrorRec = {
   lastSync: number
   detail: string | null
   created: number
-  /** Paused: nothing is sent or fetched until it is resumed. */
   paused?: boolean
 }
 
@@ -34,31 +23,19 @@ export type EnvVarRec = {
   secret: boolean
   set: Array<Environment>
   description: string
-  /** Environments that must have a value. */
   required?: Array<Environment>
   rotated?: { at: number; by: string }
 }
 
-/**
- * A request to use production values from one login, and the person's
- * answer. Production values never leave on a token alone: the person who
- * owns the token confirms from a signed-in page, for a while, for that one
- * token. Other environments need no confirmation for the team.
- */
 export type ConfirmationRec = {
   id: string
   environment: Environment
   state: GrantState
-  /** Whose token asked; only they can confirm it. */
   handle: string
-  /** The login it covers: an OAuth authorization (it outlives the hourly tokens it mints) or a personal token. Another login asks again. */
   tokenId: string
-  /** The machine the token was made on, so the person knows what they confirm. */
   device: string
-  /** What sent the request, as it declared itself. */
   tool: string | null
   reason: string | null
-  /** Until when it holds, once confirmed; a pending request lapses after ten minutes. */
   expires: number
   created: number
 }
@@ -72,20 +49,17 @@ export type AuditRec = {
   kind?: AuditKind
 }
 
-/** How long an unanswered production request waits. */
 export const PENDING_MS = 10 * 60_000
 
 export class RepoExtras {
   readonly mirrors: Array<MirrorRec> = []
   readonly env: Array<EnvVarRec> = []
-  /** Sealed values (`secret-box.ts`), by variable, then environment. */
   readonly sealed: Record<string, Partial<Record<Environment, string>>> = {}
   readonly confirmations: Array<ConfirmationRec> = []
   readonly audit: Array<AuditRec> = []
 
   constructor(private readonly now: () => number) {}
 
-  /** The plain data, for keeping elsewhere. Values stay sealed. */
   toJSON() {
     return {
       mirrors: this.mirrors,
@@ -118,7 +92,6 @@ export class RepoExtras {
     if (this.audit.length > 1000) this.audit.length = 1000
   }
 
-  /** A confirmation in force for this token and environment. */
   confirmed(
     tokenId: string,
     environment: Environment,
@@ -133,10 +106,6 @@ export class RepoExtras {
     )
   }
 
-  /**
-   * A pending request for this token, made now if there is none. A request
-   * that lapsed is left as it was; a fresh one takes its place.
-   */
   requestConfirmation(input: {
     environment: Environment
     handle: string
@@ -162,7 +131,6 @@ export class RepoExtras {
       created: t,
     }
     this.confirmations.unshift(rec)
-    // Old answers are only history; keep the list short.
     if (this.confirmations.length > 200) this.confirmations.length = 200
     this.note(
       input.handle,
@@ -172,11 +140,6 @@ export class RepoExtras {
     return { rec, created: true }
   }
 
-  /**
-   * Forgets every value and confirmation, the old team's audit log and its
-   * mirrors, as when the repository changes hands. Names stay. Whether there
-   * was anything to forget.
-   */
   clearValues() {
     const had =
       Object.keys(this.sealed).length > 0 ||
@@ -191,7 +154,6 @@ export class RepoExtras {
     return had
   }
 
-  /** The sealed values set for an environment, by name. */
   sealedFor(environment: Environment, names?: ReadonlyArray<string>) {
     const out: Array<{ name: string; secret: boolean; sealed: string }> = []
     for (const v of this.env) {
@@ -204,25 +166,17 @@ export class RepoExtras {
   }
 }
 
-/**
- * Where extras are kept. `open` gives a copy to read and change; a store
- * that keeps them elsewhere (`stores/convex-extras.ts`) saves what changed
- * when the request ends. The memory store hands out the object itself.
- */
 export interface ExtrasPort {
   open: (repo: string) => Promise<RepoExtras>
-  /** Every repository's mirrors, for the status page. */
   allMirrors: () => Promise<Array<{ repo: string; mirror: MirrorRec }>>
   rename: (from: string, to: string) => void
   drop: (repo: string) => void
-  /** Saves what this request changed. Called once a request's domain work is done. */
   flush?: () => Promise<void>
 }
 
 export class ExtrasStore implements ExtrasPort {
   private readonly repos = new Map<string, RepoExtras>()
   constructor(private readonly now: () => number) {}
-  /** A renamed repository keeps its mirrors, variables and grants. */
   rename(from: string, to: string) {
     const x = this.repos.get(from)
     if (!x) return
@@ -234,7 +188,6 @@ export class ExtrasStore implements ExtrasPort {
     this.repos.delete(repo)
   }
 
-  /** Every repository's extras, by address. */
   entries() {
     return this.repos.entries()
   }

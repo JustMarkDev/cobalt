@@ -10,7 +10,6 @@ import { historyId, repoKey } from './repos'
 import type { Actor } from '../lib/actor'
 import type { QueryCtx } from '../_generated/server'
 
-/** Sync accepts an old name and the current name; it resolves the stable id. */
 async function forSync(ctx: QueryCtx, full: string, p: Actor | null) {
   const id = await historyId(ctx, full)
   const r = id ? await repoByPublicId(ctx, id) : null
@@ -28,10 +27,6 @@ export const version = query({
     out(await repoKey(ctx, await forSync(ctx, full, await actorOf(ctx)))),
 })
 
-/**
- * Everything in a repository as it is now: the repository, its changes and
- * its issues, as their events show them. The API slices it into pages.
- */
 export const snapshot = query({
   args: { full: v.string(), at: v.number() },
   returns: v.string(),

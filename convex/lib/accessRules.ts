@@ -14,11 +14,6 @@ import type { ChangeRec } from './changeTypes'
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * Access rules in Convex: parts of a repository only some people may see
- * (`packages/api/src/access-rules.ts` decides; this loads what it needs).
- */
-
 export async function loadRules(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -38,7 +33,6 @@ export async function loadRules(
   }))
 }
 
-/** Who is asking, as a repository's access rules see them. */
 export async function ruleViewer(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -46,7 +40,6 @@ export async function ruleViewer(
 ): Promise<RuleViewer | null> {
   if (!a) return null
   if (a.system) return { handle: '~system', teams: new Set(), all: true }
-  // A runner serving the repository builds all of it.
   if (a.runnerId && repo.owner.toLowerCase() === a.actingAs.toLowerCase())
     return { handle: a.handle, teams: new Set(), all: true }
   let all = repo.owner === a.handle
@@ -66,7 +59,6 @@ export async function ruleViewer(
   return { handle: a.handle, teams, all }
 }
 
-/** The rules of a repository a viewer may not read. */
 export async function hiddenFor(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -76,7 +68,6 @@ export async function hiddenFor(
   return rules.length ? hiddenRules(rules, await ruleViewer(ctx, repo, a)) : []
 }
 
-/** Whether a viewer may see a change: its branch and newest files under no rule they do not read. */
 export async function seesChange(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -96,7 +87,6 @@ export async function seesChange(
   )
 }
 
-/** Refuses a write to a private branch, or touching a private path, by someone who does not read it. */
 export async function assertMayTouch(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -121,10 +111,6 @@ export async function assertMayTouch(
     )
 }
 
-/**
- * The numbers of a repository's changes a viewer may not see. Nothing is
- * read beyond the rules when the repository has none.
- */
 export async function hiddenChangeNumbers(
   ctx: QueryCtx,
   repo: Doc<'repos'>,

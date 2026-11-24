@@ -5,59 +5,26 @@ import { v } from 'convex/values'
 
 const app = defineApp({
   env: {
-    // Shared by the HTTP API servers and this deployment. The functions in
-    // `apiStores.ts` refuse everyone while it is unset, and when it is shorter
-    // than 16 characters. Set it with `npx convex env set API_STORE_SECRET <value>`.
     API_STORE_SECRET: v.optional(v.string()),
-    // Sign-in (`auth.ts`). SITE_URL is where people reach the web app, and
-    // BETTER_AUTH_SECRET signs sessions. Sign-in refuses to start without
-    // both: `npx convex env set SITE_URL http://localhost:3000` and
-    // `npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"`.
     SITE_URL: v.optional(v.string()),
     BETTER_AUTH_SECRET: v.optional(v.string()),
-    // Email (`auth.ts`): verification and password reset go through Resend
-    // when both are set, and to the deployment's log when not.
-    // `npx convex env set RESEND_API_KEY re_...` and
-    // `npx convex env set MAIL_FROM "cobalt <hello@your.domain>"`.
     RESEND_API_KEY: v.optional(v.string()),
-    // Where the forge's answers link to: the HTTP API's base
-    // (`https://cobaltforge.dev/api/v1`). Links to pages use SITE_URL.
     API_URL: v.optional(v.string()),
-    // The HTTP API's own JWTs (`auth.config.ts`): who signs them and the
-    // public key, as a JWKS data URL. Both come from `bun scripts/api-keys.ts`.
     API_JWT_ISSUER: v.optional(v.string()),
     API_JWT_JWKS: v.optional(v.string()),
-    // Signs code.storage's push webhooks (`http.ts`). Set it to the secret
-    // code.storage shows for the webhook. Without it every webhook is refused.
     CODE_STORAGE_WEBHOOK_SECRET: v.optional(v.string()),
-    // Signs Polar's subscription webhooks (`http.ts`, `/hooks/polar`). Set it
-    // to the secret Polar shows for the webhook endpoint. Without it every
-    // webhook is refused.
     POLAR_WEBHOOK_SECRET: v.optional(v.string()),
-    // Paying (`billing.ts`): an organization access token from Polar, with
-    // the checkouts and customer sessions scopes. Only this deployment reads it.
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     MAIL_FROM: v.optional(v.string()),
-    // Product analytics (`analytics.ts`): events go to PostHog when the
-    // project key is set, and are not even queued when it is not.
-    // `npx convex env set POSTHOG_KEY phc_...`; POSTHOG_HOST defaults to
-    // https://us.i.posthog.com (use https://eu.i.posthog.com for the EU).
     POSTHOG_KEY: v.optional(v.string()),
     POSTHOG_HOST: v.optional(v.string()),
-    // Erasing an account also asks PostHog to delete what it holds under that
-    // address (`deletion.ts`). It needs a personal API key with the
-    // `person:write` scope and the project id. Without them the request is
-    // skipped and the events age out with the project's retention setting.
     POSTHOG_PERSONAL_KEY: v.optional(v.string()),
     POSTHOG_PROJECT_ID: v.optional(v.string()),
-    // The API host, when it is not the ingest host with `.i.` taken out.
     POSTHOG_API_HOST: v.optional(v.string()),
   },
 })
 
-// Sign-in keeps its users, sessions and credentials in its own tables.
 app.use(betterAuth)
-// Who is looking at a change or an issue right now (`presence.ts`).
 app.use(presence)
 
 export default app

@@ -18,13 +18,6 @@ import type { Actor } from '../lib/actor'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Each person's inbox. It is fed from the events every write already emits
- * (`fanOut`, run after the events are numbered), so a write does not have to
- * know who to tell. Someone is never told about what they did themself, nor
- * shown something about a repository they can no longer read.
- */
-
 export const defaultPrefs: Record<string, boolean> = {
   handoff: true,
   review: true,
@@ -55,7 +48,6 @@ async function bump(ctx: MutationCtx, handle: string, count = 0) {
   else await ctx.db.insert('inboxes', { handle, rev: 1, count, prefs: null })
 }
 
-/** Put something in a person's inbox, if they want that kind. */
 export async function notify(
   ctx: MutationCtx,
   handle: string,
@@ -75,7 +67,6 @@ export async function notify(
   const prefs = { ...defaultPrefs, ...box?.prefs }
   if (!prefs[n.kind]) return
   const at = n.at ?? Date.now()
-  // A repository is kept by id, and the path by what follows its address.
   const r =
     n.repo && n.repo.includes('/') && !n.repo.startsWith('~')
       ? await repoByKey(ctx, n.repo)
@@ -96,7 +87,6 @@ export async function notify(
     created: at,
   })
   await bump(ctx, handle, 1)
-  // An inbox keeps its newest thousand.
   if ((box?.count ?? 0) + 1 > MAX) {
     const oldest = await ctx.db
       .query('notifications')
@@ -109,7 +99,6 @@ export async function notify(
   }
 }
 
-/** Handles written as `@handle` in a text, at most ten, in order. */
 function mentions(text: string): Array<string> {
   const found: Array<string> = []
   for (const m of text.matchAll(/(?:^|[^\w@/])@([a-z0-9][a-z0-9-]{0,38})/gi))
@@ -127,7 +116,6 @@ type Event = {
   data: Record<string, unknown> | null
 }
 
-/** Who an event tells, and what. */
 export async function fanOutEvent(ctx: MutationCtx, e: Event) {
   if (!e.repo) return
   const full = e.repo
@@ -141,7 +129,6 @@ export async function fanOutEvent(ctx: MutationCtx, e: Event) {
     issue?: number
     thread?: Array<string>
   }
-  // A change under an access rule is never told to someone who cannot see it.
   let mayKnow: ((who: string) => Promise<boolean>) | null = null
   if (n !== null && !e.type.startsWith('issue.') && e.repo_id) {
     const repo = await repoByPublicId(ctx, e.repo_id)
@@ -216,7 +203,6 @@ export async function fanOutEvent(ctx: MutationCtx, e: Event) {
   }
   const author = d.author?.handle
   const where = `/${full}/changes?n=${n}`
-  // A fix that answers a thread tells whoever started the thread.
   const addressed = (e.data as { addressed?: unknown } | null)?.addressed
   if (Array.isArray(addressed)) {
     for (const x of addressed as Array<{ author: string; patch_set: number }>)
@@ -281,7 +267,6 @@ export async function fanOutEvent(ctx: MutationCtx, e: Event) {
     )
 }
 
-/** For writes that tell someone directly, not through an event (a finished import). */
 export const deliver = internalMutation({
   args: {
     handle: v.string(),
@@ -296,8 +281,6 @@ export const deliver = internalMutation({
     return null
   },
 })
-
-// ---- reading ---------------------------------------------------------------------
 
 async function present(ctx: QueryCtx, x: Doc<'notifications'>) {
   const r = x.repoId ? await repoByPublicId(ctx, x.repoId) : null
@@ -314,7 +297,6 @@ async function present(ctx: QueryCtx, x: Doc<'notifications'>) {
   }
 }
 
-/** Items about a repository the viewer can no longer read drop out. */
 async function visible(ctx: QueryCtx, p: Actor, x: Doc<'notifications'>) {
   if (!x.repo || x.repo.startsWith('~')) return true
   if (x.repoId) {
@@ -322,7 +304,6 @@ async function visible(ctx: QueryCtx, p: Actor, x: Doc<'notifications'>) {
     return !!r && (await canRead(ctx, r, p))
   }
   const r = await repoByKey(ctx, x.repo)
-  // Not a repository (an account-level item such as an import): keep it.
   if (!r) return !x.repo.includes('/')
   return await canRead(ctx, r, p)
 }
@@ -462,7 +443,6 @@ export const updatePrefs = mutation({
         count: 0,
         prefs: next,
       })
-    // Key order as the API has always shown it.
     const ordered = Object.fromEntries(
       Object.keys(defaultPrefs).map((k) => [k, next[k]]),
     )

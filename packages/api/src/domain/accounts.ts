@@ -12,18 +12,7 @@ const MAX_MEMBERS = 5_000
 const MAX_INVITES = 500
 const INVITE_TTL = 7 * 86_400_000
 
-/**
- * Editing an account, creating an organization, and who belongs to one.
- *
- * People and organizations share one namespace. A person comes from sign-in
- * (`knowPerson`); an organization is created here by the person who becomes
- * its first owner. An organization always has at least one owner.
- */
 export abstract class DomainAccounts extends DomainEvents {
-  /**
-   * A person signed in. Called by the server once it knows who they are,
-   * never by an operation, so it checks nothing: the caller already did.
-   */
   async knowPerson(handle: string, name: string) {
     const known = this.accounts.get(handle)
     if (!known) {
@@ -37,7 +26,6 @@ export abstract class DomainAccounts extends DomainEvents {
     }
   }
 
-  /** The account, when the caller may change it. A token limited to repositories may not. */
   private editable(handle: string, p: Principal): AccountRec {
     const a = this.accounts.get(handle)
     if (!a) throw apiError('not_found', `No account ${handle}.`)
@@ -53,7 +41,6 @@ export abstract class DomainAccounts extends DomainEvents {
       return a
     }
     const role = a.members.get(p.handle)
-    // Not a member: the organization's members are not theirs to know.
     if (!role) throw apiError('not_found', `No account ${handle}.`)
     if (role === 'member')
       throw apiError(
@@ -64,7 +51,6 @@ export abstract class DomainAccounts extends DomainEvents {
     return a
   }
 
-  /** The organization, when the caller belongs to it. Everyone else gets 404. */
   private memberOf(handle: string, p: Principal): AccountRec {
     const a = this.accounts.get(handle)
     if (!a || a.kind !== 'organization' || !a.members.has(p.handle))
@@ -101,15 +87,10 @@ export abstract class DomainAccounts extends DomainEvents {
     a.name = next.name
     a.bio = next.bio
     this.touch(a)
-    // The name is searchable and shown on repositories.
     this.svc.search.reset()
     return this.presentAccount(a, p)
   }
 
-  /**
-   * Create an organization owned by the caller. Repeat-safe: asking for one
-   * the caller already owns returns it unchanged.
-   */
   async createOrganization(
     p: Principal,
     input: { handle: string; name?: string; bio?: string },
@@ -160,7 +141,6 @@ export abstract class DomainAccounts extends DomainEvents {
       at,
     )
     rec.bio = fields.bio
-    // Like every account that is made here, it starts on Free.
     rec.plan = 'free'
     this.accessRevision++
     this.svc.search.reset()
@@ -182,7 +162,6 @@ export abstract class DomainAccounts extends DomainEvents {
     }
   }
 
-  /** An organization that exists. Who is in one is public, like the organization. */
   private organization(handle: string): AccountRec {
     const a = this.accounts.get(handle)
     if (!a || a.kind !== 'organization')
@@ -208,10 +187,6 @@ export abstract class DomainAccounts extends DomainEvents {
     return n
   }
 
-  /**
-   * Add a person or change their role. Admins manage members and admins;
-   * only an owner makes or unmakes an owner. The last owner stays an owner.
-   */
   async setMember(
     handle: string,
     login: string,
@@ -259,7 +234,6 @@ export abstract class DomainAccounts extends DomainEvents {
     }
   }
 
-  /** Remove a person. Anyone may leave; removing someone else follows `setMember`'s rules. */
   async removeMember(
     handle: string,
     login: string,
@@ -271,7 +245,6 @@ export abstract class DomainAccounts extends DomainEvents {
     if (a.kind !== 'organization')
       throw apiError('not_found', `No organization ${handle}.`)
     const theirs = a.members.get(login)
-    // Already gone: removing is repeat-safe.
     if (!theirs) return
     if (theirs === 'owner') {
       if (a.members.get(p.handle) !== 'owner')
@@ -288,8 +261,6 @@ export abstract class DomainAccounts extends DomainEvents {
     }
     if (dry) return
     a.members.delete(login)
-    // Their team memberships in this organization end with it.
-    // Copied first: the loop removes from the set it reads.
     const theirTeams = Array.from(this.teamsOf.get(login) ?? [])
     for (const key of theirTeams) {
       if (!key.startsWith(`${handle}/`)) continue
@@ -305,8 +276,6 @@ export abstract class DomainAccounts extends DomainEvents {
     this.touch(a)
     this.accessRevision++
   }
-
-  // ---- invitations ---------------------------------------------------------
 
   private presentInvite(
     a: AccountRec,
@@ -325,7 +294,6 @@ export abstract class DomainAccounts extends DomainEvents {
     }
   }
 
-  /** The organization, when the caller is an owner or admin of it. */
   private managed(handle: string, p: Principal): AccountRec {
     const a = this.editable(handle, p)
     if (a.kind !== 'organization')
@@ -346,11 +314,6 @@ export abstract class DomainAccounts extends DomainEvents {
       .map((i) => this.presentInvite(a, i))
   }
 
-  /**
-   * Invite someone by email. They get a link; opening it signed in makes
-   * them a member with this role. Until then they have no access. Inviting
-   * the same email again sends a new link and ends the old one.
-   */
   async invite(
     handle: string,
     p: Principal,
@@ -407,7 +370,6 @@ export abstract class DomainAccounts extends DomainEvents {
     }
   }
 
-  /** Revoke an invitation. Its link stops working. Repeat-safe. */
   async revokeInvitation(
     handle: string,
     id: string,
@@ -420,10 +382,6 @@ export abstract class DomainAccounts extends DomainEvents {
     this.touch(a)
   }
 
-  /**
-   * Accept an invitation with the secret from its link. Whoever holds the
-   * link and is signed in as a person joins; the link then stops working.
-   */
   async acceptInvitation(secret: string, p: Principal, dry: boolean) {
     if (p.repos)
       throw apiError(
@@ -439,7 +397,6 @@ export abstract class DomainAccounts extends DomainEvents {
         if (i.secretHash !== hash) continue
         if (i.expires <= at) break
         const theirs = a.members.get(p.handle)
-        // Already in: keep the higher of the two roles, never demote.
         const rank = { member: 0, admin: 1, owner: 2 }
         const role = theirs && rank[theirs] >= rank[i.role] ? theirs : i.role
         if (!theirs && a.members.size >= MAX_MEMBERS)

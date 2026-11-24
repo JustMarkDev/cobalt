@@ -9,7 +9,6 @@ describe('repository insights', () => {
     expect(r.object).toBe('repo_insights')
     expect(r.commits.total).toBeGreaterThan(0)
     expect(r.commits.by_week).toHaveLength(26)
-    // The sample's patch sets declared no model; a new one from an agent does.
     expect(r.commits.by_model[0].model).toBeNull()
     await h.call('POST', '/repos/dana/gitfs/changes', {
       body: { branch: 'by-model' },

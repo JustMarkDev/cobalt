@@ -1,23 +1,3 @@
-/**
- * What our API looks like to a client that is not on the same machine.
- *
- *   bun scripts/api-network.ts [--n 60] [--backend-ms 15] [--rtt 0,5,30,90,180] [--out docs/bench/network.json]
- *
- * The in-memory benchmark (api-bench.ts) shows the cost of our own code. This
- * puts the same server behind a TCP proxy that delays every chunk by half a
- * round trip each way, then times one client doing one request after another,
- * the way a person, a CLI or an agent does. Two things here are models, not
- * measurements, and the output says so:
- *
- *  1. Distance. The proxy adds `rtt` milliseconds per request on a kept-alive
- *     connection. A new connection also pays a TCP and a TLS round trip before
- *     the first byte, which is computed (2 x rtt), and not the CPU cost of TLS.
- *  2. The database. Today everything is in memory. In the hosted service a
- *     request that misses our caches asks Convex. `--backend-ms` is what we
- *     assume one such round trip costs; a read that is served from the body
- *     cache or answered with a 304 pays none, because it never leaves the node.
- *     Writes pay two (read, then commit), lists and searches one.
- */
 import { writeFileSync } from 'node:fs'
 import { sampleTokens } from '@cobaltforge/api/sample'
 import { HUGE, buildWorld } from './bench/world'
@@ -37,7 +17,6 @@ const PROXY = 4022
 const api = buildWorld(SERVER, { allowPrivateWebhooks: false })
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-// The server, with the modelled database latency applied after our real work.
 Bun.serve({
   port: SERVER,
   idleTimeout: 120,
@@ -49,7 +28,6 @@ Bun.serve({
   },
 })
 
-/** A TCP relay that holds every chunk for `delay` ms in each direction. */
 let delay = 0
 Bun.listen<{
   up: Awaited<ReturnType<typeof Bun.connect>> | null
@@ -102,7 +80,6 @@ const auth = {
 type Scenario = {
   name: string
   hops: number
-  /** Why this many hops. */
   why: string
   request: (i: number) => { url: string; init: RequestInit }
   prepare?: () => Promise<Record<string, string>>
@@ -199,7 +176,6 @@ const table: Record<string, Array<Cell>> = {}
 
 for (const rtt of RTTS) {
   delay = rtt
-  // Fewer samples when each takes long, so the whole run stays a few minutes.
   const n = rtt >= 90 ? Math.min(N, 40) : N
   for (const s of scenarios) {
     const extra = (await s.prepare?.()) ?? {}

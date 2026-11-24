@@ -1,10 +1,3 @@
-/**
- * Who you are acting as. One login is one person; that person can belong to
- * organizations and acts as one account at a time. Accounts, members and
- * invitations come from the API (`accounts.*`, `members.*`,
- * `invitations.*`); which account you are acting as is a preference kept in
- * this browser.
- */
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authClient } from './client'
@@ -14,14 +7,12 @@ import { useOpMaybe } from '~/lib/forge'
 export type Role = 'owner' | 'admin' | 'member'
 export type AccountKind = 'person' | 'organization'
 
-/** What acts and owns: a person or an organization. One namespace for both. */
 export type Account = {
   id: string
   kind: AccountKind
   handle: string
   name: string
   description: string
-  /** What the signed-in person is in it. `owner` on their own account. */
   role: Role | null
 }
 
@@ -37,7 +28,6 @@ const toAccount = (a: ApiAccount): Account => ({
   role: a.role,
 })
 
-/** The signed-in person, or null. Stable between renders unless it really changes. */
 export function useMe(): Person | null {
   const { data } = authClient.useSession()
   const handle = data?.user.handle
@@ -47,9 +37,6 @@ export function useMe(): Person | null {
     [handle, name],
   )
 }
-
-// ---------------------------------------------------------------------------
-// The account in use. A handle in this browser's storage, per person.
 
 const KEY = 'cb-acting-as'
 const listeners = new Set<() => void>()
@@ -61,7 +48,6 @@ function readActing(): Record<string, string | undefined> {
       string | undefined
     >
   } catch {
-    // Storage can be blocked: then you act as yourself.
     return {}
   }
 }
@@ -74,14 +60,11 @@ const subscribe = (cb: () => void) => {
   return () => listeners.delete(cb)
 }
 
-/** Act as another account. Instant, and the same on every screen. */
 export function switchAccount(me: Person, handle: string) {
   acting = { ...snapshot(), [me.handle]: handle }
   try {
     localStorage.setItem(KEY, JSON.stringify(acting))
-  } catch {
-    // Kept for this page view only.
-  }
+  } catch {}
   listeners.forEach((l) => l())
 }
 
@@ -91,7 +74,6 @@ type Accounts = {
   active: Account | null
 }
 
-/** The person, every account they can act as, and the one they are acting as. */
 export function useAccounts(): Accounts {
   const me = useMe()
   const listed = useOpMaybe('accounts.list', {}, me !== null)
@@ -102,7 +84,6 @@ export function useAccounts(): Accounts {
   )
   return React.useMemo(() => {
     if (!me) return { me: null, accounts: [], active: null }
-    // Until the list arrives, the person is the one account we are sure of.
     const mine: Account = {
       id: me.handle,
       kind: 'person',
@@ -122,21 +103,14 @@ export function useAccounts(): Accounts {
   }, [me, listed, picked])
 }
 
-/**
- * The account at an address: `undefined` while it is being read, `null` when
- * there is none. `role` is what the signed-in person is in it.
- */
 export function useAccount(handle: string): Account | null | undefined {
-  // Read again when the person changes: the role in the answer is theirs.
   const found = useOpMaybe('accounts.get', { handle }, handle !== '')
   return React.useMemo(() => found && toAccount(found), [found])
 }
 
-/** May the signed-in person manage what belongs to this account. */
 export const manages = (account: Account | null | undefined) =>
   account?.role === 'owner' || account?.role === 'admin'
 
-/** An organization with its members, and what the signed-in person may do in it. */
 export function useOrganization(handle: string) {
   const org = useAccount(handle)
   const isOrg = org?.kind === 'organization'
@@ -164,10 +138,6 @@ export function useOrganization(handle: string) {
   }, [org, isOrg, members, invites])
 }
 
-/**
- * Reads are answered for whoever was signed in when they were made. When
- * that changes (sign in, sign out), read them again.
- */
 export function SessionSync() {
   const { data, isPending } = authClient.useSession()
   const queries = useQueryClient()
@@ -175,7 +145,6 @@ export function SessionSync() {
   const seen = React.useRef<string | null | undefined>(undefined)
   React.useEffect(() => {
     if (isPending) return
-    // The first settled answer is who the page was rendered for.
     if (seen.current !== undefined && seen.current !== handle)
       void queries.invalidateQueries({ queryKey: ['cb'] })
     seen.current = handle

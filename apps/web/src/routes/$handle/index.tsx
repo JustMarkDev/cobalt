@@ -11,7 +11,6 @@ export const Route = createFileRoute('/$handle/')({
   validateSearch: (s: Record<string, unknown>): { tab?: ProfileTab } => ({
     tab: profileTabs.find(([id]) => id === s.tab)?.[0],
   }),
-  // What lives at the address decides the page: a person or an organization.
   loader: ({ context, params }) =>
     context.queryClient.prefetchQuery(
       opQueryOrNull('accounts.get', { handle: params.handle }),

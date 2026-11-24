@@ -1,23 +1,14 @@
-/**
- * What the OAuth server remembers between requests: registered clients,
- * sign-ins waiting for consent, codes, refresh tokens and device codes.
- * `MemoryOAuthState` keeps them in this process; the Convex one
- * (`stores/convex-oauth.ts`) keeps them in the database, so any API server
- * can finish a flow another one started.
- */
 export type OAuthKind =
   | 'client'
   | 'pending'
   | 'code'
   | 'refresh'
   | 'device'
-  /** How fast a device code is polled, apart from the code, so polling never rewrites it. */
   | 'device_poll'
   | 'user_code'
 
 export interface OAuthState {
   get: <T>(kind: OAuthKind, key: string) => Promise<T | undefined>
-  /** `expires` null keeps it until deleted. */
   set: (
     kind: OAuthKind,
     key: string,
@@ -25,15 +16,7 @@ export interface OAuthState {
     expires: number | null,
   ) => Promise<void>
   delete: (kind: OAuthKind, key: string) => Promise<void>
-  /**
-   * Marks it used and answers it as it was, in one step: of two requests
-   * using the same code at once, exactly one sees it unused.
-   */
   use: <T>(kind: OAuthKind, key: string) => Promise<T | undefined>
-  /**
-   * Replaces it only while its `field` is still `from`, in one step: of two
-   * writes racing to move it on, exactly one does. Answers whether it did.
-   */
   swap: (
     kind: OAuthKind,
     key: string,
@@ -42,9 +25,7 @@ export interface OAuthState {
     value: unknown,
     expires: number | null,
   ) => Promise<boolean>
-  /** How many there are, counting no further than `upTo`. */
   count: (kind: OAuthKind, upTo: number) => Promise<number>
-  /** Forget what expired. */
   sweep: (now: number) => Promise<void>
 }
 
@@ -60,7 +41,6 @@ export class MemoryOAuthState implements OAuthState {
   }
 
   get<T>(kind: OAuthKind, key: string) {
-    // A copy, as a database would give: a change counts only once it is set.
     const e = this.map(kind).get(key)
     return Promise.resolve(e ? (structuredClone(e.value) as T) : undefined)
   }

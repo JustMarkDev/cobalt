@@ -15,11 +15,6 @@ import {
   hostTerms,
 } from '~/lib/change-sync'
 
-/**
- * Where a change lives on another host, and what of it travels. A host only
- * sees what it has a place for. The rest is shown here as native, so nobody
- * expects it to appear on the other side.
- */
 export function MirrorCard({
   repo,
   change,
@@ -144,11 +139,6 @@ const stateChip = {
   abandoned: ['Abandoned', 'muted'],
 } as const
 
-/**
- * The changes stacked together, bottom first. The bottom one lands first, and
- * the others are rebased onto it. On a host the same stack is a chain of
- * requests, so each row also shows the request it maps to.
- */
 export function StackCard({
   repo,
   change,

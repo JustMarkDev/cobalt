@@ -21,11 +21,6 @@ import { ConvexOAuthState } from './stores/convex-tokens'
 import { clock, harness } from './testing'
 import type { Machine } from './lifecycles'
 
-/**
- * Every record that moves through states does so by `lifecycles.ts`, and
- * each test here first reproduces a way the state used to move wrongly.
- */
-
 const R = '/repos/dana/gitfs'
 
 describe('the tables', () => {
@@ -47,8 +42,6 @@ describe('the tables', () => {
       for (const tos of Object.values(m.moves))
         for (const to of tos as Array<string>)
           expect(Object.keys(m.moves)).toContain(to)
-      // And something is final (an upload's end is being attached, kept
-      // apart from its state).
       if (m !== (uploadLifecycle as never))
         expect(Object.keys(m.moves).some((s) => isTerminal(m, s))).toBe(true)
     },
@@ -69,7 +62,6 @@ describe('the tables', () => {
     expect(
       changeTarget('restore', { state: 'abandoned', abandonedFrom: 'open' }),
     ).toBe('open')
-    // Abandoned before it was remembered: open, as it always was.
     expect(changeTarget('restore', { state: 'abandoned' })).toBe('open')
   })
 
@@ -96,7 +88,6 @@ describe('the tables', () => {
     expect(
       uploadMoveRefusal(attached, { ...up, attachedTo: 'dana/other' }),
     ).toContain('already attached')
-    // A save never takes a file away.
     expect(uploadMoveRefusal(up, pending)).toContain('cannot become pending')
   })
 
@@ -115,7 +106,6 @@ describe('the tables', () => {
   test('a run goes back to the queue only from running', () => {
     expect(canMove(pipelineLifecycle, 'running', 'queued')).toBe(true)
     expect(canMove(pipelineLifecycle, 'waiting', 'queued')).toBe(false)
-    // A job whose runner went quiet starts over; what finished stays finished.
     const r = {
       status: 'running',
       jobs: [
@@ -165,15 +155,12 @@ describe('the tables', () => {
 describe('changes', () => {
   test('a draft that is abandoned and restored is a draft again', async () => {
     const h = harness()
-    // #217 in the sample is a draft.
     const abandoned = await h.call('POST', `${R}/changes/217/abandon`)
     expect(abandoned.status).toBe(200)
     expect(abandoned.json.state).toBe('abandoned')
     const restored = await h.call('POST', `${R}/changes/217/restore`)
     expect(restored.status).toBe(200)
-    // It used to come back open: ready to land without anyone marking it so.
     expect(restored.json.state).toBe('draft')
-    // And it can be marked ready, as any draft.
     const ready = await h.call('POST', `${R}/changes/217/ready`)
     expect(ready.json.state).toBe('open')
   })
@@ -206,7 +193,6 @@ describe('pipelines', () => {
     const h = harness()
     const job = await claimed(h)
     expect(job.steps.length).toBeGreaterThan(1)
-    // It used to be taken: step 2 done while step 1 had not started.
     const early = await step(h, job, 2, 'success')
     expect(early.status).toBe(409)
     expect(early.json.code).toBe('invalid_state')
@@ -216,11 +202,8 @@ describe('pipelines', () => {
     const h = harness()
     const job = await claimed(h)
     expect((await step(h, job, 1, 'success')).status).toBe(200)
-    // It used to move a finished step back to running.
     const back = await step(h, job, 1, 'running')
     expect(back.status).toBe(409)
-    // A runner's retry of the same report is answered, not refused, and
-    // its lines are not written twice.
     const again = await step(h, job, 1, 'success')
     expect(again.status).toBe(200)
     const log = (
@@ -234,7 +217,6 @@ describe('pipelines', () => {
 })
 
 describe('device sign-in', () => {
-  // The stores' own `get`, put back after each test.
   const stores = [MemoryOAuthState, ConvexOAuthState] as const
   const saved = stores.map((C) =>
     Object.getOwnPropertyDescriptor(C.prototype, 'get')!,
@@ -308,8 +290,6 @@ describe('device sign-in', () => {
         }),
       ).then((r) => r.json())
 
-    // The person approves just after a poll has read the code as pending,
-    // and before that poll is done with it.
     let armed = true
     for (const C of [MemoryOAuthState, ConvexOAuthState]) {
       const get = Object.getOwnPropertyDescriptor(C.prototype, 'get')!
@@ -330,8 +310,6 @@ describe('device sign-in', () => {
     now.advance(6000)
     expect((await poll()).error).toBe('authorization_pending')
     expect(armed).toBe(false)
-    // The poll used to write the code back as it read it: pending, and the
-    // approval was gone. The device must get its token.
     now.advance(6000)
     const token = await poll()
     expect(token.error).toBeUndefined()

@@ -147,7 +147,6 @@ describe('rules a repository writes', () => {
     const made = await rule('refs-owner', 'ines')
     expect(made.status).toBe(201)
     expect(made.json).toMatchObject({ custom: true, mode: 'enforce' })
-    // hollis has approved #216; ines has not.
     await rule('refs-reviewer', 'hollis')
     const policy = (await h.call('GET', '/repos/dana/gitfs/changes/216/policy'))
       .json

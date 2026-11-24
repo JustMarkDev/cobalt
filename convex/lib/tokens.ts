@@ -4,9 +4,6 @@ import { repoByKey, repoByPublicId } from './access'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** Tokens: made here with their secret handed back once; only the hash is kept. */
-
-/** `rep_...` ids, or `n:owner/name` for a name that had no repository. */
 export async function toRefs(ctx: QueryCtx, names: Array<string>) {
   const refs: Array<string> = []
   for (const n of names) {
@@ -16,7 +13,6 @@ export async function toRefs(ctx: QueryCtx, names: Array<string>) {
   return refs
 }
 
-/** The current lowercase names; repositories that are gone drop out. */
 export async function toNames(
   ctx: QueryCtx,
   refs: Array<string>,
@@ -26,13 +22,10 @@ export async function toNames(
   for (const ref of refs) {
     if (ref.startsWith('n:')) {
       const name = ref.slice(2)
-      // A repository made at that name later is not the one this token was given.
       if (!(await repoByKey(ctx, name))) names.push(name)
       continue
     }
     const r = await repoByPublicId(ctx, ref)
-    // A repository that changed hands after the token was made is not one
-    // its new owner gave it.
     if (r && !((r.ownerSince ?? -1) >= since))
       names.push(`${r.owner}/${r.name}`.toLowerCase())
   }

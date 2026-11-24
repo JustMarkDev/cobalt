@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getApi } from '~/lib/api/instance'
 
-/** RFC 9728: which authorization server protects the API. */
 export const Route = createFileRoute('/.well-known/oauth-protected-resource')({
   server: {
     handlers: {

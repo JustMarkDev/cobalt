@@ -9,11 +9,6 @@ function git(args: Array<string>): string | undefined {
   }
 }
 
-/**
- * What cb can work out from the folder you are in, so you never have to say
- * it. Each field runs its git command when it is first read: most commands
- * need only the repository, and every git process costs a few milliseconds.
- */
 export function gitContext(): {
   readonly slug: string | undefined
   readonly branch: string | undefined
@@ -50,7 +45,6 @@ export type RepoRef = {
   path: string
 }
 
-/** `-R owner/name`, then `CB_REPO`, then the git remote. Whether it exists is the API's to say. */
 export function resolveRepo(flag: string | undefined): RepoRef {
   const slug = flag ?? process.env.CB_REPO ?? gitContext().slug
   if (!slug)

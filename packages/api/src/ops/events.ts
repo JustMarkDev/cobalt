@@ -153,8 +153,6 @@ export const streamEvents = defineOp({
       }))
       const last = ctx.header('last-event-id')
       let after = last && /^\d+$/.test(last) ? Number(last) : events.head
-      // A cursor from another deployment or a restarted preview is ahead of
-      // this log; start at the end rather than waiting for a future it passed.
       after = Math.min(after, events.head)
       const types = ctx.query.type?.split(',') ?? null
       const repo = ctx.query.repo
@@ -162,7 +160,6 @@ export const streamEvents = defineOp({
         !!repoId &&
         (yield* run(async (d) => await d.canSeeId(ctx.principal)(repoId)))
       if (repo && !visible) throw apiError('not_found', 'No such repository.')
-      // A HEAD answers like GET but opens no stream and leaves no waiter.
       if (ctx.method === 'HEAD')
         return new Raw(
           new Response(null, {
@@ -175,7 +172,6 @@ export const streamEvents = defineOp({
         )
       const encoder = new TextEncoder()
       const stream = { open: true }
-      // Read through a call: the cancel callback closes it between awaits.
       const isOpen = () => stream.open && !ctx.signal.aborted
       const send = (
         text: string,
@@ -186,7 +182,6 @@ export const streamEvents = defineOp({
           controller.enqueue(encoder.encode(text))
           return true
         } catch {
-          // The client went away between the check and the enqueue.
           stream.open = false
           return false
         }
@@ -200,7 +195,6 @@ export const streamEvents = defineOp({
             return
           }
           while (isOpen()) {
-            // A stream is long-lived; a token revoked or expired mid-stream stops it.
             const bearer = /^Bearer\s+(.+)$/i.exec(
               ctx.header('authorization') ?? '',
             )?.[1]
@@ -209,8 +203,6 @@ export const streamEvents = defineOp({
               : null
             if (!found?.ok) break
             const current = principalOf(found.record)
-            // Re-read access for every batch: a repository may become private,
-            // or a membership may be removed, while the stream stays open.
             const can = domain.canSeeId(current)
             const canPull = current.scopes.has('pulls:read')
             const canIssue = current.scopes.has('issues:read')
@@ -256,7 +248,6 @@ export const streamEvents = defineOp({
                 break
             }
             if (!isOpen()) break
-            // Move past events that did not match, so they are not scanned again.
             after = Math.max(after, scannedTo)
             if (scanned.length === 0) after = Math.max(after, events.head)
             if (scanned.length === 100) continue

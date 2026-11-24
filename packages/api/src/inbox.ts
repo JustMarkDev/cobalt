@@ -1,13 +1,3 @@
-/**
- * What needs a person, worked out from the state of things rather than kept
- * as notification state: a review that lands or a build that goes green
- * drops out by itself, with no clean-up job. The dashboard's "Needs you" and
- * the inbox's queue are the same list, built here from facts each domain
- * gathers (memory or Convex), so the two cannot drift.
- *
- * Plain JavaScript, no I/O.
- */
-
 export const inboxSeverities = [
   'stopped',
   'failing',
@@ -42,7 +32,6 @@ export const inboxKinds = [
 ] as const
 export type InboxKind = (typeof inboxKinds)[number]
 
-/** What each domain gathers. Only repositories the viewer can read go in. */
 export type NeedsFacts = {
   mirrors: Array<{
     repo: string
@@ -50,7 +39,6 @@ export type NeedsFacts = {
     detail: string | null
     lastSync: number
   }>
-  /** The newest finished run on main, per repository, when it failed. */
   mainFailures: Array<{
     repo: string
     number: number
@@ -58,7 +46,6 @@ export type NeedsFacts = {
     title: string
     started: number
   }>
-  /** Open changes in repositories the viewer writes to, by others, with no current review from the viewer. */
   toReview: Array<{
     repo: string
     number: number
@@ -72,7 +59,6 @@ export type NeedsFacts = {
     title: string
     updated: number
   }>
-  /** The viewer's own open changes whose policy is blocked. */
   blocked?: Array<{
     repo: string
     number: number
@@ -80,7 +66,6 @@ export type NeedsFacts = {
     updated: number
     blocking: number
   }>
-  /** The viewer's own open changes whose checks failed on the newest tree. */
   checksFailing?: Array<{
     repo: string
     number: number
@@ -88,7 +73,6 @@ export type NeedsFacts = {
     updated: number
     failed: number
   }>
-  /** Unread mentions from the activity feed. */
   mentions?: Array<{
     id: string
     title: string
@@ -96,7 +80,6 @@ export type NeedsFacts = {
     path: string
     created: number
   }>
-  /** Steps waiting on the viewer. */
   waiting?: Array<{
     repo: string
     run: number
@@ -108,7 +91,6 @@ export type NeedsFacts = {
     expires: number
     since: number
   }>
-  /** Queued jobs of runs the viewer started that no runner can take. */
   noRunner?: Array<{
     repo: string
     run: number
@@ -127,7 +109,6 @@ export type Need = {
   note: string
   at: number
   action: InboxAction
-  /** How the dashboard words its button. */
   label: string
   path: string
   subject: { type: 'change' | 'issue' | 'run'; number: number } | null
@@ -139,7 +120,6 @@ const rank = Object.fromEntries(
 
 const path = (full: string, tail = '') => `/${full}${tail}`
 
-/** Every item, in the order the facts came; `sortNeeds` puts them in queue order. */
 export function needsFrom(f: NeedsFacts): Array<Need> {
   const out: Array<Need> = []
   for (const m of f.mirrors)
@@ -278,7 +258,6 @@ export function needsFrom(f: NeedsFacts): Array<Need> {
   return out
 }
 
-/** Most costly to leave first, then newest. */
 export function sortNeeds(items: Array<Need>) {
   return [...items].sort(
     (a, b) => rank[a.severity] - rank[b.severity] || b.at - a.at,
@@ -287,7 +266,6 @@ export function sortNeeds(items: Array<Need>) {
 
 export const INBOX_MAX = 100
 
-/** The inbox as the API answers it. */
 export function presentInbox(items: Array<Need>, limit: number) {
   const sorted = sortNeeds(items)
   const counts = Object.fromEntries(
@@ -313,10 +291,6 @@ export function presentInbox(items: Array<Need>, limit: number) {
   }
 }
 
-/**
- * The dashboard's "Needs you": the four kinds it has always shown, in the
- * order it has always shown them, with its own button wording.
- */
 export function dashboardNeeds(items: Array<Need>) {
   const order = { stopped: 0, failing: 1, review: 2, assigned: 3 } as const
   type Shown = keyof typeof order

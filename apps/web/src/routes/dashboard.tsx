@@ -73,7 +73,6 @@ function DashboardView({
   )
 }
 
-/** The page follows the account you are acting as: yours, or an organization's. */
 function Dashboard() {
   const { view = 'dashboard', tab = 'overview' } = Route.useSearch()
   const navigate = Route.useNavigate()

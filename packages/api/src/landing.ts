@@ -1,14 +1,5 @@
 import type { Landing } from './policy-file'
 
-/**
- * The landing engine's plan: every change of a stack (one, for a single
- * change) lands in its own step, then the policy file's landing steps run
- * once, in order. Each step is its own transaction and its outcome is kept
- * on the operation, so a person or an agent sees exactly where it stopped.
- *
- * Plain JavaScript: the Convex functions import it too.
- */
-
 import { canMove, landingStepLifecycle } from './lifecycles'
 import type { StepState } from './lifecycles'
 
@@ -16,14 +7,12 @@ export type { StepState } from './lifecycles'
 
 export type LandingStepRec = {
   kind: 'land' | 'run_pipeline' | 'webhook'
-  /** The change number, the pipeline's workflow, or the webhook's URL. */
   target: string
   state: StepState
   detail: string
   finished: number | null
 }
 
-/** Whether landing runs steps after the change lands, so it is an operation. */
 export function hasAfterSteps(landing: Landing) {
   return landing.steps.some((s) => !('wait_checks' in s))
 }
@@ -65,7 +54,6 @@ export function stepName(s: LandingStepRec) {
   return `Call ${s.target}`
 }
 
-/** A plan as the API shows it on an operation. */
 export function presentSteps(
   steps: ReadonlyArray<LandingStepRec>,
   iso: (t: number) => string,
@@ -80,7 +68,6 @@ export function presentSteps(
   }))
 }
 
-/** After a step fails, the ones after it never run. */
 export function skipRest(steps: Array<LandingStepRec>, from: number) {
   for (const s of steps.slice(from))
     if (canMove(landingStepLifecycle, s.state, 'skipped')) {

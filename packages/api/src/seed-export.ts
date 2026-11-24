@@ -5,12 +5,6 @@ import type { ExtrasStore } from './extras'
 
 export type { World } from './world'
 
-/**
- * The sample data as plain documents for Convex (`convex/seed.ts` loads it).
- * It is built by the same code that builds the in-memory sample, so both
- * start from the same world. References are by handle and public id; the
- * loader turns them into database ids.
- */
 export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
   const accounts = [...d.accounts.values()].map((a) => ({
     publicId: a.id,
@@ -253,7 +247,6 @@ export function exportWorld(d: MemoryDomain, auth: AuthStore): World {
       list.map((l) => ({ handle, ...l })),
     ),
     notifications: [...d.inboxes].flatMap(([handle, list]) =>
-      // Oldest first, as they arrived.
       [...list].reverse().map((n) => ({ handle, ...n })),
     ),
     notificationPrefs: [...d.notificationPrefs].map(([h, prefs]) => [

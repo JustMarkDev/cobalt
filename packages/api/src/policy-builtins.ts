@@ -1,16 +1,6 @@
 import { outsidePaths, touchedFiles } from './paths'
 import type { RuleMode } from './policy-file'
 
-/**
- * The rules every repository starts with, shared by the memory domain and
- * the Convex functions so the two can never disagree.
- *
- * None of them asks who or what typed a change. A change lands on evidence:
- * its tests passed on the exact tree that lands, and no reviewer, a model or
- * a person, left a high-severity finding open. Whoever presses Land is
- * responsible for it. An approval from someone other than the author is
- * shown, and a repository can make it required.
- */
 export const policyRules: ReadonlyArray<{
   id: string
   name: string
@@ -41,7 +31,6 @@ export const policyRules: ReadonlyArray<{
   },
 ]
 
-/** The approvals that count on a change: from anyone but its author. */
 export function approvalsOf(
   reviews: ReadonlyArray<{
     state: string
@@ -59,7 +48,6 @@ export function approvalsOf(
   return out
 }
 
-/** The `reviewed` requirement, from the approvals and objections that hold. */
 export function reviewedRequirement(
   approvals: ReadonlySet<string>,
   objections: ReadonlyArray<{ id: string; actor: { handle: string } }>,
@@ -82,11 +70,6 @@ export function reviewedRequirement(
   }
 }
 
-/**
- * Whether any of a repository's own rules depends on which files a change
- * touches, or how many lines. Auto-land refuses those repositories: the file
- * lists those rules read are not taken from git yet, so a person decides.
- */
 export function rulesReadChangedFiles(
   rules: ReadonlyArray<{ kind: string }>,
 ): boolean {
@@ -98,11 +81,6 @@ export function rulesReadChangedFiles(
   )
 }
 
-/**
- * `allowed_paths`: a change may touch only these paths, whoever made it and
- * however it arrived, `git push` included. Token path limits cover the API;
- * this covers landing.
- */
 export function allowedPathsRequirement(
   r: { id: string; name: string; paths?: Array<string> },
   head: {

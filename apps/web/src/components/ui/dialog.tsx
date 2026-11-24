@@ -3,7 +3,6 @@ import { Dialog } from '@base-ui/react/dialog'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 
-/** Centered dialog. `wide` is for dialogs that hold a form with several sections. */
 function Modal({
   open,
   onClose,

@@ -1,11 +1,3 @@
-/**
- * Which files of a change a reviewer has seen. A mark keeps the file's hash
- * at the patch set it was made on; the file counts as seen only while that
- * hash is the one at the head, so a newer patch set that touches it clears
- * the mark and says so (`changed_since`).
- *
- * Plain JavaScript, shared with the Convex functions.
- */
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 
@@ -17,10 +9,6 @@ type PatchSetLike = {
   contents?: Record<string, string | null>
 }
 
-/**
- * What a file is at a patch set, for comparing: its content's hash when the
- * patch set has its files, else the hash the push reported.
- */
 export function fileKey(ps: PatchSetLike, path: string): string {
   const text = ps.contents?.[path]
   return text !== undefined

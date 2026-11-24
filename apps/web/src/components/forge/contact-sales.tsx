@@ -7,11 +7,6 @@ import { Field, Input, Textarea } from '~/components/ui/input'
 import { Select, SelectItem } from '~/components/ui/select'
 import { authClient } from '~/lib/auth/client'
 
-/**
- * "Talk to us" for enterprise: a short form instead of a dead button. Three
- * questions, only one required, and an answer on screen when it is sent. The
- * preview does not send it anywhere yet.
- */
 export function ContactSales({ children }: { children: React.ReactNode }) {
   const { data: session } = authClient.useSession()
   const [open, setOpen] = React.useState(false)
@@ -23,13 +18,11 @@ export function ContactSales({ children }: { children: React.ReactNode }) {
   const valid = /^\S+@\S+\.\S+$/.test(email)
 
   const onOpen = () => {
-    // Someone signed in should not have to type their own address.
     if (!email && session) setEmail(session.user.email)
     setOpen(true)
   }
   const close = () => {
     setOpen(false)
-    // Reopening after a send starts a fresh request.
     setTimeout(() => {
       setState('form')
       setTried(false)

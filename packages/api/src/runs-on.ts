@@ -1,13 +1,6 @@
 import { runsOnOf } from './workflow'
 import type { DomainPort } from './domain/port'
 
-/**
- * A run a trigger started is made inside the write that lands a change,
- * where git cannot be read. So its jobs are queued with the last run's
- * labels, marked pending, and no runner takes them until this has read
- * `runs-on` from the workflow file at the run's own commit. Called after a
- * land and before every claim, so a stale label never routes a job.
- */
 export async function settleRunsOn(d: DomainPort) {
   const pending = await d.pendingRunsOn()
   for (const p of pending) {
@@ -30,7 +23,6 @@ export async function settleRunsOn(d: DomainPort) {
   }
 }
 
-/** Puts what was read on a pending run's jobs. Shared by both domains. */
 export function applyRunsOn(
   r: {
     runsOnPending?: boolean

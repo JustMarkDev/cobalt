@@ -1,8 +1,3 @@
-/**
- * code.storage's webhook signature: `X-Pierre-Signature: t=<seconds>,sha256=<hex>`,
- * an HMAC-SHA256 of `<t>.<body>` with the webhook's secret. Good for five
- * minutes, and never from more than a minute in the future.
- */
 export async function verifyPierre(
   body: string,
   header: string | null,
@@ -39,7 +34,6 @@ export async function verifyPierre(
     ),
   )
   const want = [...mac].map((b) => b.toString(16).padStart(2, '0')).join('')
-  // Compared in full, so the answer does not leak how much matched.
   let diff = want.length ^ sig.length
   for (let i = 0; i < Math.max(want.length, sig.length); i++)
     diff |= (want.charCodeAt(i) || 0) ^ (sig.charCodeAt(i) || 0)

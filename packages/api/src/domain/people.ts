@@ -6,7 +6,6 @@ import { DomainInsights } from './insights'
 const DAY = 86_400_000
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
-/** What a person chose their profile shows, and how downloads pick a file. */
 export type AccountPrefs = {
   combined_total: boolean
   private_totals: boolean
@@ -33,19 +32,11 @@ type Contribution = {
   at: number
   title: string
   repo: RepoRec
-  /** The work was an agent's, and this person reviewed or landed it. */
   agent?: boolean
 }
 
-/**
- * People: their preferences, who follows whom, a profile worked out from what
- * they did, and the directory that Discover and search list. Everything on a
- * profile is counted from commits, reviews, changes, issues and releases the
- * domain already holds; nothing is typed in.
- */
 export abstract class DomainPeople extends DomainInsights {
   readonly accountPrefs = new Map<string, AccountPrefs>()
-  /** Who each person follows. */
   readonly following = new Map<string, Set<string>>()
   peopleRev = 0
 
@@ -65,8 +56,6 @@ export abstract class DomainPeople extends DomainInsights {
     return a
   }
 
-  // ---- preferences ----------------------------------------------------------
-
   async getAccountPrefs(p: Viewer) {
     return {
       object: 'account_preferences' as const,
@@ -84,8 +73,6 @@ export abstract class DomainPeople extends DomainInsights {
     this.svc.search.reset()
     return { object: 'account_preferences' as const, ...next }
   }
-
-  // ---- follows --------------------------------------------------------------
 
   private followersOf(handle: string) {
     const out: Array<string> = []
@@ -152,9 +139,6 @@ export abstract class DomainPeople extends DomainInsights {
     return `ppl${this.peopleRev}.${this.accessRevision}.${this.accounts.size}`
   }
 
-  // ---- profile --------------------------------------------------------------
-
-  /** Everything a person did, in repositories `p` may read, or counted privately. */
   private async contributions(handle: string, p: Viewer, since: number) {
     const prefs = this.prefsOf(handle)
     const own = p?.handle === handle
@@ -163,7 +147,6 @@ export abstract class DomainPeople extends DomainInsights {
     const email = `${handle}@users.cobaltforge.dev`
     for (const r of this.repos.values()) {
       const readable = this.canRead(r, p)
-      // A private repository's work counts, as a number only, if they allow it.
       if (!readable && !(own || prefs.private_totals)) continue
       const found: Array<Contribution> = []
       let commits: Awaited<ReturnType<typeof this.svc.git.commits>> = []
@@ -234,7 +217,6 @@ export abstract class DomainPeople extends DomainInsights {
         : { shown: [], hidden: 0 }
     const all = shown.length + hidden
 
-    // Months, oldest first, ending with this one.
     const end = new Date(now)
     const months = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(
@@ -271,7 +253,6 @@ export abstract class DomainPeople extends DomainInsights {
       value: shown.length ? Math.round((n / shown.length) * 100) : 0,
     }))
 
-    // Languages: of the public repositories they own or worked in, weighted by how much they did there.
     const weight = new Map<RepoRec, number>()
     for (const c of shown) weight.set(c.repo, (weight.get(c.repo) ?? 0) + 1)
     for (const r of this.repos.values())
@@ -360,8 +341,6 @@ export abstract class DomainPeople extends DomainInsights {
     return `${a.id}.${a.version}.${rev}.${this.peopleRev}.${this.accessRevision}.${Math.floor(this.now() / DAY)}.${p?.handle ?? '-'}`
   }
 
-  // ---- directory ------------------------------------------------------------
-
   async listPeople(
     p: Viewer,
     q: { q?: string; after: CursorPosition | null; limit: number },
@@ -384,7 +363,6 @@ export abstract class DomainPeople extends DomainInsights {
           (r) => r.owner === a.handle && r.visibility === 'public',
         ),
       }))
-      // Most followed first, then by handle, so the order is stable.
       .sort(
         (x, y) =>
           y.followers - x.followers || x.a.handle.localeCompare(y.a.handle),

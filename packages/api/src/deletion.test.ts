@@ -12,12 +12,6 @@ import { api, components, internal } from '../../../convex/_generated/api'
 import { GHOST, TABLES, ghostJson, retiredHash } from '../../../convex/deletion'
 import schema from '../../../convex/schema'
 
-/**
- * Plans and deleting an account, on Convex in memory: what the Free plan
- * allows, what a grant changes, the 30 days after asking to be deleted, and
- * what the erasure takes and leaves.
- */
-
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
 const dir = new URL('../../../convex/', import.meta.url).pathname
@@ -62,7 +56,6 @@ async function world() {
     )
   const alice = await person('alice', 'user_alice')
   const bob = await person('bob', 'user_bob')
-  // A browser session: no API claim, the subject is the sign-in user.
   const as = (authId: string) =>
     t.withIdentity({
       subject: authId,
@@ -72,7 +65,6 @@ async function world() {
   return { t, alice, bob, as }
 }
 
-/** The `code` a refusal carries. */
 async function codeOf(p: Promise<unknown>): Promise<string> {
   try {
     await p
@@ -83,7 +75,6 @@ async function codeOf(p: Promise<unknown>): Promise<string> {
   return 'ok'
 }
 
-/** Runs scheduled work until none is due. */
 async function settle(t: ReturnType<typeof convexTest>) {
   for (let i = 0; i < 400; i++) {
     await new Promise((r) => setTimeout(r, 0))
@@ -208,7 +199,6 @@ describe('the Free plan', () => {
     setSystemTime(new Date(START + 31 * DAY))
     expect(await codeOf(access('read'))).toBe('ok')
     expect(await codeOf(access('write'))).toBe('read_only')
-    // It can still be made public, which is a way out that costs nothing.
     expect(
       await codeOf(
         alice.mutation(api.forge.repos.update, {
@@ -324,7 +314,6 @@ describe('asking to be deleted', () => {
       })
     })
     expect(await codeOf(ask(w))).toBe('invalid_state')
-    // With a second owner it is fine.
     await w.t.run((ctx) =>
       ctx.db
         .query('accounts')
@@ -367,7 +356,6 @@ describe('the erasure', () => {
       name: 'theirs',
       visibility: 'public',
     })
-    // What alice wrote in bob's repository, and what is about her.
     const bobRepo = await t.run(async (ctx) =>
       ctx.db
         .query('repos')
@@ -415,7 +403,6 @@ describe('the erasure', () => {
         attachedRepoId: null,
       })
     })
-    // Her sign-in user, which the erasure removes with the account.
     const user = (await t.mutation(components.betterAuth.adapter.create, {
       input: {
         model: 'user',
@@ -611,7 +598,6 @@ describe('the store worker', () => {
       })
     const first = await claim()
     expect(first.sweeps.map((s) => s.key)).toEqual(['store_1'])
-    // Another worker, a moment later, is not given the same one.
     expect((await claim()).sweeps).toEqual([])
     await t.mutation(api.storeWorker.done, {
       secret: SECRET,
@@ -695,7 +681,6 @@ describe('the store worker', () => {
       bytes: 300_000_000,
     })
     expect(await publish('v2')).toBe('read_only')
-    // Issues, and every other write, still work: only pushes pause.
     expect(
       await codeOf(
         alice.query(api.forge.repos.access, {
@@ -759,7 +744,6 @@ describe('the store worker', () => {
 })
 
 describe('Polar tells us about a subscription', () => {
-  // Shaped like Polar's: whsec_ and base64; the signing key is what it decodes to.
   const POLAR = `whsec_${btoa('0123456789abcdef0123456789abcdef')}`
 
   async function signedPost(

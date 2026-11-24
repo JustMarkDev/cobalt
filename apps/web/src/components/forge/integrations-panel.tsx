@@ -28,7 +28,6 @@ const nameOf = (i: Integration) =>
       : brandName(i.id)
 
 function Logo({ i, muted }: { i: Integration; muted?: boolean }) {
-  // A planned service is faded and drained of colour, so it reads as not there yet.
   const fade = muted ? 'opacity-50 grayscale' : undefined
   if (i.id === 'selfhosted' || i.id === 'selfhostedreviewer')
     return (
@@ -44,12 +43,10 @@ function Logo({ i, muted }: { i: Integration; muted?: boolean }) {
   return <BrandTile id={i.id} className={fade} />
 }
 
-/** Tells a person a service is on the roadmap and cannot be connected yet. */
 function Planned() {
   return <Badge>Planned</Badge>
 }
 
-/** Per-kind settings. Kept short: a setting only appears if it changes behaviour. */
 function RepoSettings({ group }: { group: IntegrationGroup }) {
   if (group === 'review')
     return (
@@ -136,12 +133,10 @@ function ConnectDialog({
   item: Integration | null
   repo?: string
   onClose: () => void
-  /** Connects it; answers with what went wrong, or nothing. */
   onConnect: (id: string, key?: string) => Promise<string | null>
 }) {
   const [secret, setSecret] = React.useState('')
   const [done, setDone] = React.useState(false)
-  // Each integration gets a fresh dialog: the callers key it by id.
   const [error, setError] = React.useState('')
   if (!item) return null
   const needs = item.credential
@@ -211,14 +206,6 @@ function ConnectDialog({
   )
 }
 
-/**
- * Account scope: connect or disconnect a service once.
- * Repo scope: choose which connected services this repository uses.
- */
-/**
- * What is connected, and for a repository what it uses, from the API. A
- * repository uses services connected to its owner's account.
- */
 function useIntegrations(repo?: string) {
   const me = useMe()
   const slash = repo?.indexOf('/') ?? -1

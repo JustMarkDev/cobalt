@@ -127,7 +127,6 @@ describe('the signature', () => {
     const sig = await sign('{}', 'm1', ts, raw)
     const h = { id: 'm1', timestamp: ts, signature: `v1,${sig}` }
     expect(await verifyStandardWebhook('{}', h, secret, NOW)).toBeNull()
-    // Signed with the secret's own text, as older secrets were, also passes.
     const legacy = await sign('{}', 'm1', ts, secret)
     expect(
       await verifyStandardWebhook(

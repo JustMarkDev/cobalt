@@ -69,7 +69,6 @@ const questions: Array<[string, string]> = [
   ],
 ]
 
-/** 0.25 GB reads as 250 MB. */
 function size(gb: number): string {
   return gb < 1 ? `${Math.round(gb * 1000)} MB` : `${gb} GB`
 }
@@ -88,7 +87,6 @@ function limitLines(plan: Plan | FreePlan): Array<[string, string]> {
 
 function Pricing() {
   const [billing, setBilling] = React.useState<'month' | 'year'>('year')
-  // Polar charges in euros in Europe, the same number as in dollars.
   const money = useEurope() ? '€' : '$'
   return (
     <div className="space-y-20">
@@ -123,9 +121,6 @@ function Pricing() {
             key={p.id}
             className={cn(
               'surface flex flex-col gap-6 rounded-2xl bg-card',
-              // The plan we suggest gets a brand border, not an outline
-              // (outlines mean keyboard focus) and not a ring (the elevation
-              // would erase it). The padding gives back the extra 1px.
               isPaid(p) && p.featured
                 ? 'border-2 border-brand-ink p-[calc(1.75rem-1px)] dark:border-brand/45'
                 : 'border p-7',

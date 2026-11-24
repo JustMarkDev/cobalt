@@ -3,7 +3,6 @@ import { fail } from './errors'
 import type { Actor } from './actor'
 import type { Doc } from '../_generated/dataModel'
 
-/** The repository's own rules on who and what it takes, as the API has them. */
 export function assertMayContribute(
   repo: Doc<'repos'>,
   p: Actor,

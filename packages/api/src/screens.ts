@@ -2,47 +2,27 @@ import { api } from '../../../convex/_generated/api'
 import type { FunctionReference } from 'convex/server'
 import type { OperationId, Operations } from '@cobaltforge/sdk'
 
-/**
- * What a screen calls in Convex for an API operation. A page reads and
- * writes the forge's data straight from Convex, live, and gets back what the
- * operation would have answered: the same function, the same arguments the
- * API passes it (`ConvexDomain`), and the same list envelope. `screens.test.ts`
- * runs each one both ways and checks the answers are equal.
- *
- * What is not here still goes through the API: anything that needs git, the
- * files on the API server, its search index or its health. A screen does not
- * need to know which is which: `useOp` and `useWrite` in the app choose.
- */
-
 type In<Id extends OperationId> = Operations[Id]['input']
 type Position = { key: string | number; id: string } | null
 type Page = { items: Array<unknown>; next: Position }
 
-/** Who is reading, for the few lists whose cursor names them. */
 export type Reader = { handle: string | null }
 
 type Context = { at: number; after: Position; limit: number }
 
 export type Read<Id extends OperationId> = {
   fn: FunctionReference<'query'>
-  /** `at` is the time the answer is for, to the hour: a query may not read the clock. */
   args: (input: In<Id>, c: Context) => Record<string, unknown>
-  /** A list read a page at a time: what its cursor's fingerprint is made of. */
   page?: (input: In<Id>, reader: Reader) => Array<string | undefined>
-  /** A list answered whole, in one page. */
   list?: true
 }
 
 export type Write<Id extends OperationId> = {
   fn: FunctionReference<'mutation'>
   args: (input: In<Id>) => Record<string, unknown>
-  /** The part of the function's answer the operation answers with. */
   pick?: string
-  /** The operation answers nothing (204). */
   empty?: true
 }
-
-// ----- the API's list envelope and cursors (`ops/common.ts`, `cursor.ts`) -----
 
 export const PAGE = { default: 50, max: 200 }
 
@@ -66,7 +46,6 @@ const unbase64url = (text: string) =>
     ),
   )
 
-/** A cursor from this list, or none. One from another list starts over. */
 function positionOf(cursor: string | undefined, fp: string): Position {
   if (!cursor?.startsWith('c_')) return null
   try {
@@ -89,8 +68,6 @@ const repo = (i: { owner: string; repo: string }) => ({
 })
 const flag = (s: 'true' | 'false' | undefined) =>
   s === undefined ? undefined : s === 'true'
-
-// ----- reads ------------------------------------------------------------------
 
 const reads: { [Id in OperationId]?: Read<Id> } = {
   'accounts.list': {
@@ -327,8 +304,6 @@ const reads: { [Id in OperationId]?: Read<Id> } = {
   },
 }
 
-// ----- writes -----------------------------------------------------------------
-
 const writes: { [Id in OperationId]?: Write<Id> } = {
   'issues.create': {
     fn: api.forge.issues.create,
@@ -485,19 +460,14 @@ const writes: { [Id in OperationId]?: Write<Id> } = {
   },
 }
 
-// ----- what a screen uses ------------------------------------------------------
-
-/** The hour a page reads for. A query may not read the clock, so it is passed in. */
 export const hourOf = (ms: number) => ms - (ms % 3_600_000)
 
 export type ScreenRead = {
   fn: FunctionReference<'query'>
   args: Record<string, unknown>
-  /** The function's answer (JSON text) as the operation answers it. */
   answer: (text: string) => unknown
 }
 
-/** The Convex read behind an operation, when a screen can make it itself. */
 export function screenRead<Id extends OperationId>(
   id: Id,
   input: In<Id>,
@@ -513,7 +483,6 @@ export function screenRead<Id extends OperationId>(
     after: fp ? positionOf(paging.cursor, fp) : null,
     limit: Math.min(Math.max(1, paging.limit ?? PAGE.default), PAGE.max),
   })
-  // Convex takes no `undefined`: an argument left out is absent.
   for (const k of Object.keys(args)) if (args[k] === undefined) delete args[k]
   return {
     fn: spec.fn,
@@ -549,7 +518,6 @@ export type ScreenWrite = {
   answer: (text: string) => unknown
 }
 
-/** The Convex write behind an operation, when a screen can make it itself. */
 export function screenWrite<Id extends OperationId>(
   id: Id,
   input: In<Id>,

@@ -5,11 +5,6 @@ import { Button } from '~/components/ui/button'
 import { availableOses, osLabel, useTarget } from '~/lib/platform'
 import { latestStable } from '~/lib/model/data'
 
-/**
- * A piece of software someone can download, for people who are not here to
- * read code: what it is, which systems it runs on, and one button that says
- * which system we think they are on.
- */
 export function SoftwareCard({ repo }: { repo: Repo }) {
   const { target } = useTarget()
   const release = latestStable(repo)

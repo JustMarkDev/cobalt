@@ -100,7 +100,6 @@ function Crumbs({ repo, path }: { repo: Repo; path: string }) {
   )
 }
 
-/** Pierre's tree, as a quick way to jump to any file. */
 function FilesPanel({
   repo,
   paths,
@@ -151,7 +150,6 @@ export function CodeBrowser({
   const paths = React.useMemo(() => tree.entries.map((e) => e.path), [tree])
   const [copied, setCopied] = React.useState(false)
   const [doc, setDoc] = React.useState<RepoDoc>('readme')
-  // The line whose story is open, from a click on its number.
   const [why, setWhy] = React.useState<number | null>(null)
 
   const isFile = paths.includes(path)

@@ -1,12 +1,7 @@
-/**
- * The Pipelines tab was designed on `mock/pipelines`' shapes. These turn the
- * API's runs and step logs into them.
- */
 import type { PipelineLog, PipelineRun } from '@cobaltforge/sdk'
 import type { Run, RunDetail } from '~/lib/model/pipelines'
 import { timeAgo } from '~/lib/repo'
 
-/** "2m 41s", "9s", "1h 4m". */
 export function duration(ms: number | null): string {
   if (ms === null) return ''
   const s = Math.round(ms / 1000)
@@ -31,7 +26,6 @@ export function toRun(r: PipelineRun): Run {
   }
 }
 
-/** A run with its jobs and every step's log, in the order `jobs` lists them. */
 export function toRunDetail(
   r: PipelineRun,
   logs: Array<PipelineLog>,

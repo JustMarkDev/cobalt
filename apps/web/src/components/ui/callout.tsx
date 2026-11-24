@@ -14,7 +14,6 @@ const tones = {
   danger: { icon: ExclamationCircleIcon, cls: 'bg-danger/8 text-danger' },
 } as const
 
-/** A short note that sits inside a page. Use it for what the reader must not miss. */
 function Callout({
   tone = 'info',
   title,

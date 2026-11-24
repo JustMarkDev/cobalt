@@ -486,7 +486,6 @@ export const listDeliveries = defineOp({
         const afterSequence = after
           ? Number(after.id)
           : Number.POSITIVE_INFINITY
-        // Newest first: the monotonic sequence is the stable order when ids share a millisecond.
         const rows = await d.svc.hooks.listDeliveries(h, {
           state: q.state,
           before: afterSequence,

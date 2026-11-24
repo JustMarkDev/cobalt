@@ -6,13 +6,11 @@ import {
   seedBulk,
 } from '@cobaltforge/api/sample'
 
-/** The server under test: sample data, a 10,000-change repository, 1,000 tokens. */
 export const HUGE = 'dana/huge'
 export const TOKENS = 1000
 export const manyToken = (i: number) =>
   `cbp_bench_token_${String(i % TOKENS).padStart(6, '0')}`
 
-/** Counts bytes and keeps none, so an upload benchmark measures the API and not the size of RAM. */
 class DiscardingBlobs {
   bytes = 0
   readonly capacity = Number.MAX_SAFE_INTEGER
@@ -31,7 +29,6 @@ export function buildWorld(
     auth.add(manyToken(i), {
       name: `bench ${i}`,
       kind: 'personal',
-      // Not dana: dana is limited to 100 active tokens, and the token benchmark needs room.
       handle: 'hollis',
       scopes: ['repo:read', 'issues:read', 'pulls:read'],
       ttlMs: 365 * 86_400_000,

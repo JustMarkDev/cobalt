@@ -1,18 +1,3 @@
-/**
- * Asks a code.storage test repository three questions the docs leave open,
- * with a handful of pushes, never a load test (see docs/convex-migration.md,
- * "Syncing with other hosts"):
- *
- *   1. Is `atomic` push advertised?
- *   2. Is `--force-with-lease` refused when the branch moved?
- *   3. With a GitHub upstream: what happens when both sides change a branch?
- *
- *   CODE_STORAGE_REMOTE=https://t:<jwt>@<name>.code.storage/<repo>.git \
- *   GITHUB_REMOTE=https://<token>@github.com/<owner>/<repo>.git   # optional, for 3
- *   bun scripts/code-storage-probe.ts
- *
- * It writes only to branches named `probe/*`, and prints what it saw.
- */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -58,7 +43,6 @@ try {
     return run(c, ['rev-parse', 'HEAD']).out.trim()
   }
 
-  // 1. The server's capabilities, as the push handshake shows them.
   const trace = run(
     a,
     ['push', '--dry-run', 'origin', `HEAD:refs/heads/${branch}`],
@@ -68,7 +52,6 @@ try {
     `1. atomic push advertised: ${/\batomic\b/.test(trace.out) ? 'yes' : 'no'}`,
   )
 
-  // 2. Someone else moves the branch; a lease on the old value must fail.
   run(a, ['checkout', '--quiet', '-b', branch])
   const first = commit(a, 'one')
   run(a, ['push', '--quiet', 'origin', branch])
@@ -87,7 +70,6 @@ try {
     `2. --force-with-lease refused when the branch moved: ${lease.ok ? 'NO, it was accepted' : 'yes'}`,
   )
 
-  // 3. Both sides change the branch: which commit wins?
   const github = process.env.GITHUB_REMOTE
   if (!github)
     console.log('3. skipped: set GITHUB_REMOTE to the synced GitHub repository')
@@ -102,7 +84,6 @@ try {
     run(g, ['push', '--quiet', 'origin', branch])
     const here = commit(b, 'on code.storage')
     const pushed = run(b, ['push', 'origin', branch])
-    // Give the sync a moment, then see who won on each side.
     await Bun.sleep(30_000)
     const onStorage = run(b, [
       'ls-remote',

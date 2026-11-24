@@ -4,11 +4,6 @@ import { internal } from '../../../convex/_generated/api'
 import { queueMail } from '../../../convex/mail'
 import schema from '../../../convex/schema'
 
-/**
- * The outbox: a message leaves it only once Resend took it, a failed send is
- * tried again, and one that cannot get better is dropped.
- */
-
 const dir = new URL('../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
 for (const f of new Bun.Glob('**/*.{ts,js}').scanSync(dir))
@@ -21,7 +16,6 @@ const sink = g.__cbMailSink
 
 type Call = { key: string | null }
 let calls: Array<Call>
-/** What Resend answers to each call, in order; the last one repeats. */
 let answers: Array<number | 'down'>
 
 beforeEach(() => {
@@ -59,7 +53,6 @@ async function queued() {
   return t
 }
 
-/** Everything scheduled runs, the waits between tries included. */
 const drain = (t: T) => t.finishAllScheduledFunctions(jest.runAllTimers)
 const left = (t: T) => t.run((ctx) => ctx.db.query('outbox').collect())
 

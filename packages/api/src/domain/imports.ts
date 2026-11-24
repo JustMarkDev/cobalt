@@ -8,17 +8,10 @@ type Host = 'github' | 'gitlab' | 'codeberg' | 'gitea'
 export type LinkRec = {
   host: Host
   login: string
-  /** For a self-hosted Gitea: its address. */
   instance: string | null
   linked: number
 }
 
-/**
- * Bringing work from another host. An import is a repository here that
- * remembers where it came from and pulls from it through a mirror. A linked
- * account says who someone is on another host; it is recorded as they say
- * it and marked unverified until signing in with that host is built.
- */
 export abstract class DomainImports extends DomainIntegrations {
   readonly links = new Map<string, Array<LinkRec>>()
   linkRev = 0
@@ -139,7 +132,6 @@ export abstract class DomainImports extends DomainIntegrations {
     return { repo: this.presentRepo(rec), created: made.created }
   }
 
-  /** What the person imported: repositories they manage that came from another host. */
   async listImports(p: Viewer) {
     if (!p) throw apiError('unauthenticated', 'Sign in to see your imports.')
     const out = []

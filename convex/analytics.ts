@@ -7,15 +7,6 @@ import {
   internalQuery,
 } from './_generated/server'
 
-/**
- * Sends queued product events (`lib/stats.ts`, `track`) to PostHog, one batch
- * a minute. Events are anonymous to PostHog (no person profiles), which is
- * the cheapest kind; the actor's handle is the distinct id, so events can
- * still be grouped by who did them.
- *
- * A batch that fails stays queued and goes with the next one. Events a week
- * old are dropped, so a long outage cannot grow the queue without end.
- */
 const BATCH = 500
 
 export const waiting = internalQuery({
@@ -50,7 +41,6 @@ export const sent = internalMutation({
   },
 })
 
-/** Drops events a week old: PostHog was unreachable for too long. */
 export const trim = internalMutation({
   args: {},
   returns: v.null(),
@@ -74,7 +64,6 @@ export const send = internalAction({
       /\/$/,
       '',
     )
-    // A few batches a minute at most; the rest waits for the next minute.
     for (let i = 0; i < 4; i++) {
       const batch = await ctx.runQuery(internal.analytics.waiting, {})
       if (batch.length === 0) return null
@@ -88,7 +77,6 @@ export const send = internalAction({
               event: e.event,
               distinct_id: e.who,
               timestamp: new Date(e.at).toISOString(),
-              // Dedupes a batch sent twice after a crash between send and delete.
               uuid: await uuidOf(e.id),
               properties: {
                 ...(JSON.parse(e.props) as Record<string, unknown>),
@@ -113,7 +101,6 @@ export const send = internalAction({
   },
 })
 
-/** A stable UUID-shaped id from a document id, for PostHog's dedupe. */
 async function uuidOf(id: string) {
   const d = new Uint8Array(
     await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id)),

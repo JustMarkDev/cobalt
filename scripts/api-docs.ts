@@ -1,9 +1,3 @@
-/**
- * Writes the API reference pages under apps/web/content/docs/api/reference from the
- * operations and from real responses of the sample API.
- *
- *   bun scripts/api-docs.ts
- */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { generateReference } from '@cobaltforge/api/docs'

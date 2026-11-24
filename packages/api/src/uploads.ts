@@ -3,18 +3,6 @@ import { newId, randomSource } from './ids'
 
 const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
 
-/**
- * Uploads. A file is announced, sent to a signed address, and then attached to
- * something. The API never takes a large body through a JSON endpoint.
- *
- *  - The signed address works once for one file of one declared type and size,
- *    for an hour. It needs no token, so a browser or a runner can PUT to it.
- *  - What arrives is checked against what was declared: the size exactly, and
- *    for images and video the first bytes, so a script cannot be stored as a
- *    picture.
- *  - Files are served with `nosniff`, a sandboxing CSP, and as downloads unless
- *    they are images or video.
- */
 export type Purpose = 'evidence' | 'release'
 
 export const ALLOWED: Record<
@@ -55,9 +43,7 @@ export const ALLOWED: Record<
   },
   'application/json': { max: 5 << 20, check: (b) => parses(b), inline: false },
   'text/plain': { max: 5 << 20, check: (b) => utf8(b), inline: false },
-  // A preview page. It is only ever served sandboxed, as a download.
   'text/html': { max: 5 << 20, check: (b) => utf8(b), inline: false },
-  // Release files. Only for purpose `release`, and always served as downloads.
   'application/octet-stream': {
     max: 100 << 20,
     check: () => true,
@@ -75,7 +61,6 @@ export const ALLOWED: Record<
   },
 }
 
-/** Types only a release file may have. */
 export const RELEASE_ONLY = new Set([
   'application/octet-stream',
   'application/zip',
@@ -107,7 +92,6 @@ export interface BlobStore {
   get: (id: string) => Uint8Array | null | Promise<Uint8Array | null>
   delete?: (id: string) => void | Promise<void>
   readonly bytes: number
-  /** Total capacity, when the store has one. A store without it never fills. */
   readonly capacity?: number
 }
 
@@ -143,19 +127,12 @@ export type UploadRec = {
   sha256: string | null
   expires: number
   created: number
-  /** `owner/name` of the repository it was attached in, which decides who may read it. */
   attachedTo: string | null
-  /** The same repository's stable id, which survives a rename and a reused name. */
   attachedRepoId: string | null
 }
 
 type MaybePromise<T> = T | Promise<T>
 
-/**
- * Uploads, wherever their records are kept: `UploadService` in memory,
- * `ConvexUploads` (`stores/convex-uploads.ts`) in the database. The bytes
- * are always a `BlobStore`'s: memory here, a bucket in production.
- */
 export interface UploadPort {
   readonly blobs: BlobStore
   create: (
@@ -177,14 +154,11 @@ export interface UploadPort {
     contentType: string,
   ) => MaybePromise<string | null>
   dropRepo: (repoId: string) => MaybePromise<void>
-  /** Deletes one upload, its record and its bytes. */
   remove: (id: string) => MaybePromise<void>
   sweepNow: () => MaybePromise<void>
-  /** Saves records this request changed. */
   flush?: () => Promise<void>
 }
 
-/** The checks a file must pass before its bytes are kept. Null when it passes. */
 export function checkFile(
   rec: UploadRec,
   bytes: Uint8Array,
@@ -206,7 +180,6 @@ export function checkFile(
   return null
 }
 
-/** Signs and checks upload addresses. Every API server must share the secret. */
 export class UploadSigner {
   constructor(private readonly secret: Buffer = randomBytes(32)) {}
 
@@ -236,14 +209,8 @@ const MAX_UPLOADS = 20_000
 
 export class UploadService implements UploadPort {
   private readonly uploads = new Map<string, UploadRec>()
-  /**
-   * Uploads still waiting for their file, oldest first. They all live for the same
-   * time, so the oldest is always the first to expire: counting and clearing
-   * them never reads more than the ones that just expired.
-   */
   private waiting: Array<UploadRec> = []
   private waitingFrom = 0
-  /** Uploads that have bytes but were never attached, oldest first. */
   private completed: Array<UploadRec> = []
   private completedFrom = 0
   private readonly pendingBy = new Map<string, number>()
@@ -275,8 +242,6 @@ export class UploadService implements UploadPort {
   ): UploadRec | null {
     if (this.uploads.size >= MAX_UPLOADS) {
       this.sweep()
-      // Uploaded files that were never attached cannot be reached by anyone but
-      // their owner. Dropping the oldest one bounds the metadata map.
       for (const [id, rec] of this.uploads) {
         if (this.uploads.size < MAX_UPLOADS) break
         if (rec.state === 'uploaded' && rec.attachedTo === null) {
@@ -315,7 +280,6 @@ export class UploadService implements UploadPort {
     else this.pendingBy.set(rec.owner, n)
   }
 
-  /** Forgets announced uploads whose time ran out without a file. */
   private sweep() {
     const t = this.now()
     while (
@@ -330,8 +294,6 @@ export class UploadService implements UploadPort {
       this.waiting = this.waiting.slice(this.waitingFrom)
       this.waitingFrom = 0
     }
-    // A file that is uploaded but never attached keeps its bytes forever. Give
-    // the owner a day after the upload address expires, then drop both.
     while (
       this.completedFrom < this.completed.length &&
       this.completed[this.completedFrom].expires + 86_400_000 <= t
@@ -351,12 +313,10 @@ export class UploadService implements UploadPort {
     }
   }
 
-  /** Run the expiry sweep on the API's schedule. */
   sweepNow() {
     this.sweep()
   }
 
-  /** A deleted repository takes its attached blobs with it. */
   dropRepo(repoId: string) {
     for (const [id, rec] of this.uploads)
       if (rec.attachedRepoId === repoId) {
@@ -382,7 +342,6 @@ export class UploadService implements UploadPort {
     return this.pendingBy.get(owner) ?? 0
   }
 
-  /** The query string of the signed address. */
   sign(rec: UploadRec): string {
     return `exp=${rec.expires}&sig=${this.mac(rec.id, rec.expires, rec.contentType, rec.size).toString('base64url')}`
   }
@@ -394,11 +353,9 @@ export class UploadService implements UploadPort {
     return got.length === want.length && timingSafeEqual(got, want)
   }
 
-  /** Stores the bytes. Returns an error message, or null. */
   put(rec: UploadRec, bytes: Uint8Array, contentType: string): string | null {
     const problem = checkFile(rec, bytes, contentType, this.blobs)
     if (problem) return problem
-    // The memory store answers at once.
     void this.blobs.put(rec.id, bytes)
     rec.sha256 = createHash('sha256').update(bytes).digest('hex')
     this.settle(rec)

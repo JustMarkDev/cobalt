@@ -35,7 +35,6 @@ export const Route = createFileRoute('/new')({
 function NewRepo() {
   const { mode = 'create' } = Route.useSearch()
   const { me, accounts, active } = useAccounts()
-  // Every account you may create in: yourself, and organizations you own or administer.
   const creatable = accounts.filter((a) => me && manages(a))
   const [picked, setPicked] = React.useState<string | null>(null)
   const owner =

@@ -21,33 +21,10 @@ import { bumpAcl } from './forge/accounts'
 import type { Doc, TableNames } from './_generated/dataModel'
 import type { MutationCtx } from './_generated/server'
 
-/**
- * Deleting an account, as the person asks for it.
- *
- * Asking starts 30 days (`DELETION_GRACE_MS`) in which nothing is lost: the
- * account only reads, its repositories can still be cloned and exported, and
- * one click takes the request back. When the 30 days pass, an hourly job
- * (`purgeDue`) erases the account in steps small enough for one transaction
- * each, and calls itself again until nothing is left:
- *
- *   wipe      what the person owns, and every record about them, by index
- *   scrub:*   their name on what they wrote in other people's repositories
- *             becomes `ghost`, table by table
- *   finalize  the account, its address (kept only as a hash, so nobody can
- *             sign up as them), and the sign-in user
- *
- * What stays, and why, is in the privacy policy: git commits keep their
- * author, the activity feed keeps the address as a pseudonym, and invoices
- * are kept as the law requires (they are the payment provider's).
- * `deletion.test.ts` fails if a table is added without saying here whether
- * it holds a person's data (`TABLES`).
- */
-
 const BATCH = 100
 
 export const GHOST = { id: 'acc_deleted', handle: 'ghost' }
 
-/** Every table, and what erasing an account does with it. */
 export const TABLES: Record<TableNames, string> = {
   accounts: 'finalize: the account row',
   actors: 'none: handles that are not people',
@@ -125,17 +102,9 @@ export const TABLES: Record<TableNames, string> = {
   sweeps: 'none: opaque store and upload ids, drained by the store worker',
 }
 
-/** The hash an address is retired as. */
 export const retiredHash = (handle: string): string =>
   bytesToHex(sha256(utf8ToBytes(handle.toLowerCase())))
 
-// ---- asking, taking back ----------------------------------------------------
-
-/**
- * Starts the 30 days. Only the person, from a signed-in page (a token, an
- * agent or a bot cannot), and only by typing their address. An organization
- * they alone own has to be handed over or deleted first.
- */
 export const request = mutation({
   args: { confirm: v.string() },
   returns: v.string(),
@@ -177,7 +146,6 @@ export const request = mutation({
   },
 })
 
-/** Takes the request back: the account is as it was. */
 export const cancel = mutation({
   args: {},
   returns: v.string(),
@@ -186,7 +154,6 @@ export const cancel = mutation({
     const account = await accountByHandle(ctx, p.handle)
     if (!account) fail('not_found', `No account ${p.handle}.`)
     if (account.purgeAt === undefined) return out({ cancelled: false })
-    // The erasure has started: some of it is already gone.
     if (account.purgeAt === 0)
       fail('invalid_state', 'The erasure has started and cannot be taken back.')
     await ctx.db.patch('accounts', account._id, {
@@ -198,7 +165,6 @@ export const cancel = mutation({
   },
 })
 
-/** The organizations this person is the only owner of. */
 async function organizationsOnlyOwnedBy(
   ctx: Pick<MutationCtx, 'db'>,
   person: Doc<'accounts'>,
@@ -222,9 +188,6 @@ async function organizationsOnlyOwnedBy(
   return alone
 }
 
-// ---- erasing ----------------------------------------------------------------
-
-/** Hourly: starts the erasure of every account whose 30 days are over. */
 export const purgeDue = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -233,9 +196,6 @@ export const purgeDue = internalMutation({
       .query('accounts')
       .withIndex('by_purgeAt', (q) => q.gt('purgeAt', 0).lte('purgeAt', now))
       .take(5)) {
-      // A date in the past, with a flag: `purge` moves it on only after it
-      // starts, so an hourly run that overlaps a long erasure does not
-      // schedule it twice.
       await ctx.db.patch('accounts', a._id, { purgeAt: 0 })
       await ctx.scheduler.runAfter(0, internal.deletion.purge, {
         accountId: a._id,
@@ -247,7 +207,6 @@ export const purgeDue = internalMutation({
   },
 })
 
-/** Tables scrubbed of the person's name, in order. */
 const SCRUB = [
   'issues',
   'issueComments',
@@ -267,7 +226,6 @@ export const purge = internalMutation({
   },
   handler: async (ctx, { accountId, stage, cursor }) => {
     const account = await ctx.db.get('accounts', accountId)
-    // Gone already, or taken back in the last minute.
     if (!account || account.purgeAt === undefined) return null
     const again = (next: string, c: string | null = null) =>
       ctx.scheduler.runAfter(0, internal.deletion.purge, {
@@ -295,7 +253,6 @@ export const purge = internalMutation({
   },
 })
 
-/** Deletes up to `BATCH` documents; true when there may be more of them. */
 async function drop<T extends TableNames>(
   ctx: MutationCtx,
   table: T,
@@ -305,7 +262,6 @@ async function drop<T extends TableNames>(
   return docs.length >= BATCH
 }
 
-/** Uploads, and the file each one has in the bucket, which the store worker removes. */
 async function dropUploads(
   ctx: MutationCtx,
   docs: Array<Doc<'uploads'>>,
@@ -314,14 +270,12 @@ async function dropUploads(
   return drop(ctx, 'uploads', docs)
 }
 
-/** One step of the wipe: true while anything is left. */
 async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
   const h = account.handle
   let more = false
   const add = async (p: Promise<boolean>) => {
     if (await p) more = true
   }
-  // What the person owns.
   const owned = await ctx.db
     .query('repos')
     .withIndex('by_ownerId_and_name', (q) => q.eq('ownerId', account._id))
@@ -329,7 +283,6 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
   for (const repo of owned) if (!(await wipeRepo(ctx, repo))) more = true
   if (owned.length === 5) more = true
 
-  // What is about them.
   await add(
     drop(
       ctx,
@@ -350,7 +303,6 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
         .take(BATCH),
     ),
   )
-  // Its runners, with when each was last seen. Their tokens went with `tokens`.
   const runners = await ctx.db
     .query('runners')
     .withIndex('by_account_and_name', (q) => q.eq('account', h))
@@ -554,7 +506,6 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
   return more
 }
 
-/** One step of erasing a repository and all it holds. True when it is gone. */
 async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
   const id = repo._id
   let more = false
@@ -733,7 +684,6 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
         .take(BATCH),
     ),
   )
-  // The things that have children: children first, then the thing.
   for (const issue of await ctx.db
     .query('issues')
     .withIndex('by_repoId_and_number', (q) => q.eq('repoId', id))
@@ -828,7 +778,6 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
     if (downloads) more = true
     else await ctx.db.delete('releases', release._id)
   }
-  // Is anything left under it? Then come back.
   const full = `${repo.owner}/${repo.name}`
   if (
     more ||
@@ -869,10 +818,6 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
 
 type Actorish = Doc<'issues'>['author']
 
-/**
- * Rewrites JSON text so every object that names `handle` names the ghost
- * instead. Reviews and comments on a change are kept this way.
- */
 export function ghostJson(text: string, handle: string, publicId: string) {
   const changed = { n: 0 }
   const walk = (x: unknown): unknown => {
@@ -903,7 +848,6 @@ export function ghostJson(text: string, handle: string, publicId: string) {
   return changed.n > 0 ? JSON.stringify(next) : null
 }
 
-/** One page of one table, with the person's name replaced. Null when the table is done. */
 async function scrub(
   ctx: MutationCtx,
   account: Doc<'accounts'>,
@@ -979,9 +923,7 @@ async function scrub(
   }
 }
 
-/** The last step: the account itself, its address, the sign-in user. */
 async function finalize(ctx: MutationCtx, account: Doc<'accounts'>) {
-  // Every address the person ever had stays taken, as hashes.
   const hashes = new Set([retiredHash(account.handle)])
   for (const a of await ctx.db.query('handleAliases').take(5000))
     if (a.accountId === account._id) {
@@ -1008,12 +950,6 @@ async function finalize(ctx: MutationCtx, account: Doc<'accounts'>) {
     })
 }
 
-/**
- * Asks PostHog to delete what it holds under the address, events included.
- * Product events carry the address as their id and no profile, so this is
- * best effort: whatever PostHog cannot match ages out with the project's
- * retention. Retried a few times an hour apart; skipped without the key.
- */
 export const erasePostHog = internalAction({
   args: { handle: v.string(), attempt: v.number() },
   handler: async (ctx, { handle, attempt }) => {
@@ -1054,10 +990,6 @@ export const erasePostHog = internalAction({
   },
 })
 
-/**
- * Removes the sign-in user: sessions, credentials, verification codes, the
- * user. Better Auth keeps these in its own component's tables.
- */
 export const removeLogin = internalAction({
   args: { authId: v.string() },
   handler: async (ctx, { authId }) => {
@@ -1066,7 +998,6 @@ export const removeLogin = internalAction({
       model: 'user',
       where: [{ field: '_id', operator: 'eq', value: authId }],
     })
-    // The component types a field per model; these four are plain strings.
     const where = (field: string, value: string) =>
       [{ field, operator: 'eq' as const, value }] as never
     const clear = async (
@@ -1096,13 +1027,6 @@ export const removeLogin = internalAction({
   },
 })
 
-// ---- taking it with you -----------------------------------------------------
-
-/**
- * Everything this account holds that is about the person, as JSON text, for
- * the person to keep: the portability right. Repositories are not in it: they
- * are plain git, so `git clone` takes them, and this lists what to clone.
- */
 export const exportData = query({
   args: {},
   returns: v.string(),

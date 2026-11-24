@@ -14,7 +14,6 @@ const DAY = 86_400_000
 const STORAGE_LIMIT = 5 * 1024 ** 3
 const WEEKS = 26
 
-/** Day buckets ending today: `n` numbers, oldest first. */
 function buckets(n: number, now: number, times: Iterable<number>) {
   const out = Array.from({ length: n }, () => 0)
   const end = Math.floor(now / DAY)
@@ -27,13 +26,7 @@ function buckets(n: number, now: number, times: Iterable<number>) {
 
 const sum = (xs: Array<number>) => xs.reduce((a, b) => a + b, 0)
 
-/**
- * What a repository and an account add up to, worked out from what the domain
- * already holds: history from git, reviews and changes, releases, mirrors,
- * pipeline runs. Nothing here is stored twice.
- */
 export abstract class DomainInsights extends DomainImports {
-  /** Downloads by day, per repository. Recorded from the first download on. */
   readonly downloadTimes = new Map<string, Array<number>>()
 
   override async downloadAsset(
@@ -70,7 +63,6 @@ export abstract class DomainInsights extends DomainImports {
     try {
       return await this.svc.git.commits(`${r.owner}/${r.name}`, limit)
     } catch {
-      // A repository nobody has pushed to has no history yet.
       return []
     }
   }
@@ -111,8 +103,6 @@ export abstract class DomainInsights extends DomainImports {
     }
     const changes = [...r.changes.values()]
     const issues = [...r.issues.values()]
-    // Patch sets by the model their tool declared: a repository's own record
-    // of which models' work it took.
     const models = new Map<string | null, number>()
     for (const c of changes)
       for (const ps of c.patchSets) {
@@ -155,12 +145,6 @@ export abstract class DomainInsights extends DomainImports {
     return `${r.id}.ins${r.rev}.${r.changeRev}.${r.issueRev}.${d}.${Math.floor(this.now() / DAY)}.${this.accessRevision}`
   }
 
-  /**
-   * The facts behind "what needs you". `owned` are the repositories whose
-   * mirrors and main branch are the viewer's to watch; `all` adds what only
-   * the inbox shows: their own blocked or failing changes, unread mentions,
-   * steps waiting on them and runs no runner can take.
-   */
   protected needsFacts(
     p: Principal,
     owned: Array<RepoRec>,
@@ -323,7 +307,6 @@ export abstract class DomainInsights extends DomainImports {
     return f
   }
 
-  /** What needs the viewer: everything they can read, across their accounts. */
   async inbox(p: Viewer, limit: number) {
     if (!p) throw apiError('unauthenticated', 'Sign in to see your inbox.')
     const owners = new Set(
@@ -338,7 +321,6 @@ export abstract class DomainInsights extends DomainImports {
     )
   }
 
-  /** The signed-in person's (or the account they act as) dashboard. */
   async dashboard(p: Viewer, as?: string) {
     if (!p) throw apiError('unauthenticated', 'Sign in to see your dashboard.')
     const now = this.now()
@@ -351,10 +333,8 @@ export abstract class DomainInsights extends DomainImports {
     const path = (r: RepoRec, tail = '') => `/${r.owner}/${r.name}${tail}`
     const ago = (t: number) => new Date(t).toISOString()
 
-    // What needs this person, most costly to leave first.
     const needs = dashboardNeeds(needsFrom(this.needsFacts(p, owned, false)))
 
-    // Moving without them: agents' changes and runs in progress.
     const progress: Array<{
       kind: 'agent' | 'change'
       title: string
@@ -389,7 +369,6 @@ export abstract class DomainInsights extends DomainImports {
           })
     }
 
-    // What happened lately in their repositories.
     const activity = owned
       .flatMap((r) => this.events.repoEvents(r.id).slice(-30))
       .map((x) => JSON.parse(x.json) as EventRecord)
@@ -423,7 +402,6 @@ export abstract class DomainInsights extends DomainImports {
         })
       }
 
-    // Their own work by day: commits written, reviews given, changes opened.
     const commitTimes: Array<number> = []
     for (const r of owned)
       for (const c of await this.history(r, 300))
@@ -505,12 +483,6 @@ export abstract class DomainInsights extends DomainImports {
     }
   }
 
-  // ---- status ---------------------------------------------------------------
-
-  /**
-   * The status page: each area as the API measured it, mirrors and runners as
-   * the domain holds them, and the days something actually failed.
-   */
   async status() {
     const mirrors: Array<{
       repo: string

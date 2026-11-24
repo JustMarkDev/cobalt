@@ -51,18 +51,15 @@ import type { DomainPort } from './domain'
 import type { Urls } from './domain/records'
 import type { ApiOptions } from './pipeline'
 
-/** Builds the domain the API runs on, from the seeded in-memory sample. */
 export type DomainFactory = (from: {
   memory: MemoryDomain
   auth: AuthStore
   urls: Urls
   now: () => number
   events: EventLog
-  /** How webhooks are sent, for a domain that sends them itself. */
   hooks: { transport: Transport; scheduler?: Scheduler; allowPrivate: boolean }
 }) => DomainPort
 
-/** Every operation. Adding an endpoint is adding one to a list in `ops/`. */
 export const operations: ReadonlyArray<Op> = [
   ...metaOps,
   ...repoOps,
@@ -102,43 +99,21 @@ export function allOperations(base?: string): Array<Op> {
 export type { Api } from './pipeline'
 export { createApi } from './pipeline'
 
-/**
- * The API as the preview serves it: sample data, memory stores. Its `domain`
- * is the memory one, so tests and seeds can reach what `DomainPort` leaves out.
- */
 export function createSampleApi(
   overrides: Omit<Partial<ApiOptions>, 'domain'> & {
     seed?: (d: MemoryDomain) => void
-    /**
-     * Builds the domain the API runs on from the seeded sample. Default: the
-     * sample itself, in memory. Tests pass one that copies it into Convex.
-     */
     domainFactory?: DomainFactory
-    /** Offer sample accounts on the OAuth sign-in page. Default: true. */
     sampleLogins?: boolean
-    /** The address people reach the app at, for OAuth. Default: the html base. */
     issuer?: string
-    /** How webhooks are sent. Tests pass a fake; the default refuses private addresses. */
     transport?: Transport
     scheduler?: Scheduler
     allowPrivateWebhooks?: boolean
-    /** Who is signed in on the OAuth pages. Default: the sample accounts. */
     sessions?: SessionResolver
-    /** The most a signed-in person may delegate to a client. */
     userScopes?: (handle: string) => ReadonlyArray<Scope>
-    /** Whether a machine sign-in may read secret values. Default: `CB_DEVICE_DECRYPT` is not `0`. */
     deviceDecrypt?: (handle: string) => boolean
-    /** How email is sent. Default: written to the server log. */
     mail?: Mailer
-    /** Where git data comes from. Default: the git store in `packages/git`. */
     git?: GitData
-    /** The master key for secret values, base64. Default: `CB_SECRETS_KEY`. Without one the server keeps no values. */
     secretsKey?: string
-    /**
-     * Keep values under a key that dies with this process, when there is no
-     * master key: tests, and the CLI's in-process preview on sample data.
-     * Never a server: a restart would lose every value.
-     */
     ephemeralSecrets?: boolean
   } = {},
 ) {
@@ -149,8 +124,6 @@ export function createSampleApi(
   }
   const events = overrides.events ?? new EventLog(now)
   const domain = new MemoryDomain(urls, now, events)
-  // The store reads the same clock as everything else. A clock frozen at
-  // start would make every token minted later expire at start + its TTL.
   const auth =
     (overrides.tokens as AuthStore | undefined) ??
     sampleTokenStore(now(), new AuthStore(now))
@@ -167,9 +140,6 @@ export function createSampleApi(
   domain.svc.search = new SearchIndex(() => domain.searchDocs(), events)
   domain.svc.uploads = new UploadService(new MemoryBlobStore(), now)
   domain.svc.extras = new ExtrasStore(now)
-  // Without a master key the server keeps no values at all (fails closed),
-  // unless it is a test or the in-process preview, which ask for a key that
-  // lives as long as the process.
   domain.svc.secrets = SecretBox.fromBase64(
     overrides.secretsKey ?? process.env.CB_SECRETS_KEY,
   ).then(
@@ -199,7 +169,6 @@ export function createSampleApi(
         allowPrivate: overrides.allowPrivateWebhooks ?? false,
       },
     }) ?? domain
-  // The tokens the API checks are wherever the domain keeps them.
   const tokens = port.svc.auth
   const issuer = overrides.issuer ?? urls.html
   const oauth = new OAuthServer({
@@ -244,10 +213,6 @@ export function createSampleApi(
   return { ...api, domain, port }
 }
 
-/**
- * Stand-in values for the sample's variables, sealed the way real ones are,
- * so reading them goes through every check a real read does.
- */
 const SAMPLE_VALUES: Partial<Record<string, string>> = {
   DATABASE_URL: 'postgres://dev:hunter2-dev-only@localhost:5432/gitfs',
   STRIPE_KEY: 'sk_test_51MockMockMockMock9x',
@@ -269,7 +234,6 @@ async function sealSampleValues(d: MemoryDomain, box: SecretBox) {
   }
 }
 
-/** Mirrors and environment schema for the sample repositories. */
 function seedExtras(d: MemoryDomain) {
   for (const r of d.repos.values()) {
     const full = `${r.owner}/${r.name}`

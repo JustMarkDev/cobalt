@@ -94,7 +94,6 @@ const SHAPE_PATHS: Record<string, string> = {
   'runners.list': '/runners',
   'access_rules.list': `${REPO}/access-rules`,
 }
-// Checked in the shape test too, with an address that only exists once they are made.
 const SHAPE_DYNAMIC = [
   'webhooks.get',
   'webhooks.deliveries.list',
@@ -124,9 +123,7 @@ describe('shape', () => {
   test('every GET operation answers with exactly the shape it publishes', async () => {
     const h = harness()
     const paths: Record<string, string> = { ...SHAPE_PATHS }
-    // Make some events and an operation so those schemas are exercised too.
     await h.call('POST', `${REPO}/issues`, { body: { title: 'Shape check' } })
-    // Things whose address is only known once they exist.
     const hook = (
       await h.call('POST', `${REPO}/webhooks`, {
         body: { endpoint: 'https://hooks.example.com/x', events: ['*'] },
@@ -193,7 +190,6 @@ describe('shape', () => {
     await h.call('POST', '/runners/claim', { token: runner.secret })
     dynamic['runners.get'] = `/runners/${runner.id}`
     dynamic['runners.jobs'] = `/runners/${runner.id}/jobs`
-    // A step that waits, so a run shows a wait.
     const job = (
       await h.call('POST', `${REPO}/pipelines/claim`, {
         body: { runner: 'shape' },
@@ -227,7 +223,6 @@ describe('shape', () => {
       .filter((o) => o.method === 'GET')
       .map((o) => o.id)
       .filter((id) => !SHAPE_CHECKED.has(id))
-    // These need state the test builds itself, and have their own tests below.
     expect(unchecked.sort()).toEqual([
       'api.openapi',
       'changes.guide.get',
@@ -537,7 +532,6 @@ describe('who can see what', () => {
         })
       ).status,
     ).toBe(403)
-    // Echoing the current list back is not a change, so a limited token may send it.
     expect(
       (
         await h.call('PATCH', '/repos/dana/tinyqueue', {
@@ -1544,7 +1538,6 @@ describe('lists', () => {
     const h = harness({ seed: (d) => seedBulk(d, 'dana', 'big', 200, 0) })
     const first = await h.call('GET', '/repos/dana/big/changes?limit=50')
     const seen = first.json.data.map((c: { number: number }) => c.number)
-    // Touch one change that was already sent and one that has not been.
     await h.call('PATCH', `/repos/dana/big/changes/${seen[0]}`, {
       body: { title: 'edited' },
     })
@@ -1670,8 +1663,6 @@ describe('lists', () => {
       has_more: false,
       next_cursor: null,
     })
-    // The same address answers JSON and markdown too, so caches must vary on
-    // what was asked for, not only on the identity in the URL.
     expect(r.headers.get('vary')).toContain('accept')
     expect(r.headers.get('vary')).toContain('authorization')
   })
@@ -2462,8 +2453,6 @@ describe('review, policy and landing', () => {
     const byId = Object.fromEntries(
       p.requirements.map((r: { id: string }) => [r.id, r]),
     )
-    // greptile, a model, asked for changes: its objection counts like anyone's.
-    // The rule is a dry run by default, so it shows without blocking.
     expect(byId.reviewed.state).toBe('na')
     expect(byId.reviewed.detail).toContain('greptile asked for changes')
     expect(byId['ci-evidence'].state).toBe('pending')
@@ -2508,7 +2497,6 @@ describe('review, policy and landing', () => {
     expect(blocked.json.exit_code).toBe(5)
     expect(blocked.json.retryable).toBe(false)
     expect(blocked.json.requirements.length).toBe(3)
-    // Resolve the finding: only the pending CI result is left.
     await h.call('POST', `${REPO}/changes/216/findings/F-2/resolve`)
     const waiting = await h.call('POST', `${REPO}/changes/216/land`, {
       body: { expected_tree: '9c4d7e1' },
@@ -2556,7 +2544,6 @@ describe('review, policy and landing', () => {
         (e: { subject: { number: number } }) => e.subject.number,
       ),
     ).toEqual([216])
-    // The change above it was rebased onto the result and kept its tree.
     const above = (await h.call('GET', `${REPO}/changes/217`)).json
     expect(above.patch_set_count).toBe(2)
     expect(above.head.tree).toBe('a71e0c3')
@@ -2589,7 +2576,6 @@ describe('review, policy and landing', () => {
       `${REPO}/changes/${agent.json.number}/reviews`,
       { token: T(h).scoped, body: { state: 'approved' } },
     )
-    // Whatever tool sends it, nobody approves their own change.
     expect(own.status).toBe(403)
     expect(own.json.code).toBe('forbidden')
     const person = await h.call('POST', `${REPO}/changes/216/reviews`, {
@@ -2613,7 +2599,6 @@ describe('review, policy and landing', () => {
       body: { sha: 'bbbbbbb2', kind: 'update' },
     })
     expect((await reviewers()).carries_to_head).toBe(false)
-    // With no approval holding, the review rule is pending, shown as a dry run.
     const reviewed = (
       await h.call('GET', `${REPO}/changes/216/policy`)
     ).json.requirements.find((r: { id: string }) => r.id === 'reviewed')
@@ -2748,7 +2733,6 @@ describe('review, policy and landing', () => {
     )
     expect(started.headers.get('location')).toBe(started.json.url)
     expect(started.json.progress.total).toBe(3)
-    // Long-poll the operation until it ends.
     let op = started.json
     for (
       let i = 0;
@@ -2794,7 +2778,6 @@ describe('events and sync', () => {
       'issue.closed',
     ])
     const seq = list.map((e: { sequence: number }) => e.sequence)
-    // An automation the issue woke may write its own event in between.
     expect(seq[1]).toBeGreaterThan(seq[0])
     const now = (await h.call('GET', `${REPO}/issues/${created.json.number}`))
       .json
@@ -3050,7 +3033,6 @@ describe('OpenAPI', () => {
         expect(
           op.responses.default.content['application/problem+json'],
         ).toBeDefined()
-        // Every {param} in the path is declared.
         for (const m of path.matchAll(/\{(\w+)\}/g))
           expect(
             op.parameters.some((p: any) => p.in === 'path' && p.name === m[1]),
@@ -3082,8 +3064,6 @@ describe('OpenAPI', () => {
           expect(JSON.stringify(response)).not.toContain(
             '"additionalProperties":false',
           )
-    // Requests are strict, and the document says so: the server rejects
-    // unknown members, so a generated client must not be told they are fine.
     expect(JSON.stringify(doc.paths['/repos'].post.requestBody)).toContain(
       '"additionalProperties":false',
     )
@@ -3106,7 +3086,6 @@ describe('OpenAPI', () => {
       readFileSync(new URL('./openapi.snapshot.json', import.meta.url), 'utf8'),
     )
     expect(findBreaking(snapshot, doc)).toEqual([])
-    // And the snapshot is current, so the contract change is in the diff.
     expect(JSON.stringify(doc, null, 2) + '\n').toBe(
       JSON.stringify(snapshot, null, 2) + '\n',
     )

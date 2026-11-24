@@ -1,16 +1,8 @@
 import type { Suggestion } from '~/lib/suggestions'
 
-// How the screens see changes, policy rules, secrets, bots and runs. The
-// adapters in `lib/` build these from the API's objects.
-
-// ---------------------------------------------------------------------------
-// Changes (review model)
-// ---------------------------------------------------------------------------
-
 export type Author = {
   name: string
   kind: 'human' | 'agent' | 'bot'
-  /** How the newest write got here: machine, tool and declared model. */
   via?: {
     machine: string | null
     tool: string | null
@@ -22,7 +14,6 @@ export type PatchSet = { n: number; when: string; note: string; tree: string }
 
 export type Finding = {
   id: string
-  /** Which reviewer produced it. */
   by: string
   kind: 'reviewer' | 'human'
   severity: 'high' | 'medium' | 'low'
@@ -30,11 +21,8 @@ export type Finding = {
   line: number
   title: string
   body: string
-  /** Stack member that addresses it, once sent to an agent. */
   fixedIn?: string
-  /** A change the reviewer proposes, applied with one click. */
   suggestion?: Suggestion
-  /** The same fix as instructions for an agent, to copy or send. */
   prompt?: string
 }
 
@@ -44,9 +32,7 @@ export type ChangeItem = {
   author: Author
   state: 'open' | 'landed' | 'draft' | 'abandoned'
   stack?: { index: number; of: number }
-  /** Which stack, when it is in one. */
   stackId?: string
-  /** Policy requirements that block landing. */
   blocking?: number
   patchSets: Array<PatchSet>
   files: number
@@ -59,26 +45,14 @@ export type ChangeItem = {
   }>
   ci: 'pass' | 'fail' | 'pending'
   when: string
-  /** The pull request or merge request this change is mirrored to or from. */
   mirror?: {
     host: 'github' | 'gitlab' | 'codeberg' | 'gitea'
     number: number
-    /** Where it was opened first. */
     origin: 'here' | 'there'
   }
 }
 
 export type FileVersions = Record<string, string>
-
-/**
- * Every file a change touches, whole: how it is on main and how it is at each
- * patch set. A diff is drawn from two of these, and an edit starts from one.
- * Only the main sample change has history, the others repeat their one state.
- */
-
-// ---------------------------------------------------------------------------
-// Policies
-// ---------------------------------------------------------------------------
 
 export type Rule = {
   id: string
@@ -91,10 +65,6 @@ export type Rule = {
   note?: string
 }
 
-// ---------------------------------------------------------------------------
-// Secrets
-// ---------------------------------------------------------------------------
-
 export type EnvName = 'development' | 'preview' | 'production'
 export const envNames: Array<EnvName> = ['development', 'preview', 'production']
 
@@ -103,7 +73,6 @@ export type EnvVar = {
   type: string
   sensitive: boolean
   description: string
-  /** Which environments hold a value. */
   set: Record<EnvName, boolean>
   required: Array<EnvName>
   rotated: string

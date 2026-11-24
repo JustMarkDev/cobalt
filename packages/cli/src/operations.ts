@@ -1,9 +1,3 @@
-/**
- * Every API operation, for an agent. The MCP server's hand-picked tools cover
- * the daily work; these two reach the rest: `search` finds an operation in the
- * API's own OpenAPI document and `call` runs it through the caller's client,
- * so the token's scopes, the rate limits and the error codes are the API's.
- */
 import { CbError, exit } from './output'
 import type { ApiClient } from './client'
 
@@ -40,12 +34,10 @@ type Spec = { paths: Record<string, Record<string, Json>>; components?: Json }
 
 const catalogues = new WeakMap<ApiClient, Promise<Catalogue>>()
 
-/** The operations the API this client talks to offers, read once. */
 export function catalogue(client: ApiClient): Promise<Catalogue> {
   let c = catalogues.get(client)
   if (!c) {
     c = client.get('/openapi.json').then((r) => new Catalogue(r.json as Spec))
-    // A failed read is not kept: the next call tries again.
     c.catch(() => catalogues.delete(client))
     catalogues.set(client, c)
   }
@@ -97,10 +89,6 @@ export class Catalogue {
     return this.ops.find((o) => o.id === id)
   }
 
-  /**
-   * Operations that match every word, best first: a word in the id counts
-   * most, then the summary and tags, then the path and description.
-   */
   search(query: string, opts: { safety?: string; limit?: number } = {}) {
     const words = query
       .toLowerCase()
@@ -127,7 +115,6 @@ export class Catalogue {
     return scored.slice(0, opts.limit ?? 20).map((s) => s.op)
   }
 
-  /** What an agent needs to call it: parameters and the body's schema, with references filled in. */
   describe(op: Operation) {
     return {
       id: op.id,
@@ -155,7 +142,6 @@ export class Catalogue {
     }
   }
 
-  /** A short line per operation, for a list. */
   brief(op: Operation) {
     return {
       id: op.id,
@@ -167,7 +153,6 @@ export class Catalogue {
     }
   }
 
-  /** Why `call` will not run it, if it will not. */
   unreachable(op: Operation): string | null {
     if (op.secretResponse)
       return 'Its answer carries a secret, and MCP never returns one. Run it with cb or the API directly.'
@@ -211,10 +196,6 @@ export type CallInput = {
 const refuse = (code: string, message: string, hint: string) =>
   new CbError(code, message, hint, exit.usage)
 
-/**
- * Runs one operation. A destructive one needs `confirm`, unless it is a dry
- * run: an agent says what it means to destroy before it does.
- */
 export async function callOperation(client: ApiClient, input: CallInput) {
   const cat = await catalogue(client)
   const op = cat.get(input.id)

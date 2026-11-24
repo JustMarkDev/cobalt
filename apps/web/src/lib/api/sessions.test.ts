@@ -27,7 +27,6 @@ describe('the OAuth pages use the app session', () => {
     expect(a).toBe(again)
     expect(a).toBe(secure)
     expect(a).not.toBe(b)
-    // Never the cookie itself: the token is printed into a page.
     expect(a).not.toContain('aaa')
   })
 

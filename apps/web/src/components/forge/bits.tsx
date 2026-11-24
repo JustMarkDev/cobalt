@@ -7,7 +7,6 @@ import { Badge } from '~/components/ui/badge'
 import { Segmented } from '~/components/ui/tabs'
 import { languageColors, sources } from '~/lib/model/data'
 
-/** The ONLY place a forge name may show: private screens (settings, owner-only). */
 export function SourceBadge({
   source,
   className,
@@ -47,7 +46,6 @@ export function LangDot({
   )
 }
 
-/** Letter tile on a soft per-name colour. Readable in both themes. */
 export function Tile({
   name,
   hue,
@@ -79,7 +77,6 @@ export function Tile({
   )
 }
 
-/** A person's round profile picture, on the same colour as their profile page. */
 export function Avatar({
   handle,
   className,
@@ -98,7 +95,6 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** A section heading. Plain words, no decoration. */
 export function SectionLabel({
   children,
   className,
@@ -195,7 +191,6 @@ export function Seg<T extends string>({
 
 export { Modal } from '~/components/ui/dialog'
 
-/** The address, small and quiet under the name. One click copies it. */
 export function CopyAddress({ handle }: { handle: string }) {
   const [copied, setCopied] = React.useState(false)
   return (
@@ -220,18 +215,12 @@ export function CopyAddress({ handle }: { handle: string }) {
   )
 }
 
-/** A write's receipt: the machine, tool and model it came through. */
 export type Via = {
   machine: string | null
   tool: string | null
   model: string | null
 }
 
-/**
- * A receipt in words: `Claude Opus 5.5 in T3 Code, on Laptop`. The model and
- * tool are what the client declared; the machine is the login's. Empty when
- * there is nothing worth saying (a page in the browser).
- */
 export function receiptText(via: Via | null | undefined): string {
   if (!via) return ''
   const tool = via.tool === 'cobalt' ? null : via.tool
@@ -242,7 +231,6 @@ export function receiptText(via: Via | null | undefined): string {
   return [what, where].filter(Boolean).join(', ')
 }
 
-/** The receipt, small and quiet, after a name. Hover says it is declared. */
 export function ReceiptNote({
   via,
   className,

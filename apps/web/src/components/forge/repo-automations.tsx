@@ -9,11 +9,6 @@ import type { Repo } from '~/lib/model/data'
 import { opQuery, useOp, useOpMaybe } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
-/**
- * What starts a workflow here. The triggers live in `.source/triggers/*.yml`
- * and change by a change: this page lists them, their filters and why the
- * newest files did not read. There is no editor; the file is the API.
- */
 export function AutomationsPage({ repo }: { repo: Repo }) {
   const t = useOp('triggers.list', { owner: repo.owner, repo: repo.name })
   return (
@@ -119,11 +114,6 @@ export function AutomationsPage({ repo }: { repo: Repo }) {
   )
 }
 
-/**
- * Which runners may serve this repository, the labels they offer, and runs
- * that wait for labels nobody offers. Runners are registered in account
- * settings, by the account's owner or an admin.
- */
 export function RepoRunnersPage({ repo }: { repo: Repo }) {
   const all = useOpMaybe('runners.list', { account: repo.owner })
   const queued = useOp('pipelines.list', {

@@ -14,7 +14,6 @@ import { timeAgo } from '~/lib/repo'
 
 type At = { owner: string; repo: string; number: string }
 
-/** Comments grouped into threads: the one that starts it, then its replies. */
 function threadsOf(all: Array<ChangeComment>) {
   const starts = all.filter((c) => c.reply_to === null)
   return starts.map((s) => ({
@@ -30,11 +29,6 @@ const whereOf = (c: ChangeComment) =>
       ? c.file
       : `${c.file}:${c.current_line ?? c.line}`
 
-/**
- * The code a thread is about. Where it is now, when the code is still there;
- * when it is gone, the code as it was written on, with the newest patch set
- * near the same place a toggle away.
- */
 function ThreadCode({
   start,
   files,
@@ -95,10 +89,6 @@ function ThreadCode({
   )
 }
 
-/**
- * What the fix changed, for this thread only: its file, from the patch set
- * the comment was written on to the one that addressed it.
- */
 function FixDiff({
   at,
   file,
@@ -255,17 +245,12 @@ function Thread({
   )
 }
 
-/**
- * The review discussion: comments on lines, on files and on the whole change,
- * each with its replies, and a way to start one.
- */
 export function ChangeDiscussion({
   at,
   files,
   latest,
 }: {
   at: At
-  /** The files at the newest patch set, by path. */
   files: Record<string, string>
   latest: number
 }) {

@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { cn } from 'cn'
 
-/** The pressed-in box every field shares, for a label that wraps an input. */
 export const fieldShell =
   'well rounded-lg border bg-background transition-colors hover:border-(--control-border)'
 
@@ -27,7 +26,6 @@ function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
   )
 }
 
-/** Label, control, hint. The one layout every form in the app uses. */
 function Field({
   label,
   hint,

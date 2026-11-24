@@ -15,18 +15,11 @@ const unauthorized = (metadata: string, message: string) =>
       status: 401,
       headers: {
         'content-type': 'application/json',
-        // RFC 9728: tell the client where to learn how to sign in.
         'www-authenticate': `Bearer realm="cobalt", resource_metadata="${metadata}"`,
       },
     },
   )
 
-/**
- * Streamable HTTP with no sessions: a fresh server per request, so it scales
- * and restarts cleanly. The bearer token is checked the same way the API checks it
- * (one token works for both), and every tool then calls the API as that token,
- * so a tool can do no more than the token's scopes allow.
- */
 async function handle({ request }: { request: Request }) {
   const api = getApi(request.url)
   const origin = new URL(request.url).origin
@@ -54,21 +47,16 @@ async function handle({ request }: { request: Request }) {
   if (found.record.audience.includes('api')) {
     client = clientFor(`${origin}${API_MOUNT}`, token, (req) => api.fetch(req))
   } else {
-    // The MCP bridge calls the API as the same actor. A token narrowed to the
-    // MCP audience is exchanged for a short API token, so tool calls work.
     const created = await api.port.svc.auth.create({
       name: 'mcp bridge',
       kind: 'oauth',
       handle: found.record.handle,
       actingAs: found.record.actingAs,
-      // Receipts name the MCP client the person approved, as its machine.
       device: found.record.device ?? found.record.name,
       scopes: [...found.record.scopes],
       repos: found.record.repos ? [...found.record.repos] : null,
       audience: ['api'],
       limitKey: found.record.id,
-      // A production confirmation belongs to the login behind the bridge,
-      // not to this minute-long token.
       loginId: found.record.authorizationId ?? found.record.id,
       ttlMs: 60_000,
     })
@@ -76,18 +64,11 @@ async function handle({ request }: { request: Request }) {
       api.fetch(req),
     )
     revoke = () => void api.port.svc.auth.revoke(created.record.id)
-    // Requests here are stateless, so the client's own name is not kept from
-    // the handshake: the receipt says MCP, and the machine names the client.
     client.tool = 'MCP'
   }
-  // One handler per request: it serves the 2026-07-28 revision (no session,
-  // the version in each request's _meta, the method in Mcp-Method) and answers
-  // a 2025-era client statelessly, from the same tools.
-  // A tool answers in one JSON body; it would stream only to send progress.
   const mcp = createMcpHandler(() => createSxMcpServer({ client }))
   try {
     const res = await mcp.fetch(request)
-    // A subscriptions/listen stream outlives this call; anything else is done.
     if (!res.headers.get('content-type')?.includes('text/event-stream'))
       await mcp.close()
     return res

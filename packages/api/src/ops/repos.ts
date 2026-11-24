@@ -215,7 +215,6 @@ export const updateRepo = defineOp({
   ],
   handler: (ctx) =>
     Effect.gen(function* () {
-      // Landing by itself lands under this login: it must be one that may land.
       if (ctx.body.auto_land && !ctx.principal!.scopes.has('pulls:merge'))
         return yield* Effect.fail(
           apiError(
@@ -428,8 +427,6 @@ export const listContributors = defineOp({
           if (e instanceof ApiError && e.code === 'not_found') return []
           throw e
         })
-        // Newest first, so the first commit seen for an email has the name
-        // its author uses now.
         const by = new Map<string, z.infer<typeof S.Contributor>>()
         for (const c of commits) {
           const key = c.author.email.toLowerCase()

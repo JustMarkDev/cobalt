@@ -12,17 +12,14 @@ export type Account = {
   role: 'owner' | 'admin' | 'member' | null
 }
 
-/** Where the account in use came from. `cb account` says so, so a surprise is easy to trace. */
 export type From = 'flag' | 'env' | 'repo' | 'config' | 'default'
 export type Active = Account & { from: From }
 
-/** Every account you can act as, with your role in each. */
 export async function accounts(ctx: Ctx): Promise<Array<Account>> {
   const r = await ctx.api().once('/accounts')
   return r.json.data as Array<Account>
 }
 
-/** Who the token is. */
 export async function whoami(ctx: Ctx): Promise<{
   login: string
   device: string
@@ -39,9 +36,7 @@ export async function findAccount(
   return (await accounts(ctx)).find((a) => a.handle === handle)
 }
 
-/** The person the token belongs to. Always one of the accounts. */
 export async function personal(ctx: Ctx): Promise<Account> {
-  // Both at once: over a network each is a round trip.
   const [{ login }, all] = await Promise.all([whoami(ctx), accounts(ctx)])
   const own = all.find((a) => a.handle === login)
   if (!own) throw new Error('The login has no account of its own.')
@@ -63,18 +58,6 @@ async function named(ctx: Ctx, handle: string, from: From): Promise<Active> {
   return { ...a, from }
 }
 
-/**
- * The account a command acts as. In order:
- *
- *  1. `-A, --account handle`
- *  2. `CB_ACCOUNT`
- *  3. the owner of the repository you are in (or pass with -R, or CB_REPO),
- *     when you can act as it: working in a clone needs no switching
- *  4. the account saved by `cb account switch`
- *  5. yourself
- *
- * One login covers every account, so there is nothing to sign in to again.
- */
 export async function activeAccount(
   ctx: Ctx,
   flags: Parsed['flags'],

@@ -162,7 +162,6 @@ describe('release files', () => {
       )
     ).json
     expect(dl.content_url).toContain(up.id)
-    // Anyone who can read the repository can fetch it.
     const file = await h.call('GET', `/uploads/${up.id}/content`, {
       token: null,
     })

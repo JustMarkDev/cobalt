@@ -30,15 +30,6 @@ import { notify } from './notifications'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Pipeline runs: a workflow run on a runner, its jobs, their steps and the
- * log each step wrote. Starting a run queues its jobs; a runner claims the
- * oldest queued job and reports each step, which finishes the job and then
- * the run. Claiming is one transaction, so two runners never take one job.
- * A step may wait on a person or an outside agent; a scheduled function
- * fails it when the wait runs out.
- */
-
 type Status = PipelineStatus
 type Line = { t: string; level: string | null }
 type Step = {
@@ -85,14 +76,12 @@ export type PipelineRun = {
 
 const iso = (t: number) => new Date(t).toISOString()
 
-/** A run as stored: lines come back only when asked for. */
 export async function load(
   ctx: QueryCtx,
   doc: Doc<'pipelineRuns'>,
   withLines = false,
 ): Promise<PipelineRun> {
   const r = JSON.parse(doc.json) as PipelineRun
-  // Lines are kept apart; a stored step has none of its own.
   for (const j of r.jobs)
     for (const s of j.steps) (s as { lines?: Array<Line> }).lines ??= []
   if (withLines)
@@ -106,7 +95,6 @@ export async function load(
   return r
 }
 
-/** How many lines each step has, without reading them. */
 async function lineCounts(ctx: QueryCtx, doc: Doc<'pipelineRuns'>) {
   const counts = new Map<string, number>()
   for (const log of await ctx.db
@@ -198,7 +186,6 @@ export async function save(
   })
 }
 
-/** An account's runners as routing reads them: labels and repository names. */
 export async function runnersOf(
   ctx: QueryCtx,
   account: string,
@@ -358,7 +345,6 @@ export const list = query({
   returns: v.string(),
   handler: async (ctx, q) => {
     const repo = await resolve(ctx, q.owner, q.name, await actorOf(ctx))
-    // Newest first; the cursor is the last one sent, by position and id.
     const all = (
       await ctx.db
         .query('pipelineRuns')
@@ -395,7 +381,6 @@ export const version = query({
   handler: async (ctx, a) => {
     const repo = await resolve(ctx, a.owner, a.name, await actorOf(ctx))
     const c = await counters(ctx, repo)
-    // A runner registered or changed moves what a queued job waits for.
     const stamp = (
       await ctx.db
         .query('runners')
@@ -413,7 +398,6 @@ export const version = query({
   },
 })
 
-/** A short, stable stand-in for a long string. */
 function hash(s: string) {
   let h = 0
   for (let i = 0; i < s.length; i++)
@@ -421,7 +405,6 @@ function hash(s: string) {
   return (h >>> 0).toString(36)
 }
 
-/** The file a workflow last ran from, so the API can read its runs-on. */
 export const lastFile = query({
   args: { owner: v.string(), name: v.string(), workflow: v.string() },
   returns: v.string(),
@@ -512,7 +495,6 @@ async function queuedFrom(
   }
 }
 
-/** Run a workflow again on the same commit. It is queued for a runner, asking for the same labels. */
 export const rerun = mutation({
   args: {
     owner: v.string(),
@@ -541,11 +523,6 @@ const runsOnArg = v.optional(
   }),
 )
 
-/**
- * Start a workflow on a branch, from its last run's jobs. The API passes the
- * branch's newest commit and what the workflow file there says about
- * `runs-on`.
- */
 export const start = mutation({
   args: {
     owner: v.string(),
@@ -568,11 +545,6 @@ export const start = mutation({
   },
 })
 
-/**
- * Queues a workflow from its last run's jobs. A landing's `run_pipeline`
- * step starts one too, and so does a trigger (`trigger: 'event'`): then the
- * labels are the last run's, and the run says they may be stale.
- */
 export async function startWorkflow(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -616,8 +588,6 @@ export async function startWorkflow(
   }
   if (at.trigger === 'event') {
     r.trigger = 'event'
-    // Its labels are read from the workflow file at this commit before any
-    // runner may take it (`settleRunsOn`); until then the last run's stand in.
     r.runsOnPending = true
     r.runsOnFrom = last.number
   }
@@ -625,11 +595,6 @@ export async function startWorkflow(
   return r
 }
 
-/**
- * A runner asks for work by name: the oldest queued job in the repository
- * that asks for no labels, now running on it. A job with `runs-on` waits for
- * a registered runner with those labels (`runners.claim`).
- */
 export const claim = mutation({
   args: { owner: v.string(), name: v.string(), runner: v.string() },
   returns: v.string(),
@@ -674,7 +639,6 @@ const lineArg = v.array(
   }),
 )
 
-/** The report itself, once the caller may make it. Shared with `runners.report`. */
 export async function applyReport(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -695,7 +659,6 @@ export async function applyReport(
     fail('not_found', `Run ${a.n} has no job ${a.job} step ${a.step}.`)
   const moved = reportStep(r, a.job, a.step, a.status)
   if ('refusal' in moved) fail('invalid_state', moved.refusal)
-  // The same report again (a runner's retry) changes nothing.
   if (moved.repeated) return r
   if (a.duration_ms !== undefined) s.duration = a.duration_ms
   for (const l of a.lines ?? [])
@@ -711,7 +674,6 @@ export async function applyReport(
     })
   }
   const now = Date.now()
-  // A report is a sign of life: the lease runs from now.
   if (j.runnerId && j.status === 'running') j.lease = now + LEASE_MS
   settlePipeline(r, now)
   if (j.status !== 'running') j.lease = null
@@ -720,7 +682,6 @@ export async function applyReport(
   return r
 }
 
-/** A runner says how a step went, with the lines it wrote. One call per step. */
 export const report = mutation({
   args: {
     owner: v.string(),
@@ -772,9 +733,6 @@ export const cancel = mutation({
   },
 })
 
-// ---- waiting -------------------------------------------------------------------
-
-/** When a wait ends: `expires_at` if given, else in 7 days; never past 30. */
 function waitUntil(expiresAt: string | undefined) {
   const now = Date.now()
   if (expiresAt === undefined) return now + WAIT_DEFAULT_MS
@@ -796,7 +754,6 @@ function waitUntil(expiresAt: string | undefined) {
   return t
 }
 
-/** Pause a running step for a person or an outside agent. */
 export const wait = mutation({
   args: {
     owner: v.string(),
@@ -825,10 +782,6 @@ export const wait = mutation({
   },
 })
 
-/**
- * Pauses a running step: the wait is kept, its expiry scheduled, and whom it
- * waits on told. Shared by `pipelines.wait` and a runner's own `runners.wait`.
- */
 export async function applyWait(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -875,7 +828,6 @@ export async function applyWait(
   return r
 }
 
-/** Resume a waiting step with how it ended, in one write. */
 export const resume = mutation({
   args: {
     owner: v.string(),
@@ -916,7 +868,6 @@ export const resume = mutation({
         job: j.name,
         step: s.name,
       })
-    // The runner that holds the job carries on from here.
     if (j.runnerId && j.status === 'running') j.lease = now + LEASE_MS
     r.version++
     await save(ctx, repo, doc, r)
@@ -924,11 +875,6 @@ export const resume = mutation({
   },
 })
 
-/**
- * A wait ran out: the step and the run fail. Nothing happens when the step
- * was resumed, canceled or waits on a later wait, or the run is gone.
- */
-/** Fail a step's run when its wait ran out. False when there was nothing to do. */
 async function expireOne(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -953,11 +899,6 @@ async function expireOne(
   return true
 }
 
-/**
- * Waits in a repository that ran out, failed now. The scheduled `expire`
- * does it at the deadline; a write that reads the runs first does it too,
- * so it never acts on a wait that is already over.
- */
 export async function expireDue(ctx: MutationCtx, repo: Doc<'repos'>) {
   const now = Date.now()
   for (const status of ['waiting', 'running'])
@@ -995,11 +936,6 @@ export const expire = internalMutation({
   },
 })
 
-/**
- * Jobs whose runner stopped answering go back to the queue. Run every minute,
- * and by a runner's claim for its own account first, so a lease that ran out
- * never keeps a job from the next runner.
- */
 export async function requeueExpired(
   ctx: MutationCtx,
   limit: number,
@@ -1016,7 +952,6 @@ export async function requeueExpired(
       if (!repo || (only && !only(repo))) continue
       const r = await load(ctx, doc)
       let changed = false
-      // A wait that ran out fails the run first.
       for (const [ji, j] of r.jobs.entries())
         for (const [si, st] of j.steps.entries())
           if (st.status === 'waiting' && st.wait && st.wait.expires <= now) {
@@ -1066,12 +1001,6 @@ export const sweepLeases = internalMutation({
   },
 })
 
-/**
- * A run an event started (a trigger): no person asked, so no principal is
- * checked. Its jobs and labels are the workflow's last run's, and it says
- * they may be stale. Throws `not_found` (before writing anything) when the
- * workflow never ran.
- */
 export async function startPipelineForEvent(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -1084,7 +1013,6 @@ export async function startPipelineForEvent(
   })
 }
 
-/** Runs a trigger started whose `runs-on` is not read yet. Only the API server asks. */
 export const pendingRunsOn = query({
   args: {},
   returns: v.string(),
@@ -1111,7 +1039,6 @@ export const pendingRunsOn = query({
   },
 })
 
-/** What the workflow file says about a pending run's labels, read by the API server. */
 export const setRunsOn = mutation({
   args: {
     owner: v.string(),

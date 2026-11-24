@@ -17,7 +17,6 @@ describe('editing an account', () => {
     expect(edited.status).toBe(200)
     expect(edited.json.bio).toBe('Storage and git.')
     expect(edited.json.version).toBe(before.json.version + 1)
-    // The read's ETag moved with it, so a cached copy is not served stale.
     const after = await h.call('GET', '/accounts/dana', {
       headers: { 'if-none-match': before.headers.get('etag')! },
     })
@@ -107,7 +106,6 @@ describe('creating an organization', () => {
     expect(again.status).toBe(200)
     expect(again.headers.get('cb-outcome')).toBe('unchanged')
     expect(again.json.id).toBe(made.json.id)
-    // It is an account like any other: listed, and able to own repositories.
     const mine = await h.call('GET', '/accounts')
     expect(mine.json.data.map((a: { handle: string }) => a.handle)).toContain(
       'harbor-tools',
@@ -116,7 +114,6 @@ describe('creating an organization', () => {
       body: { owner: 'harbor-tools', name: 'cli', visibility: 'public' },
     })
     expect(repo.status).toBe(201)
-    // A new account starts on the Free plan, which is for public repositories.
     const closed = await h.call('POST', '/repos', {
       body: { owner: 'harbor-tools', name: 'secret', visibility: 'private' },
     })
@@ -131,7 +128,6 @@ describe('creating an organization', () => {
       expect(r.status).toBe(409)
       expect(r.json.code).toBe('invalid_state')
     }
-    // Someone else's organization is taken, not handed over.
     await h.call('POST', '/accounts', { body: { handle: 'harbor-tools' } })
     const theirs = await h.call('POST', '/accounts', {
       token: h.tokens.stranger,
@@ -216,7 +212,6 @@ describe('members of an organization', () => {
       body: { role: 'admin' },
     })
     expect(same.headers.get('cb-outcome')).toBe('unchanged')
-    // Membership is access: the new member now sees the organization.
     expect(
       (await h.call('GET', MEMBERS, { token: h.tokens.stranger })).status,
     ).toBe(200)
@@ -244,7 +239,6 @@ describe('members of an organization', () => {
     expect(byMember.status).toBe(403)
     expect(byMember.json.code).toBe('forbidden')
     await h.call('PUT', `${MEMBERS}/stranger`, { body: { role: 'admin' } })
-    // An admin now: members and admins yes, owners no.
     const byAdmin = await h.call('PUT', `${MEMBERS}/hollis`, {
       ...S,
       body: { role: 'admin' },
@@ -276,7 +270,6 @@ describe('members of an organization', () => {
     expect(demote.status).toBe(409)
     expect(demote.json.code).toBe('invalid_state')
     expect((await h.call('DELETE', `${MEMBERS}/dana`)).status).toBe(409)
-    // With a second owner, the first can step down and then leave.
     await h.call('PUT', `${MEMBERS}/stranger`, { body: { role: 'owner' } })
     expect(
       (await h.call('PUT', `${MEMBERS}/dana`, { body: { role: 'member' } }))
@@ -284,7 +277,6 @@ describe('members of an organization', () => {
     ).toBe(200)
     expect((await h.call('DELETE', `${MEMBERS}/dana`)).status).toBe(204)
     expect(await roleOf(h, 'dana')).toBeUndefined()
-    // The one who is left cannot leave either.
     const last = await h.call('DELETE', `${MEMBERS}/stranger`, {
       token: h.tokens.stranger,
     })
@@ -322,7 +314,6 @@ describe('members of an organization', () => {
     const dry = await h.call('DELETE', `${MEMBERS}/stranger?dry_run=true`, S)
     expect(dry.status).toBe(204)
     expect(await roleOf(h, 'stranger')).toBe('member')
-    // A member may not remove someone else, but may go.
     expect((await h.call('DELETE', `${MEMBERS}/hollis`, S)).status).toBe(403)
     expect((await h.call('DELETE', `${MEMBERS}/stranger`, S)).status).toBe(204)
     expect(await roleOf(h, 'stranger')).toBeUndefined()
@@ -339,12 +330,10 @@ describe('a person who signs in', () => {
     const again = await h.call('GET', '/accounts/quiet-otter-482')
     expect(again.json.id).toBe(first.json.id)
     expect(again.json.version).toBe(first.json.version)
-    // A new name from sign-in reaches the account.
     await h.api.port.knowPerson('quiet-otter-482', 'Tess Person')
     expect((await h.call('GET', '/accounts/quiet-otter-482')).json.name).toBe(
       'Tess Person',
     )
-    // It never turns an organization into a person.
     await h.api.port.knowPerson('northwind', 'Someone')
     expect((await h.call('GET', ORG)).json).toMatchObject({
       kind: 'organization',
@@ -376,14 +365,12 @@ describe('invitations by email', () => {
       role: 'admin',
       invited_by: 'dana',
     })
-    // The secret is in the email and nowhere in the API's answer.
     expect(mail.sent.length).toBe(1)
     expect(mail.sent[0].to).toBe('sam@example.com')
     expect(mail.sent[0].text).toContain('/organizations/join?token=cbi_')
     expect(JSON.stringify(made.json)).not.toContain(tokenIn())
     expect((await h.call('GET', INV)).json.data.length).toBe(1)
 
-    // No access before accepting.
     const before = await h.call('GET', '/accounts/northwind/invitations', {
       token: h.tokens.stranger,
     })
@@ -395,7 +382,6 @@ describe('invitations by email', () => {
     expect(joined.status).toBe(200)
     expect(joined.json).toMatchObject({ handle: 'stranger', role: 'admin' })
     expect((await h.call('GET', INV)).json.data).toEqual([])
-    // The link works once.
     const again = await h.call('POST', '/invitations/accept', {
       token: h.tokens.stranger,
       body: { token: tokenIn() },

@@ -5,17 +5,11 @@ import { cn } from 'cn'
 import { field } from './input'
 
 type ItemProps = {
-  /** What the choice stands for. Defaults to its text. */
   value?: string
   disabled?: boolean
   children: React.ReactNode
 }
 
-/**
- * One choice in a `Select`. It draws nothing itself: `Select` reads these to
- * build the list, so a call site looks like a list of options and the menu is
- * ours, not the browser's.
- */
 function SelectItem(props: ItemProps): null {
   void props
   return null
@@ -30,7 +24,6 @@ const text = (node: React.ReactNode): string =>
       ? node.map(text).join('')
       : ''
 
-/** The `SelectItem`s among the children, in order, looking through fragments. */
 function choices(children: React.ReactNode): Array<Choice> {
   return React.Children.toArray(children).flatMap((child): Array<Choice> => {
     if (!React.isValidElement(child)) return []
@@ -48,11 +41,6 @@ function choices(children: React.ReactNode): Array<Choice> {
   })
 }
 
-/**
- * A menu for picking one value, drawn like the rest of the app: the same
- * field on the page, the same popup as our dropdowns. Use it instead of a
- * native select, whose menu looks different on every system.
- */
 function Select({
   value,
   defaultValue,

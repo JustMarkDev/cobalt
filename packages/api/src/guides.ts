@@ -1,11 +1,3 @@
-/**
- * Change guides: what a change does and the order to read its files in,
- * written by an agent (or a person) for the reviewers. A newer guide
- * replaces the older one; one written for an older patch set says so.
- *
- * Plain JavaScript, shared with the Convex functions.
- */
-
 type Fail = (
   code: string,
   detail: string,
@@ -33,7 +25,6 @@ type GuideLike = {
   created: number
 }
 
-/** Checks a guide against the patch set it is for. Answers that patch set. */
 export function checkGuide(
   patchSets: ReadonlyArray<{ n: number; files: Record<string, unknown> }>,
   body: GuideBody,

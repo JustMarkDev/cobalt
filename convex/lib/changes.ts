@@ -33,29 +33,15 @@ import type {
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Changes as one aggregate each: loading one with its parts, writing back
- * what changed, and everything worked out from one change: policy, checks,
- * reviewers, what the caller may do with it, and how the API shows it.
- */
-
-/** Over this many lines added and removed, a change is large. */
 export const BIG_CHANGE = 400
 
 export { policyRules } from '@cobaltforge/api/policy-builtins'
-
-// ---- the repository as change logic needs it ---------------------------------
 
 export type RepoPolicy = {
   ruleModes: Map<string, RuleMode>
   customRules: Array<CustomRuleRec>
   exceptions: Array<PolicyExceptionRec>
-  /** How changes land: from the policy file, or the defaults. */
   landing: Landing
-  /**
-   * The policy file once the rules live in it: its text as last landed, the
-   * commit, and why it did not read if it did not.
-   */
   file: { text: string; sha: string; errors: Array<FileError> } | null
   rev: number
   doc: Doc<'repoPolicy'> | null
@@ -119,8 +105,6 @@ export async function savePolicy(
   const c = await counters(ctx, repo)
   await ctx.db.patch('repoCounters', c._id, { policyRev: c.policyRev + 1 })
 }
-
-// ---- loading and saving one change ---------------------------------------------
 
 type PartKind = Doc<'changeParts'>['kind']
 const KINDS: Array<PartKind> = [
@@ -195,11 +179,6 @@ export async function hydrate(
   return { doc, rec, parts }
 }
 
-/**
- * The change `ref` (a number or a `chg_` id) in a repository. A change under
- * an access rule the viewer does not read answers like one that does not
- * exist; `internal` is the forge itself (a landing step).
- */
 export async function loadChange(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -266,7 +245,6 @@ function partsOf(
       key: x.id,
       value: x,
     })),
-    // One guide per change, under one key: a new one replaces the old.
     ...(rec.guide
       ? [{ kind: 'guide' as const, key: 'current', value: rec.guide }]
       : []),
@@ -298,7 +276,6 @@ function changeFields(rec: ChangeRec) {
   }
 }
 
-/** Writes a change and only the parts of it that changed. */
 export async function saveChange(ctx: MutationCtx, l: Loaded) {
   await ctx.db.patch('changes', l.doc._id, changeFields(l.rec))
   await saveParts(ctx, l.doc._id, l.rec, l.parts)
@@ -332,7 +309,6 @@ async function saveParts(
     if (!seen.has(k)) await ctx.db.delete('changeParts', p._id)
 }
 
-/** A new change, with its parts. */
 export async function insertChange(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -346,7 +322,6 @@ export async function insertChange(
   return id
 }
 
-/** The open or draft change that owns a branch, if one does. */
 export async function branchOwner(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -358,7 +333,6 @@ export async function branchOwner(
       q.eq('repoId', repo._id).eq('branch', branch),
     )
     .take(500)
-  // The oldest open one owns it, as the first to claim the branch did.
   return (
     all
       .filter((c) => c.state === 'open' || c.state === 'draft')
@@ -367,7 +341,6 @@ export async function branchOwner(
   )
 }
 
-/** A stack's members, by number. */
 export async function stackMembers(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -382,19 +355,11 @@ export async function stackMembers(
   return all.sort((a, b) => a.number - b.number)
 }
 
-// ---- what is worked out from a change ------------------------------------------
-
-/**
- * Everything a change's answer depends on besides the change: the
- * repository, its policy, its stack, who owns its branch and what the
- * viewer may do. Loaded once, before any of it is shown.
- */
 export class ChangeView {
   constructor(
     readonly repo: Doc<'repos'>,
     readonly policy: RepoPolicy,
     readonly now: number,
-    /** Stack members by number, for the change's stack. */
     readonly stack: Map<number, Doc<'changes'>>,
     readonly stacks: Map<string, Array<number>>,
     readonly branchOwnerOf: (branch: string) => Doc<'changes'> | null,
@@ -435,7 +400,6 @@ export class ChangeView {
     }
   }
 
-  /** The newest review from each reviewer. */
   latestReviews(c: ChangeRec) {
     const map = new Map<string, ReviewRec>()
     for (const r of c.reviews) map.set(r.actor.id, r)
@@ -477,8 +441,6 @@ export class ChangeView {
   evaluateRules(c: ChangeRec, assume: Assume): Array<Requirement> {
     const head = this.head(c)
     const out: Array<Requirement> = []
-    // With fresh approvals, an approval holds only on the patch set it was
-    // given on, even when a rebase left the tree the same.
     const fresh = this.policy.landing.fresh_approvals
     const reviews = this.latestReviews(c).map((r) =>
       fresh && r.patchSet !== head.n ? { ...r, carries: false } : r,
@@ -530,13 +492,9 @@ export class ChangeView {
       needs: open.length ? { resolve: open.map((f) => f.label) } : null,
       blocking: open.map((f) => f.id),
     })
-    // reviewed: someone other than the author approved. A model's review
-    // counts as much as a person's; who presses Land is the one responsible.
     out.push(reviewedRequirement(approvals, objections))
     for (const r of this.policy.customRules)
       out.push(this.evaluateCustomRule(r, c, assume, approvals, lines))
-    // The rules protect themselves: a change to the policy folder needs a
-    // maintainer, and a file that reads. Not a rule a repository can turn off.
     const policy = policyFileCheck(
       head,
       policyRules,
@@ -895,10 +853,6 @@ export class ChangeView {
   }
 }
 
-/**
- * Loads what showing changes needs, for a viewer. `changes` are the ones
- * about to be shown, so their stacks and branches are read once each.
- */
 export async function viewFor(
   ctx: QueryCtx,
   repo: Doc<'repos'>,

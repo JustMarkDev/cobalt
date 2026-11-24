@@ -1,8 +1,3 @@
-/**
- * Documents the sample repositories carry: a README, a contributing guide and
- * a licence. They are files in the fake git store, read through the API like
- * any other file.
- */
 export type SampleRepo = {
   owner: string
   name: string
@@ -10,7 +5,6 @@ export type SampleRepo = {
   license: string
 }
 
-/** A sample README for a project. Descriptions only: install and facts live in About. */
 export function readmeFor(repo: SampleRepo): string {
   const n = repo.name
   return `# ${n}
@@ -54,7 +48,6 @@ ${n} reads a small file in the project root. Every option has a sensible default
 `
 }
 
-/** CONTRIBUTING.md for a project. It has its own tab, so the README stays about the product. */
 export function contributingFor(repo: SampleRepo): string {
   const n = repo.name
   return `# Contributing to ${n}
@@ -109,7 +102,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 const PERMISSIVE_WARRANTY = `THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.`
 
-/** The LICENSE file. Permissive licenses are shown in full; the long ones show their notice. */
 export function licenseFor(repo: SampleRepo): string {
   const year = 2026
   switch (repo.license) {

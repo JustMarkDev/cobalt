@@ -9,7 +9,6 @@ const base =
   'relative inline-flex items-center gap-2 rounded-(--radius-thumb) px-3 text-sm focus-ring-inset whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground'
 const on = 'font-medium text-foreground hover:text-foreground'
 
-/** Navigation tabs: every tab is a real link, so the URL says where you are. */
 function LinkTabs({
   tabs,
   label,
@@ -49,7 +48,6 @@ function LinkTabs({
   )
 }
 
-/** In-page tabs for switching a view without changing the URL. */
 function StateTabs<T extends string>({
   value,
   onChange,
@@ -65,7 +63,6 @@ function StateTabs<T extends string>({
 }) {
   const pill = React.useId()
   const refs = React.useRef<Array<HTMLButtonElement | null>>([])
-  // A tablist is one stop for Tab and moves with the arrow keys, like any native one.
   const go = (to: number) => {
     const next = (to + options.length) % options.length
     onChange(options[next].id)
@@ -117,7 +114,6 @@ function StateTabs<T extends string>({
   )
 }
 
-/** Small pill group for choosing between two to four modes. */
 function Segmented<T extends string>({
   value,
   onChange,

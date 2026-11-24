@@ -1,19 +1,3 @@
-/**
- * Latency of GitHub's and git.cafe's public APIs, measured from this machine.
- *
- *   bun scripts/probe-competitors.ts [--n 50] [--out docs/bench/competitors.json]
- *
- * Read requests only, one at a time on a kept-alive connection, so the figures
- * are what one client sees: network round trip plus the service. They are not
- * throughput figures and they depend on where you run this.
- *
- * GitHub uses the token from `gh auth token` (5,000 requests an hour; this
- * script spends about 6 x n + 20). The others are read anonymously, with
- * fewer samples where their limits are low or their lists are heavy:
- * git.cafe 1,200 an hour, GitLab 500 a minute, Bitbucket about 60 an hour (so
- * only a handful of samples there), Codeberg and Gitea.com publish none. Nothing
- * here writes.
- */
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 
@@ -84,7 +68,6 @@ const github: Array<Probe> = [
   {
     name: 'Search (issues, 50)',
     url: 'https://api.github.com/search/issues?q=repo:cli/cli+is:issue+bug&per_page=50',
-    // Search is limited to 30 a minute, so pace it below that.
     n: 15,
     gapMs: 2200,
   },
@@ -230,7 +213,6 @@ async function run(
     let timeouts = 0
     let bytes = 0
     let seen: Record<string, string> = {}
-    // Three throwaway requests first: connection setup and TLS are not what we measure.
     const count = p.n ?? N
     for (let i = 0; i < count + 3; i++) {
       const t0 = performance.now()
@@ -241,7 +223,6 @@ async function run(
           signal: AbortSignal.timeout(20_000),
         })
       } catch {
-        // A request that hangs is a result too, but it is not a latency: count it and move on.
         timeouts++
         continue
       }
@@ -262,7 +243,6 @@ async function run(
           'via',
         ])
           if (res.headers.has(k)) seen[k] = res.headers.get(k)!
-      // Be a polite client: a small gap, so this is a measurement and not a load test.
       await new Promise((r) => setTimeout(r, p.gapMs ?? 40))
     }
     const sorted = [...times].sort((a, b) => a - b)
@@ -289,7 +269,6 @@ async function run(
   return out
 }
 
-// Where this runs matters as much as what is called, so record it.
 const place = await fetch('https://api.github.com/zen', { headers: ua }).then(
   (r) => r.headers.get('x-github-request-id') ?? '',
 )

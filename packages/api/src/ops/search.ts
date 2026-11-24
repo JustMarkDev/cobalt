@@ -34,8 +34,6 @@ export const searchOp = defineOp({
     Effect.gen(function* () {
       const { run } = yield* Domain
       const q = ctx.query
-      // The cursor belongs to one viewer: a different caller may see a
-      // different list, so its cursor must not silently continue this one.
       const f = fp('search', q.q, ctx.principal?.capabilityKey ?? 'anon')
       const out = yield* run(async (d) => {
         const parsed = parseQuery(q.q)
@@ -61,15 +59,12 @@ export const searchOp = defineOp({
               ],
             },
           )
-        // Every match, then only what this caller may see: access is asked
-        // once per repository, and may be asked of the database.
         const all = d.svc.search.search(parsed, () => true, '*')
         const can = d.canSee(ctx.principal)
         const allowed = new Map<string, boolean>()
         for (const h of all)
           if (!allowed.has(h.doc.repo))
             allowed.set(h.doc.repo, await can(h.doc.repo))
-        // A change under an access rule the caller does not read is not found.
         const hiddenIn = new Map<string, Set<number>>()
         for (const h of all)
           if (
@@ -107,10 +102,7 @@ export const searchOp = defineOp({
           parsed,
         )
         return {
-          // Most of a result is the document, which does not change between queries. Keep
-          // that as text and add only what depends on the query: the snippet and the score.
           items: page.items.map((h) => {
-            // Hits are kept with their query's results, so their text is built once per query.
             let pre = built.get(h)
             if (!pre) {
               const frag = fragmentsOf(h.doc, iso)

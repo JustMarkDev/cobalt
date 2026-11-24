@@ -27,7 +27,6 @@ const WITH_PATENTS = [...PERMITS.slice(0, 3), 'Patent use', 'Private use']
 const NOTICE = 'License and copyright notice'
 const AS_IS = ['Liability', 'Warranty']
 
-/** What each license lets you do, in the same terms for every license. */
 const facts: Record<string, Facts> = {
   MIT: {
     kind: 'Permissive',
@@ -133,7 +132,6 @@ function Column({
   )
 }
 
-/** The text as it would be read: a heading, then paragraphs. Capitals stay as the license has them. */
 function Text({ text }: { text: string }) {
   const [title, ...rest] = text.split('\n\n')
   return (
@@ -158,10 +156,6 @@ function Text({ text }: { text: string }) {
   )
 }
 
-/**
- * A license for a person: what it allows, what it asks and what it rules out,
- * then the text itself. The summary is ours, the text is the file.
- */
 export function LicenseView({ id, text }: { id: string; text: string }) {
   const f = facts[id] ?? fallback(id)
   const [copied, setCopied] = React.useState(false)

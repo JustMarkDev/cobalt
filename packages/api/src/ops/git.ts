@@ -9,11 +9,6 @@ import type { GitCommit, GitData } from '../git'
 import { branchHidden, pathHidden } from '../access-rules'
 import type { DomainPort } from '../domain'
 
-/**
- * A repository's files as the caller may see them: a private branch (an
- * access rule they do not read) answers like a ref that does not exist, and
- * a private path like a file that does not.
- */
 async function readable(
   d: DomainPort,
   owner: string,
@@ -37,11 +32,8 @@ const base = {
   tags: ['git'],
 }
 
-/** A full commit id never changes what it names, so its answer can be kept for good. */
 const isFullSha = (ref: string | undefined) =>
   !!ref && /^[0-9a-f]{40}$/.test(ref)
-// Always `private`: whether the repository is public is not this function's to know, and a
-// shared cache must never hand a private repository's file to someone else.
 const immutable = () => 'private, max-age=31536000, immutable'
 
 const BLOB_MAX = 1 << 20
@@ -73,7 +65,6 @@ const present = (
   ...facts,
 })
 
-/** Commits as the API shows them, with what the forge knows about each. */
 const presentAll = async (
   d: Parameters<typeof present>[0] & {
     commitFacts: (
@@ -88,7 +79,6 @@ const presentAll = async (
   return commits.map((c, i) => present(d, full, c, facts[i]))
 }
 
-/** How far back `last_commit` looks. Older files answer null. */
 const LAST_COMMIT_DEPTH = 200
 
 export const gitTree = defineOp({
@@ -339,7 +329,6 @@ export const gitCommits = defineOp({
         const all = await d.svc.git.commits(full, 1000)
         let start = 0
         if (after) {
-          // The cursor is the last commit sent. New commits at the head do not move it.
           const at = all.findIndex((c) => c.sha === after.id)
           start = at === -1 ? all.length : at + 1
         }
@@ -468,13 +457,8 @@ export const gitDiff = defineOp({
     }),
 })
 
-/** How far back blame follows a line before it gives the oldest commit it reached. */
 const BLAME_DEPTH = 200
 
-/**
- * The commit that last wrote a line: follow the line from `ref` back through
- * first parents until a commit added it. One file read per commit, cached.
- */
 async function blame(
   git: GitData,
   full: string,

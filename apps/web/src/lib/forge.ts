@@ -1,21 +1,3 @@
-/**
- * How a screen reads and writes the forge.
- *
- *   const issues = useOp('issues.list', { owner, repo, state: 'open' })
- *   const write = useWrite()
- *   const r = await write('issues.create', { owner, repo, body: { title } })
- *   if (r.error) show(r.error.message)
- *
- * Every call is one API operation, named by its id and typed by the generated
- * client (`packages/sdk`), and answers what the operation answers.
- *
- * Most go straight to Convex as the signed-in person (`screens.ts` in the
- * API package says which function, and a test holds the answers equal to the
- * API's). Those reads are live: when the data changes, the page changes.
- * The rest (git, files, the API server's search and health) run on the
- * server through the API, kept under `['cb', id, input]`; a write marks those
- * stale, and `live.tsx` refreshes them when what they are about moves.
- */
 import { createServerFn } from '@tanstack/react-start'
 import { notFound } from '@tanstack/react-router'
 import {
@@ -46,11 +28,6 @@ export type Refusal = {
 
 type Wire = { ok: true; json: string } | { ok: false; refused: Refusal | null }
 
-/**
- * The one door between the browser and the API. Anything the browser asks
- * for here it could ask the API for with the person's own token, so there is
- * nothing to allow or deny per operation: the API decides.
- */
 const callForge = createServerFn({ method: 'POST' })
   .validator((d: { id: string; input: string; options?: WriteOptions }) => d)
   .handler(async ({ data }): Promise<Wire> => {
@@ -65,9 +42,6 @@ const callForge = createServerFn({ method: 'POST' })
     const found = getApi(request.url).ops.find((o) => o.id === data.id)
     const program = Effect.gen(function* () {
       if (!found) return yield* new InvalidInput({ field: 'id' })
-      // A write must come from our own pages. A page on another site can
-      // make a signed-in browser send a request, but not with this header
-      // saying it came from here.
       if (found.method !== 'GET' && !sameOrigin(request))
         return yield* new InvalidInput({ field: 'origin' })
       const forge = yield* Forge
@@ -107,12 +81,10 @@ function sameOrigin(request: Request) {
   return origin === new URL(here).origin
 }
 
-/** The API said no. `message` is written for the person. */
 export class ForgeRefused extends Error {
   readonly code: string
   readonly hint: string | null
   readonly status: number
-  /** For `moved`: the repository's `owner/name` now. */
   readonly moved_to: string | null
   constructor(r: Refusal, movedTo?: string) {
     super(r.message)
@@ -143,7 +115,6 @@ async function send<TId extends OperationId>(
   return { found: false }
 }
 
-/** Run one operation. Not found is the router's 404; a refusal is `ForgeRefused`. */
 export async function op<TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -154,7 +125,6 @@ export async function op<TId extends OperationId>(
   return r.value
 }
 
-/** Run one operation; null when the thing does not exist or may not be seen. */
 export async function opOrNull<TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -172,7 +142,6 @@ const STALE = 15_000
 
 type Out<TId extends OperationId> = Operations[TId]['output']
 
-/** What Convex refused with: the code and words the API would have used. */
 export function refusalOf(
   e: unknown,
 ): (Refusal & { from?: string; to?: string }) | null {
@@ -193,7 +162,6 @@ export function refusalOf(
       to: d.to,
     }
   }
-  // Arguments of the wrong shape never reach the function.
   if (
     e instanceof Error &&
     /ArgumentValidationError|Validator error/.test(e.message)
@@ -207,10 +175,6 @@ export function refusalOf(
   return null
 }
 
-/**
- * A read, for `useQuery`, `useSuspenseQuery` or a loader. Live from Convex
- * when a screen can read it there; otherwise through the API.
- */
 export function opQuery<TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -235,7 +199,6 @@ const apiQuery = <TId extends OperationId>(
     staleTime: STALE,
   })
 
-/** The same read, answering null when there is nothing to see. */
 export const opQueryOrNull = <TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -254,11 +217,6 @@ const apiQueryOrNull = <TId extends OperationId>(
     staleTime: STALE,
   })
 
-/**
- * Loads a read before its page renders. What may not be seen is the
- * router's 404; anything else refused is a `ForgeRefused`, which for a
- * repository that moved names where it is now (`moved_to`).
- */
 export async function loadOp<TId extends OperationId>(
   queries: QueryClient,
   id: TId,
@@ -274,18 +232,11 @@ export async function loadOp<TId extends OperationId>(
   }
 }
 
-/** Who is reading, for the few lists whose cursor names them. */
 function useReader(): Reader {
   const handle = authClient.useSession().data?.user.handle ?? null
   return React.useMemo(() => ({ handle }), [handle])
 }
 
-/**
- * Whether the browser's Convex client reads as the right person: sign-in
- * knows whether there is a session, and if there is one, Convex has its
- * token. Before that a read would go out as a visitor and be refused; one
- * the server render already answered needs no waiting.
- */
 function useConvexReady() {
   const { isLoading, isAuthenticated } = useConvexAuth()
   const { data, isPending } = authClient.useSession()
@@ -300,14 +251,11 @@ const whenReady = () => {
     let resolve = () => {}
     const promise = new Promise<void>((r) => (resolve = r))
     waiting = { promise, resolve }
-    // Never forever: a token Convex will not take must still show the page,
-    // with what a visitor may see.
     setTimeout(resolve, 5_000)
   }
   return waiting.promise
 }
 
-/** Mounted once, at the root: lets reads waiting on sign-in go. */
 export function ConvexSignIn() {
   const now = useConvexReady()
   React.useEffect(() => {
@@ -322,7 +270,6 @@ export function ConvexSignIn() {
 
 const inBrowser = typeof window !== 'undefined'
 
-/** One set of options per read, so its answer is parsed once per change. */
 function useOptions<TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -335,7 +282,6 @@ function useOptions<TId extends OperationId>(
 
 const isLive = (key: ReadonlyArray<unknown>) => key[0] === 'convexQuery'
 
-/** Read on a screen. Suspends until it has the answer; a 404 is the page's 404. */
 export function useOp<TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -352,10 +298,6 @@ export function useOp<TId extends OperationId>(
   return useSuspenseQuery(options).data
 }
 
-/**
- * Read without suspending: `undefined` while loading, `null` when there is
- * nothing to see. For chrome and for parts of a page that may be absent.
- */
 export function useOpMaybe<TId extends OperationId>(
   id: TId,
   input: Operations[TId]['input'],
@@ -364,8 +306,6 @@ export function useOpMaybe<TId extends OperationId>(
   const options = useOptions(id, input)
   const live = isLive(options.queryKey)
   const convexReady = useConvexReady()
-  // A live read subscribes the moment it is in the cache, enabled or not,
-  // so one that must wait is not put there yet.
   const wait = live && !(enabled && convexReady)
   const q = useQuery(
     (wait
@@ -387,12 +327,6 @@ const unavailable = {
   message: 'Something went wrong on our side. Try again.',
 }
 
-/**
- * Write from a screen. Never throws for what the API refuses: the result
- * carries the message to show. A write a screen can make itself goes to
- * Convex, and what is on screen from Convex follows it on its own; reads
- * through the API are fetched again.
- */
 export function useWrite() {
   const queries = useQueryClient()
   const convex = useConvex()

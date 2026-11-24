@@ -12,11 +12,6 @@ const list = (s: string) =>
     .map((x) => x.trim())
     .filter(Boolean)
 
-/**
- * Branches and paths only some people may see. Owners and admins write the
- * rules and always read everything; anyone a rule does not name does not see
- * what it hides, anywhere.
- */
 export function AccessPage({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const rules = useOp('access_rules.list', at).data

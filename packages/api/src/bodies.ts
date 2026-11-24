@@ -1,16 +1,8 @@
 import { z } from 'zod'
 import { repoCategories } from './schemas'
 
-/**
- * What a write may carry, for the writes a page makes straight to Convex.
- * The operation checks its body with it, and so does the Convex function,
- * so a write is refused the same way whoever sends it: a client of the API,
- * a page, or anyone calling the deployment with their own sign-in.
- */
-
 const mode = z.enum(['enforce', 'dry-run', 'off'])
 
-/** A link shown on the repository. Only the web: it is rendered as a link. */
 const webAddress = z
   .string()
   .max(300)
@@ -294,10 +286,6 @@ export type BodyOf<Id extends keyof typeof bodies> = z.output<
   (typeof bodies)[Id]
 >
 
-/**
- * A body checked as the API checks it, or the same `invalid_request` the API
- * answers: one entry per problem, pointing into the body.
- */
 export function checkBody<Id extends keyof typeof bodies>(
   id: Id,
   value: unknown,

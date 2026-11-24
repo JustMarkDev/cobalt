@@ -3,7 +3,6 @@ import { internal } from './_generated/api'
 
 const crons = cronJobs()
 
-// Rate-limit windows and idempotency keys are only useful for a while.
 crons.interval(
   'sweep api stores',
   { minutes: 10 },
@@ -11,9 +10,7 @@ crons.interval(
   {},
 )
 
-// Tokens past expiry, OAuth state that ran out, operations long over.
 crons.interval('sweep tokens', { hours: 1 }, internal.forge.tokens.sweep, {})
-// Jobs whose runner stopped answering go back to the queue.
 crons.interval(
   'requeue runner jobs',
   { minutes: 1 },
@@ -21,7 +18,6 @@ crons.interval(
   {},
 )
 crons.interval('sweep oauth', { minutes: 15 }, internal.forge.oauth.sweep, {})
-// Mail that never went out and was left behind (a crash between two tries).
 crons.interval('sweep mail', { hours: 6 }, internal.mail.sweep, {})
 crons.interval(
   'sweep operations',
@@ -30,10 +26,7 @@ crons.interval(
   {},
 )
 
-// The status page: health minutes and days past keeping.
 crons.interval('sweep health', { minutes: 30 }, internal.forge.health.sweep, {})
-// Fills the tallies in once on a deployment that had rows before them; after
-// that, one document read each time.
 crons.interval(
   'seed tallies',
   { minutes: 10 },
@@ -41,7 +34,6 @@ crons.interval(
   {},
 )
 
-// Accounts whose 30 days after asking to be deleted are over are erased.
 crons.interval(
   'purge deleted accounts',
   { hours: 1 },
@@ -49,7 +41,6 @@ crons.interval(
   {},
 )
 
-// Product events to PostHog, in batches. Does nothing without POSTHOG_KEY.
 crons.interval('send analytics', { minutes: 1 }, internal.analytics.send, {})
 
 export default crons

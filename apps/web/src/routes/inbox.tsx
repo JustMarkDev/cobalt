@@ -24,13 +24,6 @@ import { Button } from '~/components/ui/button'
 import { useOp, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
-/**
- * Two views of the same person. "Needs you" is a queue worked out from the
- * state of things: a review that lands or a build that goes green leaves it
- * by itself. "Activity" is the feed of what happened. Each row in the queue
- * has one button, and it only takes you to the thing: approving, denying or
- * landing happen there, where their own permissions are checked.
- */
 export const Route = createFileRoute('/inbox')({
   head: () => ({ meta: [{ title: 'Inbox · cobalt' }] }),
   validateSearch: (
@@ -72,8 +65,6 @@ function Inbox() {
     </div>
   )
 }
-
-// ---- Needs you ------------------------------------------------------------------
 
 const severities: Record<
   InboxItem['severity'],
@@ -173,8 +164,6 @@ function NeedsYou() {
   )
 }
 
-// ---- Activity -------------------------------------------------------------------
-
 const icons = {
   handoff: HandRaisedIcon,
   review: GitMergeIcon,
@@ -185,7 +174,6 @@ const icons = {
   import: LinkIcon,
 } as const
 
-/** What each kind of item is, in words. The ones that ask something of you are coloured. */
 const kinds: Record<Notification['kind'], { label: string; tone: BadgeTone }> =
   {
     handoff: { label: 'Waiting', tone: 'info' },

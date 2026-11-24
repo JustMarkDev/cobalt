@@ -31,7 +31,6 @@ export type RepoPage =
   | 'insights'
   | 'settings'
 
-/** Page id -> URL segment. */
 export const tabSlug: Record<RepoPage, string> = {
   code: 'code',
   issues: 'issues',
@@ -95,11 +94,6 @@ export function CopyField({
   )
 }
 
-/**
- * The repository chrome: header, tabs and page-level actions. It lives above
- * the tab pages so switching tabs only swaps the content below it. Nothing in
- * the header remounts, which keeps its state (Star) and lets the tab pill glide.
- */
 export function RepoFrame({
   repo,
   active,
@@ -113,8 +107,6 @@ export function RepoFrame({
   actions?: React.ReactNode
   children: React.ReactNode
 }) {
-  // The counts come from the repository read, which stays live: a new issue
-  // updates the tab without the page below reporting it.
   return (
     <>
       <RepoHeader
@@ -137,7 +129,6 @@ export function RepoHeader({
   repo: Repo
   active: RepoPage
   counts?: Partial<Record<RepoPage, number>>
-  /** Page-level controls, shown on the right of the tab row. */
   actions?: React.ReactNode
 }) {
   const at = { owner: repo.owner, repo: repo.name }
@@ -146,8 +137,6 @@ export function RepoHeader({
   const starred = star?.starred ?? false
   const gate = useSignInGate()
   const owner = useAccount(repo.owner)
-  // Settings belong to whoever manages the account that owns it: the person,
-  // or an owner or admin of the organization. Everyone else sees the public tabs.
   const mine = manages(owner)
   const numbers: Partial<Record<RepoPage, number>> = { ...counts }
   return (
@@ -265,10 +254,6 @@ export function Languages({ repo }: { repo: Repo }) {
   )
 }
 
-/**
- * Shades mixed from the brand into the card, so the steps stay even in both
- * themes instead of turning muddy the way a translucent brand does on dark.
- */
 const LEVELS = [
   'var(--heat-0)',
   'color-mix(in oklab, var(--brand) 28%, var(--card))',
@@ -289,10 +274,6 @@ const monthFmt = new Intl.DateTimeFormat('en', {
   timeZone: 'UTC',
 })
 
-/**
- * Levels by quartile of the busy days, not by share of the busiest one, so a
- * single big day does not wash every other day out to the faintest shade.
- */
 function levelsFor(counts: Array<number>) {
   const busy = counts.filter((n) => n > 0).sort((a, b) => a - b)
   const q = (p: number) => busy[Math.floor((busy.length - 1) * p)] ?? 0
@@ -302,10 +283,6 @@ function levelsFor(counts: Array<number>) {
   )
 }
 
-/**
- * Contribution heatmap: one column per week, Sunday on top, today last.
- * Totals are merged across everything linked to the account.
- */
 export function ContributionGraph({
   seed,
   counts,
@@ -313,7 +290,6 @@ export function ContributionGraph({
   className,
 }: {
   seed: number
-  /** Real counts per day, oldest first, ending today; drawn instead of the seeded pattern. */
   counts?: Array<number>
   weeks?: number
   className?: string
@@ -335,8 +311,6 @@ export function ContributionGraph({
       })
     }
     const levels = levelsFor(values)
-    // Pad the front so every column starts on a Sunday; the last column ends
-    // today and may be short.
     const first = today - days + 1
     const lead = new Date(first * DAY_MS).getUTCDay()
     const cells: Array<{ day: number; n: number; level: number } | null> = [
@@ -346,7 +320,6 @@ export function ContributionGraph({
     const columns: Array<typeof cells> = []
     for (let i = 0; i < cells.length; i += 7)
       columns.push(cells.slice(i, i + 7))
-    // A month is labelled over the first column that holds its 1st.
     let last = -1
     const months = columns.map((col) => {
       const firstDay = col.find((c) => c)
@@ -355,7 +328,6 @@ export function ContributionGraph({
       if (month === last) return ''
       const isFirst = last === -1
       last = month
-      // Skip a label squeezed into a partial first month.
       return isFirst && new Date(firstDay.day * DAY_MS).getUTCDate() > 14
         ? ''
         : monthFmt.format(firstDay.day * DAY_MS)
@@ -496,7 +468,6 @@ const kindIcon = {
   issue: ExclamationCircleIcon,
 } as const
 
-/** Commit rail: one history for the project, newest first. */
 export function Timeline({ repo }: { repo: Repo }) {
   const latest = repo.releases.at(0)
   const events: Array<TimelineEvent> = [

@@ -5,15 +5,6 @@ import { system } from '../lib/actor'
 import { out } from '../lib/errors'
 import type { MutationCtx } from '../_generated/server'
 
-/**
- * The event feed. Writes add events without a number; `sequence` numbers
- * them, oldest first, a batch at a time. It is the only writer of the head,
- * so writes in different repositories never wait on each other.
- *
- * API servers read the feed (`since`) into a window of their own, which is
- * what their streams, long polls and webhooks are served from.
- */
-
 const BATCH = 500
 
 async function headDoc(ctx: MutationCtx) {
@@ -54,7 +45,6 @@ export const sequence = internalMutation({
   },
 })
 
-/** The newest sequence and the oldest still kept. API servers watch this. */
 export const head = query({
   args: {},
   returns: v.string(),
@@ -73,7 +63,6 @@ export const head = query({
   },
 })
 
-/** Events after a sequence, oldest first, as JSON text. Only API servers read the whole feed. */
 export const since = query({
   args: { after: v.number(), limit: v.number() },
   returns: v.string(),

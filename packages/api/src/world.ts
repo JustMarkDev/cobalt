@@ -1,8 +1,3 @@
-/**
- * The sample data as plain documents, the way `convex/seed.ts` loads it.
- * Plain types only, so the Convex functions can name it without reaching
- * into the rest of the API.
- */
 type Role = 'owner' | 'admin' | 'member'
 type Actor = { id: string; handle: string }
 
@@ -90,11 +85,8 @@ export type World = {
       created: number
     }>
     issues: Array<WorldIssue>
-    /** Each change as `ChangeRec`, JSON text: its parts travel with it. */
     changes: Array<string>
-    /** Pipeline runs, newest first, as `PipelineRunRec` JSON text. */
     pipelines: Array<string>
-    /** Releases as `ReleaseRec` JSON text. */
     releases: Array<string>
     policy: {
       ruleModes: Array<[string, string]>
@@ -114,7 +106,6 @@ export type World = {
     }
   }>
   aliases: Array<[string, string]>
-  /** Each repository's extras as JSON text (`RepoExtras`). */
   extras: Array<[string, string]>
   downloadDays: Array<{ repo: string; day: number; n: number }>
   accountPrefs: Array<[string, string]>

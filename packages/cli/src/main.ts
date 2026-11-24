@@ -43,7 +43,6 @@ const commands: Record<string, Command> = {
   commands: commandsList,
 }
 
-/** The nearest command name, if one is within two edits. */
 function closest(word: string, names: Array<string>): string | undefined {
   const dist = (a: string, b: string) => {
     const row = Array.from({ length: b.length + 1 }, (_, i) => i)
@@ -69,7 +68,6 @@ function closest(word: string, names: Array<string>): string | undefined {
     .at(0)?.[0]
 }
 
-/** Runs cb and returns the exit code. Separate from `main` so tests can call it. */
 export async function run(
   argv: ReadonlyArray<string>,
   io: { out: (s: string) => void; err: (s: string) => void } = {

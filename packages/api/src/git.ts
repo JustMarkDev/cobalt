@@ -2,11 +2,6 @@ import { getGitRepo } from '@cobaltforge/git'
 import { apiError } from './problem'
 import type { GitRepo } from '@cobaltforge/git'
 
-/**
- * What the API reads from git. It is the slice of the git store the app already
- * uses (`packages/git`), so the fake store in the preview and code.storage later sit
- * behind the same four calls.
- */
 export type GitCommit = {
   sha: string
   parents: Array<string>
@@ -25,28 +20,19 @@ export type GitDiffFile = {
 }
 
 export interface GitData {
-  /**
-   * Every file path at `ref`, with the commit it was resolved to. `complete`
-   * is true only when the whole tree was read; whatever must not miss a path
-   * (auto-land's guard) trusts nothing less.
-   */
   files: (
     repo: string,
     ref?: string,
   ) => Promise<{ ref: string; paths: Array<string>; complete?: boolean }>
   blob: (repo: string, path: string, ref?: string) => Promise<Uint8Array | null>
-  /** Newest first. */
   commits: (repo: string, limit: number) => Promise<Array<GitCommit>>
   commit: (repo: string, sha: string) => Promise<GitCommit>
   diff: (
     repo: string,
     sha: string,
   ) => Promise<{ sha: string; base: string | null; files: Array<GitDiffFile> }>
-  /** Point an address at an immutable git store id, when the implementation has one. */
   setRepo?: (repo: string, storeId: string) => void
-  /** Forget an address whose repository is gone. */
   dropRepo?: (repo: string) => void
-  /** The store id an address points at, when set. */
   storeOf?: (repo: string) => string | undefined
 }
 
@@ -68,7 +54,6 @@ const commitOf = (c: {
   date: c.date.toISOString(),
 })
 
-/** A missing ref, file or commit in the store is a 404; anything else is ours to report. */
 async function guarded<T>(what: string, call: () => Promise<T>): Promise<T> {
   try {
     return await call()
@@ -79,7 +64,6 @@ async function guarded<T>(what: string, call: () => Promise<T>): Promise<T> {
   }
 }
 
-/** The store behind `packages/git`. A repository's store id is its name until the directory says otherwise. */
 export class StoreGit implements GitData {
   private readonly stores = new Map<string, string>()
   constructor(
@@ -108,7 +92,6 @@ export class StoreGit implements GitData {
       const paths: Array<string> = []
       let cursor: string | undefined
       let resolved = ref ?? ''
-      // The whole tree, page by page, up to a bound; past it, incomplete.
       for (let page = 0; page < 100; page++) {
         const r = await store.listFiles({ ref, recursive: true, cursor })
         resolved = r.ref

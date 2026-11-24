@@ -14,7 +14,6 @@ describe('what a repository says about itself', () => {
     expect(repo.category).toBe('Developer tools')
     expect(repo.website).toBe('https://gitfs.dev')
     expect(repo.docs_url).toBe('https://gitfs.dev/docs')
-    // A repository nothing is known about says so with nulls, not guesses.
     const bare = (await h.call('GET', '/repos/dana/notes')).json
     expect(bare.language).toBe(null)
     expect(bare.languages).toEqual([])
@@ -84,7 +83,6 @@ describe('stars', () => {
     })
     expect(again.headers.get('cb-outcome')).toBe('unchanged')
     expect(again.json.stars).toBe(before.stars + 1)
-    // It is the caller's star: someone else has not starred it.
     expect((await h.call('GET', `${R}/star`)).json.starred).toBe(false)
     expect((await h.call('GET', R)).json.stars).toBe(before.stars + 1)
     const removed = await h.call('DELETE', `${R}/star`, {

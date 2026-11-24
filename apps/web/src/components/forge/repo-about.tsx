@@ -18,7 +18,6 @@ import { useOpMaybe } from '~/lib/forge'
 const SHOWN_AVATARS = 6
 const MONTH = 30 * 24 * 3_600_000
 
-/** The handle behind a contributor's email when it is one of ours, else their name. */
 const handleOf = (c: { name: string; email: string }) =>
   c.email.toLowerCase().endsWith('@users.cobaltforge.dev')
     ? c.email.split('@')[0]
@@ -31,7 +30,6 @@ const langInstall: Record<string, [string, (name: string) => string]> = {
   Python: ['pip', (n) => `pip install ${n}`],
 }
 
-/** Ways to install, built from what the repository ships. */
 function installsFor(repo: Repo): Array<[string, string]> {
   const out: Array<[string, string]> = []
   out.push([
@@ -97,7 +95,6 @@ function ExternalLink({
   )
 }
 
-/** A file in the repository, opened in the code browser. */
 function FileLink({
   repo,
   path,
@@ -124,17 +121,11 @@ function FileLink({
   )
 }
 
-/**
- * The facts about a repository, kept out of the README. Everything here is
- * detected: the license from the LICENSE file, languages from the code, the
- * release from the latest tag.
- */
 export function AboutPanel({
   repo,
   onOpenLicense,
 }: {
   repo: Repo
-  /** Switch the README card to its License tab instead of leaving the page. */
   onOpenLicense: () => void
 }) {
   const installs = installsFor(repo)
@@ -144,7 +135,6 @@ export function AboutPanel({
   const contributors =
     useOpMaybe('repos.contributors', { owner: repo.owner, repo: repo.name })
       ?.data ?? []
-  // Measured from the newest commit, so a quiet repository is not "0 active".
   const newest = Math.max(
     0,
     ...contributors.map((c) => Date.parse(c.last_commit_at)),

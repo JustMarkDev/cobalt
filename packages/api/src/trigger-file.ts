@@ -2,28 +2,12 @@ import { LineCounter, isMap, isSeq, parseDocument } from 'yaml'
 import { matchesType } from './events'
 import { globMatcher } from './glob'
 
-/**
- * `.source/triggers/*.yml`: what starts a workflow when something happens,
- * with filters. The files are the API: there is no builder and no write
- * endpoint. Plain JavaScript, so the memory domain and the Convex functions
- * read and match triggers the same way.
- *
- *   triggers:
- *     - id: docs-build
- *       on: [change.landed]
- *       filter:
- *         paths: ['docs/**']
- *         labels: ['docs']
- *       run: docs
- */
-
 export const TRIGGERS_DIR = '.source/triggers'
 export const MAX_TRIGGERS = 20
 export const MAX_RUNS_PER_EVENT = 3
 
 export type Trigger = {
   id: string
-  /** Event types; `change.*` matches the family. */
   on: Array<string>
   filter: {
     paths: Array<string> | null
@@ -31,9 +15,7 @@ export type Trigger = {
     actor: Array<string> | null
     model: Array<string> | null
   }
-  /** The workflow it starts. */
   run: string
-  /** The file it is written in. */
   file: string
 }
 
@@ -44,7 +26,6 @@ export type FileError = {
   message: string
 }
 
-/** Whether a path is a trigger file: directly in the folder, YAML. */
 export function isTriggerFile(path: string) {
   if (!path.startsWith(`${TRIGGERS_DIR}/`)) return false
   const rest = path.slice(TRIGGERS_DIR.length + 1)
@@ -57,7 +38,6 @@ const KEYS = new Set(['id', 'on', 'filter', 'run'])
 const FILTER_KEYS = new Set(['paths', 'labels', 'actor', 'model'])
 const ACTIONS = new Set(['run'])
 
-/** A glob a person can mean: not empty, relative, no `..`, no `***`. */
 function badGlob(g: string) {
   if (!g.trim()) return 'A glob is not empty.'
   if (g.startsWith('/'))
@@ -72,10 +52,6 @@ function badGlob(g: string) {
 const list = (v: unknown) =>
   typeof v === 'string' ? [v] : Array.isArray(v) ? (v as Array<unknown>) : null
 
-/**
- * Reads one trigger file. Every problem is reported, with the line it is on;
- * a file with any problem gives no triggers.
- */
 export function parseTriggers(
   text: string,
   file = `${TRIGGERS_DIR}/triggers.yml`,
@@ -193,11 +169,6 @@ export function parseTriggers(
   return errors.length ? { triggers: null, errors } : { triggers: out, errors }
 }
 
-/**
- * Every trigger file of a repository read together. Ids are unique across
- * files and there are at most 20 triggers. Any problem anywhere and the set
- * is null: the last valid set stays in force.
- */
 export function parseTriggerFiles(files: Record<string, string>): {
   triggers: Array<Trigger> | null
   errors: Array<FileError>
@@ -231,7 +202,6 @@ export function parseTriggerFiles(files: Record<string, string>): {
   return errors.length ? { triggers: null, errors } : { triggers: all, errors }
 }
 
-/** What a trigger is matched against: the event, and the change it is about. */
 export type TriggerEvent = {
   type: string
   actor: string
@@ -259,7 +229,6 @@ export function triggerMatches(t: Trigger, e: TriggerEvent) {
   return true
 }
 
-/** The triggers an event starts, in file order, and those over the cap. */
 export function triggersFor(triggers: ReadonlyArray<Trigger>, e: TriggerEvent) {
   const hit = triggers.filter((t) => triggerMatches(t, e))
   return {

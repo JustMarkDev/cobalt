@@ -14,13 +14,6 @@ import {
 import { clock } from './testing'
 import type { OperationId, Operations } from '@cobaltforge/sdk'
 
-/**
- * A page calls Convex itself (`screens.ts`); a client of the API calls the
- * operation. Both must answer the same, so a screen sees exactly what the
- * API would show the same person. Each read and write a screen makes runs
- * both ways here, and the answers are compared.
- */
-
 type Who = 'dana' | 'hollis' | null
 type Person = (
   kind: 'query' | 'mutation',
@@ -30,7 +23,6 @@ type Person = (
 ) => Promise<unknown>
 
 function world() {
-  // On the hour, so the hour a page reads for is the API's own clock.
   const now = clock(hourOf(T0) + 3 * 3_600_000)
   const api = createSampleApi({
     ephemeralSecrets: true,
@@ -73,7 +65,6 @@ function world() {
       const data =
         e instanceof ConvexError ? (e.data as { code?: string }) : null
       if (data?.code) return { refused: data.code }
-      // Arguments of the wrong shape never reach the function.
       if (e instanceof Error && /Validator error/.test(e.message))
         return { refused: 'invalid_request' }
       throw e
@@ -100,15 +91,12 @@ function world() {
   return { api, viaApi, viaScreen, writeViaScreen, now }
 }
 
-/** Ids and times differ between two worlds that each made the same thing. */
 function normal(value: unknown): unknown {
   return JSON.parse(
     JSON.stringify(value)
       .replace(/\b[a-z]{2,5}_[0-9a-z]{16,}\b/g, '<id>')
       .replace(/\bsx[a-z]_[0-9A-Za-z_-]{20,}/g, '<token>')
       .replace(/\d{4}-\d\d-\d\dT[\d:.]+Z/g, '<time>')
-      // A page writes from the browser session, the API from a token on a
-      // machine: the receipts differ by design, the rest must not.
       .replace(/"via":\{"machine":[^{}]*\}/g, '"via":"<via>"'),
   )
 }
@@ -247,9 +235,6 @@ describe('a screen reads what the API answers', () => {
 })
 
 describe('a screen writes what the API writes', () => {
-  // Two worlds, the same writes: one through the API, one as a page makes
-  // them. What one write made has a new id in each world, so an input that
-  // names it is made once per side.
   const worlds = [world(), world()] as const
   type Side = 0 | 1
   const done = new Set<OperationId>()
@@ -396,7 +381,6 @@ describe('a screen writes what the API writes', () => {
       ...at,
       rule: (rule[s] as { id: string }).id,
     }))
-    // Proposing opens a change to the policy file; a second edit adds to it.
     await same('dana', 'policy.proposals.create', {
       ...at,
       body: {
@@ -465,7 +449,6 @@ describe('a screen writes what the API writes', () => {
       handle: 'northwind',
       invitation: inv[s].id,
     }))
-    // A member, not an admin: refused both ways.
     await same('dana', 'invitations.create', {
       handle: 'lumen-studio',
       body: { email: 'other@example.com', role: 'member' },

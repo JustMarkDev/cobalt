@@ -6,13 +6,6 @@ import type { ChangeRec } from './changeTypes'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 
-/**
- * A change that edits the policy file landed: the file on the default branch
- * is now its text. When it reads, its rules become the repository's; when it
- * does not, the last valid rules stay and the errors are shown. On
- * code.storage this runs from the push that lands it; until the store gives
- * the push's files, it runs from the landed patch set's contents.
- */
 export async function readLandedPolicy(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -37,7 +30,6 @@ export async function readLandedPolicy(
     pol.landing = content.landing
   }
   await savePolicy(ctx, repo, pol)
-  // Every change's requirements are worked out again.
   for (const x of await ctx.db
     .query('changes')
     .withIndex('by_repoId_and_number', (q) => q.eq('repoId', repo._id))

@@ -17,10 +17,6 @@ import {
 
 const OSES: Array<Platform> = ['macos', 'windows', 'linux']
 
-/**
- * One button for the file that fits the machine you are on, plus a menu with
- * every other build. The choice is detected, never asked for.
- */
 export function DownloadButton({
   release,
   size = 'md',
@@ -30,7 +26,6 @@ export function DownloadButton({
   release: Release
   size?: 'sm' | 'md' | 'lg'
   className?: string
-  /** Called with the file when someone downloads it, to count it. */
   onDownload?: (file: string) => void
 }) {
   const { target, isOverridden } = useTarget()
@@ -68,8 +63,6 @@ export function DownloadButton({
     <div
       className={cn(
         'inline-flex rounded-lg',
-        // One keycap: the face and its shadow belong to the whole button, so
-        // pressing either half presses both.
         !none && 'raised bg-brand text-brand-foreground',
         className,
       )}
@@ -105,7 +98,6 @@ export function DownloadButton({
           }}
           title={why}
           className={cn(
-            // Focus is drawn inside each half, so it never crosses the divider.
             'inline-flex items-center gap-2 rounded-l-lg px-3 font-semibold whitespace-nowrap transition-colors hover:bg-white/15 focus-ring-inset [--focus-color:var(--brand-foreground)]',
             height,
           )}
@@ -127,8 +119,6 @@ export function DownloadButton({
           aria-label="Other downloads"
           className={cn(
             'inline-flex items-center rounded-r-lg px-1.5 transition-colors',
-            // One divider between the halves: the left half draws it when it
-            // has a border of its own, the trigger draws it otherwise.
             none
               ? 'border-y border-r bg-muted text-muted-foreground focus-ring-inset hover:bg-foreground/5 active:bg-foreground/10'
               : 'border-l border-brand-foreground/20 hover:bg-white/15 focus-ring-inset [--focus-color:var(--brand-foreground)]',
@@ -195,7 +185,6 @@ export function DownloadButton({
   )
 }
 
-/** Shows what we detected and lets the visitor correct it. */
 export function TargetPicker({ className }: { className?: string }) {
   const { target, isOverridden, setTarget } = useTarget()
   if (!target)

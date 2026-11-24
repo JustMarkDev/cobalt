@@ -8,7 +8,6 @@ const R = '/repos/dana/gitfs'
 const E = `${R}/env`
 const DEV_DB = 'postgres://dev:hunter2-dev-only@localhost:5432/gitfs'
 
-/** A call as a person signed in to the app, the way the web app makes one. */
 async function asSession(
   h: ReturnType<typeof harness>,
   handle: string,
@@ -28,7 +27,6 @@ async function asSession(
   return { status: res.status, json: text ? JSON.parse(text) : null }
 }
 
-/** A token for someone, with the scopes a test needs. */
 async function tokenFor(
   h: ReturnType<typeof harness>,
   handle: string,
@@ -119,8 +117,6 @@ describe('production needs you to confirm, from a signed-in page', () => {
       token: sampleTokens.scoped,
     })
     const id = asked.json.confirmation.id
-    // The token that asked has no secrets:write; the person's full token has
-    // every scope. Neither can confirm.
     const own = await h.call('POST', `${E}/confirmations/${id}/confirm`, {
       token: sampleTokens.scoped,
       body: { ttl_minutes: 60 },
@@ -153,8 +149,6 @@ describe('production needs you to confirm, from a signed-in page', () => {
       `${E}/confirmations/${asked.json.confirmation.id}/confirm`,
       {},
     )
-    // hollis is not in the team; even a teammate would get 404 for a request
-    // that is not theirs.
     expect(r.status).toBe(403)
     const mine = await h.call('GET', `${E}/confirmations`, {
       token: sampleTokens.scoped,
@@ -182,7 +176,6 @@ describe('production needs you to confirm, from a signed-in page', () => {
     expect(read.status).toBe(200)
     expect(read.json.values.STRIPE_KEY).toBe('sk_test_51MockMockMockMock9x')
     expect(read.json.confirmation).toBe(asked.json.confirmation.id)
-    // The same person on another machine is another login: it asks for itself.
     const other = await h.call('GET', `${E}/production/values`, {
       token: sampleTokens.dana,
     })
@@ -202,14 +195,12 @@ describe('production needs you to confirm, from a signed-in page', () => {
     const read = () =>
       h.call('GET', `${E}/production/values`, { token: sampleTokens.scoped })
     expect((await read()).status).toBe(200)
-    // Ending it takes secrets:write: from the page, or a token that may set values.
     expect(
       (await asSession(h, 'dana', 'POST', `${E}/confirmations/${id}/revoke`))
         .json.state,
     ).toBe('revoked')
     expect((await read()).json.code).toBe('confirmation_required')
 
-    // A fresh confirmation, then time passes it by.
     const again = await h.call('GET', `${E}/production/values`, {
       token: sampleTokens.scoped,
     })
@@ -250,7 +241,6 @@ describe('production needs you to confirm, from a signed-in page', () => {
     })
     expect(r.status).toBe(403)
     expect(r.json.code).toBe('confirmation_required')
-    // From the page, the person sets it directly.
     const page = await asSession(
       h,
       'dana',
@@ -321,8 +311,6 @@ describe('values are sealed, and never leave any other way', () => {
     expect(r.status).toBe(400)
   })
 
-  // Moves the ciphertext inside the memory store; the check it proves is in
-  // the operation, which both backends share.
   test.skipIf(onConvex)(
     'a sealed value moved to another variable does not open there',
     async () => {
@@ -331,7 +319,6 @@ describe('values are sealed, and never leave any other way', () => {
         token: sampleTokens.scoped,
       })
       const x = (h.api.domain.svc.extras as ExtrasStore).for('dana/gitfs')
-      // Someone with the database swaps one ciphertext into another slot.
       x.sealed.API_PORT.development = x.sealed.DATABASE_URL.development
       const r = await h.call('GET', `${E}/development/values`, {
         token: sampleTokens.scoped,
@@ -354,7 +341,6 @@ describe('values are sealed, and never leave any other way', () => {
       body: { value: 'x' },
     })
     expect(write.json.code).toBe('secrets_unavailable')
-    // Names still work: they were never secret.
     expect((await h.call('GET', E)).status).toBe(200)
   })
 
@@ -517,7 +503,6 @@ describe('a transfer, and what does not cross', () => {
   test('to another owner: old grants, maintainers and limited tokens stay behind', async () => {
     const h = harness()
     const ines = await tokenFor(h, 'ines', ['repo:read', 'pulls:write'])
-    // ines could write to dana/gitfs as a collaborator.
     const before = await h.call('POST', `${R}/changes`, {
       token: ines,
       body: { branch: 'before-transfer' },
@@ -530,7 +515,6 @@ describe('a transfer, and what does not cross', () => {
     const repo = (await h.call('GET', '/repos/northwind/gitfs')).json
     expect(repo.maintainers).toEqual([])
     expect(repo.auto_land).toBe(false)
-    // She is not in northwind: what dana granted stayed with dana.
     const after = await h.call('POST', '/repos/northwind/gitfs/changes', {
       token: ines,
       body: { branch: 'after-transfer' },
@@ -556,7 +540,6 @@ test('a token limited to a repository does not follow it to a new owner', async 
   await h.call('POST', `${R}/transfer`, {
     body: { owner: 'northwind', confirm: 'dana/gitfs' },
   })
-  // dana owns northwind too, but this token was for her repository, not theirs.
   expect((await open('/repos/northwind/gitfs', 'after')).status).not.toBe(201)
 })
 

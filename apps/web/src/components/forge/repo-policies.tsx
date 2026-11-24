@@ -26,7 +26,6 @@ const modeLabel = {
   off: 'Off',
 } as const
 
-/** A change described by what it touches: every account gets the same rules. */
 type Probe = {
   paths: Set<string>
   size: number
@@ -38,10 +37,6 @@ const matches: Record<string, (p: Probe) => boolean> = {
   reviewed: () => true,
 }
 
-/**
- * For a rule the repository wrote: `any change` always applies, and `paths a, b`
- * applies when the change touches a folder one of the globs starts with.
- */
 function fromWhen(when: string): (p: Probe) => boolean {
   if (!when.startsWith('paths ')) return () => true
   const tops = when
@@ -231,7 +226,6 @@ export function PoliciesPage({ repo }: { repo: Repo }) {
   const exceptions = set.exceptions
   const done = (r: { error: { message: string } | null }) =>
     setError(r.error?.message ?? '')
-  // Once the rules live in the file, saving here proposes: a change to it.
   const inFile = set.source.state !== 'settings'
   const [proposed, setProposed] = React.useState<{
     change: number
@@ -543,7 +537,6 @@ type PolicyEditBody = Extract<
 
 type Landing = ReturnType<typeof useOp<'policy.rules'>>['landing']
 
-/** Where the rules come from, a file that does not read, and open policy changes. */
 function PolicySource({
   repo,
   source,
@@ -631,7 +624,6 @@ function PolicySource({
   )
 }
 
-/** The policy file's `landing:` section, editable once the rules live in the file. */
 function LandingSettings({
   landing,
   editable,
@@ -639,7 +631,6 @@ function LandingSettings({
 }: {
   landing: Landing
   editable: boolean
-  /** Steps are edited in the file; the page sets the rest. */
   onChange: (l: Partial<Omit<Landing, 'steps'>>) => void
 }) {
   const steps = landing.steps.map((s) =>
@@ -746,7 +737,6 @@ type RuleBody = {
   max_lines?: number
 }
 
-/** A rule the repository writes for itself: a check, a path owner, or a size limit. */
 function WriteRule({
   open,
   onClose,

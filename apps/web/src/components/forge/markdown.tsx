@@ -46,7 +46,6 @@ function Heading({
       : level === 2
         ? 'mt-10 border-b pb-2 text-xl font-semibold tracking-tight'
         : 'mt-7 text-base font-semibold'
-  // The repository page already has the h1. A README's # is the next level down.
   const Tag = (['h2', 'h3', 'h4'] as const)[level - 1]
   return (
     <Tag id={id} className={cn('group scroll-mt-header', size)}>
@@ -174,7 +173,6 @@ const components: Components = {
   code: ({ className, children }) => {
     const code = textOf(children).replace(/\n$/, '')
     const lang = /language-(\w+)/.exec(className ?? '')?.[1]
-    // react-markdown gives block code a language class or a trailing newline.
     if (lang || textOf(children).endsWith('\n'))
       return <CodeBlock lang={lang ?? ''} code={code} />
     return (
@@ -198,7 +196,6 @@ export function headingsOf(
   return out
 }
 
-/** Renders markdown the way a README should read: calm type, anchors, copyable code. */
 export function MarkdownBody({
   source,
   className,
@@ -217,8 +214,6 @@ export function MarkdownBody({
 
 export type RepoDoc = 'readme' | 'contributing' | 'license'
 
-/** The README card: README, Contributing and License swap in place, like tabs on one page. */
-/** The file each document tab shows. */
 const DOC_FILES: Record<RepoDoc, string> = {
   readme: 'README.md',
   contributing: 'CONTRIBUTING.md',

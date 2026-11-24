@@ -5,7 +5,6 @@ import type { CommitInfo, FileDiff } from '@pierre/storage'
 import { contributingFor, licenseFor, readmeFor } from './sample-docs'
 import type { GitRepo } from './index'
 
-// Each commit lists the files it touches; null deletes the file.
 type FixtureCommit = {
   message: string
   author: string
@@ -69,12 +68,6 @@ const fixtures: Partial<Record<string, Array<FixtureCommit>>> = {
     },
   ],
 }
-
-// ---------------------------------------------------------------------------
-// Generated history. The sample repositories need more than two commits to
-// look like projects: a tree with docs, policy and source, and a history by
-// several people, an agent and a bot. It is derived from the repository's
-// name, so it is the same on every run.
 
 type Sample = {
   owner: string
@@ -216,7 +209,6 @@ function baseFiles(name: string, s: Sample): Record<string, string> {
   }
 }
 
-/** Who writes the sample history. The email is how the forge knows the account. */
 const people: Array<[name: string, login: string]> = [
   ['Dana Okafor', 'dana'],
   ['Hollis Reyes', 'hollis'],
@@ -257,14 +249,11 @@ function seeded(seed: number) {
 }
 
 const GENERATED = 58
-/** The newest generated commit, when a repository has no written ones. */
 const SAMPLE_NOW = Date.UTC(2026, 10, 4, 12, 0)
 
-/** The generated commits of a sample repository, oldest first. */
 function generated(id: string, s: Sample, end: number): Array<FixtureCommit> {
   const seed = Array.from(id).reduce((n, c) => n + c.charCodeAt(0), 7)
   const rand = seeded(seed)
-  // Newest first, as a history reads; reversed at the end.
   const out: Array<FixtureCommit> = []
   let hours = 2
   for (let i = 0; i < GENERATED; i++) {
@@ -280,7 +269,6 @@ function generated(id: string, s: Sample, end: number): Array<FixtureCommit> {
     })
   }
   out.reverse()
-  // Every commit changes something, so every commit has a diff.
   let changelog = baseFiles(id, s)['CHANGELOG.md']
   let notes = '# Notes\n'
   out.forEach((c, i) => {
@@ -302,7 +290,6 @@ function generated(id: string, s: Sample, end: number): Array<FixtureCommit> {
 const authorEmail = (name: string) =>
   `${people.find(([n]) => n === name)?.[1] ?? name.split(' ')[0].toLowerCase()}@users.cobaltforge.dev`
 
-/** Every commit of a repository, oldest first: the generated ones, then the written ones. */
 function history(id: string): Array<FixtureCommit> | undefined {
   const written = fixtures[id]
   const sample = samples[id]
@@ -322,7 +309,6 @@ function notFound(what: string) {
   })
 }
 
-// Partial: a lookup for a missing path is undefined at runtime, and the types should say so.
 type Tree = Partial<Record<string, string>>
 type Built = { info: CommitInfo; tree: Tree; parentTree: Tree }
 
@@ -429,7 +415,6 @@ function fileDiff(
   }
 }
 
-// Implements the subset of @pierre/storage's Repo the app uses, from in-memory fixtures.
 export function fakeRepo(id: string): GitRepo {
   return {
     async listFiles(opts) {

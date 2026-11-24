@@ -4,11 +4,6 @@ import { system } from '../lib/actor'
 import { out } from '../lib/errors'
 import { repoUrl } from '../lib/present'
 
-/**
- * Everything searchable, a page of repositories at a time, for an API
- * server building its search index. The index is the server's cache; it
- * follows the event feed after this.
- */
 export const docs = query({
   args: { after: v.union(v.null(), v.string()), repos: v.number() },
   returns: v.string(),

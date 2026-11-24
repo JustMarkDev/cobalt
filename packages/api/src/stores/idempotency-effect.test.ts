@@ -9,14 +9,8 @@ import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 import { sampleTokens } from '../sample'
 
-// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
-/**
- * A write and its Idempotency-Key commit together. A request that crashed is
- * then told apart by what it did: one that wrote nothing runs again once its
- * lease ends, one that wrote never runs twice.
- */
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
 for (const f of new Bun.Glob('**/*.{ts,js}').scanSync(dir))
@@ -37,7 +31,6 @@ async function setup() {
   await t.run((ctx) =>
     load(ctx, exportWorld(sample.domain, sample.domain.svc.auth as never)),
   )
-  // The lease each key was last handed, as the API would hold it.
   const leases = new Map<string, string>()
   const begin = async (key: string) => {
     const r = await t.mutation(forge.apiStores.beginIdempotency, {
@@ -57,7 +50,6 @@ async function setup() {
       key,
       lease,
     })
-  // Dana, as the API signs her: the principal, and the key her request holds.
   const dana = (key: string | null, lease = key && leases.get(key)) =>
     t.withIdentity({
       subject: 'dana',
@@ -88,14 +80,12 @@ test('a request that wrote and then crashed never runs again', async () => {
   const { begin, openIssue, later } = await setup()
   expect((await begin('k1')).state).toBe('new')
   await openIssue('k1', 'Written, then the server died')
-  // No complete: the server crashed after the write.
   expect((await begin('k1')).state).toBe('in_progress')
   later()
   const after = await begin('k1')
   expect(after.state).toBe('replay')
   expect(after.response?.status).toBe(409)
   expect(JSON.parse(after.response!.body).code).toBe('request_outcome_unknown')
-  // And it stays that way.
   expect((await begin('k1')).state).toBe('replay')
 })
 
@@ -105,7 +95,6 @@ test('a request that crashed before writing runs again once its lease ends', asy
   expect((await begin('k2')).state).toBe('in_progress')
   later()
   expect((await begin('k2')).state).toBe('new')
-  // The retry holds a fresh lease.
   expect((await begin('k2')).state).toBe('in_progress')
 })
 
@@ -163,7 +152,6 @@ test('the API signs the held key into each call, and only while the request hold
   )
   expect((await inside).cb_idem).toBe('["s","k","l1"]')
 
-  // Through the pipeline: the domain sees the key only for a keyed write.
   const api = createSampleApi({})
   const seen: Array<unknown> = []
   const original = api.domain.createIssue.bind(api.domain)

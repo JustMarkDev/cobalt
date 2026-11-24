@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { harness } from './testing'
 import type { Transport } from './webhooks'
 
-/** A receiver that accepts everything, so creating a webhook never reaches the network. */
 class OkTransport implements Transport {
   send() {
     return Promise.resolve({ status: 200, error: null, ms: 1 })
@@ -23,11 +22,9 @@ describe('renaming, editing and deleting a repository', () => {
     expect(r.json.description).toBe('Renamed')
     expect(r.json.id).toBe(before.id)
     expect((await h.call('GET', '/repos/dana/gitfs-core')).status).toBe(200)
-    // The old address redirects, with the new one in Location.
     const old = await h.call('GET', REPO)
     expect(old.status).toBe(308)
     expect(old.headers.get('location')).toContain('/repos/dana/gitfs-core')
-    // What belonged to the repository went with it.
     expect(
       (await h.call('GET', '/repos/dana/gitfs-core/changes/216')).status,
     ).toBe(200)
@@ -64,7 +61,6 @@ describe('renaming, editing and deleting a repository', () => {
 
   test('only an admin of the account may do it, and a stale If-Match is refused', async () => {
     const h = harness()
-    // hollis can write to dana/gitfs but does not administer dana's account.
     const denied = await h.call('PATCH', REPO, {
       token: h.tokens.hollis,
       body: { description: 'x' },
@@ -127,7 +123,6 @@ describe('renaming, editing and deleting a repository', () => {
     expect(
       (await h.call('GET', REPO, { token: h.tokens.stranger })).status,
     ).toBe(404)
-    // And search no longer finds it for them.
     const found = await h.call('GET', '/search?q=negative', {
       token: h.tokens.stranger,
     })
@@ -154,7 +149,6 @@ describe('renaming, editing and deleting a repository', () => {
     expect(
       (await h.call('GET', '/events?type=repo.deleted')).json.data,
     ).toHaveLength(1)
-    // The name is free again.
     const again = await h.call('POST', '/repos', { body: { name: 'gitfs' } })
     expect(again.status).toBe(201)
     expect((await h.call('GET', `${REPO}/webhooks`)).json.data).toEqual([])
@@ -176,7 +170,6 @@ describe('asking for markdown', () => {
     expect(change.text).toContain('## Policy:')
     expect(change.text).toContain('## You can')
     const json = (await h.call('GET', `${REPO}/changes/216`)).json
-    // Every fact in the text is in the object it was made from.
     expect(change.text).toContain(json.title)
     expect(change.text).toContain(json.head.tree)
     expect(change.text.length).toBeLessThan(JSON.stringify(json).length)
@@ -199,7 +192,6 @@ describe('asking for markdown', () => {
     const m = await h.call('GET', `${REPO}/changes/216`, { headers: md })
     expect(j.headers.get('etag')).not.toBe(m.headers.get('etag'))
     expect(j.headers.get('vary')).toContain('accept')
-    // Conditional reads work in each form, and again after the body cache is warm.
     expect(
       (
         await h.call('GET', `${REPO}/changes/216`, {
@@ -212,7 +204,6 @@ describe('asking for markdown', () => {
     expect((await h.call('GET', `${REPO}/changes/216`)).json.object).toBe(
       'change',
     )
-    // An operation without a readable form answers JSON as usual.
     expect(
       (await h.call('GET', `${REPO}/changes`, { headers: md })).json.object,
     ).toBe('list')
@@ -238,7 +229,6 @@ describe('git data', () => {
     const names = root.json.entries.map((e: { name: string }) => e.name)
     expect(names).toContain('README.md')
     const kinds = root.json.entries.map((e: { type: string }) => e.type)
-    // Directories come before files.
     expect(kinds.indexOf('blob')).toBeGreaterThanOrEqual(
       kinds.lastIndexOf('tree'),
     )
@@ -280,7 +270,6 @@ describe('git data', () => {
     expect(
       second.json.data.every((c: { sha: string }) => !seen.has(c.sha)),
     ).toBe(true)
-    // The history is newest first: each commit's parent is the next one down.
     const all = [...first.json.data, ...second.json.data]
     expect(all[0].parents[0]).toBe(all[1].sha)
 
@@ -445,7 +434,6 @@ describe('teams', () => {
     ).toBe(404)
 
     await h.call('PUT', `${ORG}/readers/members/stranger`)
-    // A member of a team with no repositories still sees nothing.
     expect(
       (await h.call('GET', vault, { token: h.tokens.stranger })).status,
     ).toBe(404)
@@ -479,7 +467,6 @@ describe('teams', () => {
       ).status,
     ).toBe(201)
 
-    // Taking the person out, or the team away, takes the access with it.
     await h.call('DELETE', `${ORG}/readers/members/stranger`)
     expect(
       (await h.call('GET', vault, { token: h.tokens.stranger })).status,

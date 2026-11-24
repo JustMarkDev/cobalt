@@ -9,7 +9,6 @@ const modeOf = async (h: H, rule: string) =>
     (r: { id: string }) => r.id === rule,
   ).mode
 
-/** Approve as a maintainer, pass CI on the tree, land. */
 async function landIt(h: H, n: number) {
   await h.call('POST', `${R}/changes/${n}/reviews`, {
     token: h.tokens.hollis,
@@ -56,7 +55,6 @@ describe('the rules live in the repository', () => {
         edits: [{ op: 'set_mode', rule: 'reviewed', mode: 'enforce' }],
       },
     })
-    // A dry run answers 200, as every dry run does, with the diff and no change.
     expect(dry.status).toBe(200)
     expect(dry.json).toMatchObject({ object: 'policy_proposal', change: null })
     expect(dry.json.diff).toContain('+    mode: enforce')
@@ -76,12 +74,10 @@ describe('the rules live in the repository', () => {
     const n = first.json.change as number
     const change = (await h.call('GET', `${R}/changes/${n}`)).json
     expect(change.title).toContain('Move the rules into the policy file')
-    // Nothing applies yet.
     expect(await modeOf(h, 'reviewed')).toBe('dry-run')
     const pending = (await h.call('GET', `${R}/policy`)).json.source.pending
     expect(pending.map((x: { change: number }) => x.change)).toEqual([n])
 
-    // A second edit goes on the same change.
     const second = await h.call('POST', `${R}/policy/proposals`, {
       body: {
         edits: [
@@ -101,7 +97,6 @@ describe('the rules live in the repository', () => {
       patch_set: 2,
     })
 
-    // The policy folder protects itself: a maintainer has to approve.
     const blocked = (await h.call('GET', `${R}/changes/${n}/landability`)).json
     expect(blocked.landable).toBe(false)
     expect(blocked.blockers.map((b: { id: string }) => b.id)).toContain(
@@ -114,7 +109,6 @@ describe('the rules live in the repository', () => {
     expect(after.source.pending).toEqual([])
     expect(after.yaml).toContain('fresh_approvals: true')
     expect(await modeOf(h, 'reviewed')).toBe('enforce')
-    // The exceptions there were moved with the rules, and the new one added.
     expect(after.exceptions.map((e: { who: string }) => e.who)).toEqual([
       'ines',
       'hollis',
@@ -164,7 +158,6 @@ describe('the rules live in the repository', () => {
         (r: { id: string }) => r.id === 'docs-review',
       ),
     ).toBe(false)
-    // A built-in rule still cannot be deleted.
     expect(
       (await h.call('DELETE', `${R}/policy/rules/ci-evidence`)).status,
     ).toBe(409)
@@ -223,12 +216,10 @@ describe('the rules live in the repository', () => {
       resolve: 'author',
       fresh_approvals: true,
     })
-    // Landing now waits for ci/build.
     const l = (await h.call('GET', `${R}/changes/216/landability`)).json
     expect(l.blockers.map((b: { id: string }) => b.id)).toContain(
       'landing:wait_checks:ci/build',
     )
-    // Only the person who started a thread settles it.
     const c = await h.call('POST', `${R}/changes/216/comments`, {
       token: h.tokens.hollis,
       body: { body: 'Is this bounded?', file: 'src/refs.rs', line: 1 },
@@ -243,7 +234,6 @@ describe('the rules live in the repository', () => {
 })
 
 describe('the landing engine', () => {
-  /** Polls an operation until it ends. */
   async function ended(h: H, id: string) {
     let op = (await h.call('GET', `/operations/${id}`)).json
     for (
@@ -257,7 +247,6 @@ describe('the landing engine', () => {
     return op
   }
 
-  /** Lands a proposal that sets the landing steps. */
   async function withSteps(h: H, steps: Array<Record<string, unknown>>) {
     const made = await h.call('POST', `${R}/policy/proposals`, {
       body: { edits: [{ op: 'set_landing', steps }] },
@@ -265,7 +254,6 @@ describe('the landing engine', () => {
     await landIt(h, made.json.change)
   }
 
-  /** Change 216 made ready to land: findings resolved, CI passed. */
   async function ready216(h: H) {
     await h.call('POST', `${R}/changes/216/findings/F-2/resolve`)
     const l = (await h.call('GET', `${R}/changes/216/landability`)).json

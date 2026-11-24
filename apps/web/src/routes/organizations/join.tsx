@@ -10,7 +10,6 @@ import { switchAccount, useAccount, useMe } from '~/lib/auth/accounts'
 import { useWrite } from '~/lib/forge'
 import type { Member } from '@cobaltforge/sdk'
 
-/** Where the link in an invitation email leads. */
 export const Route = createFileRoute('/organizations/join')({
   head: () => ({ meta: [{ title: 'Join an organization · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): { token?: string } => ({
@@ -36,8 +35,6 @@ function Join() {
   const me = useMe()
   const write = useWrite()
   const navigate = useNavigate()
-  // What accepting would do, asked without doing it, so the page can say
-  // which organization this is before you join.
   const dryRun = useQuery({
     queryKey: ['invitation-offer', token, me?.handle],
     queryFn: async () => {

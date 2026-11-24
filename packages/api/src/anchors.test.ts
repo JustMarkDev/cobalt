@@ -4,7 +4,6 @@ import { harness } from './testing'
 
 const C = '/repos/dana/gitfs/changes/216'
 
-/** src/refs.rs in patch set 3 of #216. */
 const REFS = [
   'pub struct Refs {',
   '    disk: Disk,',
@@ -54,12 +53,10 @@ describe('comments follow the code', () => {
       ...REFS,
     ])
     expect(start).toMatchObject({ current_line: 10, outdated: false })
-    // A reply is wherever its thread is.
     expect(reply).toMatchObject({ current_line: 10, outdated: false })
   })
 
   test('when its code is moved', async () => {
-    // The struct moves below the impl; the comment is on a field in it.
     const { start } = await commentThenPush(2, [
       ...REFS.slice(5),
       '',
@@ -99,7 +96,6 @@ describe('comments follow the code', () => {
       },
     })
     expect(made.json.anchor.quote).toBe(REFS.slice(7, 10).join('\n'))
-    // The check's body changes: the quote no longer matches, so it is outdated.
     await h.call('POST', `${C}/patch-sets`, {
       body: {
         kind: 'update',
@@ -150,7 +146,6 @@ describe('fixes linked to the comments they answer', () => {
       by: { handle: 'dana' },
       note: 'Capped at 1,024 entries.',
     })
-    // Addressed is not resolved.
     expect(got.resolved).toBe(false)
     const inbox = (await h.call('GET', '/notifications', hollis)).json.data
     expect(

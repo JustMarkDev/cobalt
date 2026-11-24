@@ -4,11 +4,6 @@ import { INBOX_MAX } from '../inbox'
 import { Domain, defineOp } from '../registry'
 import * as S from '../schemas'
 
-/**
- * The inbox answers "what needs me", not "what happened": a queue worked out
- * from the state of things, so a review that lands or a build that goes green
- * leaves it by itself. `notifications.list` stays the activity feed.
- */
 export const listInbox = defineOp({
   id: 'inbox.list',
   summary: 'What needs you now',

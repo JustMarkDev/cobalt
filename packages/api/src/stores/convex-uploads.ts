@@ -10,11 +10,6 @@ import type {
   UploadSigner,
 } from '../uploads'
 
-/**
- * Upload records in Convex (`convex/forge/uploads.ts`), bytes in a
- * `BlobStore` (the bucket). A request reads copies of records; what it
- * changed on them (attached to a repository, say) is saved when it is done.
- */
 type Held = { rec: UploadRec; json: string }
 
 export const uploadScope = new AsyncLocalStorage<Map<string, Held>>()
@@ -73,7 +68,6 @@ export class ConvexUploads implements UploadPort {
     )
   }
 
-  /** Counting runs the expiry sweep first, as the memory store does. */
   async countPending(owner: string) {
     await this.sweepNow()
     return await run<number>(
@@ -93,11 +87,6 @@ export class ConvexUploads implements UploadPort {
     return this.signer.verify(rec, exp, sig, this.now())
   }
 
-  /**
-   * The upload is marked as having its file before its bytes are kept, in
-   * one step that only one request can win; if keeping them then fails, the
-   * mark is taken back. A second request never overwrites the first's bytes.
-   */
   async put(rec: UploadRec, bytes: Uint8Array, contentType: string) {
     const problem = checkFile(rec, bytes, contentType, this.blobs)
     if (problem) return problem
@@ -124,7 +113,6 @@ export class ConvexUploads implements UploadPort {
     }
     rec.sha256 = sha256
     rec.state = 'uploaded'
-    // Already saved by `receive`.
     const held = uploadScope.getStore()?.get(rec.id)
     if (held?.rec === rec) held.json = fields(rec)
     return null

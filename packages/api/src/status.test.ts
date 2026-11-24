@@ -51,7 +51,6 @@ describe('images and recordings on an issue', () => {
       await h.call('GET', `${R}/issues/4/evidence`, { token: null })
     ).json.data
     expect(list).toHaveLength(1)
-    // A visitor can read the file of a public repository's issue.
     const file = await h.call('GET', `/uploads/${id}/content`, { token: null })
     expect(file.status).toBe(200)
   })
@@ -102,7 +101,6 @@ describe('the status report', () => {
     expect(api.days).toHaveLength(90)
     const git = s.services.find((x: { id: string }) => x.id === 'git')
     expect(git.requests).toBe(1)
-    // The sample has a mirror that is failing.
     const mirrors = s.services.find((x: { id: string }) => x.id === 'mirrors')
     expect(mirrors.state).toBe('degraded')
     expect(s.state).not.toBe('up')

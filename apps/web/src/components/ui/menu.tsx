@@ -2,7 +2,6 @@ import * as React from 'react'
 import { Menu } from '@base-ui/react/menu'
 import { cn } from 'cn'
 
-/** A dropdown. Pass a trigger element; items go inside `MenuItem`. */
 function Dropdown({
   trigger,
   children,

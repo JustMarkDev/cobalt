@@ -4,10 +4,6 @@ import { Chip, Panel, SectionLabel } from './bits'
 import type { Repo } from '~/lib/model/data'
 import { useOpMaybe } from '~/lib/forge'
 
-/**
- * The changes that link the issue, and whether each says it fixes it. Read
- * from its timeline.
- */
 export function IssueHistory({ repo, n }: { repo: Repo; n: number }) {
   const at = { owner: repo.owner, repo: repo.name }
   const timeline = useOpMaybe('issues.timeline', {

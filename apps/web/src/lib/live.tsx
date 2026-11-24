@@ -4,14 +4,6 @@ import { useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 import type { Query, QueryClient } from '@tanstack/react-query'
 
-/**
- * Keeps what is on screen current. The page's reads are named by their query
- * keys (`['cb', id, input]`), and their inputs say which repository or
- * account each is about. One live Convex query watches just those, and the
- * viewer's own things; when one moves, only the reads about it are fetched
- * again. A write in one repository does not make every open page read
- * everything again.
- */
 type Scope = { repos: Array<string>; accounts: Array<string> }
 type Watched = {
   repos: Record<string, number>
@@ -25,13 +17,11 @@ const inputOf = (q: Pick<Query, 'queryKey'>) => {
   return input as Record<string, unknown>
 }
 
-/** The repository a read is about, as `owner/name`, lowercase. */
 const repoOf = (input: Record<string, unknown>) =>
   typeof input.owner === 'string' && typeof input.repo === 'string'
     ? `${input.owner}/${input.repo}`.toLowerCase()
     : null
 
-/** The account a read is about, when it is about no repository. */
 const accountOf = (input: Record<string, unknown>) =>
   typeof input.handle === 'string'
     ? input.handle
@@ -62,11 +52,6 @@ const same = (a: Scope, b: Scope) =>
 
 const nobody: Scope = { repos: [], accounts: [] }
 
-/**
- * What the page reads, as a store over the query cache. It looks again a
- * moment after reads come and go, and keeps the old scope when nothing that
- * matters changed, so the live query is not re-subscribed for nothing.
- */
 function scopeStore(queries: QueryClient) {
   const cache = queries.getQueryCache()
   let scope = scopeOf(cache.getAll())
@@ -103,7 +88,6 @@ export function LiveForge() {
     () => nobody,
   )
   const live = useQuery(api.forge.live.watch, scope)
-  // The last answer, kept across scopes: a key in both is compared.
   const seen = React.useRef<Watched | undefined>(undefined)
   React.useEffect(() => {
     if (live === undefined) return
@@ -114,7 +98,6 @@ export function LiveForge() {
   return null
 }
 
-/** Read again what is about a repository or account whose version moved. */
 function invalidateMoved(queries: QueryClient, before: Watched, live: Watched) {
   const moved = (was: Record<string, number>, now: Record<string, number>) =>
     new Set(Object.keys(now).filter((k) => k in was && was[k] !== now[k]))
@@ -130,8 +113,6 @@ function invalidateMoved(queries: QueryClient, before: Watched, live: Watched) {
       if (r) return repos.has(r)
       const a = accountOf(input)
       if (a && accounts.has(a)) return true
-      // A read about no one place (the dashboard, notifications) follows
-      // the viewer, and anything the page watches.
       return me || (!a && (repos.size > 0 || accounts.size > 0))
     },
   })

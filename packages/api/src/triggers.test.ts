@@ -9,12 +9,6 @@ import { gitWith, harness, onConvex } from './testing'
 import type { MemoryDomain } from './domain'
 import type { Trigger } from './trigger-file'
 
-/**
- * `.source/triggers/*.yml` says what starts a workflow on an event. The file
- * is the API: it is read when it lands, the last valid set stays in force,
- * and `change.landed` starts what matches, once per event, at most three.
- */
-
 const R = '/repos/dana/gitfs'
 const DIR = '.source/triggers'
 
@@ -31,7 +25,6 @@ const VALID = `triggers:
     run: docs
 `
 
-/** A change in dana/gitfs holding these files, approved and green, ready to land. */
 function seedFiles(
   d: MemoryDomain,
   n: number,
@@ -208,7 +201,6 @@ describe('the trigger file', () => {
     expect(triggerMatches(t({ model: ['gpt'] }), { ...e, model: null })).toBe(
       false,
     )
-    // At most three start for one event.
     const four = Array.from({ length: 4 }, (_, i) => ({
       ...t({}),
       id: `t${i}`,
@@ -234,7 +226,6 @@ describe('triggers when a change lands', () => {
     expect(set.errors).toEqual([])
     expect(set.triggers.map((t: any) => t.id)).toEqual(['build-src', 'docs'])
     expect(set.files[0].path).toBe(`${DIR}/ci.yml`)
-    // #901 touched src/, so build-src started build, once.
     const runs = await runsBy(h)
     expect(runs).toHaveLength(1)
     expect(runs[0]).toMatchObject({ workflow: 'build', actor: 'dana' })
@@ -261,7 +252,6 @@ describe('triggers when a change lands', () => {
     expect((await h.call('GET', `${R}/changes/902`)).json.state).toBe('landed')
     const told = (await h.call('GET', '/notifications?kind=ci')).json.data
     expect(told.some((n: any) => n.title.includes('Trigger docs'))).toBe(true)
-    // docs/ is not src/: build-src did not start for #902.
     expect(await runsBy(h)).toHaveLength(0)
   })
 
@@ -326,7 +316,6 @@ describe('triggers when a change lands', () => {
     })
     await land(h, 901)
     const before = (await runsBy(h)).length
-    // A change landing in dana/tinyqueue is not dana/gitfs's event.
     expect(
       (await h.call('GET', '/repos/dana/tinyqueue/triggers')).json.triggers,
     ).toEqual([])
@@ -353,7 +342,6 @@ describe('triggers when a change lands', () => {
       const run = [...repo.triggerRuns!.values()].find(
         (r) => r.triggerId === 'build-src' && r.state === 'started',
       )!
-      // A retry of the same event, with the same sequence, finds it recorded.
       d.dispatchTriggers(
         repo,
         c,
@@ -424,7 +412,6 @@ describe('the labels of a run a trigger started', () => {
       })
       const d = h.api.port as unknown as MemoryDomain
       const repo = d.repos.get('dana/gitfs')!
-      // Land without the API's follow-up, as a stack landing step does.
       ;(d as unknown as { doLand: (...a: Array<unknown>) => void }).doLand(
         repo,
         repo.changes.get(901)!,
@@ -437,7 +424,6 @@ describe('the labels of a run a trigger started', () => {
           body: { runner: 'r' },
         })
         if (c.status === 204) break
-        // The claim reads the labels first; the run is then no longer pending.
         expect(pending.runsOnPending).toBe(false)
       }
       expect(pending.runsOnPending).toBe(false)

@@ -14,13 +14,7 @@ import type { ChangeRec } from './lib/changeTypes'
 import type { Id } from './_generated/dataModel'
 import type { MutationCtx } from './_generated/server'
 
-/**
- * Loads a world of sample data (`packages/api/src/seed-export.ts`) into an
- * empty deployment. Tests load it into `convex-test`; a development
- * deployment loads the same world, so both start from the same place.
- */
 export async function load(ctx: MutationCtx, w: World) {
-  // The rows below are counted by the tally fill, not one by one.
   await forgetTallies(ctx)
   const accountIds = new Map<string, Id<'accounts'>>()
   for (const a of w.accounts) {
@@ -39,8 +33,6 @@ export async function load(ctx: MutationCtx, w: World) {
       }),
     )
   }
-  // Sample accounts are not real customers: they hold every feature, so what
-  // the sample shows is not limited by a plan. The grant ends in 100 years.
   for (const [handle, accountId] of accountIds)
     await ctx.db.insert('planGrants', {
       accountId,
@@ -88,7 +80,6 @@ export async function load(ctx: MutationCtx, w: World) {
       ...fields
     } = r
     let ownerId = accountIds.get(r.owner)
-    // A test may seed a repository for someone the sample has no account for.
     if (!ownerId) {
       ownerId = await ctx.db.insert('accounts', {
         kind: 'person',
@@ -137,7 +128,6 @@ export async function load(ctx: MutationCtx, w: World) {
     }
     for (const json of releases)
       await insertRelease(ctx, id, JSON.parse(json) as Release)
-    // Oldest first, so the counters end where the sample does.
     for (const json of [...pipelines].reverse())
       await insertRun(ctx, repoDoc, JSON.parse(json) as PipelineRun)
     if (policy)
@@ -179,7 +169,6 @@ export async function load(ctx: MutationCtx, w: World) {
       if (repoId) await ctx.db.insert('teamRepos', { teamId, repoId, level })
     }
   }
-  // Tokens keep repository ids, so a rename never needs them rewritten.
   const refs = new Map(
     w.repos.map((r) => [`${r.owner}/${r.name}`.toLowerCase(), r.publicId]),
   )
@@ -272,7 +261,6 @@ export async function load(ctx: MutationCtx, w: World) {
   for (const a of w.authorizations) await ctx.db.insert('authorizations', a)
 }
 
-/** Loads a world given as JSON text, on an empty deployment only. */
 export const loadWorld = internalMutation({
   args: { world: v.string() },
   returns: v.null(),
@@ -284,10 +272,6 @@ export const loadWorld = internalMutation({
   },
 })
 
-/**
- * The API server seeds an empty development deployment with the sample it
- * builds. Only the API server may (its own JWT), and only once.
- */
 export const loadSample = mutation({
   args: { world: v.string() },
   returns: v.string(),
@@ -299,10 +283,6 @@ export const loadSample = mutation({
   },
 })
 
-/**
- * After a reseed: point each account back at the sign-in user it had, and
- * bring back people who signed up, so existing sign-ins keep working.
- */
 export const relink = internalMutation({
   args: {
     links: v.array(

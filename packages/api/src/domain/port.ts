@@ -64,7 +64,6 @@ export type RunnerReportBody = {
   duration_ms?: number
 }
 
-/** What the forge knows about where a line came from. */
 export type ProvenanceFacts = {
   change: {
     number: number
@@ -74,9 +73,7 @@ export type ProvenanceFacts = {
     html_url: string
   } | null
   patch_set: number | null
-  /** How that patch set got here: machine, tool and declared model. */
   via: Out<typeof S.Via> | null
-  /** The line was already on the change's base, this branch: blame it there. */
   on_base: string | null
 }
 
@@ -84,54 +81,23 @@ type Dry = boolean
 type IfMatch = string | null
 type Paging = { after: CursorPosition | null; limit: number }
 
-/**
- * What the API needs from its data. This is the whole surface the pipeline
- * and the operations call, and nothing else: it was sized by listing every
- * member they use. `MemoryDomain` implements it today; the hosted version
- * implements it on Convex, and neither the pipeline nor an operation changes.
- *
- * It is written in terms of the public objects (`schemas.ts`), never in terms
- * of how one implementation stores them. Seeding is not part of it: that
- * belongs to the implementation and to the tests.
- *
- * Rules an implementation keeps:
- *  - a method that reads checks the caller first; a private thing is `not_found`
- *  - a write bumps the object's `version` and emits exactly one event
- *  - `dry` runs the same checks and writes nothing
- *  - a `*Version` method answers without building the object
- */
 export interface DomainPort {
-  // ---- wiring -------------------------------------------------------------
-
-  /** Where links in responses point. */
   readonly urls: Urls
-  /** The event log every write appends to. */
   readonly events: EventLog
-  /** Tokens, webhooks, search, uploads, extras and git, attached at assembly. */
   readonly svc: Attached
-  /** Rises on every access change, so cached bodies cannot outlive access. */
   readonly accessRevision: number
-  /** Housekeeping: drop finished operations after a week. */
   sweepOperations: () => void | Promise<void>
 
-  // ---- access -------------------------------------------------------------
-
-  /** Whether `login` may act as `account` (itself, or an organization it is in). */
   canActAs: (login: string, account: string) => Promise<boolean>
-  /** A predicate for the repositories `p` can read. Null means account-level. */
   canSee: (p: Viewer) => (full: string | null) => boolean | Promise<boolean>
   canSeeId: (p: Viewer) => (id: string | null) => boolean | Promise<boolean>
-  /** Whether the caller may read the repository with this stable id. */
   mayReadId: (id: string | null, p: Viewer) => boolean | Promise<boolean>
-  /** Checks the caller may read or write a repository, and names it `owner/name`. */
   repoAccess: (
     owner: string,
     name: string,
     p: Viewer,
     need: 'read' | 'write',
   ) => Promise<string>
-  /** Read access that requires a real relationship, not public visibility. */
-  /** The caller's place in a repository's secrets team, and its stable id. */
   secretsAccess: (
     owner: string,
     name: string,
@@ -143,30 +109,21 @@ export interface DomainPort {
     p: Viewer,
     need?: 'read' | 'write',
   ) => Promise<string>
-  /** For operations that keep their own versioned records. Throws on a mismatch. */
   assertVersion: (
     ifMatch: IfMatch,
     version: string,
     current: () => unknown,
   ) => void
-  /** The stable repository identity and access stamp for a keyed write. */
   replayKey: (
     opId: string,
     params: Record<string, string>,
     p: Principal,
   ) => { id: string; stamp: string } | Promise<{ id: string; stamp: string }>
-  /** Every searchable thing, for building the search index. */
   searchDocs: () => Iterable<SearchDoc>
-
-  // ---- accounts and repositories -----------------------------------------
 
   listAccounts: (p: Principal) => Promise<Array<Out<typeof S.Account>>>
   getAccount: (handle: string, p: Viewer) => Promise<Out<typeof S.Account>>
   accountVersion: (handle: string) => Promise<string | null>
-  /**
-   * A person signed in. The server calls this once it knows who they are; no
-   * operation does, so it takes no caller and checks nothing.
-   */
   knowPerson: (handle: string, name: string) => Promise<void>
   updateAccount: (
     handle: string,
@@ -175,7 +132,6 @@ export interface DomainPort {
     ifMatch: IfMatch,
     dry: Dry,
   ) => Promise<Out<typeof S.Account>>
-  /** Create an organization owned by the caller. Repeat-safe on the handle. */
   createOrganization: (
     p: Principal,
     input: { handle: string; name?: string; bio?: string },
@@ -186,7 +142,6 @@ export interface DomainPort {
     p: Viewer,
   ) => Promise<Array<Out<typeof S.Member>>>
   membersVersion: (handle: string, p: Viewer) => Promise<string>
-  /** Add a person to an organization or change their role. */
   setMember: (
     handle: string,
     login: string,
@@ -217,7 +172,6 @@ export interface DomainPort {
     handle: string,
     p: Principal,
   ) => Promise<Array<Out<typeof S.Invitation>>>
-  /** Invite by email. The link goes out through `svc.mail`. */
   invite: (
     handle: string,
     p: Principal,
@@ -233,27 +187,23 @@ export interface DomainPort {
     p: Principal,
     dry: Dry,
   ) => Promise<void>
-  /** Join with the secret from an invitation's link. */
   acceptInvitation: (
     secret: string,
     p: Principal,
     dry: Dry,
   ) => Promise<Out<typeof S.Member>>
   repoVersion: (owner: string, name: string, p: Viewer) => Promise<string>
-  /** Per commit: the account behind its author, its change and its checks. */
   commitFacts: (
     full: string,
     commits: ReadonlyArray<{ sha: string; author: { email: string } }>,
   ) => Promise<
     Array<Pick<Out<typeof S.GitCommit>, 'actor' | 'change' | 'checks'>>
   >
-  /** Whether the caller starred it, and how many people did. */
   getStar: (
     owner: string,
     name: string,
     p: Viewer,
   ) => Promise<Out<typeof S.Star>>
-  /** Star or unstar, as a person. `changed` is false when it already was so. */
   setStar: (
     owner: string,
     name: string,
@@ -261,11 +211,8 @@ export interface DomainPort {
     on: boolean,
     dry: Dry,
   ) => Promise<{ star: Out<typeof S.Star>; changed: boolean }>
-  /** The repository id behind an address, after checking the caller may read it. */
   repoIdOf: (owner: string, name: string, p: Viewer) => Promise<string>
-  /** The stable id behind an address, without requiring that it still exists. */
   repoIdForHistory: (full: string) => string | null | Promise<string | null>
-  /** The current `owner/name` for an address, following renames, unchecked. */
   canonicalRepoName: (full: string) => string | Promise<string>
   createRepo: (
     p: Principal,
@@ -314,22 +261,18 @@ export interface DomainPort {
     confirm: string | undefined,
     dry: Dry,
   ) => Promise<{ deleted: boolean; full: string }>
-  /** Marks a repository's derived state as changed, without an event. */
   bumpRepo: (owner: string, name: string, p: Viewer) => Promise<void>
   context: (
     owner: string,
     name: string,
     p: Viewer,
   ) => Promise<Out<typeof S.Context>>
-  /** Whether a number in a repository is a change or an issue. */
   numberRef: (
     owner: string,
     name: string,
     n: number,
     p: Viewer,
   ) => Promise<Out<typeof S.NumberRef>>
-
-  // ---- teams --------------------------------------------------------------
 
   listTeams: (org: string, p: Principal) => Promise<Array<Out<typeof S.Team>>>
   getTeam: (
@@ -390,14 +333,9 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<void>
 
-  // ---- long operations -------------------------------------------------
-
   getOperation: (id: string, p: Viewer) => Promise<Out<typeof S.Operation>>
   operationVersion: (id: string, p: Viewer) => Promise<string | null>
-  /** The repository an operation belongs to, for waiting on it. Unchecked. */
   operationRepoId: (id: string) => string | null | Promise<string | null>
-
-  // ---- issues -------------------------------------------------------------
 
   listIssues: (
     owner: string,
@@ -448,8 +386,6 @@ export interface DomainPort {
     ifMatch: IfMatch,
     dry: Dry,
   ) => Promise<Out<typeof S.Issue>>
-
-  // ---- releases -------------------------------------------------------------
 
   listReleases: (
     owner: string,
@@ -516,8 +452,6 @@ export interface DomainPort {
     asset: string,
     p: Viewer,
   ) => Promise<Out<typeof S.Download>>
-
-  // ---- pipelines ------------------------------------------------------------
 
   listPipelineRuns: (
     owner: string,
@@ -592,7 +526,6 @@ export interface DomainPort {
     p: Viewer,
     dry: Dry,
   ) => Promise<Out<typeof S.PipelineRun>>
-  /** Pause a running step for a person or an outside agent. */
   waitPipelineStep: (
     owner: string,
     name: string,
@@ -603,7 +536,6 @@ export interface DomainPort {
     body: WaitBody,
     dry: Dry,
   ) => Promise<Out<typeof S.PipelineRun>>
-  /** Resume a waiting step with how it ended. */
   resumePipelineStep: (
     owner: string,
     name: string,
@@ -615,9 +547,6 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.PipelineRun>>
 
-  // ---- access rules ---------------------------------------------------------
-
-  /** The rules the viewer administers or reads. */
   listAccessRules: (
     owner: string,
     name: string,
@@ -642,7 +571,6 @@ export interface DomainPort {
     p: Viewer,
     dry: Dry,
   ) => Promise<void>
-  /** What a viewer may not see in a repository: hidden branch and path globs. */
   accessView: (
     owner: string,
     name: string,
@@ -654,12 +582,8 @@ export interface DomainPort {
       patterns: Array<string>
     }>
   }>
-  /** The numbers of a repository's changes the viewer may not see. */
   hiddenChanges: (repoId: string | null, p: Viewer) => Promise<Set<number>>
 
-  // ---- triggers -------------------------------------------------------------
-
-  /** The triggers in force, their files and what they did lately. */
   getTriggers: (
     owner: string,
     name: string,
@@ -667,7 +591,6 @@ export interface DomainPort {
   ) => Promise<Out<typeof S.TriggerSet>>
   triggersVersion: (owner: string, name: string, p: Viewer) => Promise<string>
 
-  /** Runs a trigger started whose `runs-on` is not read yet (`runs-on.ts`). */
   pendingRunsOn: () => Promise<
     Array<{
       owner: string
@@ -687,8 +610,6 @@ export interface DomainPort {
     } | null,
   ) => Promise<void>
 
-  // ---- runners --------------------------------------------------------------
-
   createRunner: (
     p: Viewer,
     body: RunnerBody,
@@ -705,28 +626,22 @@ export interface DomainPort {
     body: Partial<Omit<RunnerBody, 'account' | 'kind' | 'provider'>>,
     dry: Dry,
   ) => Promise<Out<typeof S.Runner>>
-  /** Disables the runner and revokes its token, in one write. */
   deleteRunner: (
     p: Viewer,
     id: string,
     dry: Dry,
   ) => Promise<Out<typeof S.Runner>>
-  /** The runner says it is alive; the leases on its running jobs are extended. */
   runnerHeartbeat: (p: Viewer) => Promise<Out<typeof S.Runner>>
-  /** The oldest queued job this runner may take, now its; null when none. */
   runnerClaim: (p: Viewer) => Promise<Out<typeof S.PipelineJob> | null>
   runnerReport: (
     p: Viewer,
     body: RunnerReportBody,
   ) => Promise<Out<typeof S.PipelineRun>>
-  /** The runner pauses a step of a job it holds. */
   runnerWait: (
     p: Viewer,
     body: RunnerWaitBody,
   ) => Promise<Out<typeof S.PipelineRun>>
   runnerJobs: (p: Viewer, id: string) => Promise<Array<Out<typeof S.RunnerJob>>>
-
-  // ---- policy rules ---------------------------------------------------------
 
   getPolicySet: (
     owner: string,
@@ -734,9 +649,7 @@ export interface DomainPort {
     p: Viewer,
   ) => Promise<Out<typeof S.PolicySet>>
   policySetVersion: (owner: string, name: string, p: Viewer) => Promise<string>
-  /** Whether the rules live in the policy file, so writes propose. */
   policyInFile: (owner: string, name: string, p: Viewer) => Promise<boolean>
-  /** Edits to the rules as a change to the policy file. */
   proposePolicy: (
     owner: string,
     name: string,
@@ -744,7 +657,6 @@ export interface DomainPort {
     edits: Array<ProposalEditBody>,
     dry: Dry,
   ) => Promise<Out<typeof S.PolicyProposal>>
-  /** What stops a change from landing now, and how it will land. */
   landability: (
     owner: string,
     name: string,
@@ -801,8 +713,6 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<void>
 
-  // ---- integrations ---------------------------------------------------------
-
   listConnections: (
     handle: string,
     p: Viewer,
@@ -838,8 +748,6 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.RepoIntegration>>
 
-  // ---- imports and linked accounts -----------------------------------------
-
   listLinks: (
     handle: string,
     p: Viewer,
@@ -868,19 +776,14 @@ export interface DomainPort {
   ) => Promise<{ repo: Out<typeof S.Repo>; created: boolean }>
   listImports: (p: Viewer) => Promise<Array<Out<typeof S.Import>>>
 
-  // ---- insights and the dashboard -----------------------------------------
-
   repoInsights: (
     owner: string,
     name: string,
     p: Viewer,
   ) => Promise<Out<typeof S.RepoInsights>>
   insightsVersion: (owner: string, name: string, p: Viewer) => Promise<string>
-  /** What needs the viewer now, worked out from the state of things. */
   inbox: (p: Viewer, limit: number) => Promise<Out<typeof S.Inbox>>
   dashboard: (p: Viewer, account?: string) => Promise<Out<typeof S.Dashboard>>
-
-  // ---- notifications --------------------------------------------------------
 
   listNotifications: (
     p: Viewer,
@@ -920,8 +823,6 @@ export interface DomainPort {
     p: Viewer,
     body: Partial<Record<NotificationKind | 'digest', boolean>>,
   ) => Promise<Out<typeof S.NotificationPreferences>>
-
-  // ---- labels and issue comments -------------------------------------------
 
   listLabels: (
     owner: string,
@@ -992,9 +893,6 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<void>
 
-  // ---- changes ------------------------------------------------------------
-  // `ref` is the change number or its `chg_` id.
-
   listChanges: (
     owner: string,
     name: string,
@@ -1024,11 +922,6 @@ export interface DomainPort {
     p: Viewer,
     expand?: ReadonlyArray<string>,
   ) => Promise<string>
-  /**
-   * Where a line came from: in a change (`change`), the patch set that wrote
-   * it; for a commit git blamed (`sha`), the change and patch set it landed
-   * through. Either way, the run that made that patch set.
-   */
   provenance: (
     owner: string,
     name: string,
@@ -1049,7 +942,6 @@ export interface DomainPort {
     body: GuideBody,
     dry: Dry,
   ) => Promise<Out<typeof S.ChangeGuide>>
-  /** Which files of a change the caller has seen as they are now. */
   changeSeen: (
     owner: string,
     name: string,
@@ -1064,14 +956,12 @@ export interface DomainPort {
     body: { paths: Array<string>; seen: boolean },
     dry: Dry,
   ) => Promise<Out<typeof S.ChangeSeen>>
-  /** Who is looking at a change or an issue now. */
   presence: (
     owner: string,
     name: string,
     subject: { kind: 'change' | 'issue'; ref: string },
     p: Principal,
   ) => Promise<Out<typeof S.Presence>>
-  /** The caller is looking at it (or has left), then who is. */
   heartbeat: (
     owner: string,
     name: string,
@@ -1079,7 +969,6 @@ export interface DomainPort {
     p: Principal,
     body: { session: string; path: string | null; leave: boolean },
   ) => Promise<Out<typeof S.Presence>>
-  /** Everything that happened to a change or an issue, oldest first. */
   timeline: (
     owner: string,
     name: string,
@@ -1114,7 +1003,6 @@ export interface DomainPort {
     ifMatch: IfMatch,
     dry: Dry,
   ) => Promise<Out<typeof S.Change>>
-  /** Mark a draft ready, abandon, restore. */
   transition: (
     owner: string,
     name: string,
@@ -1123,23 +1011,17 @@ export interface DomainPort {
     action: 'ready' | 'abandon' | 'restore',
     dry: Dry,
   ) => Promise<Out<typeof S.Change>>
-  /**
-   * Whether a change could land by itself now, all but the paths it touches,
-   * which only the API server can read from git. Null when it may not.
-   */
   autoLandCandidate: (
     owner: string,
     name: string,
     ref: string,
   ) => Promise<{ full: string; by: string; base: string; sha: string } | null>
-  /** Lands it under the account that turned auto-land on, if still at `sha`. */
   autoLand: (
     owner: string,
     name: string,
     ref: string,
     sha: string,
   ) => Promise<boolean>
-  /** Land one change. `expected_tree` must be the tree that was checked. */
   land: (
     owner: string,
     name: string,
@@ -1147,9 +1029,7 @@ export interface DomainPort {
     p: Viewer,
     body: { expected_tree: string },
     dry: Dry,
-    /** The landed change; or, when the policy file has steps after landing, the operation that runs them. */
   ) => Promise<Out<typeof S.Change> | { operation: Out<typeof S.Operation> }>
-  /** Land a stack bottom-up as one long operation. */
   landStack: (
     owner: string,
     name: string,
@@ -1327,7 +1207,6 @@ export interface DomainPort {
     check: Out<typeof S.CheckRun>
     outcome: 'created' | 'updated' | 'unchanged'
   }>
-  /** Evaluate policy for a change, optionally assuming checks or findings. */
   policy: (
     owner: string,
     name: string,
@@ -1368,15 +1247,11 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.Evidence>>
 
-  // ---- events and sync ----------------------------------------------------
-
   listEvents: (
     p: Viewer,
     q: Paging & { repo?: string; type?: string },
   ) => Promise<Page<Pre>>
-  /** The event log's position, for conditional reads of the log itself. */
   eventVersion: () => string | Promise<string>
-  /** The log's position for one repository, after checking read access. */
   repoHistoryVersion: (full: string, p: Viewer) => Promise<string>
   sync: (
     p: Viewer,

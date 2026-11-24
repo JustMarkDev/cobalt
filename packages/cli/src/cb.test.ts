@@ -67,7 +67,6 @@ describe('scrub', () => {
 
 describe('cb', () => {
   test('never prompts: a missing repo is an error with a hint', async () => {
-    // Outside a clone with no -R the repo cannot be known.
     const cwd = process.cwd()
     const repo = process.env.CB_REPO
     delete process.env.CB_REPO
@@ -260,7 +259,6 @@ describe('mcp', () => {
 })
 
 describe('secrets through your login', () => {
-  // dana's agent on her laptop: her login, a narrower token, the same team.
   const asAgent = async <T>(fn: () => Promise<T>) => {
     process.env.CB_SAMPLE_TOKEN = 'scoped'
     process.env.CB_MODEL = 'Claude Opus 5.5'
@@ -288,9 +286,8 @@ describe('secrets through your login', () => {
     expect(ran.code).toBe(0)
     const out = JSON.parse(ran.out)
     expect(out.stdout).toContain('db=«DATABASE_URL»')
-    // Production-only values are simply not there in development.
     expect(out.stdout).toContain('stripe=[]')
-    expect(out.stdout).toContain('port=8080') // public values are not scrubbed
+    expect(out.stdout).toContain('port=8080')
     expect(ran.out).not.toContain('hunter2')
     expect(ran.out).not.toContain(
       Buffer.from(
@@ -343,7 +340,6 @@ describe('secrets through your login', () => {
 describe('accounts', () => {
   let dir = ''
   beforeEach(() => {
-    // Settings go to a folder of their own, so a test never touches yours.
     dir = mkdtempSync(join(tmpdir(), 'cb-accounts-'))
     process.env.CB_CONFIG_DIR = dir
     delete process.env.CB_ACCOUNT
@@ -410,7 +406,6 @@ describe('accounts', () => {
     })
     const again = json(await cb('account', 'switch', 'northwind'))
     expect(again.switched).toBe(false)
-    // Back to yourself is the same kind of switch.
     expect(json(await cb('account', 'switch', 'dana')).switched).toBe(true)
   })
 
@@ -423,7 +418,6 @@ describe('accounts', () => {
   test('in a clone you act as the repository owner, with no switching', async () => {
     const cur = json(await cb('account', 'current', '-R', 'northwind/relay'))
     expect(cur).toMatchObject({ handle: 'northwind', from: 'repo' })
-    // A saved switch does not beat the repository you are working in.
     await cb('account', 'switch', 'dana')
     process.env.CB_REPO = 'northwind/relay'
     expect(json(await cb('account', 'current')).from).toBe('repo')
@@ -553,7 +547,6 @@ describe('hand-off', () => {
   })
 })
 
-// Last: imports add repositories to the sample state other tests count.
 describe('import', () => {
   test('from a host and owner/name, or from its address, once', async () => {
     const made = await cb('import', 'github', 'dana-okafor/recipes')

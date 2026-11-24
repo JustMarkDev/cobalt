@@ -189,8 +189,6 @@ function ChangeList({ repo }: { repo: Repo }) {
     state: 'all',
     limit: 100,
   }).data.map((c) => toChangeItem(c))
-  // Vouched people go first; nothing else about them is different. A stack
-  // moves as one, so it stays in order.
   const vouched = new Set(
     useOp('repos.get', { owner: repo.owner, repo: repo.name }).vouched,
   )
@@ -260,12 +258,10 @@ type FindingState =
   | { s: 'fixed'; in: string }
   | { s: 'dismissed'; reason: string }
   | { s: 'resolved' }
-  /** A reviewer's suggestion, applied. Without a patch set it is only in the draft. */
   | { s: 'applied'; ps?: number }
 
 const sevTone = { high: 'danger', medium: 'warning', low: 'muted' } as const
 
-/** The proposed change as a small diff: what goes, what comes. */
 function SuggestedChange({ f }: { f: Finding }) {
   const s = f.suggestion
   if (!s) return null
@@ -336,7 +332,6 @@ function FindingCard({
 }: {
   f: Finding
   st: FindingState
-  /** Whether the suggestion still fits the code as it is now. */
   applicable: boolean
   onSend: () => void
   onApply: () => void
@@ -465,22 +460,14 @@ function FindingCard({
   )
 }
 
-/* ---------------------------------------------------------------------------
- * The change page. One question answered first: can this land, and if not,
- * what is in the way. The same answer is what an agent reads from
- * `cb change view --json` or the MCP `get_change` tool.
- * ------------------------------------------------------------------------- */
-
 type Tab = 'summary' | 'discussion' | 'timeline' | 'code'
 
-/** A short stand-in for a tree id, from the text itself. */
 function treeOf(text: string) {
   let h = 5381
   for (const c of text) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0
   return h.toString(16).padStart(7, '0').slice(-7)
 }
 
-/** Everything the change page reads, loaded before it draws. */
 function ChangeLoader({ repo, n }: { repo: Repo; n: number }) {
   const at = { owner: repo.owner, repo: repo.name, number: String(n) }
   const api = useOp('changes.get', { ...at, expand: 'findings,check_runs' })
@@ -497,8 +484,6 @@ function ChangeLoader({ repo, n }: { repo: Repo; n: number }) {
     state: 'all',
     limit: 100,
   }).data
-  // A finding written with a declared model is the AI review; the rest are
-  // a person's notes. Both come from accounts, under the same rules.
   const humans = new Set(
     (api.findings ?? []).filter((f) => !f.via?.model).map((f) => f.by),
   )
@@ -557,7 +542,6 @@ function ChangeDetail({
 }) {
   const write = useWrite()
   const at = { owner: repo.owner, repo: repo.name, number: String(api.number) }
-  // Edits on top of the newest patch set, not shared until they are saved.
   const [draft, setDraft] = React.useState<FileVersions>({})
   const patchSets = change.patchSets
   const latest = patchSets.length
@@ -566,7 +550,6 @@ function ChangeDetail({
   const [tab, setTab] = React.useState<Tab>('summary')
   const [ps, setPs] = React.useState(latest)
   const [compare, setCompare] = React.useState(false)
-  // The patch set the viewer last approved, when the change moved on since.
   const me = useMe()
   const mine = api.reviewers.find(
     (r) => r.actor.handle === me?.handle && r.state === 'approved',
@@ -579,11 +562,9 @@ function ChangeDetail({
     React.useState<Record<string, FindingState>>(initial)
   const [error, setError] = React.useState('')
   const ci = change.ci
-  // What this page asked for; what it shows follows the server (`landingView`).
   const [ask, dispatch] = React.useReducer(landingReducer, idleLanding)
   const followed = useLandingOperation(at, ask)
   const [events, setEvents] = React.useState<Array<TimelineEvent>>([])
-  // Who else has this change open, and the file each is on.
   const inView = useFileInView(tab === 'code')
   const viewers = usePresence(
     'change',
@@ -592,7 +573,6 @@ function ChangeDetail({
     Boolean(me),
   )
 
-  // A suggestion applied only to the draft has not fixed anything yet.
   const openFindings = list.filter((f) => {
     const st = state[f.id]
     return (
@@ -679,8 +659,6 @@ function ChangeDetail({
     if (r.error) setError(r.error.message)
     return !r.error
   }
-  // Resolving and dismissing are the API's; the rest is this page's state.
-  // Shown at once; put back as it was if the API says no.
   const set = (id: string, next: FindingState) => {
     const was = state[id]
     setState((s) => ({ ...s, [id]: next }))
@@ -696,8 +674,6 @@ function ChangeDetail({
         body: { reason: next.reason },
       }).then(undo)
   }
-  // cobalt starts no agent: the finding's fix goes to the clipboard as
-  // a prompt, for whichever agent you hand it to.
   const send = (id: string) => {
     const f = list.find((x) => x.id === id)
     const prompt = `${f?.prompt ?? `Address ${id}: ${f?.title ?? ''}`}\n\nIn ${repo.owner}/${repo.name} change #${api.number}. Add a patch set with cb change create.`
@@ -751,7 +727,6 @@ function ChangeDetail({
       body: { files: draft, note: summary },
     })
     if (!fail(r)) return
-    // The findings the edit applied are done: say so where everyone sees it.
     for (const id of ids)
       await write('findings.resolve', { ...at, finding: id }).then(fail)
   }
@@ -845,7 +820,6 @@ function ChangeDetail({
                       type: 'refused',
                       message: r.error.message,
                     })
-                  // With landing steps, it is an operation the page follows.
                   if (r.data.object === 'operation') {
                     rememberLanding(at, r.data.id)
                     return dispatch({ type: 'following', operation: r.data.id })
@@ -990,9 +964,7 @@ function CodeReview({
   editable,
 }: {
   at: { owner: string; repo: string; number: string }
-  /** Who else has the change open, and on which file. */
   viewers: Array<Viewer>
-  /** The patch set the viewer approved, when the change moved on since. */
   myApproval: number | null
   change: ChangeItem
   list: Array<Finding>
@@ -1015,24 +987,18 @@ function CodeReview({
   onEdited: (file: string, contents: string) => void
   onSave: () => void
   onDiscard: () => void
-  /** False when the change came without its files: there is nothing to edit. */
   editable: boolean
 }) {
   const dark = useIsDark()
   const overflow = useCodeOverflow()
   const latest = patchSets.length
-  // The guide, when someone wrote one: its order first, then the rest.
   const guide = useOpMaybe('changes.guide.get', at)
   const why = new Map(guide?.order.map((o) => [o.path, o]) ?? [])
   const rank = (p: string) =>
     guide ? guide.order.findIndex((o) => o.path === p) + 1 || 1e6 : 0
   const names = Object.keys(base).sort((x, y) => rank(x) - rank(y))
-  // Editing happens only where the code can be edited (the newest patch
-  // set, not comparing): asked for there, and never shown anywhere else.
   const canEdit = editable && ps === latest && !compare
   const [wantsEditing, setEditing] = React.useState(false)
-  // Leaving the place where it can be done ends it, so coming back starts
-  // read-only. Done while drawing, not in an effect after it.
   if (wantsEditing && !canEdit) setEditing(false)
   const editing = wantsEditing && canEdit
   const factory = useEditorFactory(editing)
@@ -1049,7 +1015,6 @@ function CodeReview({
   })
 
   const contentsAt = (n: number) => (n === latest ? working : saved[n - 1])
-  // "Changed since your review": from the patch set you approved to the newest.
   const [since, setSince] = React.useState<number | null>(null)
   const sets = names
     .map((name) => ({
@@ -1063,7 +1028,6 @@ function CodeReview({
       after: contentsAt(since !== null ? latest : ps)[name],
     }))
     .filter((f) => (!compare && since === null) || f.before !== f.after)
-  // Each reviewer's own seen marks, per file.
   const seen = useOpMaybe('changes.seen.get', at)
   const write = useWrite()
   const seenOf = new Map(seen?.files.map((f) => [f.path, f]) ?? [])
@@ -1073,7 +1037,6 @@ function CodeReview({
       body: { paths: [path], seen: !seenOf.get(path)?.seen },
     })
 
-  // Findings sit on the newest patch set. Older ones show the code as it was.
   const showFindings = !compare && ps === latest
   const lineFor = (f: Finding, contents: string) => {
     const there = lineOf(contents, anchors[f.id] ?? '', -1)

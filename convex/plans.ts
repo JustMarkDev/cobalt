@@ -12,28 +12,12 @@ import { accountByHandle } from './lib/access'
 import { planOf } from './lib/plan'
 import { usageOf } from './lib/usage'
 
-/**
- * Plans: what an account is on, and the operator's tools to change it.
- *
- * The signed-in person reads their own plan with `mine`. A plan is changed
- * only from the command line, with an internal function, never by an API call:
- *
- *   bunx convex run plans:grant '{"handle":"theo","plan":"business","days":60,"reason":"Trying it"}'
- *   bunx convex run plans:revokeGrants '{"handle":"theo"}'
- *   bunx convex run plans:grants '{"handle":"theo"}'
- *
- * Polar calls `setSubscription` from its webhook (`http.ts`, `/hooks/polar`,
- * `@cobaltforge/api/polar`): the checkout carries the paying address and the
- * plan in its metadata (`account`, `plan`).
- */
-
 const paid = v.union(
   v.literal('solo'),
   v.literal('team'),
   v.literal('business'),
 )
 
-/** The plan of the signed-in person's own account, and any deletion waiting. */
 export const mine = query({
   args: {},
   returns: v.string(),
@@ -51,7 +35,6 @@ export const mine = query({
       source: effective.source,
       until: effective.until,
       limits: planLimits[effective.plan],
-      // After a subscription ended, history is kept until this moment.
       keptUntil:
         effective.lapsedAt === null
           ? null
@@ -76,7 +59,6 @@ async function accountOf(
   return account
 }
 
-/** Gives one account a paid plan for a while. It always ends. */
 export const grant = internalMutation({
   args: {
     handle: v.string(),
@@ -105,7 +87,6 @@ export const grant = internalMutation({
   },
 })
 
-/** Ends every live grant of an account now. */
 export const revokeGrants = internalMutation({
   args: { handle: v.string() },
   handler: async (ctx, { handle }) => {
@@ -124,7 +105,6 @@ export const revokeGrants = internalMutation({
   },
 })
 
-/** Every grant an account ever had, newest first. */
 export const grants = internalQuery({
   args: { handle: v.string() },
   handler: async (ctx, { handle }) => {
@@ -147,11 +127,6 @@ export const grants = internalQuery({
   },
 })
 
-/**
- * Sets the paid subscription of an account: what the payment provider's
- * webhook will do. `status: 'lapsed'` marks the moment it ended, from which
- * history is kept for 90 days.
- */
 export const setSubscription = internalMutation({
   args: {
     handle: v.string(),
@@ -161,7 +136,6 @@ export const setSubscription = internalMutation({
     periodEnd: v.optional(v.number()),
     provider: v.optional(v.string()),
     providerRef: v.optional(v.string()),
-    // When the provider says this happened: an older event never undoes a newer one.
     at: v.optional(v.number()),
   },
   handler: async (ctx, a) => {

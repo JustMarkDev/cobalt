@@ -1,10 +1,5 @@
 import * as React from 'react'
 
-/**
- * The cobalt mark: a git branch drawn as glossy cobalt tubes and beads.
- * It takes the brand colour from CSS, so it follows the theme. Each instance
- * gets its own gradient ids, so several marks on one page never share them.
- */
 export function BrandMark({ className }: { className?: string }) {
   const id = React.useId().replace(/:/g, '')
   const tube = `${id}-tube`
@@ -18,8 +13,6 @@ export function BrandMark({ className }: { className?: string }) {
       focusable="false"
     >
       <defs>
-        {/* User-space gradients: a straight stroke has a zero-width box, and a
-            bounding-box gradient on it would not paint at all. */}
         <linearGradient
           id={tube}
           gradientUnits="userSpaceOnUse"

@@ -2,15 +2,6 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { newId, randomSource } from './ids'
 
-/**
- * Who a request is. A token maps to a principal: the account it belongs to,
- * the account it acts as, the scopes it holds, the repositories it may be
- * limited to, and the machine it was created on. There is one kind of actor:
- * an account. Whether a person or the agent they run typed a request is not
- * the server's business; every write records the machine, the tool and the
- * declared model instead (see `receipt.ts`).
- */
-
 export const allScopes = [
   'repo:read',
   'repo:write',
@@ -33,23 +24,17 @@ export const allScopes = [
 ] as const
 export type Scope = (typeof allScopes)[number]
 
-/**
- * What only a runner's own token holds: claiming jobs and reporting them. No
- * person, OAuth client or device login is given them.
- */
 export const runnerOnlyScopes: ReadonlyArray<Scope> = [
   'runners:claim',
   'runners:report',
 ]
 
-/** What a runner's token carries: read its repositories, claim and report. */
 export const runnerScopes: ReadonlyArray<Scope> = [
   'repo:read',
   'runners:claim',
   'runners:report',
 ]
 
-/** Scopes an OAuth client can be granted. A token never mints tokens. */
 export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
   (s) =>
     s !== 'tokens:manage' &&
@@ -57,16 +42,10 @@ export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
     !runnerOnlyScopes.includes(s),
 )
 
-/**
- * What a device login may also ask for: secret values. A device login is a
- * person signing in their own machine (`cb auth login`), approved on a page
- * that names the machine and says so; a web application never gets values.
- */
 export const deviceScopes: ReadonlyArray<Scope> = allScopes.filter(
   (s) => s !== 'tokens:manage' && !runnerOnlyScopes.includes(s),
 )
 
-/** What a person holds: every scope but the runner-only ones. */
 export const personScopes: ReadonlyArray<Scope> = allScopes.filter(
   (s) => !runnerOnlyScopes.includes(s),
 )
@@ -78,21 +57,12 @@ export type TokenRecord = {
   id: string
   name: string
   kind: TokenKind
-  /** The login. */
   handle: string
-  /** The account the request acts as. Usually the same as `handle`. */
   actingAs: string
   scopes: ReadonlyArray<Scope>
-  /** `owner/name` list when the token is limited to repositories. */
   repos: ReadonlyArray<string> | null
-  /**
-   * Globs (`src/**`, `*.sql`) when the token may only change these paths of
-   * its one repository. Null or absent: any path.
-   */
   paths?: ReadonlyArray<string> | null
-  /** A runner's token: the runner it belongs to. */
   runnerId?: string | null
-  /** The machine it was created on, as its owner named it. Receipts show it. */
   device?: string | null
   audience: ReadonlyArray<Audience>
   prefix: string
@@ -100,44 +70,26 @@ export type TokenRecord = {
   expiresAt: number
   lastUsedAt: number | null
   revokedAt: number | null
-  /** OAuth only: the authorization this token belongs to. */
   authorizationId?: string
-  /** A stable key for shared limits, when this token is a short bridge identity. */
   limitKey?: string
-  /** The login a short bridge token stands for, so confirmations follow it. */
   loginId?: string
 }
 
 export type Principal = {
   tokenId: string
-  /**
-   * The login this token belongs to: its OAuth authorization, which outlives
-   * the hourly access tokens it mints, or the token itself. What a production
-   * confirmation is bound to.
-   */
   loginId: string
   limitKey: string
-  /**
-   * Whose budget a request draws from: one per login, so minting more tokens
-   * or acting as an organization never buys more requests.
-   */
   budgetKey: string
   handle: string
   actingAs: string
-  /** The machine the token was created on; `browser` for a signed-in page. */
   device: string
-  /** A signed-in page, not a token: the only place a person can confirm production access. */
   session: boolean
   scopes: ReadonlySet<Scope>
   repos: ReadonlyArray<string> | null
-  /** Paths a change made with this token may touch; null for any. */
   paths: ReadonlyArray<string> | null
-  /** Set when the caller is a runner, by its token. */
   runnerId: string | null
   expiresAt: number
-  /** Everything that decides what this principal may do, as a cache key. */
   capabilityKey: string
-  /** The same, as a short stand-in, for keys that are built on every request. */
   capId: string
 }
 
@@ -146,29 +98,20 @@ export type FindResult =
   | { ok: false; reason: 'unknown' | 'expired' | 'revoked' | 'audience' }
 
 export interface TokenStore {
-  /**
-   * Looks a token up as it arrived. A store may remember recent ones, so a busy
-   * token is not hashed on every request. Revocation and expiry are still
-   * checked on the record each time.
-   */
   findToken?: (
     token: string,
     audience: Audience,
     now: number,
   ) => FindResult | Promise<FindResult>
-  /** Looks a secret up by its hash. */
   find: (
     tokenHash: string,
     audience: Audience,
     now: number,
   ) => FindResult | Promise<FindResult>
-  /** Note that the token was used. Never a write on every request. */
   touch?: (record: TokenRecord, now: number) => void
-  /** Drop expired and long-revoked records. Called on a schedule when present. */
   sweep?: (now: number) => void
 }
 
-/** SHA-256 in hex. Plain JavaScript, so Convex functions hash the same way. */
 export const hashToken = (token: string) =>
   bytesToHex(sha256(utf8ToBytes(token)))
 
@@ -185,12 +128,10 @@ export function secretFor(kind: TokenKind | 'refresh'): string {
   return `${p}_${base64url(randomSource.bytes(24))}`
 }
 
-/** A short, stable name for a long capability key, with no unbounded map to grow. */
 export function internCapability(key: string): string {
   return base64url(sha256(utf8ToBytes(key))).slice(0, 16)
 }
 
-/** Bytes as base64url, without padding, in any runtime. */
 export function base64url(bytes: Uint8Array): string {
   let s = ''
   for (const b of bytes) s += String.fromCharCode(b)
@@ -199,7 +140,6 @@ export function base64url(bytes: Uint8Array): string {
 
 const principals = new WeakMap<TokenRecord, Principal>()
 
-/** One principal per record, built once, so a request does no allocation for it. */
 export function principalOf(record: TokenRecord): Principal {
   let p = principals.get(record)
   if (!p || p.repos !== record.repos || p.paths !== (record.paths ?? null)) {
@@ -218,7 +158,6 @@ export function principalOf(record: TokenRecord): Principal {
       paths: record.paths ?? null,
       runnerId: record.runnerId ?? null,
       expiresAt: record.expiresAt,
-      // Everything that can change what this caller sees or may do.
       capabilityKey: capabilityKeyOf(record.handle, record.actingAs, scopes, {
         repos: record.repos,
         paths: record.paths ?? null,
@@ -232,7 +171,6 @@ export function principalOf(record: TokenRecord): Principal {
   return p
 }
 
-/** Everything that decides what a caller may do, as one string. */
 export function capabilityKeyOf(
   handle: string,
   actingAs: string,
@@ -244,16 +182,11 @@ export function capabilityKeyOf(
   },
 ) {
   let key = `${handle}:${actingAs}:${[...scopes].sort().join(',')}:${limits.repos?.join(',') ?? '*'}`
-  // Added only when set, so every key from before stays what it was.
   if (limits.paths) key += `:paths=${limits.paths.join(',')}`
   if (limits.runnerId) key += `:runner=${limits.runnerId}`
   return key
 }
 
-/**
- * A person signed in to the app itself: they can do in the app whatever they
- * could do with a token holding every scope. No token exists for it.
- */
 export function personPrincipal(handle: string, now: number): Principal {
   const scopes = new Set<Scope>(personScopes)
   const capabilityKey = capabilityKeyOf(handle, handle, scopes, {
@@ -287,7 +220,6 @@ export type Authorization = {
   handle: string
   scopes: ReadonlyArray<Scope>
   audience: ReadonlyArray<Audience>
-  /** The machine a device login named; receipts carry it. */
   device?: string | null
   createdAt: number
   lastUsedAt: number | null
@@ -308,17 +240,11 @@ export type CreateToken = {
   ttlMs: number
   authorizationId?: string
   limitKey?: string
-  /** For a bridge token: the login it stands for. */
   loginId?: string
 }
 
 type MaybePromise<T> = T | Promise<T>
 
-/**
- * Tokens and OAuth authorizations, wherever they are kept: `AuthStore` in
- * memory, `ConvexTokens` (`stores/convex-tokens.ts`) in the database. Callers
- * await every answer, so either works.
- */
 export interface TokenService extends TokenStore {
   create: (
     input: CreateToken & { id?: string },
@@ -336,23 +262,15 @@ export interface TokenService extends TokenStore {
   ) => MaybePromise<Authorization>
   revokeAuthorization: (id: string) => MaybePromise<boolean>
   listAuthorizations: (handle: string) => MaybePromise<Array<Authorization>>
-  /** A renamed repository keeps its name in every limited token. */
   renameRepo: (from: string, to: string) => MaybePromise<void>
-  /** A deleted repository stops being reachable through any limited token. */
   dropRepo: (full: string) => MaybePromise<void>
 }
 
-/**
- * Tokens and OAuth authorizations, in memory. The hosted version keeps the same
- * surface in the database. Secrets are never stored, only their hashes.
- */
 export class AuthStore implements TokenService {
   private readonly byHash = new Map<string, TokenRecord>()
   private readonly byId = new Map<string, TokenRecord>()
-  /** Each person's tokens, so listing and counting them does not read everyone's. */
   private readonly byHandle = new Map<string, Set<TokenRecord>>()
   readonly authorizations = new Map<string, Authorization>()
-  /** Tokens that stop working when their authorization is revoked. */
   private readonly byAuthorization = new Map<string, Set<TokenRecord>>()
 
   constructor(private readonly clock: () => number = Date.now) {}
@@ -399,12 +317,10 @@ export class AuthStore implements TokenService {
     return { record, secret }
   }
 
-  /** Every token with the hash of its secret, for copying the store elsewhere. */
   *entries(): Iterable<{ hash: string; record: TokenRecord }> {
     for (const [hash, record] of this.byHash) yield { hash, record }
   }
 
-  /** Register a token whose secret already exists. Sample data uses it. */
   add(secret: string, input: CreateToken & { id?: string }) {
     return this.create(input, secret).record
   }
@@ -443,7 +359,6 @@ export class AuthStore implements TokenService {
   }
 
   touch(record: TokenRecord, now: number) {
-    // At most once a minute: reading a token must not become a write per request.
     if (record.lastUsedAt === null || now - record.lastUsedAt > 60_000)
       record.lastUsedAt = now
   }
@@ -461,13 +376,11 @@ export class AuthStore implements TokenService {
       .sort((a, b) => b.createdAt - a.createdAt)
   }
 
-  /** Revoked tokens, oldest first. They are kept so the answer to one is `token_revoked`, but not without limit. */
   private readonly revoked: Array<TokenRecord> = []
   private revokedFrom = 0
   static readonly REVOKED_KEPT = 50_000
 
   private readonly hashOf = new WeakMap<TokenRecord, string>()
-  /** The secret a record was last found by, so forgetting the record can forget that shortcut too. */
   private readonly rawOf = new WeakMap<TokenRecord, string>()
 
   private forgetByRecord(t: TokenRecord) {
@@ -486,8 +399,6 @@ export class AuthStore implements TokenService {
     if (!t || t.revokedAt !== null) return false
     t.revokedAt = this.clock()
     this.revoked.push(t)
-    // Past the cap the oldest revocations are forgotten: such a token then answers
-    // `token_invalid` instead of `token_revoked`, and it still does not work.
     while (this.revoked.length - this.revokedFrom > AuthStore.REVOKED_KEPT)
       this.forgetOldest()
     if (this.revokedFrom > 4096 && this.revokedFrom * 2 > this.revoked.length) {
@@ -500,8 +411,6 @@ export class AuthStore implements TokenService {
   private forgetOldest() {
     this.forgetByRecord(this.revoked[this.revokedFrom++])
   }
-
-  // ----- OAuth authorizations ---------------------------------------------
 
   createAuthorization(
     input: Omit<Authorization, 'id' | 'createdAt' | 'lastUsedAt' | 'revokedAt'>,
@@ -549,7 +458,6 @@ export class AuthStore implements TokenService {
     return n
   }
 
-  /** A renamed repository keeps its name in every limited token. */
   renameRepo(from: string, to: string) {
     const oldName = from.toLowerCase()
     const newName = to.toLowerCase()
@@ -557,21 +465,17 @@ export class AuthStore implements TokenService {
       if (!t.repos) continue
       if (t.repos.includes(oldName))
         t.repos = t.repos.map((r) => (r === oldName ? newName : r))
-      // A different repository moving into a name this token holds is not the
-      // repository the token was granted, so remove the name it collides with.
       else if (t.repos.includes(newName))
         t.repos = t.repos.filter((r) => r !== newName)
     }
   }
 
-  /** A deleted repository stops being reachable through any limited token. */
   dropRepo(full: string) {
     const name = full.toLowerCase()
     for (const t of this.byId.values())
       if (t.repos?.includes(name)) t.repos = t.repos.filter((r) => r !== name)
   }
 
-  /** Drop expired and long-revoked tokens, and authorizations revoked long ago. */
   sweep(now: number) {
     for (const t of Array.from(this.byId.values()))
       if (
@@ -587,5 +491,4 @@ export class AuthStore implements TokenService {
   }
 }
 
-/** Kept for code and tests that build a store of fixed tokens. */
 export { AuthStore as MemoryTokenStore }

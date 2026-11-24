@@ -4,7 +4,6 @@ import { print } from '../output'
 import { str } from '../args'
 import type { Command } from './types'
 
-/** Everything an agent needs to start well, in one call, with no secret values. */
 export const context: Command = async ({ flags }, ctx) => {
   const repo = resolveRepo(str(flags, 'repo'))
   const git = gitContext()
@@ -29,8 +28,6 @@ export const context: Command = async ({ flags }, ctx) => {
       number: i.number,
       title: i.title,
     })),
-    // The same rules for every account. What this repository takes, and how
-    // a change lands: on evidence, by someone pressing Land, or by itself.
     rules: {
       declinedModels: c.json.repo.declined_models ?? [],
       autoLand: c.json.repo.auto_land ?? false,

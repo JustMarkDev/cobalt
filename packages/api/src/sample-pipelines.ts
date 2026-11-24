@@ -1,11 +1,3 @@
-/**
- * The sample repositories' pipeline runs, with every job, step and log line:
- * a success, a failure, one running and one queued, per language. `ago` is
- * hours before the sample's clock; durations are milliseconds.
- *
- * Written the way a person reads a run ("2m 41s", "3 days ago") and turned
- * into numbers at the end; the logs come from one toolchain per language.
- */
 type Level = 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error'
 type Status = 'success' | 'failure' | 'running' | 'queued' | 'skipped'
 export type SampleRun = {
@@ -79,7 +71,6 @@ type RunDetail = {
   run: Run
   file: string
   jobs: Array<Job>
-  /** What a person should look at first, with where it came from. */
   annotations: Array<{
     level: 'error' | 'warn'
     text: string
@@ -87,10 +78,6 @@ type RunDetail = {
     step: string
   }>
 }
-
-// ---------------------------------------------------------------------------
-// Runs per repository
-// ---------------------------------------------------------------------------
 
 const r = (
   id: number,
@@ -377,7 +364,6 @@ const relay: Array<Run> = [
   ),
 ]
 
-/** inkwell has no workflow at all, so the empty state can be seen. */
 function runsFor(repo: { name: string }): Array<Run> {
   switch (repo.name) {
     case 'gitfs':
@@ -394,10 +380,6 @@ function runsFor(repo: { name: string }): Array<Run> {
       return []
   }
 }
-
-// ---------------------------------------------------------------------------
-// Logs
-// ---------------------------------------------------------------------------
 
 type Toolchain = {
   setup: Array<LogLine>
@@ -676,7 +658,6 @@ const stepsFor = (
       lines: failIn === 'notarize' ? notarize : failIn ? [] : packaging,
     })
   if (status === 'running') {
-    // The last step is still going: the earlier ones are done.
     const i = Math.max(1, base.length - 2)
     return base.map((s, n) =>
       n < i
@@ -701,7 +682,6 @@ const stepsFor = (
   return base
 }
 
-/** The jobs of a run, with the logs a runner would have produced. */
 function detailFor(repo: { name: string }, run: Run): RunDetail {
   const tc = toolchainFor(repo.name)
   const release = run.workflow === 'release' || run.workflow === 'nightly'
@@ -719,7 +699,6 @@ function detailFor(repo: { name: string }, run: Run): RunDetail {
       : ['ubuntu-latest', 'macos-14']
   const jobs: Array<Job> = runners.map((runner, i) => {
     const os = runner.split('-')[0]
-    // Only one runner fails, the way a real failure is usually found.
     const fails =
       failIn !== null && i === (failIn === 'notarize' ? 1 : runners.length - 1)
     const steps = stepsFor(
@@ -774,7 +753,6 @@ function detailFor(repo: { name: string }, run: Run): RunDetail {
   }
 }
 
-/** A short description of why a run failed, for a person and for an agent. */
 const ms = (t: string) => {
   let n = 0
   for (const m of t.matchAll(/(\d+)(h|m|s)/g))

@@ -1,7 +1,5 @@
 import type { BrandIcon } from './brand-icons'
 
-// Agent marks for the home page. Codex and OpenCode are not in Simple Icons,
-// so they come from LobeHub's icon set (MIT); Gemini is Simple Icons (CC0).
 export const siCodex: BrandIcon = {
   title: 'Codex',
   hex: '000000',

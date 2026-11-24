@@ -5,13 +5,6 @@ import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
 import { repoParams } from './common'
 
-/**
- * Access rules: branches and paths only some people may see. A branch rule
- * hides matching branches and the changes on them; a path rule hides
- * matching files and every change that touches one. Readers are named people
- * and teams; the repository's administrators always read everything.
- */
-
 const ruleParams = repoParams.extend({
   rule: z
     .string()

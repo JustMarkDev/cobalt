@@ -1,10 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-/**
- * A release file, as the person signed in: the download is counted, then the
- * file is sent. A file the release only describes (kept elsewhere) is a 404
- * that says so.
- */
 export const Route = createFileRoute(
   '/$handle/$repo/releases/download/$tag/$asset',
 )({

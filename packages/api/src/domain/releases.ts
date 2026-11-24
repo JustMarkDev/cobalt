@@ -10,11 +10,6 @@ import type {
 } from './records'
 import { DomainNotifications } from './notifications'
 
-/**
- * Releases: a version with notes and signed files for each platform. A stable
- * release tells the people who starred the repository; betas and nightlies
- * reach only those who look.
- */
 export abstract class DomainReleases extends DomainNotifications {
   protected presentRelease(repo: RepoRec, r: ReleaseRec) {
     const iso = (t: number) => new Date(t).toISOString()
@@ -250,10 +245,6 @@ export abstract class DomainReleases extends DomainNotifications {
     return shown
   }
 
-  /**
-   * Someone is downloading an asset: count it, and say where the file is. The
-   * file itself is served by the store, not by the API.
-   */
   async downloadAsset(
     owner: string,
     name: string,

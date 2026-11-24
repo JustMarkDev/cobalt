@@ -1,7 +1,6 @@
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 
-/** Keeps `repoGrants` in step with a repository's collaborators. */
 export async function syncGrants(ctx: MutationCtx, repoId: Id<'repos'>) {
   const repo = await ctx.db.get('repos', repoId)
   const want = new Set(repo ? repo.collaborators : [])
@@ -16,7 +15,6 @@ export async function syncGrants(ctx: MutationCtx, repoId: Id<'repos'>) {
     if (!had.has(h)) await ctx.db.insert('repoGrants', { handle: h, repoId })
 }
 
-/** Keeps `issueAssignees` in step with an issue: open issues only. */
 export async function syncAssignees(ctx: MutationCtx, issue: Doc<'issues'>) {
   const want = new Set(
     issue.state === 'open' ? issue.assignees.map((a) => a.handle) : [],

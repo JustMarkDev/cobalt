@@ -14,14 +14,8 @@ import {
 const loadFeatures = () =>
   import('./motion-features').then((mod) => mod.default)
 
-/**
- * App-wide motion setup: lazy feature loading, and reduced-motion honoured
- * for everything driven by `motion/react`.
- */
 export function MotionProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
-    // Children's effects have already run, so their mount animations saw
-    // `ready === false` and stayed still. Everything after this animates.
     markMotionReady()
   }, [])
   return (
@@ -36,10 +30,6 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * Soft enter for the page below the header. Re-runs when `trigger` changes and
- * never remounts, so form state and scroll position are untouched.
- */
 export function PageTransition({
   trigger,
   className,
@@ -57,7 +47,6 @@ export function PageTransition({
   )
 }
 
-/** Children rise in one after another when this mounts. */
 export function Stagger({
   as: Tag = 'div',
   className,
@@ -75,28 +64,15 @@ export function Stagger({
   )
 }
 
-/**
- * --radius-thumb from app.css, as a number: Motion only keeps corners round
- * while the pill stretches between tabs when the radius is given in px. Read
- * from the stylesheet when a pill mounts, so the CSS stays the one source of
- * truth; 8 is what it resolves to, and covers the server render.
- */
 function readThumbRadius(): number {
   if (typeof document === 'undefined') return 8
-  // Only a resolved length counts: without @property support the value is the
-  // raw calc(), and parseFloat would read its first number.
   const raw = getComputedStyle(document.documentElement)
     .getPropertyValue('--radius-thumb')
     .trim()
   return /^\d+(\.\d+)?px$/.test(raw) ? parseFloat(raw) : 8
 }
 
-/**
- * The sliding highlight behind the active tab. Every tab list gives its pill a
- * distinct `id` so pills in different lists never fly across the page.
- */
 export function Pill({ id }: { id: string }) {
-  // Read once per mount, not per render: it only changes with the stylesheet.
   const [radius] = React.useState(readThumbRadius)
   return (
     <m.span
@@ -109,7 +85,6 @@ export function Pill({ id }: { id: string }) {
   )
 }
 
-/** Thin bar under the header, shown only when a navigation takes a moment. */
 export function RouteProgress() {
   const pending = useRouterState({ select: (s) => s.status === 'pending' })
   const bar = React.useRef<HTMLDivElement>(null)

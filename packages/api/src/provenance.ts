@@ -1,11 +1,5 @@
 import { blameLine, splitLines } from './lines'
 
-/**
- * From a line of code to the conversation that produced it. This file holds
- * the parts both domains share; the operation is `repos.provenance`.
- */
-
-/** How a refusal is thrown: `apiError` in the API, `fail` in Convex. */
 export type Fail = (
   code: string,
   detail: string,
@@ -21,11 +15,6 @@ type ChangeLike = {
   patchSets: Array<{ n: number; contents?: Record<string, string | null> }>
 }
 
-/**
- * Which patch set of a change wrote a line of a file at its head, or `base`
- * when the line was on the base already. Patch sets without their files are
- * read as unchanged from the one before.
- */
 export function changeBlame(
   c: ChangeLike,
   path: string,

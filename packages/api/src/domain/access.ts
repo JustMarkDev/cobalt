@@ -14,7 +14,6 @@ import type { RuleViewer } from '../access-rules'
 import { touchedFiles } from '../paths'
 import { DomainState } from './state'
 
-/** Who may see and change what. */
 export abstract class DomainAccess extends DomainState {
   protected isMember(handle: string, who: string) {
     const acc = this.accounts.get(handle)
@@ -23,7 +22,6 @@ export abstract class DomainAccess extends DomainState {
 
   protected canRead(repo: RepoRec, p: Viewer) {
     const full = `${repo.owner}/${repo.name}`.toLowerCase()
-    // A runner reads only the repositories of the account it serves.
     if (p?.runnerId && repo.owner.toLowerCase() !== p.actingAs.toLowerCase())
       return repo.visibility === 'public'
     if (p?.repos && !p.repos.includes(full)) return repo.visibility === 'public'
@@ -34,7 +32,6 @@ export abstract class DomainAccess extends DomainState {
     )
   }
 
-  /** What the teams someone is in give them on a repository. Looked at only when nothing else does. */
   protected teamLevel(repo: RepoRec, handle: string): 'read' | 'write' | null {
     const keys = this.teamsOf.get(handle)
     if (!keys) return null
@@ -56,7 +53,6 @@ export abstract class DomainAccess extends DomainState {
 
   protected canWrite(repo: RepoRec, p: Viewer): p is Principal {
     if (!p) return false
-    // A runner changes nothing through the repository; it reports its jobs.
     if (p.runnerId) return false
     if (
       p.repos &&
@@ -104,15 +100,11 @@ export abstract class DomainAccess extends DomainState {
     return repo
   }
 
-  // ---- access rules -------------------------------------------------------------
-
-  /** Who is asking, as a repository's access rules see them. */
   protected ruleViewer(repo: RepoRec, p: Viewer): RuleViewer | null {
     if (!p) return null
     const owner = this.accounts.get(repo.owner)
     const role =
       repo.owner === p.handle ? 'owner' : owner?.members.get(p.handle)
-    // A runner serving the repository builds all of it.
     const runner =
       !!p.runnerId && repo.owner.toLowerCase() === p.actingAs.toLowerCase()
     const teams = new Set<string>()
@@ -127,13 +119,11 @@ export abstract class DomainAccess extends DomainState {
     }
   }
 
-  /** The rules of a repository a viewer may not read. */
   protected hiddenFor(repo: RepoRec, p: Viewer) {
     const rules = repo.accessRules ?? []
     return rules.length ? hiddenRules(rules, this.ruleViewer(repo, p)) : []
   }
 
-  /** The rules a change falls under, by its branch and the files its newest patch set touches. */
   protected rulesOver(repo: RepoRec, c: ChangeRec) {
     const rules = repo.accessRules ?? []
     if (!rules.length) return []
@@ -146,7 +136,6 @@ export abstract class DomainAccess extends DomainState {
     })
   }
 
-  /** Whether a viewer may see a change at all. */
   seesChange(repo: RepoRec, c: ChangeRec, p: Viewer) {
     const over = this.rulesOver(repo, c)
     return (
@@ -155,10 +144,6 @@ export abstract class DomainAccess extends DomainState {
     )
   }
 
-  /**
-   * Refuses a write to a private branch, or touching a private path, by
-   * someone who does not read the rule. Writing would show it to them.
-   */
   protected assertMayTouch(
     repo: RepoRec,
     p: Viewer,
@@ -182,7 +167,6 @@ export abstract class DomainAccess extends DomainState {
       )
   }
 
-  /** The numbers of a repository's changes a viewer may not see. */
   async hiddenChanges(repoId: string | null, p: Viewer): Promise<Set<number>> {
     const repo = repoId ? this.reposById.get(repoId) : undefined
     const out = new Set<number>()
@@ -192,7 +176,6 @@ export abstract class DomainAccess extends DomainState {
     return out
   }
 
-  /** What a viewer may not see in a repository's files and branches. */
   async accessView(owner: string, name: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
     return {
@@ -204,13 +187,11 @@ export abstract class DomainAccess extends DomainState {
     }
   }
 
-  /** Whether a viewer may read a repository's files. */
   mayRead(repoFull: string, p: Viewer) {
     const r = this.repos.get(repoFull)
     return !!r && this.canRead(r, p)
   }
 
-  /** Every searchable thing, for building the search index. */
   *searchDocs(): Iterable<SearchDoc> {
     for (const r of this.repos.values()) {
       const full = `${r.owner}/${r.name}`
@@ -290,7 +271,6 @@ export abstract class DomainAccess extends DomainState {
     return acct
   }
 
-  /** Who may rename, hide or delete a repository: the owner of its account, or an admin of the organization. */
   protected assertAdmin(repo: RepoRec, p: Principal) {
     const acct = this.accounts.get(repo.owner)
     const role = repo.owner === p.handle ? 'owner' : acct?.members.get(p.handle)
@@ -311,7 +291,6 @@ export abstract class DomainAccess extends DomainState {
     return this.hasAccess(repo, p) || this.teamLevel(repo, p.handle) !== null
   }
 
-  /** Read access that requires a real relationship, not public visibility. */
   async repoAccessStrict(
     owner: string,
     name: string,
@@ -326,12 +305,6 @@ export abstract class DomainAccess extends DomainState {
     return `${r.owner}/${r.name}`
   }
 
-  /**
-   * Whether the caller is in a repository's secrets team: the account that
-   * owns it (the person, or the organization's members) and teams given
-   * write access. Collaborators, read-only teams and readers of a public
-   * repository see variable names only. Refuses like any read.
-   */
   async secretsAccess(owner: string, name: string, p: Viewer) {
     const r = this.resolve(owner, name, p, 'read')
     const full = `${r.owner}/${r.name}`
@@ -343,7 +316,6 @@ export abstract class DomainAccess extends DomainState {
     return { full, repoId: r.id, team }
   }
 
-  /** Checks the caller may read or write a repository, and names it `owner/name`. */
   async repoAccess(
     owner: string,
     name: string,
@@ -358,14 +330,12 @@ export abstract class DomainAccess extends DomainState {
     return this.isMember(account, login)
   }
 
-  /** Whether the caller may read the repository with this stable id. */
   mayReadId(id: string | null, p: Viewer) {
     if (!id) return false
     const r = this.reposById.get(id)
     return r ? this.canRead(r, p) : false
   }
 
-  /** Public entry for operations that keep their own versioned records. */
   assertVersion(
     ifMatch: string | null,
     version: string,
@@ -374,7 +344,6 @@ export abstract class DomainAccess extends DomainState {
     this.assertMatch(ifMatch, version, current)
   }
 
-  /** `If-Match` carries the ETag the client read: `W/"<version>"`. */
   protected assertMatch(
     ifMatch: string | null,
     version: string,
@@ -403,7 +372,6 @@ export abstract class DomainAccess extends DomainState {
     )
   }
 
-  /** A predicate for the repositories `p` can read. Null repo means an account-level event. */
   canSee(p: Viewer) {
     return this.readableRepos(p)
   }
@@ -427,7 +395,6 @@ export abstract class DomainAccess extends DomainState {
       let ok = cache.get(full)
       if (ok === undefined) {
         const r = this.repos.get(full)
-        // The history of a deleted repository stays readable by those who administered it.
         ok = r ? this.canRead(r, p) : this.administered(full, p)
         cache.set(full, ok)
       }
@@ -444,7 +411,6 @@ export abstract class DomainAccess extends DomainState {
         const r = this.reposById.get(id)
         if (r) ok = this.canRead(r, p)
         else {
-          // The history of a deleted repository stays readable by those who administered it.
           const d = this.deletedRepos.get(id)
           ok = d ? this.administered(d.full, p) : false
         }

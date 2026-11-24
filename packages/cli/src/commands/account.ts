@@ -10,7 +10,6 @@ import {
 } from '../account'
 import type { Command } from './types'
 
-/** Who you are acting as. One login, any account you belong to, switched in one command. */
 export const account: Command = async (
   { rest: [sub = 'current', ...rest], flags },
   ctx,
@@ -71,11 +70,9 @@ export const account: Command = async (
     const previous = readConfig().account || (await personal(ctx)).handle
     const savedAccount = readConfig().account
     const dry = flags['dry-run'] === true
-    // Switching to where you already are changes nothing, so it is safe to repeat.
     const switched = previous !== target.handle
     if (switched && flags['dry-run'] !== true)
       writeConfig({ ...readConfig(), account: target.handle })
-    // CB_ACCOUNT beats the saved account, so say so rather than let it look broken.
     const overriddenBy =
       process.env.CB_ACCOUNT && process.env.CB_ACCOUNT !== target.handle
         ? 'CB_ACCOUNT'

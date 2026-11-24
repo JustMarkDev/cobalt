@@ -7,12 +7,6 @@ import { routeTree } from './routeTree.gen'
 import { ErrorPage } from '~/components/forge/not-found'
 import { sessionClient } from '~/lib/auth/client'
 
-/**
- * The Convex client for React Query, with one fix. When a live result comes
- * in, the library only stores it over an earlier result; a read whose first
- * answer was an error (asked before sign-in finished, or for something that
- * did not exist yet) would never show the answers that follow.
- */
 class LiveQueryClient extends ConvexQueryClient {
   override onUpdateQueryKeyHash(queryHash: string) {
     const query = this.queryClient.getQueryCache().get(queryHash)
@@ -47,12 +41,7 @@ export function getRouter() {
       queries: {
         queryKeyHashFn: convexQueryClient.hashFn(),
         queryFn: convexQueryClient.queryFn(),
-        // Convex keeps a query live while it is on screen. Holding the last
-        // result for a few minutes makes going back to a page instant; the
-        // live subscription then replaces it with fresh data.
         gcTime: 5 * 60 * 1000,
-        // A Convex read that failed failed for a reason (not found, not
-        // allowed); asking again would only make the page wait.
         retry: (count, error) =>
           !(error as { data?: unknown } | null)?.data && count < 3,
       },
@@ -65,12 +54,10 @@ export function getRouter() {
     defaultPreload: 'intent',
     context: { queryClient, convexQueryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0, // Let React Query handle all caching
+    defaultPreloadStaleTime: 0,
     defaultErrorComponent: ErrorPage,
     defaultNotFoundComponent: () => <p>not found</p>,
     Wrap: ({ children }) => (
-      // Signed in as the person whose session this is, so a page reads and
-      // writes Convex as them.
       <ConvexBetterAuthProvider
         client={convexQueryClient.convexClient}
         authClient={sessionClient}

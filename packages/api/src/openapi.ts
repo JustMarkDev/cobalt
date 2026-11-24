@@ -5,11 +5,6 @@ import { Problem } from './schemas'
 import { pools } from './limiter'
 import type { Op } from './registry'
 
-/**
- * OpenAPI 3.1 generated from the operations. Nothing here is written by hand
- * per endpoint: the schemas the server validates with are the ones it
- * publishes, so the document cannot say something the server does not do.
- */
 type Json = Record<string, unknown>
 
 function jsonSchema(
@@ -24,16 +19,12 @@ function jsonSchema(
     reused: 'inline',
   }) as Json
   const found = (out.$defs ?? {}) as Json
-  // Responses may grow members in a minor version, so their schemas must not
-  // forbid them. Requests are strict: the server rejects unknown members, and
-  // the document should say so.
   Object.assign(defs, io === 'output' ? relax(found) : found)
   delete out.$defs
   delete out.$schema
   return (io === 'output' ? relax(out) : out) as Json
 }
 
-/** Removes `additionalProperties: false`, for response schemas only. */
 function relax(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(relax)
   if (value && typeof value === 'object') {
@@ -111,7 +102,6 @@ function parameters(op: Op, defs: Json): Array<Json> {
   return out
 }
 
-/** Every code this operation can answer with, not just the ones its handler names. */
 function operationErrors(op: Op): Array<string> {
   const out = new Set<string>([
     ...(op.errors ?? []),
@@ -143,12 +133,8 @@ export function buildOpenApi(
   ops: ReadonlyArray<Op>,
   base = 'https://api.cobaltforge.dev/v1',
 ): Json {
-  // Input and output schemas relax differently, so their definitions are
-  // collected separately and only then combined.
   const inputDefs: Json = {}
   const outputDefs: Json = {}
-  // A Map, not an object: a path is a key, never a property of the
-  // prototype (`__proto__` would otherwise reach Object.prototype).
   const paths = new Map<string, Json>()
   const problemRef = { $ref: '#/components/schemas/Problem' }
   for (const op of [...ops].sort((a, b) =>

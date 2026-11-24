@@ -53,14 +53,12 @@ const feedIcon = {
 const seedOf = (handle: string) =>
   Array.from(handle).reduce((n, c) => n + c.charCodeAt(0), 0)
 
-/** `2026-03` as `Mar`. */
 const monthName = (m: string) =>
   new Date(`${m}-01T00:00:00Z`).toLocaleString('en', {
     month: 'short',
     timeZone: 'UTC',
   })
 
-/** A titled block. Titles are plain; the chart does the talking. */
 function Block({
   title,
   note,
@@ -83,14 +81,12 @@ function Block({
   )
 }
 
-/** The public profile: what anyone sees when they open a person. */
 export function ProfileView({
   handle,
   tab,
   tabLink,
   embedded = false,
 }: {
-  /** Shown inside another page that already has the h1. */
   embedded?: boolean
   handle: string
   tab: ProfileTab

@@ -17,13 +17,6 @@ import type { Role } from '../lib/access'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Editing an account, creating an organization, and who belongs to one.
- * People and organizations share one namespace. A person comes from sign-in;
- * an organization is created here by the person who becomes its first
- * owner. An organization always has at least one owner.
- */
-
 const MAX_MEMBERS = 5_000
 const MAX_INVITES = 500
 const INVITE_TTL = 7 * 86_400_000
@@ -34,7 +27,6 @@ const role = v.union(
   v.literal('member'),
 )
 
-/** Something about who may see what in this account changed. */
 export async function bumpAcl(ctx: MutationCtx, a: Doc<'accounts'>) {
   const fresh = await ctx.db.get('accounts', a._id)
   await ctx.db.patch('accounts', a._id, { aclRev: (fresh?.aclRev ?? 0) + 1 })
@@ -86,7 +78,6 @@ async function membership(ctx: QueryCtx, org: Doc<'accounts'>, handle: string) {
     .unique()
 }
 
-/** The account, when the caller may change it. A token limited to repositories may not. */
 async function editable(ctx: QueryCtx, handle: string, p: Actor) {
   const a = await accountByHandle(ctx, handle)
   if (!a) fail('not_found', `No account ${handle}.`)
@@ -112,7 +103,6 @@ async function editable(ctx: QueryCtx, handle: string, p: Actor) {
   return a
 }
 
-/** The organization, when the caller belongs to it. Everyone else gets 404. */
 async function memberOf(ctx: QueryCtx, handle: string, p: Actor) {
   const a = await accountByHandle(ctx, handle)
   if (!a || a.kind !== 'organization' || !(await roleIn(ctx, a, p.handle)))
@@ -179,7 +169,6 @@ export const version = query({
   },
 })
 
-/** A person signed in. Only the API server calls this; sign-in in Convex does the same itself. */
 export const knowPerson = mutation({
   args: { handle: v.string(), name: v.string() },
   returns: v.string(),
@@ -303,7 +292,6 @@ export const createOrganization = mutation({
   },
 })
 
-/** An organization that exists. Who is in one is public, like the organization. */
 async function organization(ctx: QueryCtx, handle: string) {
   const a = await accountByHandle(ctx, handle)
   if (!a || a.kind !== 'organization')
@@ -404,7 +392,6 @@ export const removeMember = mutation({
     if (a.kind !== 'organization')
       fail('not_found', `No organization ${args.handle}.`)
     const row = await membership(ctx, a, args.login)
-    // Already gone: removing is repeat-safe.
     if (!row) return out(null)
     if (row.role === 'owner') {
       if ((await roleIn(ctx, a, p.handle)) !== 'owner')
@@ -422,7 +409,6 @@ export const removeMember = mutation({
         )
     }
     await ctx.db.delete('memberships', row._id)
-    // Their team memberships in this organization end with it.
     for (const tm of await ctx.db
       .query('teamMembers')
       .withIndex('by_handle', (q) => q.eq('handle', args.login))
@@ -441,8 +427,6 @@ export const removeMember = mutation({
   },
 })
 
-// ---- invitations -----------------------------------------------------------
-
 function presentInvite(org: string, i: Doc<'invitations'>) {
   return {
     object: 'invitation' as const,
@@ -457,7 +441,6 @@ function presentInvite(org: string, i: Doc<'invitations'>) {
   }
 }
 
-/** The organization, when the caller is an owner or admin of it. */
 async function managed(ctx: QueryCtx, handle: string, p: Actor) {
   const a = await editable(ctx, handle, p)
   if (a.kind !== 'organization') fail('not_found', `No organization ${handle}.`)
@@ -615,7 +598,6 @@ export const acceptInvitation = mutation({
         },
       )
     const row = await membership(ctx, a, p.handle)
-    // Already in: keep the higher of the two roles, never demote.
     const rank = { member: 0, admin: 1, owner: 2 }
     const r = row && rank[row.role] >= rank[i.role] ? row.role : i.role
     if (!row && (await members(ctx, a)).length >= MAX_MEMBERS)

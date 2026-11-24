@@ -55,10 +55,6 @@ function Mark({ icon, className }: { icon: BrandIcon; className?: string }) {
   )
 }
 
-/**
- * A statement whose words light up as they pass the middle of the screen.
- * With reduced motion, or before it hydrates, every word is lit.
- */
 function Lit({
   as: Tag = 'h2',
   children,
@@ -133,11 +129,6 @@ function CopyPrompt({
   )
 }
 
-/**
- * The prompt with its commands set as code. A command keeps the punctuation
- * that follows it on its own line, so a comma never floats away from the chip;
- * below 360px a long command may wrap rather than be cut off.
- */
 function PromptText() {
   const parts = SETUP_PROMPT.split(/(`[^`]+`)/)
   return (
@@ -225,8 +216,6 @@ function Landing() {
       <section id="import" className="scroll-mt-header py-36 text-center">
         <h2 className={cn(heading, 'px-6')}>Bring everything.</h2>
         <div className="my-18 overflow-hidden mask-x-from-88% mask-x-to-100%">
-          {/* Each item carries its own trailing margin, so the two copies are
-              exactly half the strip and the loop has no jump. */}
           <ul
             aria-label="Import from GitHub, GitLab, Bitbucket, Gitea, Codeberg and Forgejo"
             className="flex w-max animate-[marquee_36s_linear_infinite] motion-reduce:animate-none"
@@ -259,8 +248,6 @@ function Landing() {
       <section id="agents" className="scroll-mt-header py-36 text-center">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className={heading}>Any agent.</h2>
-          {/* A centred wrap on phones; from sm up one row of five, so the
-              cards never break four and one. */}
           <ul className="mt-16 flex flex-wrap justify-center gap-3.5 sm:mx-auto sm:grid sm:max-w-[57rem] sm:grid-cols-5">
             {agents.map((a) => (
               <li

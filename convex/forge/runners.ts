@@ -43,13 +43,6 @@ import type { PipelineRun } from './pipelines'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Runners: machines that registered to take pipeline jobs, yours or a
- * provider's. The record is an identity, labels, the repositories it may
- * serve and a token only it holds; the machine runs the jobs. Revoking a
- * runner disables it and its token in the same write.
- */
-
 const RUNNER_TTL_MS = 365 * 86_400_000
 const iso = (t: number) => new Date(t).toISOString()
 
@@ -83,7 +76,6 @@ async function like(ctx: QueryCtx, r: Doc<'runners'>): Promise<RunnerLike> {
   }
 }
 
-/** Runs of an account's repositories that may hold or offer jobs. */
 async function liveRuns(
   ctx: QueryCtx,
   account: string,
@@ -201,7 +193,6 @@ async function sameName(ctx: QueryCtx, account: string, name: string) {
   return null
 }
 
-/** Labels and repositories as a runner keeps them, or a refusal that points at the field. */
 async function checkFields(
   ctx: QueryCtx,
   account: string,
@@ -390,7 +381,6 @@ export const update = mutation({
         ? { concurrency: Math.min(a.concurrency, MAX_CONCURRENCY) }
         : {}),
     })
-    // Its token follows the repositories it may serve.
     if (names !== undefined) {
       const t = await ctx.db
         .query('tokens')
@@ -408,7 +398,6 @@ export const update = mutation({
   },
 })
 
-/** Disables the runner and revokes its token, in one write. */
 export const remove = mutation({
   args: { id: v.string(), dry: v.optional(v.boolean()) },
   returns: v.string(),
@@ -426,7 +415,6 @@ export const remove = mutation({
   },
 })
 
-/** The runner behind a runner token, or a refusal. */
 async function runnerOf(ctx: QueryCtx, signed?: Actor) {
   const p = signed ?? (await signedIn(ctx))
   const r = p.runnerId
@@ -577,7 +565,6 @@ export const jobs = query({
   },
 })
 
-/** The runner pauses a step of a job it holds, for a person or an agent. */
 export const wait = mutation({
   args: {
     repo: v.string(),

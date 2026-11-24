@@ -5,24 +5,14 @@ import { claimsOf } from '../domain/convex'
 import type { ConvexCall } from '../domain/convex'
 import type { JWK } from 'jose'
 
-/**
- * Calls the forge's Convex functions from the API server. The API already
- * checked the bearer token; it tells Convex who is calling with a JWT it
- * signs itself, good for 60 seconds, carrying the principal (handle, token,
- * class, scopes, the account it acts as and the repositories it is limited
- * to). Convex verifies it against the public key in `auth.config.ts`; no
- * function takes an identity as an argument.
- */
 export type ApiSigner = {
   issuer: string
-  /** The private key, as the JWK `scripts/api-keys.ts` prints. */
   privateJwk: JWK
 }
 
 const TTL = 60
 type Key = Awaited<ReturnType<typeof importJWK>>
 
-/** A `ConvexCall` that can also hand out its JWT, for a subscription that must sign in the same way. */
 export type ConvexHttpCall = ConvexCall & {
   token: (
     who: Parameters<ConvexCall>[3],
@@ -32,7 +22,6 @@ export type ConvexHttpCall = ConvexCall & {
 
 export function convexHttpCall(url: string, signer: ApiSigner): ConvexHttpCall {
   let key: Promise<Key> | undefined
-  // A token is reused while it has 15 seconds left, per caller.
   const minted = new Map<string, { jwt: string; until: number }>()
   const sign = async (who: Parameters<ConvexCall>[3], fresh = false) => {
     if (who === null) return null

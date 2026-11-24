@@ -22,12 +22,6 @@ import type { Attached, Urls, Viewer } from './records'
 import type { EventLog } from '../events'
 import type { DomainPort } from './port'
 
-/**
- * How the API reaches the forge's Convex functions. `who` is the caller the
- * API already authenticated; the caller turns it into the identity Convex
- * reads (a short JWT in production, `withIdentity` in tests). Functions are
- * named the Convex way, `forge/issues:list`.
- */
 export type ConvexCall = (
   kind: 'query' | 'mutation' | 'action',
   name: string,
@@ -35,7 +29,6 @@ export type ConvexCall = (
   who: Viewer | 'system',
 ) => Promise<unknown>
 
-/** The identity claims for a principal. The Convex side reads them in `convex/lib/actor.ts`. */
 export function claimsOf(who: Principal | 'system') {
   if (who === 'system')
     return { subject: '~system', cb_api: 'true', cb_sys: 'true', cb_scp: '' }
@@ -55,7 +48,6 @@ export function claimsOf(who: Principal | 'system') {
   if (who.repos) claims.cb_rep = who.repos.join(',')
   if (who.paths) claims.cb_pth = JSON.stringify(who.paths)
   if (who.runnerId) claims.cb_run = who.runnerId
-  // A write under an Idempotency-Key marks the key in its own transaction.
   const held = heldKey.getStore()
   if (held) claims.cb_idem = JSON.stringify([held.scope, held.key, held.lease])
   return claims
@@ -75,12 +67,6 @@ function refusal(e: unknown): (Refusal & Record<string, unknown>) | null {
   return null
 }
 
-/**
- * Runs one forge function and gives back its answer as the API shows it.
- * Answers come as JSON text (key order kept); refusals come back as the same
- * `ApiError` the in-memory domain throws; a dry run's answer comes back from
- * the rollback that carried it.
- */
 export async function run<T>(
   call: ConvexCall,
   kind: 'query' | 'mutation' | 'action',
@@ -103,12 +89,6 @@ export async function run<T>(
 
 type Port = DomainPort
 
-/**
- * `DomainPort` on Convex: every method is one call to a forge function in
- * `convex/forge/`. The rules live there, once; this class only names the
- * function and passes the arguments.
-
- */
 export class ConvexDomain implements DomainPort {
   accessRevision = 0
   constructor(
@@ -135,11 +115,6 @@ export class ConvexDomain implements DomainPort {
     return run<T>(this.call, 'mutation', `forge/${name}`, args, p)
   }
 
-  // ---- search -------------------------------------------------------------------
-  // The index is this server's cache. It is built from Convex, follows the
-  // event feed, and is built again after writes that move many documents at
-  // once (a rename, a visibility change, a deletion).
-
   private searchSource: Array<SearchDoc> = []
 
   searchDocs: Port['searchDocs'] = () => this.searchSource
@@ -162,7 +137,6 @@ export class ConvexDomain implements DomainPort {
     this.svc.search.reset()
   }
 
-  /** After a write that changes what search shows across many documents. */
   private async reindex<T>(done: Promise<T>, dry?: boolean) {
     const r = await done
     if (!dry) await this.refreshSearch()
@@ -172,8 +146,6 @@ export class ConvexDomain implements DomainPort {
   async sweepOperations() {
     await this.m('operations:sweepNow', {}, 'system')
   }
-
-  // ---- accounts --------------------------------------------------------------
 
   listAccounts: Port['listAccounts'] = (p) => this.q('accounts:list', {}, p)
   getAccount: Port['getAccount'] = (handle, p) =>
@@ -215,8 +187,6 @@ export class ConvexDomain implements DomainPort {
   acceptInvitation: Port['acceptInvitation'] = (secret, p, dry) =>
     this.reindex(this.m('accounts:acceptInvitation', { secret, dry }, p), dry)
 
-  // ---- access ----------------------------------------------------------------
-
   canActAs: Port['canActAs'] = (login, account) =>
     this.q('repos:canActAs', { login, account }, 'system')
   mayReadId: Port['mayReadId'] = (id, p) => this.q('repos:mayReadId', { id }, p)
@@ -241,7 +211,6 @@ export class ConvexDomain implements DomainPort {
   canonicalRepoName: Port['canonicalRepoName'] = (full) =>
     this.q('repos:canonicalName', { full }, 'system')
 
-  /** `If-Match` against a version the caller already worked out: no data needed. */
   assertVersion: Port['assertVersion'] = (ifMatch, version, current) => {
     if (ifMatch === null) return
     const tags = ifMatch
@@ -266,11 +235,6 @@ export class ConvexDomain implements DomainPort {
     )
   }
 
-  // ---- repositories ------------------------------------------------------------
-
-  // `at` only sets where "stars today" starts counting. To the minute, the
-  // arguments repeat and Convex answers a repeated list from its cache (a new
-  // star still drops the cached answer at once).
   listRepos: Port['listRepos'] = (p, q) => {
     const at = this.now()
     return this.q('repos:list', { ...q, at: at - (at % 60_000) }, p)
@@ -394,7 +358,6 @@ export class ConvexDomain implements DomainPort {
     }
   }
 
-  /** Stores not on Convex yet still key by address; tell them it moved. */
   private moved(from: string, to: string) {
     if (from === to) return
     void this.svc.auth.renameRepo(from, to)
@@ -404,8 +367,6 @@ export class ConvexDomain implements DomainPort {
     this.svc.hooks.rename(from, to)
     this.svc.extras.rename(from, to)
   }
-
-  // ---- issues ------------------------------------------------------------------
 
   listIssues: Port['listIssues'] = async (owner, name, p, q) => {
     const page = await this.q<{
@@ -532,8 +493,6 @@ export class ConvexDomain implements DomainPort {
     for (const e of all) if (await find(e.uploadId)) shown.push(e.shown)
     return shown
   }
-
-  // ---- changes ------------------------------------------------------------------
 
   private pre<T extends { id: string; version?: number }>(x: T) {
     return new Pre(JSON.stringify(x), x, `${x.id}|${x.version ?? 0}`)
@@ -809,12 +768,6 @@ export class ConvexDomain implements DomainPort {
   operationRepoId: Port['operationRepoId'] = (id) =>
     this.q('changes:operationRepoId', { id }, 'system')
 
-  // ---- events and sync ------------------------------------------------------------
-  // The feed is in Convex; this server reads it into `events`, its own
-  // window (`stores/convex-events.ts`). What happened comes from the window;
-  // who may see it comes from Convex.
-
-  /** Who may see events of a repository by id, asked once per id per answer. */
   canSeeId: Port['canSeeId'] = (p) => {
     const cache = new Map<string, Promise<boolean>>()
     return (id) => {
@@ -826,7 +779,6 @@ export class ConvexDomain implements DomainPort {
     }
   }
 
-  /** Who may see a repository by name, asked once per name per answer. */
   canSee: Port['canSee'] = (p) => {
     const cache = new Map<string, Promise<boolean>>()
     return (full) => {
@@ -882,14 +834,11 @@ export class ConvexDomain implements DomainPort {
         ? this.events.repoEvents(repoId)
         : []
       : this.events.all()
-    // Access is asked of Convex, so it is worked out for the repositories in
-    // the window first, then the page is read as the memory domain reads it.
     const allowed = new Map<string | null, boolean>()
     const hidden = new Map<string | null, Set<number>>()
     for (const e of source)
       if (!allowed.has(e.repoId)) {
         allowed.set(e.repoId, await can(e.repoId))
-        // Changes under an access rule the viewer does not read leave no trace.
         if (allowed.get(e.repoId))
           hidden.set(e.repoId, await this.hiddenChanges(e.repoId, p))
       }
@@ -930,7 +879,6 @@ export class ConvexDomain implements DomainPort {
     }>('sync:snapshot', { full, at: this.now() }, p)
     const repoId = snap.id
     const head = this.events.head
-    // Changes under an access rule the viewer does not read leave no trace.
     const hidden = await this.hiddenChanges(repoId, p)
     if (hidden.size)
       snap.objects = snap.objects.filter(
@@ -1025,8 +973,6 @@ export class ConvexDomain implements DomainPort {
     }
   }
 
-  // ---- notifications --------------------------------------------------------------
-
   listNotifications: Port['listNotifications'] = (p, q) =>
     this.q('notifications:list', { ...q }, p)
   notificationsVersion: Port['notificationsVersion'] = (p) =>
@@ -1039,8 +985,6 @@ export class ConvexDomain implements DomainPort {
     this.q('notifications:getPrefs', {}, p)
   updateNotificationPrefs: Port['updateNotificationPrefs'] = (p, body) =>
     this.m('notifications:updatePrefs', { prefs: body }, p)
-
-  // ---- pipelines ------------------------------------------------------------------
 
   listPipelineRuns: Port['listPipelineRuns'] = (owner, name, p, q) =>
     this.q('pipelines:list', { owner, name, ...q }, p)
@@ -1057,10 +1001,7 @@ export class ConvexDomain implements DomainPort {
     let sha: string | undefined
     try {
       sha = (await this.svc.git.commits(full, 1))[0]?.sha
-    } catch {
-      // No history in the store: it starts on the commit it last ran on.
-    }
-    // What the workflow file at the branch says about runs-on, when it is there.
+    } catch {}
     let runsOn:
       | { jobs: Record<string, Array<string>>; warnings: Array<string> }
       | undefined
@@ -1125,8 +1066,6 @@ export class ConvexDomain implements DomainPort {
   ) =>
     this.m('pipelines:resume', { owner, name, n, job, step, ...body, dry }, p)
 
-  // ---- access rules ----------------------------------------------------------------
-
   listAccessRules: Port['listAccessRules'] = (owner, name, p) =>
     this.q('access:list', { owner, name }, p)
   putAccessRule: Port['putAccessRule'] = (owner, name, id, p, body, dry) =>
@@ -1147,8 +1086,6 @@ export class ConvexDomain implements DomainPort {
       ? new Set(await this.q<Array<number>>('access:hiddenChanges', { id }, p))
       : new Set()
 
-  // ---- triggers --------------------------------------------------------------------
-
   getTriggers: Port['getTriggers'] = (owner, name, p) =>
     this.q('triggers:get', { owner, name }, p)
   triggersVersion: Port['triggersVersion'] = (owner, name, p) =>
@@ -1159,8 +1096,6 @@ export class ConvexDomain implements DomainPort {
   setRunsOn: Port['setRunsOn'] = async (owner, name, n, read) => {
     await this.m('pipelines:setRunsOn', { owner, name, n, read }, 'system')
   }
-
-  // ---- runners ---------------------------------------------------------------------
 
   createRunner: Port['createRunner'] = (p, body, dry) =>
     this.m('runners:create', { ...body, dry }, p)
@@ -1180,8 +1115,6 @@ export class ConvexDomain implements DomainPort {
   runnerWait: Port['runnerWait'] = (p, body) =>
     this.m('runners:wait', { ...body }, p)
   runnerJobs: Port['runnerJobs'] = (p, id) => this.q('runners:jobs', { id }, p)
-
-  // ---- policy rules -------------------------------------------------------------
 
   getPolicySet: Port['getPolicySet'] = (owner, name, p) =>
     this.q('policy:get', { owner, name, at: this.now() }, p)
@@ -1220,8 +1153,6 @@ export class ConvexDomain implements DomainPort {
     dry,
   ) => this.m('policy:removeException', { owner, name, id, dry }, p)
 
-  // ---- releases -------------------------------------------------------------------
-
   listReleases: Port['listReleases'] = (owner, name, p, q) =>
     this.q('releases:list', { owner, name, ...q }, p)
   releasesVersion: Port['releasesVersion'] = (owner, name, p) =>
@@ -1229,7 +1160,6 @@ export class ConvexDomain implements DomainPort {
   getRelease: Port['getRelease'] = (owner, name, tag, p) =>
     this.q('releases:get', { owner, name, tag }, p)
   createRelease: Port['createRelease'] = async (owner, name, p, body, dry) => {
-    // Uploads are still this server's; their checks stay with them until they move.
     const bad = (i: number, field: string, message: string) =>
       apiError('invalid_request', message, {
         errors: [
@@ -1285,8 +1215,6 @@ export class ConvexDomain implements DomainPort {
     )
   downloadAsset: Port['downloadAsset'] = (owner, name, tag, asset, p) =>
     this.m('releases:download', { owner, name, tag, asset }, p)
-
-  // ---- integrations, linked accounts, imports ----------------------------------------
 
   listConnections: Port['listConnections'] = (handle, p) =>
     this.q('integrations:listConnections', { handle }, p)
@@ -1383,8 +1311,6 @@ export class ConvexDomain implements DomainPort {
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   }
 
-  // ---- people -----------------------------------------------------------------------
-
   getAccountPrefs: Port['getAccountPrefs'] = (p) =>
     this.q('people:getPrefs', {}, p)
   updateAccountPrefs: Port['updateAccountPrefs'] = (p, body) =>
@@ -1408,7 +1334,6 @@ export class ConvexDomain implements DomainPort {
     )
   profile: Port['profile'] = async (handle, p) => {
     const since = this.now() - 365 * 86_400_000
-    // Commits come from the git store, which this server reads.
     const repos = await this.q<Array<string>>(
       'people:profileRepos',
       { handle, since },
@@ -1431,10 +1356,6 @@ export class ConvexDomain implements DomainPort {
     }
     return this.q('people:profile', { handle, at: this.now(), pushes }, p)
   }
-
-  // ---- insights, dashboard, status ------------------------------------------------
-  // Convex says what the caller may see and hands the facts; this server adds
-  // what it holds (git history, mirrors, its own health, the event window).
 
   private async history(full: string, limit: number) {
     try {
@@ -1744,11 +1665,6 @@ export class ConvexDomain implements DomainPort {
     }
   }
 
-  /**
-   * Hands this server's request counts to the shared store, so every server's
-   * status page adds up all of them. Called each minute and before a status
-   * read; buckets the store did not take go with the next call.
-   */
   flushHealth = async () => {
     const h = this.svc.health
     if (!h) return
@@ -1807,7 +1723,6 @@ export class ConvexDomain implements DomainPort {
         issues: number
       }
     }>('insights:statusFacts', {}, 'system')
-    // Health and counts are every server's; the arithmetic is the shared status code's.
     const mirrors: Array<{
       repo: string
       host: string
@@ -1825,8 +1740,6 @@ export class ConvexDomain implements DomainPort {
       counts: f.counts,
     })
   }
-
-  // ---- teams -----------------------------------------------------------------
 
   listTeams: Port['listTeams'] = (org, p) => this.q('teams:list', { org }, p)
   getTeam: Port['getTeam'] = (org, slug, p) =>

@@ -6,22 +6,11 @@ import type { ApiError, ErrorCode } from './problem'
 import type { PoolName } from './limiter'
 import type { DomainPort } from './domain'
 
-/**
- * An operation is the unit the whole API is built from. One definition gives
- * the route, the validation, the OpenAPI entry, the rate-limit cost, the safety
- * metadata an agent reads before calling, and the documentation. Adding an
- * endpoint is adding one of these.
- */
 export type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
 export class Domain extends Context.Service<
   Domain,
   {
-    /**
-     * Run a data access function. Failures become `ApiError`. The function may
-     * answer at once or later: the in-memory domain does the first, the Convex
-     * one will do the second.
-     */
     readonly run: <TValue>(
       f: (core: DomainPort) => PromiseLike<TValue> | TValue,
     ) => Effect.Effect<TValue, ApiError>
@@ -36,7 +25,6 @@ export class Reply<T> {
     readonly init: {
       status?: number
       headers?: Record<string, string>
-      /** Version key for the ETag, when it is not on the object. */
       etag?: string
     } = {},
   ) {}
@@ -44,17 +32,10 @@ export class Reply<T> {
 export const reply = <T>(body: T, init: Reply<T>['init'] = {}) =>
   new Reply(body, init)
 
-/**
- * An object already turned into JSON. Handlers that return one let the pipeline
- * skip serializing it, and lists of them are joined as text. `key` names
- * everything the text depends on, so it also stands in for the content when an
- * ETag is needed. `toJSON` keeps it working anywhere a plain object would.
- */
 export class Pre {
   private made: unknown
   private done = false
 
-  /** `obj` may be a function, for items built from text that rarely need the object. */
   constructor(
     readonly json: string,
     obj: unknown,
@@ -79,7 +60,6 @@ export class Pre {
 
   private cached: string | undefined
 
-  /** A short, stable digest of `key`, for building the ETag of a list. */
   get tag(): string {
     return (this.cached ??= cyrb53(this.key).toString(36))
   }
@@ -89,7 +69,6 @@ export class Pre {
   }
 }
 
-/** A fast non-cryptographic 53-bit hash. Good enough to tell one version from another. */
 export function cyrb53(str: string, seed = 0): number {
   let h1 = 0xdeadbeef ^ seed
   let h2 = 0x41c6ce57 ^ seed
@@ -107,7 +86,6 @@ export function cyrb53(str: string, seed = 0): number {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0)
 }
 
-/** A response the handler built itself, such as an event stream. */
 export class Raw {
   constructor(readonly response: Response) {}
 }
@@ -120,22 +98,18 @@ export type Ctx<TParams, TQuery, TBody> = {
   readonly params: TParams
   readonly query: TQuery
   readonly body: TBody
-  /** The HTTP method. HEAD reaches a GET handler, so it can answer without a body. */
   readonly method: string
   readonly principal: Principal | null
   readonly requestId: string
   readonly dryRun: boolean
   readonly ifMatch: string | null
   readonly url: URL
-  /** The request body as bytes, for operations that declare `rawBody`. */
   readonly bytes: Uint8Array | null
   readonly signal: AbortSignal
   readonly header: (name: string) => string | null
-  /** `https://api.cobaltforge.dev/v1`, or wherever this API is mounted. */
   readonly base: string
   readonly htmlBase: string
   readonly now: () => number
-  /** Run another request through the whole pipeline. Used by batch. */
   readonly dispatch: (
     method: string,
     path: string,
@@ -149,77 +123,44 @@ export type OpSpec<
   TBody extends z.ZodType | undefined,
   TResponse extends z.ZodType,
 > = {
-  /** `changes.land`: group, then verb. The same name is the MCP tool and CLI command. */
   id: string
   summary: string
   description?: string
   tags: Array<string>
   method: Method
-  /** Relative to the mount, with `{name}` parameters. */
   path: string
   auth: 'none' | 'optional' | 'required'
   scopes?: Array<Scope>
   pool: PoolName | 'none'
-  /** Rate-limit units. */
   cost?: number
   safety: 'read' | 'write' | 'destructive'
-  /** Repeating it with the same input is harmless. */
   idempotent: boolean
-  /** Accepts `?dry_run=true`. */
   dryRun?: boolean
   params?: TParams
   query?: TQuery
   body?: TBody
-  /** Takes the body as raw bytes instead of JSON, up to this many. */
   rawBody?: { maxBytes: number }
   response: TResponse
   status?: number
-  /** The response contains a secret or a one-time capability, so it is not stored for idempotency. */
   secretResponse?: boolean
-  /**
-   * The request body carries a secret. It takes no Idempotency-Key: the
-   * stored fingerprint is a hash of the body, and a short secret's hash can
-   * be guessed back.
-   */
   secretRequest?: boolean
-  /** Default true. False turns off ETags, conditional reads and the body cache. */
   conditional?: boolean
-  /** The response is not JSON: the media type it is served as. */ responseContentType?: string
-  /** The response stays open, so it cannot be run inside a batch. */
+  responseContentType?: string
   streaming?: boolean
-  /** Enforces `If-Match` on writes, so an idempotent retry must re-check the precondition. */
   ifMatch?: boolean
-  /** Codes beyond the ones every operation can return. */
   errors?: Array<ErrorCode>
-  /** Honours `?fields=`. */
   shapeable?: boolean
-  /** Honours `?wait=` with `If-None-Match`; names the topic to wait on. */
   waitOn?: (
     params: Infer<TParams>,
     query?: unknown,
     domain?: DomainPort,
   ) => string | Promise<string>
-  /**
-   * The version of what is being read, found without building it. With it a
-   * conditional read can answer 304 and a repeat read can come from the body
-   * cache, with no effect run at all.
-   */
   probe?: (
     ctx: Ctx<Infer<TParams>, Infer<TQuery>, Infer<TBody>>,
     domain: DomainPort,
   ) => Promise<string | null>
-  /**
-   * A readable form for `Accept: text/markdown`, built from the JSON object. Reads
-   * only. The ETag and the cache differ from the JSON's, so a client can ask for either.
-   */
   markdown?: (object: Record<string, unknown>) => string
-  /** Name of a state-changing result the operation may return as 202. */
   mayBeAsync?: boolean
-  /**
-   * Another answer the operation may give: `202` with this object when the
-   * request was taken but waits on something else (a policy proposal waits
-   * for its change to land).
-   */
   accepted?: { response: z.ZodType; description: string }
   handler: (
     ctx: Ctx<Infer<TParams>, Infer<TQuery>, Infer<TBody>>,
@@ -246,9 +187,6 @@ export function defineOp<
   return spec as unknown as Op
 }
 
-// ---------------------------------------------------------------------------
-// Router
-
 type Node = {
   statics: Map<string, Node>
   param: Node | null
@@ -268,8 +206,6 @@ export class Router {
   constructor(ops: ReadonlyArray<Op>) {
     for (const op of ops) {
       let at = this.root
-      // Two operations may call the same position by different names, so the
-      // names belong to the operation, not to the trie.
       const names: Array<string> = []
       for (const seg of op.path.split('/').filter(Boolean)) {
         if (seg.startsWith('{')) {
@@ -299,7 +235,6 @@ export class Router {
         try {
           value = decodeURIComponent(seg)
         } catch {
-          // A malformed escape is a request that names no endpoint, not a crash.
           return { kind: 'miss' }
         }
         values.push(value)

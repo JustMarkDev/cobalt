@@ -18,11 +18,6 @@ import type {
   TestCaseRec,
 } from './domain'
 
-/**
- * Sample data for the preview, in the same story the app and the CLI tell:
- * dana/gitfs, a stack of three changes (#216, #217, #218), a mirrored change,
- * an agent's draft, and reviewers' findings. It is also what the tests run on.
- */
 export const T0 = Date.parse('2026-11-07T09:00:00Z')
 const hours = (h: number) => T0 - h * 3_600_000
 const days = (d: number) => T0 - d * 86_400_000
@@ -30,11 +25,8 @@ const days = (d: number) => T0 - d * 86_400_000
 export const sampleTokens = {
   dana: 'cbp_dana_full_access_0001',
   hollis: 'cbp_hollis_maintainer_02',
-  /** A narrower token dana made for her agent: changes on gitfs, cannot land. */
   scoped: 'cbp_dana_scoped_gitfs_03',
-  /** A token that only touches issues, on dana/gitfs. */
   issuesOnly: 'cbp_dana_issues_only_04',
-  /** A token limited to one repository. */
   limited: 'cbp_dana_limited_repo_05',
   expired: 'cbp_dana_expired_token_06',
   stranger: 'cbp_stranger_no_access_07',
@@ -151,10 +143,6 @@ const ps = (
   kind,
 })
 
-/**
- * The sample history has no changes behind it, so say something steady about
- * each commit: about half landed through a change, a few failed checks.
- */
 function sampleFacts() {
   return (sha: string) => {
     const n = parseInt(sha.slice(0, 6), 16) || 0
@@ -197,7 +185,6 @@ export function seedSample(d: MemoryDomain) {
     ],
     days(50),
   )
-  // dana can work in lumen-studio but is only a member there.
   d.seedAccount(
     'lumen-studio',
     'Lumen Studio',
@@ -398,7 +385,6 @@ export function seedSample(d: MemoryDomain) {
     version: 1,
   })
 
-  // The stack: #216 below #217 below #218.
   const stk = seededId('stack', days(3), 'gitfs-neg-cache')
   const c216 = base(
     216,
@@ -521,7 +507,6 @@ export function seedSample(d: MemoryDomain) {
         'tests/refs_test.rs asserts one disk read for two lookups of a missing ref, but nothing covers eviction. Add a case after lookup_reads_disk_once: fill the negative cache past NEG_CACHE_MAX, look the first missing name up again, and assert it is read from disk. Depends on the cache being bounded.',
     },
   ]
-  // The files themselves, so the review screen can draw and edit them.
   c216.baseFiles = change216.base
   c216.patchSets.forEach((set, i) => (set.contents = change216.versions[i]))
   c216.checks = [
@@ -744,7 +729,6 @@ export function seedSample(d: MemoryDomain) {
     for (const r of list)
       d.seedRelease(repo, {
         ...r,
-        // Each domain gets its own copies: a download changes a count.
         notes: {
           added: [...r.notes.added],
           changed: [...r.notes.changed],
@@ -779,7 +763,6 @@ export function seedSample(d: MemoryDomain) {
     }
   }
 
-  // ines lands without a second review in gitfs while hollis is away.
   gitfs.policyExceptions = [
     {
       id: seededId('exception', days(2), 'gitfs-ines-core'),
@@ -792,7 +775,6 @@ export function seedSample(d: MemoryDomain) {
     },
   ]
 
-  // dana's connected services, three of them on for gitfs.
   for (const id of ['coderabbit', 't3code', 'varlock', 'selfhosted'])
     d.seedConnection('dana', id, 'dana', days(40))
   d.repoIntegrations.set(
@@ -800,11 +782,8 @@ export function seedSample(d: MemoryDomain) {
     new Set(['coderabbit', 't3code', 'varlock']),
   )
 
-  // People dana trusts on gitfs: their changes go first.
   d.repos.get('dana/gitfs')!.vouched = ['hollis', 'ines']
 
-  // Downloads by day for the last 60 days, so the charts have a shape. Only
-  // what is downloaded from now on is counted for real.
   for (const [full, perDay] of [
     ['dana/gitfs', 40],
     ['hollis/lumen', 300],
@@ -821,7 +800,6 @@ export function seedSample(d: MemoryDomain) {
     d.seedDownloads(full, times)
   }
 
-  // Who follows whom.
   for (const [who, whom] of [
     ['hollis', 'dana'],
     ['ines', 'dana'],
@@ -831,7 +809,6 @@ export function seedSample(d: MemoryDomain) {
   ] as const)
     d.seedFollow(who, whom)
 
-  // Who dana is elsewhere.
   d.seedLink('dana', {
     host: 'github',
     login: 'dana-okafor',
@@ -839,7 +816,6 @@ export function seedSample(d: MemoryDomain) {
     linked: days(50),
   })
 
-  // dana's inbox, oldest first so the newest ends on top.
   const inbox: Array<
     [NotificationKind, string, string | null, string, number, boolean]
   > = [
@@ -928,7 +904,6 @@ const comment = (
 
 const HOUR = 3_600_000
 
-/** The issues every sample repository but gitfs shows: the same eight, named for it. */
 function seedIssues(d: MemoryDomain, repo: RepoRec) {
   const r = repo.name
   const list: Array<
@@ -1052,7 +1027,6 @@ function seedIssues(d: MemoryDomain, repo: RepoRec) {
       labels,
       assignees:
         n === 207 && repo.name === 'lumen' ? [d.actors.get('dana')!] : [],
-      // An hour apart, after the issue was opened.
       comments: said.map(([who, text], k) =>
         comment(
           `${repo.owner}/${r}#${n}/${k}`,
@@ -1069,10 +1043,6 @@ function seedIssues(d: MemoryDomain, repo: RepoRec) {
   }
 }
 
-/**
- * A repository with a stack of three changes that are ready to land: each has
- * an approval from a maintainer and passing CI on its own tree.
- */
 export const STACK_ID = 'stk_stacky000000000000'
 export function seedStack(d: MemoryDomain) {
   const repo = d.seedRepo('dana', 'stacky', {
@@ -1142,7 +1112,6 @@ export function seedStack(d: MemoryDomain) {
   }
 }
 
-/** Many changes and issues, for list and paging tests and the benchmark. */
 export function seedBulk(
   d: MemoryDomain,
   owner: string,

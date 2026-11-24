@@ -10,15 +10,6 @@ import { pipelines, reach, reachable, reviewsAndAssigned } from './insights'
 import { load, runnersOf } from './pipelines'
 import type { Doc } from '../_generated/dataModel'
 
-/**
- * The facts behind the inbox's "Needs you" queue, for the signed-in person:
- * what the dashboard shows (reviews, assigned issues, main failing), and
- * their own blocked or failing changes, unread mentions, steps waiting on
- * them and runs no runner can take. The API adds the mirrors it keeps and
- * turns the facts into the queue (`packages/api/src/inbox.ts`), the same way
- * the memory domain does. Scans the repositories the person reaches, capped.
- */
-
 const MAX_REPOS = 200
 
 export const facts = query({
@@ -61,7 +52,6 @@ export const facts = query({
             started: main.started,
           })
       }
-      // Their own open changes, as a reader of the change sees its policy.
       const mine = (
         await ctx.db
           .query('changes')
@@ -92,7 +82,6 @@ export const facts = query({
             })
         }
       }
-      // Steps waiting on them, and their runs no runner can take.
       for (const status of ['waiting', 'running', 'queued'])
         for (const d of await ctx.db
           .query('pipelineRuns')
@@ -148,7 +137,6 @@ export const facts = query({
         }
     }
 
-    // Unread mentions from the activity feed, in repositories they still read.
     const mentions = []
     for (const n of await ctx.db
       .query('notifications')

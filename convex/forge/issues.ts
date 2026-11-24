@@ -17,8 +17,6 @@ import { syncAssignees } from '../lib/grants'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** Issues, their labels, comments, and the images and recordings on them. */
-
 const position = v.union(
   v.null(),
   v.object({ key: v.union(v.string(), v.number()), id: v.string() }),
@@ -218,7 +216,6 @@ export const update = mutation({
       state: v.optional(v.union(v.literal('open'), v.literal('closed'))),
       assignees: v.optional(v.array(v.string())),
     }),
-    // The fields as the caller sent them, in their order, for the event.
     fields: v.array(v.string()),
     ifMatch: v.optional(v.union(v.null(), v.string())),
     dry: v.optional(v.boolean()),
@@ -281,8 +278,6 @@ export const update = mutation({
     return finish(dry, shown)
   },
 })
-
-// ---- labels ------------------------------------------------------------------
 
 function presentLabel(l: Doc<'labels'>, shown: Partial<Doc<'labels'>> = {}) {
   const x = { ...l, ...shown }
@@ -385,7 +380,6 @@ export const createLabel = mutation({
   },
 })
 
-/** Every issue that has a label, a batch at a time: a label is on few issues or many. */
 async function* issuesWith(ctx: QueryCtx, repo: Doc<'repos'>, label: string) {
   for await (const i of ctx.db
     .query('issues')
@@ -436,7 +430,6 @@ export const updateLabel = mutation({
       description: body.description ?? l.description,
     }
     if (renamed) {
-      // Issues carry the name, so a rename follows it onto every issue.
       const at = Date.now()
       for await (const i of issuesWith(ctx, repo, l.name))
         await ctx.db.patch('issues', i._id, {
@@ -476,8 +469,6 @@ export const deleteLabel = mutation({
   },
 })
 
-// ---- comments ----------------------------------------------------------------
-
 export function presentComment(
   i: Doc<'issues'>,
   c: Doc<'issueComments'>,
@@ -508,8 +499,6 @@ export const listComments = query({
   handler: async (ctx, args) => {
     const repo = await resolve(ctx, args.owner, args.name, await actorOf(ctx))
     const i = await issueOf(ctx, repo, args.number)
-    // Oldest first. The cursor is the last comment sent, by position and id,
-    // so a comment deleted before it moves the page back by one, never skips.
     let start = 0
     const all = await ctx.db
       .query('issueComments')
@@ -568,7 +557,6 @@ export const createComment = mutation({
       ...(await bodyOf(ctx, 'comments.create', { body: given.body })),
     }
     const p = await signedIn(ctx)
-    // Anyone who can read the repository may comment on its issues.
     const repo = await resolve(ctx, args.owner, args.name, p)
     const i = await issueOf(ctx, repo, args.number)
     const at = Date.now()
@@ -677,8 +665,6 @@ export const deleteComment = mutation({
   },
 })
 
-// ---- evidence ----------------------------------------------------------------
-
 export function presentIssueEvidence(
   i: Doc<'issues'>,
   e: Doc<'issueEvidence'>,
@@ -701,7 +687,6 @@ export function presentIssueEvidence(
   }
 }
 
-/** Anyone who can read the repository may show what they saw on an issue. */
 export const addEvidence = mutation({
   args: {
     owner: v.string(),

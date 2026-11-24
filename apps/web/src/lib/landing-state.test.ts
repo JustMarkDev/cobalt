@@ -24,7 +24,6 @@ const view = (
 
 describe('landing from the change page', () => {
   test('a change landed elsewhere shows landed, though this page asked nothing', () => {
-    // The page used to keep the state it was first drawn with.
     expect(view({ change: 'landed' })).toMatchObject({
       phase: 'landed',
       canLand: false,
@@ -35,7 +34,6 @@ describe('landing from the change page', () => {
     expect(view().canLand).toBe(true)
     expect(view({ blockers: 1 }).canLand).toBe(false)
     expect(view({ change: 'draft' }).canLand).toBe(false)
-    // An abandoned change used to show a Land button that did something.
     expect(view({ change: 'abandoned' }).canLand).toBe(false)
   })
 
@@ -91,7 +89,6 @@ describe('landing from the change page', () => {
   })
 
   test('moves that do not apply change nothing', () => {
-    // A late answer to a request the page is no longer waiting on.
     expect(landingReducer(idleLanding, { type: 'landed' })).toBe(idleLanding)
     const landed = run({ type: 'send' }, { type: 'landed' })
     expect(landingReducer(landed, { type: 'send' })).toBe(landed)

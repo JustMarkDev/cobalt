@@ -1,8 +1,3 @@
-// The integrations catalog the app offers, and how screens see mirrors.
-// Taglines describe what each vendor says it does; how each one reports back
-// to a host is not documented for every vendor, so the app treats results as
-// "comments and checks on a change" and nothing more specific.
-
 import type { BrandId } from '~/components/brand'
 
 export type IntegrationGroup =
@@ -12,7 +7,6 @@ export type IntegrationGroup =
   | 'secrets'
   | 'planning'
 
-/** `available` works today. `planned` is on the roadmap and cannot be connected yet. */
 export type IntegrationStatus = 'available' | 'planned'
 
 export type Integration = {
@@ -21,9 +15,7 @@ export type Integration = {
   status: IntegrationStatus
   tagline: string
   does: Array<string>
-  /** What it is allowed to do once connected, in plain words. */
   access: Array<string>
-  /** Needs a key or address rather than a sign-in. */
   credential?: { label: string; placeholder: string }
 }
 
@@ -240,10 +232,6 @@ export const catalog: Array<Integration> = [
   },
 ]
 
-/**
- * The order a list is shown in. Connected services come first, then the ones
- * that work today, then the planned ones. Within each, the catalog order holds.
- */
 export function sortIntegrations(
   list: ReadonlyArray<Integration>,
   connected: ReadonlySet<string>,
@@ -255,8 +243,6 @@ export function sortIntegrations(
     .sort((a, b) => rank(a.i) - rank(b.i) || a.n - b.n)
     .map(({ i }) => i)
 }
-
-/* Mirrors: other hosts that keep a copy of a repository in step. */
 
 export type Host =
   | 'github'
@@ -270,13 +256,11 @@ export type MirrorState = 'in-sync' | 'syncing' | 'behind' | 'failing'
 export type Mirror = {
   id: string
   host: Host
-  /** The repository on that host. */
   slug: string
   direction: 'two-way' | 'push' | 'pull'
   state: MirrorState
   last: string
   detail?: string
-  /** What travels across. Git history always does. */
   carries: {
     issues: boolean
     changes: boolean

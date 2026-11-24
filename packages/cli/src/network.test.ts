@@ -25,7 +25,6 @@ import { run } from './main'
 import { createSxMcpServer } from './mcp'
 import type { Ctx } from './output'
 
-/** The CLI against the API over real sockets, the way it will run against the hosted service. */
 let server: ReturnType<typeof Bun.serve>
 let base = ''
 const api = createSampleApi({
@@ -96,7 +95,6 @@ describe('over the network', () => {
     )
     const strip = (t: string) => {
       const j = JSON.parse(t)
-      // Links name the host that served them; everything else is the same.
       return JSON.stringify(j)
         .replaceAll(base, 'H')
         .replaceAll('http://placeholder/v1', 'H')
@@ -170,7 +168,6 @@ describe('over the network', () => {
 })
 
 describe('signing in with a code', () => {
-  /** A server that answers the way ours does, so the CLI's loop can be driven. */
   function stub(steps: Array<[number, Record<string, unknown>]>) {
     const calls: Array<{ url: string; body: string }> = []
     const queue = [...steps]
@@ -246,7 +243,6 @@ describe('signing in with a code', () => {
           },
         },
       )
-      // The code was shown on stderr, so stdout stays clean for scripts.
       expect(c.err[0]).toContain('BCDF-GHJK')
       expect(c.err[0]).toContain('https://x/device?user_code=BCDF-GHJK')
       expect(sleeps).toEqual([1000, 1000, 6000])
@@ -340,7 +336,6 @@ describe('signing in with a code', () => {
       CB_ACCOUNT: undefined,
     }
     try {
-      // The "browser": sign in as dana and approve the code the CLI prints.
       const approve = async (stderrText: string) => {
         const userCode = /code is ([A-Z]{4}-[A-Z]{4})/.exec(stderrText)![1]
         const session = await fetch(`${url}/oauth/session`, {
@@ -377,7 +372,6 @@ describe('signing in with a code', () => {
         {},
         {
           fetch,
-          // The real server enforces its polling interval; wait it out, then approve once the code is shown.
           sleep: async (ms) => {
             if (c.err.length && !approved) {
               approved = true
@@ -396,10 +390,8 @@ describe('signing in with a code', () => {
         authenticated: true,
         via: 'credentials',
       })
-      // With a stored token and no CB_TOKEN, calls work.
       const list = await cb(env, 'repo', 'list')
       expect(list.code, list.err).toBe(0)
-      // An expired token is refreshed, and the new refresh token is saved.
       const file = join(dir, 'credentials.json')
       const stale = { ...creds, expires_at: Date.now() - 1000 }
       await Bun.write(file, JSON.stringify(stale))
@@ -407,7 +399,6 @@ describe('signing in with a code', () => {
       const after = JSON.parse(readFileSync(file, 'utf8'))
       expect(after.refresh_token).not.toBe(creds.refresh_token)
       expect(after.expires_at).toBeGreaterThan(Date.now())
-      // Logging out revokes on the server.
       expect((await cb(env, 'auth', 'logout')).code).toBe(0)
       expect(existsSync(file)).toBe(false)
       const dead = await fetch(`${url}/auth/principal`, {
@@ -423,8 +414,6 @@ describe('signing in with a code', () => {
 })
 
 describe('MCP carries the caller’s token', () => {
-  // Over HTTP, as the hosted endpoint serves it, at the 2026-07-28
-  // revision: no session, the version and method on every request.
   async function connect(token: string) {
     const { Client, StreamableHTTPClientTransport } =
       await import('@modelcontextprotocol/client')
@@ -480,7 +469,6 @@ describe('MCP carries the caller’s token', () => {
     expect(body.allowed).toBe(false)
     expect(body.requirements.length).toBeGreaterThan(0)
 
-    // The triage bot has repo:read but not pulls:read.
     const triage = await connect(sampleTokens.issuesOnly)
     const denied = await triage.callTool({
       name: 'check_policy',
@@ -516,7 +504,6 @@ describe('MCP carries the caller’s token', () => {
       'repo',
     ])
     expect(one.body.properties.title.type).toBe('string')
-    // An operation whose answer is a secret is listed, and marked.
     const secret = JSON.parse(
       text(
         await dana.callTool({
@@ -584,7 +571,6 @@ describe('MCP carries the caller’s token', () => {
     const secret = await call({ id: 'tokens.create', body: { name: 'x' } })
     expect(secret.body.error.code).toBe('not_callable')
 
-    // The token's scopes still hold: the triage bot cannot land.
     const triage = await connect(sampleTokens.issuesOnly)
     const denied = (await triage.callTool({
       name: 'call_operation',

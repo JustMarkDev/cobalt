@@ -32,38 +32,19 @@ import type { SessionResolver } from './oauth'
 import type { Scope } from './auth'
 import type { JWK } from 'jose'
 
-/**
- * The API on Convex, as the running app serves it. This server keeps no
- * data of its own: tokens, OAuth state, the forge, extras, upload records,
- * webhooks and the event feed are all in Convex; files are in the bucket.
- * What it holds in memory (the event window, the search index, caches) it
- * rebuilds from Convex at start, so any copy can be stopped at any time.
- */
 export type ConvexApiOptions = {
-  /** The Convex deployment (`https://<name>.convex.cloud`). */
   convexUrl: string
-  /** Signs the API's own JWTs for Convex (`scripts/api-keys.ts`). */
   jwt: { issuer: string; privateJwk: JWK }
-  /** Shared with every API server, for rate limits and idempotency keys. */
   storeSecret?: string
-  /** Signs upload addresses. Every API server must share it. */
   uploadSecret: string
   mount: string
   base: string
   htmlBase: string
   sessions: SessionResolver
   userScopes?: (handle: string) => ReadonlyArray<Scope>
-  /** Whether a machine sign-in may read secret values. Default: `CB_DEVICE_DECRYPT` is not `0`. */
   deviceDecrypt?: (handle: string) => boolean
-  /** Seed an empty deployment with the sample, for development. */
   seedSample?: () => string
-  /** Where uploaded files go when no bucket is configured. */
   blobFolder: string
-  /**
-   * What the store worker uses to delete and measure git stores. Default:
-   * code.storage, when `CODE_STORAGE_NAME` and `CODE_STORAGE_KEY` are set;
-   * without either, git deletions wait in the queue.
-   */
   gitAdmin?: GitAdmin
   env?: Record<string, string | undefined>
   allowPrivateWebhooks?: boolean
@@ -79,7 +60,6 @@ export function createConvexApi(o: ConvexApiOptions) {
   const svc = {
     auth: new ConvexTokens(call),
     extras: new ConvexExtras(call, now),
-    // Without CB_SECRETS_KEY no value is kept or given out (fail closed).
     secrets: SecretBox.fromBase64(env.CB_SECRETS_KEY),
     uploads: new ConvexUploads(
       call,
@@ -105,8 +85,6 @@ export function createConvexApi(o: ConvexApiOptions) {
     d.accessRevision = rev
   })
 
-  // Getting ready: seed a new development deployment, fill the event window
-  // and the search index, then follow the feed with one subscription.
   const ready = (async () => {
     if (o.seedSample) {
       const seeded = await run<boolean>(
@@ -119,8 +97,6 @@ export function createConvexApi(o: ConvexApiOptions) {
       if (seeded)
         console.log('[api] seeded the Convex deployment with the sample')
     }
-    // What an erasure leaves in the bucket and in code.storage, and the size
-    // of repositories after a push (`convex/storeWorker.ts`).
     if (o.storeSecret) {
       const git =
         o.gitAdmin ??
@@ -143,7 +119,6 @@ export function createConvexApi(o: ConvexApiOptions) {
     svc.search.ensure()
     const hooks = svc.hooks as ConvexHooks
     const client = new ConvexClient(o.convexUrl)
-    // Signed in as this server, for `nextDue` (the feed's head is public).
     client.setAuth(({ forceRefreshToken }) =>
       call.token('system', forceRefreshToken),
     )
@@ -154,8 +129,6 @@ export function createConvexApi(o: ConvexApiOptions) {
         void feed.pull().then(() => hooks.send())
       },
     )
-    // Deliveries go out when they come due, which Convex tells this server,
-    // rather than by asking it every few seconds whether anything is due.
     followDeliveries(
       (onAnswer, onError) =>
         client.onUpdate(
@@ -169,7 +142,6 @@ export function createConvexApi(o: ConvexApiOptions) {
         ),
       () => hooks.send(),
     )
-    // This server's request counts, for every server's status page.
     const health = setInterval(
       () =>
         void d

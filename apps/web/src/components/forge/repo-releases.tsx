@@ -1,7 +1,3 @@
-/**
- * The Releases tab, apart from the Code tab so it does not bring the file
- * tree and the history view with it.
- */
 import * as React from 'react'
 import {
   ArrowDownTrayIcon,
@@ -33,15 +29,9 @@ const platformIcon = {
   linux: CommandLineIcon,
 } as const
 
-/**
- * Counting a download. The file itself is served by the store once it is
- * connected; until then a download is counted and nothing is saved.
- */
 export function useDownload(repo: Repo) {
   const write = useWrite()
   return (release: Release, file: string) => {
-    // A file kept here is fetched from the release's own address, which
-    // counts it; one kept elsewhere is only counted.
     if (release.assets.find((a) => a.file === file)?.stored) {
       window.location.assign(
         `/${repo.owner}/${repo.name}/releases/download/${encodeURIComponent(release.version)}/${encodeURIComponent(file)}`,
@@ -91,9 +81,6 @@ export function ReleaseNotes({ release }: { release: Release }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Releases: detect the machine, say which file is for it, make verifying easy.
-// ---------------------------------------------------------------------------
 const channelChip = {
   stable: 'success',
   beta: 'warning',
@@ -106,7 +93,6 @@ const channelBlurb: Record<Channel, string> = {
   nightly: 'Built automatically from main. Unsigned, and can break.',
 }
 
-/** What to know before installing this particular version, if anything. */
 function ReleaseNotice({
   release,
   latest,
@@ -193,7 +179,6 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
   const count = (c: Channel) =>
     repo.releases.filter((r) => r.channel === c).length
 
-  // Anything but the newest stable gets commands pinned to that version.
   const pinned = release !== undefined && release !== latest
   const v = release?.version.replace(/^v/, '') ?? ''
   const installs = [

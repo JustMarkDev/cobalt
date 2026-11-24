@@ -64,15 +64,7 @@ import type { ProvenanceFacts } from './port'
 
 type Entry = z.infer<typeof S.TimelineEntry>
 
-/** Changes: patch sets, reviews, checks, policy, landing and stacks. */
 export abstract class DomainChanges extends DomainIssues {
-  /**
-   * Whether a change could land by itself now, short of one question only the
-   * API server can answer (does it touch what protects the repository: policy,
-   * CI, env schema). Never a draft, a change in a stack, a landing with steps
-   * after it, or one whose enabler can no longer write here. The answer names
-   * the commit, so landing can refuse if the change moved since.
-   */
   async autoLandCandidate(owner: string, name: string, ref: string) {
     const repo =
       this.repos.get(`${owner}/${name}`) ??
@@ -86,12 +78,9 @@ export abstract class DomainChanges extends DomainIssues {
       return null
     }
     if (c.state !== 'open' || c.stackId) return null
-    // A rebase keeps the old tree's checks and approvals on the client's
-    // word; nothing lands by itself on that word.
     if (this.head(c).kind === 'rebase') return null
     if (hasAfterSteps(repo.landing ?? DEFAULT_LANDING)) return null
     if (rulesReadChangedFiles(repo.customRules ?? [])) return null
-    // The repository's own rules on who and what it takes hold here too.
     if (
       contributionRefusal(
         repo,
@@ -107,7 +96,6 @@ export abstract class DomainChanges extends DomainIssues {
       this.teamLevel(repo, by) === 'write'
     if (!canWrite) return null
     if (this.policyState(this.evaluate(repo, c)) !== 'met') return null
-    // The landing's own gates (checks it waits on) hold as for a person.
     if (
       landingWaits(repo.landing ?? DEFAULT_LANDING, c.checks, this.head(c))
         .length
@@ -121,7 +109,6 @@ export abstract class DomainChanges extends DomainIssues {
     }
   }
 
-  /** Lands it, if it is still a candidate at the same commit. */
   async autoLand(owner: string, name: string, ref: string, sha: string) {
     const ready = await this.autoLandCandidate(owner, name, ref)
     if (!ready || ready.sha !== sha) return false
@@ -184,11 +171,6 @@ export abstract class DomainChanges extends DomainIssues {
     return shown
   }
 
-  /**
-   * A change by number or id. A change under an access rule the viewer does
-   * not read answers like one that does not exist; `internal` is the forge
-   * itself (auto-land, a landing step).
-   */
   protected getChangeRec(
     repo: RepoRec,
     ref: string,
@@ -242,7 +224,6 @@ export abstract class DomainChanges extends DomainIssues {
         (!q.author || c.author.handle === q.author) &&
         (!q.branch || c.branch === q.branch) &&
         (!q.label || c.labels.includes(q.label)) &&
-        // A change under an access rule the viewer does not read is not listed.
         this.seesChange(repo, c, p),
     })
     return {
@@ -271,9 +252,6 @@ export abstract class DomainChanges extends DomainIssues {
   ) {
     const repo = this.resolve(owner, name, p)
     const c = this.getChangeRec(repo, ref, p)
-    // The change's own version covers everything in its representation.
-    // The repository version covers the `repo` stub and the stack's other members.
-    // The id keeps a deleted change's cached body from matching a new one.
     return this.changeKey(repo, c, expand)
   }
 
@@ -370,7 +348,6 @@ export abstract class DomainChanges extends DomainIssues {
           change: this.presentChange(repo, existing, p),
           outcome: 'unchanged' as const,
         }
-      // A token limited to paths changes nothing outside them.
       assertWithinPaths(touchedFiles(this.head(existing)), p!.paths)
       if (body.dry_run) {
         const prev = this.head(existing)
@@ -476,7 +453,6 @@ export abstract class DomainChanges extends DomainIssues {
 
   protected shaCounter = 0
 
-  /** Stands in for the branch head the git store would report. */
   protected fakeSha(repo: RepoRec, branch: string) {
     return createHash('sha1')
       .update(`${repo.id}/${branch}/${this.now()}/${this.shaCounter++}`)
@@ -522,19 +498,15 @@ export abstract class DomainChanges extends DomainIssues {
               ),
         kind: ps.kind,
         ...(ps.via ? { via: ps.via } : {}),
-        // A rebase keeps the files; an update without them has none to show.
         ...(ps.contents
           ? { contents: ps.contents }
           : ps.kind === 'rebase' && prev.contents
             ? { contents: prev.contents }
             : {}),
       })
-      // An approval follows a rewrite only when the code did not change.
       if (ps.kind === 'update') for (const r of c.reviews) r.carries = false
-      // Comments follow the code they are about into the new patch set.
       if (placeThreads(c.comments ?? [], c.patchSets, this.head(c)))
         c.commentRev = (c.commentRev ?? 0) + 1
-      // And the threads it answers say so, in the same write.
       if (ps.addresses?.length) {
         addressed = addressThreads(
           c.comments ?? [],
@@ -666,8 +638,6 @@ export abstract class DomainChanges extends DomainIssues {
     const c = this.getChangeRec(repo, ref, p)
     if (c.state === 'landed' || c.state === 'abandoned')
       throw apiError('invalid_state', `Change #${c.number} is ${c.state}.`)
-    // A denounced author's change takes no more work, from anyone: the same
-    // rule a push meets.
     const authorRefused = contributionRefusal(
       repo,
       c.author.handle,
@@ -675,7 +645,6 @@ export abstract class DomainChanges extends DomainIssues {
       'change',
     )
     if (authorRefused) throw apiError(authorRefused.code, authorRefused.detail)
-    // The threads this patch set answers, checked before anything is written.
     const addresses = body.addresses ?? []
     if (addresses.length)
       addressThreads(
@@ -691,7 +660,6 @@ export abstract class DomainChanges extends DomainIssues {
         false,
       )
     if (body.files) return this.patchSetFromFiles(repo, c, p!, body, dry)
-    // A token limited to paths changes nothing outside them.
     assertWithinPaths(touchedFiles(this.head(c)), p!.paths)
     if (!body.sha)
       throw apiError('invalid_request', 'Send `sha`, or `files`.', {
@@ -729,11 +697,6 @@ export abstract class DomainChanges extends DomainIssues {
     return this.presentPatchSet(repo, c, this.head(c))
   }
 
-  /**
-   * A patch set made from files edited in the browser: the head's files with
-   * these on top. Its commit id is a hash of what it holds, so saving the same
-   * edit twice names the same commit.
-   */
   protected patchSetFromFiles(
     repo: RepoRec,
     c: ChangeRec,
@@ -763,7 +726,6 @@ export abstract class DomainChanges extends DomainIssues {
           ],
         })
     const contents = { ...prev.contents, ...body.files }
-    // A token limited to paths changes nothing outside them; deleting is changing.
     assertWithinPaths(touchedFiles({ files: prev.files, contents }), p.paths)
     this.assertMayTouch(
       repo,
@@ -969,11 +931,6 @@ export abstract class DomainChanges extends DomainIssues {
       .map((f) => this.presentFinding(repo, c, f))
   }
 
-  /**
-   * A reviewer (a person, an agent or a review bot) raises a finding on a line
-   * of the newest patch set. A high one holds the change back until it is
-   * resolved or dismissed.
-   */
   async raiseFinding(
     owner: string,
     name: string,
@@ -1201,7 +1158,6 @@ export abstract class DomainChanges extends DomainIssues {
     }
   }
 
-  /** Mark a draft ready, abandon, restore. */
   async transition(
     owner: string,
     name: string,
@@ -1254,7 +1210,6 @@ export abstract class DomainChanges extends DomainIssues {
     return this.presentChange(repo, c, p)
   }
 
-  /** Land one change. `expected_tree` must be the tree that was checked. */
   async land(
     owner: string,
     name: string,
@@ -1266,7 +1221,6 @@ export abstract class DomainChanges extends DomainIssues {
     const repo = this.resolve(owner, name, p, 'write')
     const c = this.getChangeRec(repo, ref, p)
     this.checkLandable(repo, c, p!, body.expected_tree)
-    // With steps after landing, it is an operation: a stack of one.
     const landing = repo.landing ?? DEFAULT_LANDING
     if (hasAfterSteps(landing)) {
       const op = this.landingOp(repo, 'change.land', [c.number], landing, {
@@ -1313,11 +1267,6 @@ export abstract class DomainChanges extends DomainIssues {
     }
   }
 
-  /**
-   * Runs a landing's plan one step at a time, each its own turn: changes land
-   * in order, then the landing steps run. A step that fails stops the rest,
-   * and what already landed stays landed.
-   */
   protected runPlan(
     repo: RepoRec,
     op: OperationRec & { pending: OperationRec['result'] },
@@ -1382,7 +1331,6 @@ export abstract class DomainChanges extends DomainIssues {
     setTimeout(() => void step(0), this.stepDelayMs)
   }
 
-  /** A landing step after the changes landed: starts a pipeline or calls a webhook. */
   protected runLandingStep(
     _repo: RepoRec,
     s: LandingStepRec,
@@ -1393,7 +1341,6 @@ export abstract class DomainChanges extends DomainIssues {
     )
   }
 
-  /** An error as an operation keeps it. */
   protected problemOf(e: unknown): Record<string, unknown> {
     const failure = e as {
       code?: keyof typeof errorCatalog
@@ -1470,7 +1417,6 @@ export abstract class DomainChanges extends DomainIssues {
         `#${c.number} cannot land: ${bad.map((r) => r.detail.replace(/\.$/, '')).join('; ')}.`,
         {
           extra: { requirements: reqs },
-          // Only waiting is left when nothing has failed: it can clear by itself.
           retryable: !bad.some((r) => r.state === 'fail'),
           hint: bad.some((r) => r.state === 'fail')
             ? 'Stop and report the failed requirements. Do not work around the policy.'
@@ -1498,8 +1444,6 @@ export abstract class DomainChanges extends DomainIssues {
       'landed_at',
     ])
     const landed = { event, rev: repo.rev }
-    // Changes above it are rebased onto the result. Their trees do not change,
-    // so approvals and evidence stay valid.
     if (c.stackId) {
       const members = repo.stacks.get(c.stackId) ?? []
       const above = repo.changes.get(members[members.indexOf(c.number) + 1])
@@ -1529,8 +1473,6 @@ export abstract class DomainChanges extends DomainIssues {
       .filter((c) => c.state === 'open')
     if (open.length === 0)
       throw apiError('invalid_state', 'Nothing in this stack is open.')
-    // A draft or abandoned member between two open members would make the
-    // operation fail after the ones below it already landed.
     const firstAt = members.indexOf(open[0].number)
     const lastAt = members.indexOf(open[open.length - 1].number)
     for (const n of members.slice(firstAt, lastAt + 1)) {
@@ -1544,7 +1486,6 @@ export abstract class DomainChanges extends DomainIssues {
           },
         )
     }
-    // Check the first now so an obvious refusal is a plain error, not an operation.
     const first = open[0]
     const trees = body.expected_trees
     const missing = open
@@ -1558,8 +1499,6 @@ export abstract class DomainChanges extends DomainIssues {
           hint: 'Send the tree you checked for every open change in the stack.',
         },
       )
-    // Every open member must be preflighted against the tree the caller checked,
-    // so a later stale member cannot fail after earlier ones have already landed.
     for (const c of open) {
       const head = this.head(c)
       const expected = trees[String(c.number)]
@@ -1608,8 +1547,6 @@ export abstract class DomainChanges extends DomainIssues {
     if (!op || !p || !this.mayReadId(op.repoId, p)) return null
     return `${id}.${op.state}.${op.done}`
   }
-
-  // ---- review comments --------------------------------------------------------
 
   protected presentReviewComment(c: ChangeRec, x: ReviewCommentRec) {
     const root = x.replyTo
@@ -1692,7 +1629,6 @@ export abstract class DomainChanges extends DomainIssues {
     },
     dry: boolean,
   ) {
-    // Anyone who can read the repository may comment, as on an issue.
     const repo = this.resolve(owner, name, p)
     const c = this.getChangeRec(repo, ref, p)
     const latest = c.patchSets.at(-1)!.n
@@ -1708,7 +1644,6 @@ export abstract class DomainChanges extends DomainIssues {
           'not_found',
           `No comment ${body.reply_to} on #${c.number}.`,
         )
-      // A reply joins the thread of what it answers, and sits where it does.
       replyTo = root.replyTo ?? root.id
       const start = (c.comments ?? []).find((x) => x.id === replyTo)!
       file = start.file
@@ -1800,7 +1735,6 @@ export abstract class DomainChanges extends DomainIssues {
     if (dry) return shown
     c.comments = [...(c.comments ?? []), x]
     c.commentRev = (c.commentRev ?? 0) + 1
-    // A reply reopens a settled thread: someone still has something to say.
     if (replyTo) {
       const start = c.comments.find((y) => y.id === replyTo)!
       if (start.resolved) {
@@ -1828,7 +1762,6 @@ export abstract class DomainChanges extends DomainIssues {
     return shown
   }
 
-  /** Marks a thread as answered by a patch set. It stays open. */
   async addressReviewComment(
     owner: string,
     name: string,
@@ -1926,7 +1859,6 @@ export abstract class DomainChanges extends DomainIssues {
             ],
           },
         )
-      // The person who started it, the change's author, or anyone who can change the repository.
       if (
         x.author.handle !== p!.handle &&
         c.author.handle !== p!.handle &&
@@ -1936,7 +1868,6 @@ export abstract class DomainChanges extends DomainIssues {
           'forbidden',
           "Only the thread's author, the change's author or someone who can change the repository settles a thread.",
         )
-      // The policy file can narrow it to the person who started the thread.
       if (
         (repo.landing ?? DEFAULT_LANDING).resolve === 'author' &&
         x.author.handle !== p!.handle
@@ -1977,14 +1908,12 @@ export abstract class DomainChanges extends DomainIssues {
         'Only its author or someone who can change the repository can delete a comment.',
       )
     if (dry) return
-    // Deleting the comment that starts a thread deletes the thread.
     c.comments = (c.comments ?? []).filter(
       (y) => y.id !== x.id && y.replyTo !== x.id,
     )
     c.commentRev = (c.commentRev ?? 0) + 1
     repo.changeRev++
   }
-  // ---- change guides ------------------------------------------------------------
 
   protected presentGuide(c: ChangeRec, g: GuideRec) {
     return presentGuide(c.number, this.head(c).n, g, (a) => this.actor(a), iso)
@@ -2026,9 +1955,6 @@ export abstract class DomainChanges extends DomainIssues {
     return this.presentGuide(c, g)
   }
 
-  // ---- what each reviewer has seen ---------------------------------------------
-
-  /** Seen marks, by change id and handle, then by path. */
   protected readonly seenMarks = new Map<string, Map<string, SeenMark>>()
 
   async changeSeen(owner: string, name: string, ref: string, p: Principal) {
@@ -2077,9 +2003,6 @@ export abstract class DomainChanges extends DomainIssues {
     return presentSeen(c.number, head, marks)
   }
 
-  // ---- who is looking -------------------------------------------------------------
-
-  /** Viewers by room, then by `user:session`: who, the file, the last heartbeat. */
   protected readonly rooms = new Map<
     string,
     Map<string, { actor: ActorRec; path: string | null; at: number }>
@@ -2112,7 +2035,6 @@ export abstract class DomainChanges extends DomainIssues {
     number: number,
   ): z.infer<typeof S.Presence> {
     const now = this.now()
-    // Each account once, at its latest heartbeat, whichever machine sent it.
     const latest = new Map<
       string,
       { actor: ActorRec; path: string | null; at: number }
@@ -2154,7 +2076,6 @@ export abstract class DomainChanges extends DomainIssues {
     body: { session: string; path: string | null; leave: boolean },
   ) {
     const { room, number } = this.roomOf(owner, name, subject, p)
-    // One viewer per account and session: two machines are two sessions.
     const user = p.handle
     const viewers = this.rooms.get(room) ?? new Map()
     this.rooms.set(room, viewers)
@@ -2169,13 +2090,6 @@ export abstract class DomainChanges extends DomainIssues {
     return this.presentRoom(room, subject.kind, number)
   }
 
-  // ---- timelines ---------------------------------------------------------------
-
-  /**
-   * Everything that happened to a change or an issue, oldest first: its
-   * parts, its state changes and,
-   * for an issue, the changes that link it.
-   */
   async timeline(
     owner: string,
     name: string,
@@ -2209,7 +2123,6 @@ export abstract class DomainChanges extends DomainIssues {
       })
     const states = (object: 'change' | 'issue', first: string) => {
       let from: string | null = null
-      // Only the events that can move a state are read in full.
       const moves =
         /^(change\.(opened|updated|landed|abandoned)|issue\.(created|updated|closed))$/
       for (const stored of this.events.repoEvents(repo.id)) {
@@ -2392,18 +2305,14 @@ export abstract class DomainChanges extends DomainIssues {
         )
     }
     return out.sort(
-      (a, b) =>
-        // Stable: entries at the same moment keep the order they were made in.
-        Date.parse(a.created_at) - Date.parse(b.created_at),
+      (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at),
     )
   }
 }
 
-/** Lines added and removed between two texts, by a longest common subsequence. */
 function lineCounts(before: string | null, after: string | null) {
   const a = before === null ? [] : before.split('\n')
   const b = after === null ? [] : after.split('\n')
-  // Small files only reach here (edits in the browser), so the table is fine.
   const dp = Array.from({ length: a.length + 1 }, () =>
     Array.from({ length: b.length + 1 }, () => 0),
   )

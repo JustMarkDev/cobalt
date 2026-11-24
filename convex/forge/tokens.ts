@@ -8,17 +8,6 @@ import { out } from '../lib/errors'
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * Tokens and OAuth authorizations. Only the hash of a secret is kept; the
- * secret is made here and handed back once, when the token is created.
- *
- * Only the API server calls these (its own JWT says so): it checks bearer
- * tokens before anyone is known, and the rules about who may create what
- * live in its operations. A token limited to repositories keeps their ids,
- * not their names, so a rename never needs every token rewritten and a new
- * repository at an old name is never the one a token was given.
- */
-
 const audience = v.array(v.union(v.literal('api'), v.literal('mcp')))
 const tokenKind = v.union(
   v.literal('personal'),
@@ -32,13 +21,6 @@ const byPublicId = (ctx: QueryCtx, id: string) =>
     .withIndex('by_publicId', (q) => q.eq('publicId', id))
     .unique()
 
-/**
- * Looks a token up by its hash and checks it may be used here. Without `at`
- * the caller checks expiry against `expiresAt`, which every answer carries:
- * the arguments then stay the same from one request to the next, so Convex
- * answers from its query cache until the token changes. Revoking it is a
- * write to the row, which drops the cached answer at once.
- */
 export const find = query({
   args: {
     hash: v.string(),
@@ -53,7 +35,6 @@ export const find = query({
       .withIndex('by_hash', (q) => q.eq('hash', args.hash))
       .unique()
     if (!t) return out({ ok: false, reason: 'unknown' })
-    // Bot and run tokens no longer exist: one left over from before stops working.
     if (t.revokedAt !== null || t.kind === 'bot' || t.kind === 'run')
       return out({ ok: false, reason: 'revoked' })
     if (args.at !== undefined && t.expiresAt <= args.at)
@@ -64,7 +45,6 @@ export const find = query({
   },
 })
 
-/** Notes the token was used: at most once a minute, never a write per request. */
 export const touch = mutation({
   args: { id: v.string() },
   returns: v.string(),
@@ -95,7 +75,6 @@ export const create = mutation({
     authorizationId: v.optional(v.string()),
     limitKey: v.optional(v.string()),
     loginId: v.optional(v.string()),
-    // A secret that already exists (sample data); otherwise one is made here.
     secret: v.optional(v.string()),
   },
   returns: v.string(),
@@ -165,8 +144,6 @@ export const revoke = mutation({
   },
 })
 
-// ---- OAuth authorizations ----------------------------------------------------
-
 function authorization(a: Doc<'authorizations'>) {
   return {
     id: a.publicId,
@@ -222,7 +199,6 @@ export const createAuthorization = mutation({
   },
 })
 
-/** Revoking an authorization stops every token made under it, on the next request. */
 export const revokeAuthorization = mutation({
   args: { id: v.string() },
   returns: v.string(),
@@ -258,7 +234,6 @@ export const listAuthorizations = query({
 
 const DAY = 86_400_000
 
-/** Drops tokens a day past expiry or revocation, a batch at a time. */
 export const sweep = internalMutation({
   args: {},
   returns: v.null(),

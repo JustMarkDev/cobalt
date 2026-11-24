@@ -22,7 +22,6 @@ export const repo: Command = async (
 ) => {
   const api = () => ctx.api()
   if (sub === 'list') {
-    // The repositories of the account you are acting as, or of all of them.
     const owners = has(flags, 'all')
       ? (await accounts(ctx)).map((a) => a.handle)
       : [(await activeAccount(ctx, flags)).handle]
@@ -51,7 +50,6 @@ export const repo: Command = async (
         'Example: cb repo create notes (as the account you are acting as), or cb repo create dana/notes',
         exit.usage,
       )
-    // A bare name goes in the account you are acting as.
     const [owner, name] = given.includes('/')
       ? (given.split('/') as [string, string])
       : [(await activeAccount(ctx, flags)).handle, given]

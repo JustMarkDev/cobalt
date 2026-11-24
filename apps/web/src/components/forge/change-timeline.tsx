@@ -28,15 +28,11 @@ export type TimelineKind =
 export type TimelineEvent = {
   kind: TimelineKind
   who: string
-  /** An account, or a service reporting (CI, a reviewer's findings). */
   actor: 'human' | 'agent' | 'bot'
-  /** The receipt of the write, when it has one. */
   via?: Via | null
   what: string
   detail?: string
-  /** How long ago, so events sort and group. Zero is just now. */
   hoursAgo: number
-  /** Time of day, when it is known. */
   clock?: string
   patchSet?: number
   tone?: 'success' | 'danger' | 'warning'
@@ -63,8 +59,6 @@ const toneClass = {
   warning: 'border-warning/40 bg-warning/10 text-warning',
 } as const
 
-/** The history of a change: what was pushed, said and run, newest first. */
-
 function dayLabel(hours: number) {
   if (hours < 24) return hours === 0 ? 'Just now' : 'Today'
   if (hours < 48) return 'Yesterday'
@@ -85,9 +79,7 @@ export function Timeline({
   live,
   onOpenPatchSet,
 }: {
-  /** What has happened, read from the change. */
   events: Array<TimelineEvent>
-  /** What happened on this page since it opened. */
   live: Array<TimelineEvent>
   onOpenPatchSet: (n: number, sinceLast: boolean) => void
 }) {

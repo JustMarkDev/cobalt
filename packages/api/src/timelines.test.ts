@@ -46,7 +46,6 @@ describe('one timeline per change and per issue', () => {
       expect(kinds.has(k)).toBe(true)
     const times = entries.map((e) => Date.parse(e.created_at))
     expect([...times].sort((a, b) => a - b)).toEqual(times)
-    // Paging gave each entry once.
     expect(new Set(entries.map((e) => e.id)).size).toBe(entries.length)
     const pushed = entries.find(
       (e) => e.kind === 'patch_set' && e.item.number === 4,

@@ -1,14 +1,6 @@
 import type { Receipt } from './via'
 import { newId } from './ids'
 
-/**
- * The event log is the source of truth for change. Webhooks, the stream, the
- * `sync` endpoint and `?wait=` are all read from it. Events are kept in order
- * with a gapless sequence per log.
- *
- * Waiters are kept per topic (a repository, say), so an event wakes only the
- * clients that care about it, not every long-poll in the process.
- */
 export type ActorLike = {
   id: string
   handle: string
@@ -21,21 +13,18 @@ export type EventRecord = {
   type: string
   created_at: string
   repo: string | null
-  /** The stable repository id, so a reused name cannot inherit another repository's history. */
   repo_id: string | null
   actor: {
     object: 'actor'
     id: string
     handle: string
   }
-  /** The receipt: the machine, tool and declared model the write came through. */
   via: Receipt | null
   subject: { object: string; id: string; number: number | null }
   changes: Array<string>
   data: Record<string, unknown> | null
 }
 
-/** `change.*` matches every change event; `*` matches everything. */
 export function matchesType(
   patterns: ReadonlyArray<string>,
   type: string,
@@ -48,13 +37,6 @@ export function matchesType(
   )
 }
 
-/**
- * What the log keeps of an event. The full record is a nested object of a dozen
- * values, about 1.7 KB on the heap; the same event as text is about a third of
- * that, and text is what almost every reader wants anyway (the stream and the
- * list copy it into a response). The fields a reader filters on stay as plain
- * values, and anything that needs the rest calls `parseEvent`.
- */
 export type StoredEvent = {
   readonly sequence: number
   readonly type: string
@@ -79,20 +61,16 @@ function stamp(ms: number) {
 
 export class EventLog {
   private events: Array<StoredEvent> = []
-  /** The same events, one list per repository id, for reading one repository's history. */
   private byRepo = new Map<string, Array<StoredEvent>>()
   private firstSequence = 1
   private next = 1
-  /** Characters held in `events`, for the memory budget. */
   private held = 0
   private readonly waiters = new Map<string, Set<() => void>>()
   private readonly listeners = new Set<(e: EventRecord) => void>()
 
   constructor(
     private readonly now: () => number = Date.now,
-    // In memory the log is a window. The hosted version keeps 30 days in the database.
     private readonly keep = 50_000,
-    // The window is also bounded by size, so large events cannot make it large.
     private readonly maxChars = 24_000_000,
   ) {}
 
@@ -100,12 +78,10 @@ export class EventLog {
     return this.next - 1
   }
 
-  /** The oldest sequence still held. A cursor older than this has to resync. */
   get oldest() {
     return this.firstSequence
   }
 
-  /** Characters of event text held, which is about the bytes. */
   get size() {
     return this.held
   }
@@ -124,13 +100,8 @@ export class EventLog {
     return this.store(record)
   }
 
-  /**
-   * Takes an event that already has its place in the feed, as one read from
-   * the database. Events arrive in order; one already held is ignored.
-   */
   ingest(record: EventRecord): EventRecord | null {
     if (record.sequence < this.next) return null
-    // Nothing held yet: the window starts where the feed is.
     if (this.events.length === 0) this.firstSequence = record.sequence
     this.next = record.sequence + 1
     return this.store(record)
@@ -160,7 +131,6 @@ export class EventLog {
     return record
   }
 
-  /** Drops the oldest events until the window and the size budget both hold. */
   private trim() {
     let drop = 0
     let held = this.held
@@ -176,7 +146,6 @@ export class EventLog {
     this.held = held
     this.firstSequence += drop
     for (const [repo, list] of this.byRepo) {
-      // Lists are in sequence order, so the dropped events are a prefix.
       let n = 0
       while (n < list.length && list[n].sequence < this.firstSequence) n++
       if (n === list.length) this.byRepo.delete(repo)
@@ -184,18 +153,14 @@ export class EventLog {
     }
   }
 
-  /** Called for every event as it is appended. Returns a function that stops it. */
   subscribe(fn: (e: EventRecord) => void): () => void {
     this.listeners.add(fn)
     return () => this.listeners.delete(fn)
   }
 
-  /** Events with a sequence greater than `after`, oldest first. */
   since(after: number, limit: number, keep?: (e: StoredEvent) => boolean) {
     const out: Array<StoredEvent> = []
     let i = Math.max(0, after + 1 - this.firstSequence)
-    // The last sequence actually looked at, not just the last one that
-    // matched. A reader can move its cursor past events it filtered out.
     let scannedTo = after
     for (; i < this.events.length && out.length < limit; i++) {
       const e = this.events[i]
@@ -213,7 +178,6 @@ export class EventLog {
     return this.byRepo.get(repoId) ?? []
   }
 
-  /** Resolves when something happens on the topic, or after `ms`. */
   wait(topic: string, ms: number, signal?: AbortSignal): Promise<void> {
     return new Promise((resolve) => {
       let set = this.waiters.get(topic)
@@ -245,12 +209,6 @@ export class EventLog {
   }
 }
 
-/**
- * Whether an event is about a change the viewer may not see (an access
- * rule's branch or paths). `hidden` is that repository's hidden change
- * numbers for the viewer. Only change subjects are hidden; everything else
- * about the repository is not.
- */
 export function hiddenEvent(
   e: { type: string; json: string },
   hidden: ReadonlySet<number> | undefined,

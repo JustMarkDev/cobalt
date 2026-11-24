@@ -4,7 +4,6 @@ import { createReadCache } from './cached'
 import { fakeRepo } from './fake'
 import type { GitRepo } from './index'
 
-/** The fake store with a counter on every call that reaches it. */
 function counted(id: string) {
   const inner = fakeRepo(id)
   const calls = { total: 0 }
@@ -118,7 +117,7 @@ describe('reads that depend on a moving ref', () => {
     await repoA.listCommits()
     await repoA.getCommit({ sha })
     await repoB.listCommits()
-    expect(a.calls.total).toBe(3) // listCommits twice, getCommit once
+    expect(a.calls.total).toBe(3)
     expect(b.calls.total).toBe(1)
   })
 })
@@ -165,13 +164,12 @@ describe('sharing and failure', () => {
     await cached.listCommits({ limit: 1 })
     await cached.listCommits({ limit: 2 })
     await cached.listCommits({ limit: 3 })
-    await cached.listCommits({ limit: 1 }) // was evicted
+    await cached.listCommits({ limit: 1 })
     expect(calls.total).toBe(4)
   })
 })
 
 test('a page view that reads the same repo twice costs one set of store calls', async () => {
-  // What the repo page does: files + history + a file, then the same again.
   const cache = createReadCache()
   const { repo, calls, inner } = counted('tinyqueue')
   const cached = cache.wrap('tinyqueue', repo)

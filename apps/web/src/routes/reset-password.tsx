@@ -19,7 +19,6 @@ export const Route = createFileRoute('/reset-password')({
 
 const MIN = 8
 
-/** Where a reset link lands: the token is in the address, the new password is typed here. */
 function ResetPassword() {
   const { token, error: linkError } = Route.useSearch()
   const [password, setPassword] = React.useState('')

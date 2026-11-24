@@ -5,13 +5,6 @@ import { MAX_CONCURRENCY, MAX_LABELS } from '../runners'
 import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
 
-/**
- * Runners: machines that take pipeline jobs. A person or an organization's
- * owner registers one and gets its token once; the machine then sends
- * heartbeats, claims jobs whose `runs-on` its labels cover, and reports each
- * step with that token. Self-hosted and hosted runners use the same calls.
- */
-
 const manage = {
   tags: ['runners'],
   auth: 'required' as const,
@@ -239,7 +232,6 @@ export const runnerClaim = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      // Labels a trigger left unread are read first, so no job goes by a stale one.
       yield* run((d) => settleRunsOn(d))
       const j = yield* run((d) => d.runnerClaim(ctx.principal))
       return j ?? reply(null as never, { status: 204 })

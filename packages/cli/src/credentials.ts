@@ -9,17 +9,11 @@ import {
 import { dirname, join } from 'node:path'
 import { configPath } from './config'
 
-/**
- * What `cb auth login` leaves behind: an OAuth client, an access token and a
- * refresh token for one API. Kept beside the settings, readable only by you.
- * `CB_TOKEN` in the environment always wins over this file.
- */
 export type Credentials = {
   api: string
   client_id: string
   access_token: string
   refresh_token: string
-  /** Milliseconds since the epoch. */
   expires_at: number
   scope: string
 }

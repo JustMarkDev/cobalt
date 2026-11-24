@@ -14,12 +14,6 @@ import type { Actor } from '../lib/actor'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * People: their preferences, who follows whom, a profile worked out from
- * what they did, and the directory that Discover and search list. A profile
- * reads the person's own contributions, recorded as they happened.
- */
-
 const DAY = 86_400_000
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -85,7 +79,6 @@ async function person(ctx: QueryCtx, handle: string) {
   return a
 }
 
-/** Record a contribution, from an event (`fanout.ts`) or the seed. */
 export async function contributed(
   ctx: MutationCtx,
   c: {
@@ -101,7 +94,6 @@ export async function contributed(
   await bumpStats(ctx, c.handle, { rev: 1 })
 }
 
-/** What an event says someone did. */
 export async function contributionsFrom(
   ctx: MutationCtx,
   e: {
@@ -164,8 +156,6 @@ export async function contributionsFrom(
     })
 }
 
-// ---- preferences -----------------------------------------------------------------
-
 export const getPrefs = query({
   args: {},
   returns: v.string(),
@@ -205,8 +195,6 @@ export const updatePrefs = mutation({
     return out({ object: 'account_preferences', ...next })
   },
 })
-
-// ---- follows -----------------------------------------------------------------------
 
 export const follow = mutation({
   args: { handle: v.string(), on: v.boolean() },
@@ -261,7 +249,6 @@ export const listFollows = query({
   returns: v.string(),
   handler: async (ctx, a) => {
     const target = await person(ctx, a.handle)
-    // In handle order, as the index keeps them; the cursor is the last handle.
     const rows =
       a.which === 'followers'
         ? await ctx.db
@@ -302,15 +289,11 @@ export const peopleVersion = query({
   },
 })
 
-// ---- profile --------------------------------------------------------------------------
-
-/** The repositories whose commits count for a profile: the ones they own or worked in. */
 export const profileRepos = query({
   args: { handle: v.string(), since: v.number() },
   returns: v.string(),
   handler: async (ctx, a) => {
     const target = await person(ctx, a.handle)
-    // Only what the caller may read: a private repository's name is private.
     const viewer = await actorOf(ctx)
     const ids = new Set<Id<'repos'>>()
     for (const r of await ctx.db
@@ -378,7 +361,6 @@ export const profile = query({
     const add = async (repoId: Id<'repos'>, c: Omit<Shown, 'repo'>) => {
       const { r, readable } = await repoOf(repoId)
       if (!r) return
-      // A private repository's work counts, as a number only, if they allow it.
       if (readable) shown.push({ ...c, repo: r })
       else if (own || prefs.private_totals) hidden++
     }
@@ -566,8 +548,6 @@ export const profileVersion = query({
   },
 })
 
-// ---- directory ----------------------------------------------------------------------
-
 async function viewerFollowsOf(ctx: QueryCtx, p: Actor | null, handle: string) {
   if (!p || p.handle === handle) return null
   return !!(await ctx.db
@@ -625,7 +605,6 @@ export const listPeople = query({
       })
       if (found.length >= 5000) break
     }
-    // Most followed first, then by handle, so the order is stable.
     found.sort(
       (x, y) =>
         y.followers - x.followers || x.acc.handle.localeCompare(y.acc.handle),

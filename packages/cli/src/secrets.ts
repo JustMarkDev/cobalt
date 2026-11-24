@@ -1,24 +1,7 @@
-/**
- * How a command gets secret values without anyone pasting them.
- *
- *  - Your login on this machine reads them, if you are on the repository's
- *    team. An agent you run here uses the same login, so it can too.
- *  - Values are injected into ONE child process, never printed or written.
- *  - Everything that process writes is scrubbed: exact values, and their
- *    base64 and URL-encoded forms, become «NAME».
- *  - Production values wait until you confirm this login on a signed-in page.
- *  - Every read is in the audit log, with the machine, tool and model.
- *
- * What this cannot stop: a command you run can still send a value over the
- * network, and an agent on your machine can do whatever you can. Keep
- * production behind its confirmation, and run agents you do not trust where
- * outbound traffic is restricted.
- */
 import { CbError } from './output'
 import type { Ctx } from './output'
 import type { RepoRef } from './repo'
 
-/** Replace every secret value, and its common encodings, with its name. */
 export function scrub(text: string, secrets: Record<string, string>): string {
   let out = text
   for (const [name, value] of Object.entries(secrets)) {
@@ -27,12 +10,9 @@ export function scrub(text: string, secrets: Record<string, string>): string {
       value,
       Buffer.from(value).toString('base64'),
       encodeURIComponent(value),
-      // As it appears inside a JSON string.
       JSON.stringify(value).slice(1, -1),
     ])
     for (const f of forms) {
-      // A very short value would rewrite ordinary text, so redact it only
-      // where it stands alone; anything longer is replaced everywhere.
       if (f.length < 4) {
         const escaped = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         out = out.replace(
@@ -59,7 +39,6 @@ export type RunResult = {
   stderr: string
 }
 
-/** The CLI's own words for what the API says, so the next step is clear. */
 export function cliError(e: unknown, env: string): never {
   if (e instanceof CbError && e.code === 'confirmation_required')
     throw new CbError(
@@ -91,7 +70,6 @@ export async function runWithEnv(opts: {
   const names = opts.only?.join(',')
 
   if (opts.dryRun) {
-    // The same access checks as a real read, without reading or auditing values.
     try {
       await api.get(`${opts.repo.path}/env/${opts.env}/values`, {
         query: { check_only: 'true' },

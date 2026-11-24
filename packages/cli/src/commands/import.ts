@@ -21,10 +21,6 @@ type Imported = {
   created_at: string
 }
 
-/**
- * Where a repository comes from: `github owner/name`, or its address on that
- * host (`https://github.com/owner/name`, with or without `.git`).
- */
 export function source(
   rest: Array<string>,
 ): { host: Host; slug: string } | null {
@@ -64,7 +60,6 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
       'Example: cb import github dana/notes, or cb import https://gitlab.com/dana/notes',
       exit.usage,
     )
-  // --as owner/name places it; a bare --as name keeps the account you act as.
   const as = str(flags, 'as')
   const [owner, name] = as?.includes('/')
     ? (as.split('/') as [string, string])

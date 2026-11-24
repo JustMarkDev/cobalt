@@ -1,9 +1,3 @@
-/**
- * Rewrites the "Direct dependencies" table of THIRD_PARTY_NOTICES.md from
- * package.json and the installed packages' own license fields.
- *
- *   bun install && bun scripts/third-party.ts
- */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { formatSource } from '@cobaltforge/api/format'
 
@@ -17,9 +11,7 @@ type Manifest = {
 }
 type License = string | { type?: string } | undefined
 
-/** Where a package is installed: beside the workspace package that declares it, or at the root. */
 function licenseOf(name: string, dirs: ReadonlyArray<string>): string {
-  // Aliases such as `vite: npm:@voidzero-dev/vite-plus-core` install under the alias.
   const at = [...dirs, '']
     .map((dir) => `${dir}node_modules/${name}/package.json`)
     .find((path) => existsSync(new URL(path, root)))
@@ -34,8 +26,6 @@ function licenseOf(name: string, dirs: ReadonlyArray<string>): string {
   return id
 }
 
-// Every workspace package declares its own dependencies. A package that is a
-// runtime dependency anywhere is listed as one; our own packages are left out.
 const manifests = [
   '',
   'apps/web/',

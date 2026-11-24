@@ -34,19 +34,12 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { ActorRef } from '../lib/events'
 import type { PolicyEdit } from '@cobaltforge/api/policy-file'
 
-/**
- * A repository's policy: which rules apply and how hard, its own rules, and
- * who a rule bends for and until when. Changes are evaluated by
- * `lib/changes.ts`; this edits what that reads and reports what rules did.
- */
-
 const mode = v.union(
   v.literal('enforce'),
   v.literal('dry-run'),
   v.literal('off'),
 )
 
-/** How a repository's own rule reads in the list and the policy file. */
 function describeCustomRule(r: CustomRuleRec) {
   if (r.kind === 'required_check')
     return {
@@ -90,7 +83,6 @@ const modeOf = (pol: RepoPolicy, id: string): RuleMode =>
   policyRules.find((r) => r.id === id)?.mode ??
   'enforce'
 
-/** The policy file as it stands on the default branch, or as the move would write it. */
 function policyText(pol: RepoPolicy, at: number) {
   return (
     pol.file?.text ??
@@ -139,7 +131,6 @@ async function policySet(
     at,
     loaded.map((l) => l.rec),
   )
-  // What each rule said about every change, enforced, as if no mode were set.
   const said = loaded.map(({ rec }) => ({
     c: rec,
     reqs: view.evaluateRules(rec, {}),
@@ -207,7 +198,6 @@ async function policySet(
   }
 }
 
-/** Whether the rules live in the policy file, so writes propose. */
 export const inFile = query({
   args: { owner: v.string(), name: v.string() },
   returns: v.boolean(),
@@ -217,7 +207,6 @@ export const inFile = query({
   },
 })
 
-/** Writes to settings stop once the rules live in the file. */
 function settingsOnly(pol: RepoPolicy) {
   if (pol.file)
     fail(
@@ -226,12 +215,6 @@ function settingsOnly(pol: RepoPolicy) {
     )
 }
 
-/**
- * Edits to the rules as a change to the policy file. Your open policy change
- * takes them as a new patch set; without one a change is opened. Nothing
- * applies until it lands. In a repository whose rules are still settings,
- * the first proposal is the move: the file written from them, edits made.
- */
 export const propose = mutation({
   args: {
     owner: v.string(),
@@ -270,7 +253,6 @@ export const propose = mutation({
   },
 })
 
-/** The edits as a change to the policy file: on the author's open one, or a new one. */
 async function proposeIn(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -376,12 +358,6 @@ async function proposeIn(
   return out(shownAs(rec))
 }
 
-/**
- * The one-off move: each repository whose rules are still settings gets a
- * change that writes them to the policy file, opened by cobalt. The
- * settings stay in force until it lands. Run once from the dashboard;
- * `after` pages through repositories.
- */
 export const moveToFile = internalMutation({
   args: { after: v.optional(v.string()), limit: v.optional(v.number()) },
   returns: v.object({
@@ -435,7 +411,6 @@ export const version = query({
   },
 })
 
-/** Policy changed: every change's requirements are worked out again, so each change's version moves. */
 async function policyChanged(
   ctx: MutationCtx,
   repo: Doc<'repos'>,

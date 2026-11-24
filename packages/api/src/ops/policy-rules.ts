@@ -8,18 +8,12 @@ import { changeParams, repoParams } from './common'
 import type { DomainPort } from '../domain'
 import type { ProposalEditBody } from '../policy-proposals'
 
-/**
- * Once a repository's rules live in its policy file, these writes do not
- * apply: each opens (or adds to) a change to the file, and answers 202 with
- * the proposal. Before the move they apply at once, as they always have.
- */
 const accepted = {
   response: S.PolicyProposal,
   description:
     'When the rules live in the policy file: the edit, as a change to the file that applies once it lands',
 }
 
-/** The proposal for one edit, when the rules live in the file; null before. */
 const proposeIfMoved = (
   ctx: {
     params: { owner: string; repo: string }
@@ -36,7 +30,6 @@ const proposeIfMoved = (
     const prop = yield* run((d) =>
       d.proposePolicy(owner, repo, ctx.principal, [edit], ctx.dryRun),
     )
-    // The operation's other answer (`accepted`), not its usual response.
     return reply(prop, {
       status: 202,
       headers: prop.url ? { location: prop.url } : {},

@@ -46,7 +46,6 @@ function Heading({
   )
 }
 
-/** "+18%" in green when up, quiet when down. A change is never alarming on its own. */
 function Delta({ value }: { value: number }) {
   return (
     <Badge tone={value >= 0 ? 'success' : 'muted'}>
@@ -87,7 +86,6 @@ function Stat({
   )
 }
 
-/** Four numbers that answer "how are things" before anything is read. */
 export function SummaryStrip({ data }: { data: DashboardData }) {
   const health = Object.values(data.health).filter((h) => h !== undefined)
   const failing = health.filter((h) => h.checks === 'failing').length
@@ -133,7 +131,6 @@ const severity: Record<Severity, { label: string; tone: BadgeTone }> = {
   assigned: { label: 'Assigned', tone: 'info' },
 }
 
-/** What needs a decision, most costly first. Only the first action is cobalt. */
 export function NeedsYou({ data }: { data: DashboardData }) {
   const items = data.needsYou
   return (
@@ -179,7 +176,6 @@ export function NeedsYou({ data }: { data: DashboardData }) {
   )
 }
 
-/** Work moving without you. No decision is asked of the reader here. */
 export function InProgress({ data }: { data: DashboardData }) {
   if (data.inProgress.length === 0) return null
   return (
@@ -338,7 +334,6 @@ export function Repositories({ data }: { data: DashboardData }) {
   )
 }
 
-/** Is everything safe: how full the storage is and whether each mirror is syncing. */
 export function History({
   data,
   organization,
@@ -490,7 +485,6 @@ export function LastWeeks({ data }: { data: DashboardData }) {
   )
 }
 
-/** What a brand-new account sees instead of empty charts: the next few things worth doing. */
 export function GettingStarted({
   account,
 }: {

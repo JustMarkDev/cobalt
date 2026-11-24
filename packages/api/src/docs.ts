@@ -9,13 +9,6 @@ import { allOperations, createSampleApi } from './index'
 import { MemoryMailer } from './mail'
 import type { Op } from './registry'
 
-/**
- * The reference pages, written from the operations themselves and from real
- * responses of the sample API. Nothing in them is typed by hand per endpoint,
- * so they cannot describe something the API does not do. `docs.test.ts` fails
- * when the committed pages differ from what this produces; regenerate with
- * `bun scripts/api-docs.ts`.
- */
 type Json = Record<string, any>
 
 const BASE = 'https://api.cobaltforge.dev/v1'
@@ -33,9 +26,6 @@ type Recorded = {
   raw?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Running the sample API to capture real examples.
-
 function seededRandom() {
   let x = 0x2545f491
   return (n: number) => {
@@ -50,7 +40,6 @@ function seededRandom() {
   }
 }
 
-/** Authorizes an application, so an authorization exists to list. */
 async function authorizeAnApp(api: {
   fetch: (r: Request) => Promise<Response>
   oauth?: unknown
@@ -139,7 +128,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       d.stepDelayMs = 2
     },
     pools: undefined,
-    // Deliveries "succeed" without leaving the process.
     transport: {
       send: () => Promise.resolve({ status: 200, error: null, ms: 38 }),
     },
@@ -154,9 +142,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       token?: string | null
       body?: unknown
       headers?: Record<string, string>
-      /** Raw bytes, for uploads. */
       bytes?: Uint8Array
-      /** Call as this person signed in to the app, as the web app does. */
       session?: string
     } = {},
   ) => {
@@ -205,8 +191,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
   const R = '/repos/dana/gitfs'
 
   try {
-    // First, so the example shows a server that has measured nothing yet
-    // and the page does not change from one run to the next.
     await call('status.get', 'GET', '/status', { token: null })
     await call('api.root', 'GET', '/', { token: null })
     await call('api.errors', 'GET', '/errors', { token: null })
@@ -348,7 +332,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       body: { body: 'Done in patch set 3.', reply_to: tid },
     })
     await call('change_comments.list', 'GET', `${R}/changes/216/comments`)
-    // A fix for the thread: the same file with the answer in it.
     const ps3 = (await call(null, 'GET', `${R}/changes/216/patch-sets/3/files`))
       .json as Json
     const refs = (ps3.files as Array<Json>).find(
@@ -411,7 +394,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
         ],
       },
     })
-    // ----- tokens and applications
     await call('tokens.create', 'POST', '/tokens', {
       body: {
         name: 'ci',
@@ -431,7 +413,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     )[0].id as string
     await call('authorizations.revoke', 'DELETE', `/authorizations/${atz}`)
 
-    // ----- webhooks
     await call('webhooks.create', 'POST', `${R}/webhooks`, {
       body: {
         endpoint: 'https://hooks.example.com/cobalt',
@@ -478,10 +459,8 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     )
     await call('webhooks.delete', 'DELETE', `${R}/webhooks/${hook}`)
 
-    // ----- search
     await call('search.query', 'GET', '/search?q=negative+cache&limit=2')
 
-    // ----- uploads and evidence
     const png = Uint8Array.from([
       0x89,
       0x50,
@@ -555,7 +534,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       headers: { 'idempotency-key': '2f7a9c1e-4b3d-4e8a-9f6b-1c0d5e7a3b28' },
     })
 
-    // ----- repositories, mirrors, environment
     await call('repos.create', 'POST', '/repos', {
       body: { name: 'notes2', description: 'Scratch', visibility: 'private' },
     })
@@ -588,7 +566,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('issues.presence.get', 'GET', `${R}/issues/4/presence`)
     await call('changes.timeline', 'GET', `${R}/changes/216/timeline?limit=5`)
     await call('issues.timeline', 'GET', `${R}/issues/4/timeline`)
-    // ----- stars and contributors
     await call('stars.add', 'PUT', `${R}/star`)
     await call('stars.get', 'GET', `${R}/star`)
     await call('stars.remove', 'DELETE', `${R}/star`)
@@ -679,7 +656,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
         },
       },
     )
-    // A step that waits on a person, and its answer.
     const step2 = `${R}/pipelines/${claimed.run as number}/jobs/${claimed.job as number}/steps/2`
     await call(null, 'POST', step2, { body: { status: 'running' } })
     await call('pipelines.wait', 'POST', `${step2}/wait`, {
@@ -700,7 +676,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('access_rules.list', 'GET', `${R}/access-rules`)
     await call('access_rules.delete', 'DELETE', `${R}/access-rules/deal`)
     await call('inbox.list', 'GET', '/inbox?limit=3')
-    // ----- runners
     const runner = (
       await call('runners.create', 'POST', '/runners', {
         body: {
@@ -826,7 +801,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       { body: { release: false, digest: true } },
     )
 
-    // ----- accounts and members
     await call('accounts.create', 'POST', '/accounts', {
       body: {
         handle: 'harbor-tools',
@@ -874,7 +848,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       '/accounts/harbor-tools/members/hollis',
     )
 
-    // ----- teams
     await call('teams.create', 'POST', '/accounts/northwind/teams', {
       body: {
         slug: 'support',
@@ -910,7 +883,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     )
     await call('teams.delete', 'DELETE', '/accounts/northwind/teams/support')
 
-    // ----- git data
     await call('git.tree', 'GET', `${R}/git/tree`)
     await call('git.blob', 'GET', `${R}/git/blob?path=README.md`)
     await call('git.raw', 'GET', `${R}/git/raw?path=README.md`)
@@ -961,7 +933,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     await call('env.values', 'GET', `${R}/env/development/values`, {
       token: t.scoped,
     })
-    // Production waits for a confirmation from a signed-in page.
     const asked = await call(null, 'GET', `${R}/env/production/values`, {
       token: t.scoped,
     })
@@ -1003,9 +974,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
   }
   return out
 }
-
-// ---------------------------------------------------------------------------
-// Rendering.
 
 const cell = (text: string) =>
   text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')
@@ -1486,7 +1454,6 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
   ['Our side', ['backend_unavailable', 'secrets_unavailable', 'internal']],
 ]
 
-/** Hints are plain text; make anything MDX would read as markup into code. */
 function mdxSafe(text: string) {
   let out = text.replace(/\b(?:GET|POST|PATCH|PUT|DELETE) \/\S+/g, (m) => {
     const trail = /[.,;]+$/.exec(m)?.[0] ?? ''

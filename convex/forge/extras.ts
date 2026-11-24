@@ -5,12 +5,6 @@ import { actorOf, system } from '../lib/actor'
 import { inSecretsTeam, repoByKey, resolve } from '../lib/access'
 import { fail, out } from '../lib/errors'
 
-/**
- * A repository's extras: mirrors, the environment schema with its sealed
- * values, recipients, grants and their audit log, as one document. Only the
- * API server reads and writes them, after its own access checks.
- */
-
 async function docOf(ctx: Parameters<typeof repoByKey>[0], full: string) {
   const repo = await repoByKey(ctx, full)
   if (!repo) return { repo: null, doc: null }
@@ -21,10 +15,6 @@ async function docOf(ctx: Parameters<typeof repoByKey>[0], full: string) {
   return { repo, doc }
 }
 
-/**
- * Whether the caller is in a repository's secrets team, and its stable id
- * (which secret values are sealed under). Refuses like any read.
- */
 export const secretsAccess = query({
   args: { owner: v.string(), name: v.string() },
   returns: v.string(),
@@ -49,11 +39,6 @@ export const get = query({
   },
 })
 
-/**
- * Saves a request's copy. A copy older than the stored one is refused, unless
- * all that changed in between is the audit log (another request read values,
- * say): then the two merge, every entry kept.
- */
 export const put = mutation({
   args: {
     full: v.string(),
@@ -95,12 +80,6 @@ export const put = mutation({
   },
 })
 
-/**
- * Two saves that do not touch the same thing merge, every audit entry kept:
- * if this one only added audit entries (a read), it goes on top of whatever
- * is stored now; if only the audit moved since it opened, its other changes
- * go in with the stored audit. Null when both changed more than the audit.
- */
 function mergeAudit(
   stored: string,
   mine: string,
@@ -121,7 +100,6 @@ function mergeAudit(
   return JSON.stringify({ ...next, audit: entries })
 }
 
-/** Every repository's mirrors, for the status page. */
 export const mirrors = query({
   args: {},
   returns: v.string(),

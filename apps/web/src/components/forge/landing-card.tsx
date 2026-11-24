@@ -6,21 +6,11 @@ import { opQuery, useOpMaybe } from '~/lib/forge'
 import { followedOperation } from '~/lib/landing-state'
 import type { LandingAsk } from '~/lib/landing-state'
 
-/**
- * How a change will land and what it waits on, from `landability`: the
- * repository's landing settings, each step with its state, and the tree that
- * lands. Once landed, the commit it landed as.
- */
-/**
- * Landings started from this tab, by change. The change page is drawn again
- * when the change lands, so the operation is kept outside it.
- */
 const started = new Map<string, string>()
 const listeners = new Set<() => void>()
 const keyOf = (at: { owner: string; repo: string; number: string }) =>
   `${at.owner}/${at.repo}#${at.number}`
 
-/** Remembers the landing operation a page started for a change. */
 export function rememberLanding(
   at: { owner: string; repo: string; number: string },
   id: string,
@@ -40,11 +30,6 @@ function useStarted(at: { owner: string; repo: string; number: string }) {
   )
 }
 
-/**
- * The landing operation a change page follows, read until it ends: the one
- * the page asked for, or one this tab started before the page was drawn
- * again. The page works out what to show from it (`landingView`).
- */
 export function useLandingOperation(
   at: { owner: string; repo: string; number: string },
   ask: LandingAsk,
@@ -71,7 +56,6 @@ export function LandingCard({
   at: { owner: string; repo: string; number: string }
   landed: boolean
   sha: string
-  /** The landing under way, when landing runs steps (`useLandingOperation`). */
   operation: string | null
   op: ReturnType<typeof useLandingOperation>['op']
 }) {
@@ -79,8 +63,6 @@ export function LandingCard({
   if (op && operation) return <OperationSteps op={op} />
   if (!l) return null
   const waits = new Map(l.blockers.map((b) => [b.id, b]))
-  // A landed change ran the steps in force when it landed, which may not be
-  // today's; without its operation, they are not shown.
   const steps = (landed ? [] : l.landing.steps).flatMap((s) =>
     'wait_checks' in s
       ? (s.wait_checks as Array<string>).map((name) => {
@@ -176,7 +158,6 @@ function Step({
   )
 }
 
-/** A landing under way: each step, as the operation reports it. */
 function OperationSteps({
   op,
 }: {

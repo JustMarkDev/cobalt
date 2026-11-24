@@ -18,22 +18,14 @@ import type {
   Transport,
 } from '../webhooks'
 
-/**
- * Webhooks in Convex (`convex/forge/webhooks.ts`). Convex keeps the
- * endpoints and their deliveries and decides what each attempt means; this
- * server sends: it claims what is due, sends it, and reports back. Any server
- * can send any delivery, and a claim keeps two from sending the same one.
- */
 export class ConvexHooks implements HookPort {
   private inFlight = 0
   private running: Promise<void> | null = null
   private again = false
 
-  /** Whether someone asked for another round while this one ran. */
   private goAgain() {
     return this.again
   }
-  /** Retry timers, by webhook, so deleting one cancels its retries. */
   private readonly timers = new Map<string, Set<() => void>>()
 
   constructor(
@@ -87,7 +79,6 @@ export class ConvexHooks implements HookPort {
     return { hook, secret }
   }
 
-  /** The hook as it is stored now, onto the copy the caller holds, as the memory store changes it in place. */
   private async refresh(hook: Hook) {
     const fresh = await this.get(hook.id)
     if (fresh) Object.assign(hook, fresh)
@@ -108,7 +99,6 @@ export class ConvexHooks implements HookPort {
 
   async remove(hook: Hook) {
     await this.m('remove', { id: hook.id })
-    // Its retries end with it.
     for (const c of this.timers.get(hook.id) ?? []) c()
     this.timers.delete(hook.id)
   }
@@ -185,7 +175,6 @@ export class ConvexHooks implements HookPort {
     return this.enqueue(hook, d.event, d.id)
   }
 
-  /** Re-send every matching event after a sequence, from this server's window of the feed. */
   async replay(hook: Hook, after: number, limit: number) {
     const { matchesType, parseEvent } = await import('../events')
     const { events, scannedTo } = this.o.events.since(
@@ -193,22 +182,15 @@ export class ConvexHooks implements HookPort {
       limit,
       (e) => e.repoId === hook.repoId && matchesType(hook.events, e.type),
     )
-    // Queued first and sent together, as many at once as the limit allows.
     for (const e of events) await this.enqueue(hook, parseEvent(e), null, false)
     await this.send()
     return { count: events.length, last: scannedTo }
   }
 
-  /** Kept by repository id: a rename needs nothing. */
   rename() {}
 
-  /** Deleting the repository deletes its webhooks with it. */
   dropRepo() {}
 
-  /**
-   * Sends what is due, until nothing is. Called when the feed brings new
-   * events, after a delivery is queued here, and when a retry comes due.
-   */
   send(call: ConvexCall = this.call): Promise<void> {
     if (this.running) {
       this.again = true
@@ -246,7 +228,6 @@ export class ConvexHooks implements HookPort {
     return this.running
   }
 
-  /** A send is under way; it goes on until nothing is due. */
   get busy() {
     return this.running !== null
   }
@@ -275,7 +256,6 @@ export class ConvexHooks implements HookPort {
         timeoutMs: TIMEOUT_MS,
       })
     } catch (e) {
-      // A transport that rejects is a failed attempt, not a delivery stuck pending.
       result = {
         status: null,
         error:
@@ -325,23 +305,10 @@ export class ConvexHooks implements HookPort {
   }
 }
 
-/** Longest wait between looks, so a missed update is caught within the hour. */
 export const DUE_CHECK_MAX_MS = 60 * 60_000
-/**
- * A look that found nothing claimable yet (the clocks differ) is tried again
- * after this, then twice as long each time it finds nothing, up to
- * `DUE_RECHECK_MAX_MS`: a failing send does not become a call a second.
- */
 export const DUE_RECHECK_MS = 1_000
 export const DUE_RECHECK_MAX_MS = 60_000
 
-/**
- * Sends when the next delivery comes due, as `forge/webhooks:nextDue` says,
- * instead of asking Convex every few seconds whether anything is due. Each
- * new answer replaces the timer. A look that finds the same time still due
- * (this clock ran ahead of Convex's, or the send failed) looks again a
- * second later, backing off while it keeps finding nothing.
- */
 export function dueTimer(
   send: () => Promise<void>,
   o: {
@@ -369,8 +336,6 @@ export function dueTimer(
     void send()
       .catch(() => {})
       .then(() => {
-        // Nothing changed the answer: either it is not due yet on Convex's
-        // clock, or nothing is pending and this was the hourly look.
         if (due === was && was !== null && was <= now()) {
           arm(recheck)
           recheck = Math.min(recheck * 2, DUE_RECHECK_MAX_MS)
@@ -379,7 +344,6 @@ export function dueTimer(
       })
   }
   return {
-    /** A new answer from the subscription. */
     update(at: number | null) {
       due = at
       recheck = DUE_RECHECK_MS
@@ -392,15 +356,8 @@ export function dueTimer(
   }
 }
 
-/** How often a server asks whether anything is due when it cannot follow. */
 export const DUE_POLL_MS = 5_000
 
-/**
- * Sends webhook deliveries as `nextDue` answers come in. Until the first
- * answer, and while the subscription is failing, it asks every few seconds
- * instead, as servers did before: a subscription that never connects (and so
- * never errors either) cannot stop deliveries. An answer stops the asking.
- */
 export function followDeliveries(
   subscribe: (
     onAnswer: (at: number | null) => void,
@@ -433,7 +390,6 @@ export function followDeliveries(
     },
   )
   return {
-    /** Polling instead of following. */
     get polling() {
       return polling !== undefined
     },

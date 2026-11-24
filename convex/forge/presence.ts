@@ -15,17 +15,6 @@ import type { ActorRef } from '../lib/events'
 import type { Doc } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * Who else is looking at a change or an issue, people and agents alike.
- *
- * Each change and each issue is a room (`change:<id>`, `issue:<id>`) in the
- * presence component. Whoever has it open sends a heartbeat every
- * `INTERVAL`, naming the file they are on; an agent's MCP server sends one
- * while its run calls operations on the change. A session that stops
- * sending is dropped after two and a half intervals. Nothing here is an
- * event or a part of the change: it is gone once everyone leaves.
- */
-
 const presence = new Presence(components.presence)
 
 const INTERVAL = PRESENCE_INTERVAL
@@ -34,7 +23,6 @@ type Data = { actor: ActorRef; path: string | null; at: number }
 
 const kind = v.union(v.literal('change'), v.literal('issue'))
 
-/** The room of a change (by number or id) or an issue, and its number. */
 async function roomOf(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -66,7 +54,6 @@ async function present(
     number,
     interval: INTERVAL / 1000,
     viewers: listed
-      // The worker that drops a silent session may not have run yet.
       .filter(
         (x) =>
           x.online &&
@@ -92,7 +79,6 @@ export const heartbeat = mutation({
     ref: v.string(),
     path: v.optional(v.union(v.string(), v.null())),
     session: v.string(),
-    /** Leave the room now instead of once the heartbeats stop. */
     leave: v.optional(v.boolean()),
   },
   returns: v.string(),
@@ -110,7 +96,6 @@ export const heartbeat = mutation({
         ],
       })
     const { room, number } = await roomOf(ctx, repo, a.kind, a.ref)
-    // A person and their agent share a handle; they are two viewers.
     const user = p.handle
     const { roomToken, sessionToken } = await presence.heartbeat(
       ctx,

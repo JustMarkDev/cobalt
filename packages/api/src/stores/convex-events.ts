@@ -2,21 +2,10 @@ import { run } from '../domain/convex'
 import type { ConvexCall } from '../domain/convex'
 import type { EventLog, EventRecord } from '../events'
 
-/**
- * Keeps an API server's event window in step with the feed in Convex. The
- * window is what streams, long polls, webhooks and `events.list` read; the
- * feed is the truth, so a new server fills its window from the feed and
- * any server can be killed.
- *
- * `pull` reads what is new. In production a subscription to the feed's
- * head calls it (`watch`), one subscription per server however many
- * clients are waiting; tests call it after each write.
- */
 export class ConvexEventFeed {
   private pulling: Promise<void> | null = null
   private again = false
 
-  /** Whether someone asked for another round while this one ran. */
   private goAgain() {
     return this.again
   }
@@ -24,7 +13,6 @@ export class ConvexEventFeed {
   constructor(
     private readonly call: ConvexCall,
     readonly log: EventLog,
-    /** Told the access revision each time the feed is read. */
     private readonly onAccess?: (rev: number) => void,
   ) {}
 
@@ -67,7 +55,6 @@ export class ConvexEventFeed {
     return this.pulling
   }
 
-  /** Starts from the newest `keep` events, so a new server does not read the whole history. */
   async start(keep = 5000) {
     const h = await run<{ head: number; oldest: number }>(
       this.call,

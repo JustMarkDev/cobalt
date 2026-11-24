@@ -1,28 +1,8 @@
 import type { GitRepo } from './index'
 
-/**
- * A read cache in front of the git store.
- *
- * Git objects never change: a commit, its diff and a file at a commit are the
- * same forever, so anything addressed by a full SHA is cached with no expiry.
- * Only what a moving ref points at (the default branch, a branch name) can go
- * stale, so that expires after `ttlMs` and `invalidate(id)` drops it at once
- * when a push lands.
- *
- * Why it exists: Code Storage bills outbound bytes and holds a repo hot while
- * it is used; Cloudflare Artifacts bills per operation. Either way the cheapest
- * read is the one that never reaches the store. Concurrent identical reads
- * share one call.
- *
- * Not cached: ephemeral reads, conditional requests (`headers`), and failed
- * file reads, so a 404 never sticks.
- */
-
-/** A full object id. Short SHAs are not safe: they can become ambiguous as a repo grows. */
 const FULL_SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i
 
 export type ReadCacheOptions = {
-  /** How long a read that depends on a moving ref stays fresh. */
   ttlMs?: number
   maxEntries?: number
   now?: () => number
@@ -46,11 +26,10 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
   const keyOf = (id: string, method: string, args: object) =>
     `${id}\u0000${method}\u0000${JSON.stringify(args)}`
 
-  /** Run `load` once per key; `pinned` entries never expire. */
   function read<T>(key: string, pinned: boolean, load: () => Promise<T>) {
     const hit = entries.get(key)
     if (hit && (hit.expires === null || hit.expires > now())) {
-      entries.delete(key) // re-insert: the map's order is the recency order
+      entries.delete(key)
       entries.set(key, hit)
       stats.hits++
       return hit.value as Promise<T>
@@ -58,7 +37,6 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
     stats.misses++
     const value = load()
     entries.set(key, { value, expires: pinned ? null : now() + ttlMs })
-    // A failed read must not stick.
     value.catch(() => {
       if (entries.get(key)?.value === value) entries.delete(key)
     })
@@ -70,7 +48,6 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
     return value
   }
 
-  /** Cached JSON-like result. Callers get their own copy, so one cannot corrupt another's. */
   const data = <T>(
     id: string,
     method: string,
@@ -82,13 +59,11 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
 
   return {
     stats,
-    /** Drop every moving-ref read for one repo. Call it when a push lands. */
     invalidate(id: string) {
       for (const [key, entry] of entries)
         if (key.startsWith(`${id}\u0000`) && entry.expires !== null)
           entries.delete(key)
     },
-    /** Drop everything for one repo, including pinned reads (the repo was deleted or rewritten). */
     purge(id: string) {
       for (const key of entries.keys())
         if (key.startsWith(`${id}\u0000`)) entries.delete(key)

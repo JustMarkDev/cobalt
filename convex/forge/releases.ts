@@ -15,12 +15,6 @@ import type { ActorRef } from '../lib/events'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Releases: a version with notes and signed files for each platform. A
- * stable release tells the people who starred the repository; betas and
- * nightlies reach only those who look.
- */
-
 const SHARDS = 8
 
 type Asset = {
@@ -59,7 +53,6 @@ async function counted(ctx: QueryCtx, id: Id<'releases'>, asset: string) {
   return n
 }
 
-/** The release with its downloads counted in. */
 async function load(ctx: QueryCtx, doc: Doc<'releases'>): Promise<Release> {
   const r = JSON.parse(doc.json) as Release
   for (const a of r.assets) a.downloads += await counted(ctx, doc._id, a.name)
@@ -224,7 +217,6 @@ export const create = mutation({
     notes: v.optional(notes),
     signed: v.optional(v.boolean()),
     commit: v.optional(v.string()),
-    // Checked by the API against the uploads it holds: size and sha256 come from the upload.
     assets: v.array(asset),
     dry: v.optional(v.boolean()),
   },
@@ -246,8 +238,6 @@ export const create = mutation({
       })
     const at = Date.now()
     const by = await actorFor(ctx, p.handle)
-    // An attached file is the caller's own upload; its size and digest are
-    // the stored file's, whatever the request said.
     const assets = []
     for (const x of a.assets) {
       if (!x.uploadId) {
@@ -307,7 +297,6 @@ export const create = mutation({
   },
 })
 
-/** A stable release tells the people who starred the repository, a batch at a time. */
 export const tellStargazers = internalMutation({
   args: {
     repo: v.id('repos'),
@@ -396,7 +385,6 @@ export const update = mutation({
   },
 })
 
-/** Someone is downloading an asset: count it, and say where the file is. */
 export const download = mutation({
   args: {
     owner: v.string(),

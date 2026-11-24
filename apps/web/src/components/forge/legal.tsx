@@ -1,11 +1,6 @@
 import * as React from 'react'
 import { Callout } from '~/components/ui/callout'
 
-/**
- * The frame the policy pages share. Both are written in plain words and say,
- * at the top, that they are a draft: cobalt is a preview, so they
- * describe how the service is designed to treat people, not a promise yet.
- */
 export function LegalPage({
   title,
   updated,

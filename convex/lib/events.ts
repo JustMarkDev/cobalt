@@ -11,11 +11,6 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 
 export type ActorRef = { id: string; handle: string }
 
-/**
- * Who an action is recorded as: the account, whatever typed the request.
- * A handle with no account of its own here (a review service, say) gets an
- * actor row so its id stays the same.
- */
 export async function actorFor(
   ctx: MutationCtx,
   handle: string,
@@ -29,7 +24,6 @@ export async function actorFor(
   return { id: publicId, handle }
 }
 
-/** The receipt for the request being served: machine, tool, declared model. */
 export async function viaOf(ctx: QueryCtx): Promise<Via> {
   return (await actorOf(ctx))?.via ?? { machine: null, tool: null, model: null }
 }
@@ -52,11 +46,6 @@ export async function counters(ctx: QueryCtx, repo: Doc<'repos'>) {
 
 export type CounterField = 'changeRev' | 'issueRev' | 'labelRev' | 'policyRev'
 
-/**
- * Every mutation writes exactly one event. It gets the repository's next
- * sequence number, bumps the repository's revision (and a collection's, when
- * named), and stamps the repository as updated.
- */
 export async function emit(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -66,9 +55,7 @@ export async function emit(
   changes: Array<string>,
   data: unknown,
   bump: Array<CounterField> = [],
-  /** Whether the repository counts as updated. A webhook turning itself off does not. */
   touch = true,
-  /** A receipt that replaces the request's, when the server acts on its own. */
   via?: Via,
 ): Promise<EventRecord> {
   const at = now()
@@ -81,7 +68,6 @@ export async function emit(
   const record: EventRecord = {
     object: 'event',
     id: newId('event', at),
-    // Numbered in the whole feed by the sequencer.
     sequence: 0,
     type,
     created_at: new Date(at).toISOString(),
@@ -93,7 +79,6 @@ export async function emit(
     changes,
     data: (data ?? null) as EventRecord['data'],
   }
-  // A state change is also kept by what it happened to, for timelines.
   const state = (data as { state?: unknown } | null)?.state
   if (
     subject.number !== null &&

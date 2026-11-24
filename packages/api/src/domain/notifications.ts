@@ -24,7 +24,6 @@ export const defaultPrefs: NotificationPrefs = {
   digest: false,
 }
 
-/** Handles written as `@handle` in a text, at most ten, in order. */
 function mentions(text: string): Array<string> {
   const out: Array<string> = []
   for (const m of text.matchAll(/(?:^|[^\w@/])@([a-z0-9][a-z0-9-]{0,38})/gi))
@@ -32,16 +31,9 @@ function mentions(text: string): Array<string> {
   return out.slice(0, 10)
 }
 
-/**
- * Each person's inbox. It is fed from the events every write already emits,
- * so a write does not have to know who to tell: this layer reads the event and
- * decides. Someone is never told about what they did themself, nor about a
- * repository they can no longer read when they look.
- */
 export abstract class DomainNotifications extends DomainSync {
   readonly inboxes = new Map<string, Array<NotificationRec>>()
   readonly notificationPrefs = new Map<string, NotificationPrefs>()
-  /** Bumped by every inbox write, for conditional reads. */
   inboxRev = new Map<string, number>()
 
   protected override emit(
@@ -74,7 +66,6 @@ export abstract class DomainNotifications extends DomainSync {
       assignees?: Array<{ handle: string }>
       issue?: number
     }
-    // A change under an access rule is never told to someone who cannot see it.
     const about =
       n !== null && !type.startsWith('issue.') ? repo.changes.get(n) : undefined
     const tell = (
@@ -93,7 +84,6 @@ export abstract class DomainNotifications extends DomainSync {
       this.notify(who, { kind, title, repo: full, path })
     }
     if (type === 'issue.created' || type === 'issue.updated') {
-      // Told once, when they are given it, not on every later edit.
       if (
         !d.assignees ||
         (type === 'issue.updated' && !changes.includes('assignees'))
@@ -120,7 +110,6 @@ export abstract class DomainNotifications extends DomainSync {
       return
     }
     const author = d.author?.handle
-    // A fix that answers a thread tells whoever started the thread.
     const addressed = (data as { addressed?: unknown } | null)?.addressed
     if (Array.isArray(addressed)) {
       for (const x of addressed as Array<{ author: string; patch_set: number }>)
@@ -198,7 +187,6 @@ export abstract class DomainNotifications extends DomainSync {
         }
   }
 
-  /** Put something in a person's inbox, if they want that kind. */
   notify(
     handle: string,
     n: {
@@ -226,7 +214,6 @@ export abstract class DomainNotifications extends DomainSync {
       unread: n.unread ?? true,
       created: at,
     })
-    // An inbox keeps its newest thousand.
     if (list.length > 1000) list.length = 1000
     this.inboxes.set(handle, list)
     this.inboxRev.set(handle, (this.inboxRev.get(handle) ?? 0) + 1)
@@ -237,7 +224,6 @@ export abstract class DomainNotifications extends DomainSync {
     return p.handle
   }
 
-  /** What the viewer may still see: items about a repository they can no longer read drop out. */
   private visible(p: Viewer, list: Array<NotificationRec>) {
     return list.filter(
       (x) => !x.repo || x.repo.startsWith('~') || this.mayReadRepo(x.repo, p),
@@ -246,7 +232,6 @@ export abstract class DomainNotifications extends DomainSync {
 
   private mayReadRepo(full: string, p: Viewer) {
     const r = this.repos.get(full) ?? this.repos.get(full.toLowerCase())
-    // Not a repository (an account-level item such as an import): keep it.
     if (!r) return !full.includes('/')
     return this.canRead(r, p)
   }

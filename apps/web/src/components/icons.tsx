@@ -1,8 +1,3 @@
-/**
- * Heroicons has no version-control glyphs, so these four are drawn to match it:
- * 24px grid, 1.5 stroke, round caps, `currentColor`. Everything else in the app
- * comes straight from @heroicons/react.
- */
 import type { SVGProps } from 'react'
 
 function Glyph(props: SVGProps<SVGSVGElement>) {

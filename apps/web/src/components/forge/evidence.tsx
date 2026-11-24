@@ -19,11 +19,6 @@ import type {
 
 type Mode = 'side' | 'slider' | 'toggle'
 
-/**
- * Two images of the same thing, so a person sees what changed instead of
- * reading about it. Side by side is the default. The slider and the toggle
- * are for small differences.
- */
 function CompareImage({
   before,
   after,
@@ -145,10 +140,6 @@ function OriginChip({ o }: { o: Origin }) {
   )
 }
 
-/**
- * A preview page attached as a file. It is served as a download, so it is
- * fetched and drawn in a sandboxed frame that cannot reach this page.
- */
 function PagePreview({ title, src }: { title: string; src: string }) {
   const page = useQuery({
     queryKey: ['evidence-page', src],
@@ -177,7 +168,6 @@ function PagePreview({ title, src }: { title: string; src: string }) {
   )
 }
 
-/** One piece of evidence: a pair of images, a single image, or a live frame. */
 export function MediaCard({ m }: { m: Media }) {
   return (
     <Panel className="space-y-3 p-4">
@@ -221,7 +211,6 @@ export function MediaCard({ m }: { m: Media }) {
       )}
       {m.kind === 'page' && <PagePreview title={m.title} src={m.src} />}
       {m.kind === 'frame' && (
-        // Sandboxed: the page can run its own script but cannot reach ours.
         <iframe
           title={m.title}
           srcDoc={m.html}
@@ -253,10 +242,6 @@ export function EvidenceSection({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 function ResultIcon({ r }: { r: TestResult | 'missing' }) {
   if (r === 'pass')
     return (
@@ -283,11 +268,6 @@ type Filter = 'all' | 'new' | 'problems'
 const isNew = (c: TestCase) => c.base === 'missing' || c.base === 'fail'
 const isProblem = (c: TestCase) => c.head === 'fail' || c.head === 'skipped'
 
-/**
- * Which tests ran, and how each behaved on the base and on this change. A test
- * that fails on the base and passes here is the strongest evidence a change
- * does what it says. Tests that took screenshots show them before and after.
- */
 export function TestReport({ run }: { run: TestRun }) {
   const [filter, setFilter] = React.useState<Filter>('all')
   const [open, setOpen] = React.useState<string | null>(

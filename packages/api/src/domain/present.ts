@@ -31,14 +31,10 @@ import type {
 } from './records'
 import { DomainAccess } from './access'
 
-/** How records are shown in answers, including policy evaluation. */
-/** Over this many lines added and removed, a change is large. */
 export const BIG_CHANGE = 400
 
-/** The rules a repository's policy is made of, and what each starts as. */
 export { policyRules } from '../policy-builtins'
 
-/** How a repository's own rule reads in the list and the policy file. */
 export function describeCustomRule(r: CustomRuleRec) {
   if (r.kind === 'required_check')
     return {
@@ -79,7 +75,6 @@ export abstract class DomainPresent extends DomainAccess {
   }
 
   protected presentRepo(r: RepoRec): z.infer<typeof S.Repo> {
-    // Counting needs a pass over everything, so do it once per change to the repository.
     const key = `${r.rev}:${r.changes.size}:${r.issues.size}`
     if (r.counts.key !== key) {
       let openChanges = 0
@@ -155,7 +150,6 @@ export abstract class DomainPresent extends DomainAccess {
     }
   }
 
-  /** The newest review from each person. Kept up to date as reviews arrive, not rebuilt from all of them. */
   protected latestReviews(c: ChangeRec) {
     let l = c.latest
     if (!l) c.latest = l = { map: new Map(), seen: 0 }
@@ -166,12 +160,6 @@ export abstract class DomainPresent extends DomainAccess {
     return [...l.map.values()]
   }
 
-  /**
-   * What policy says about a change. It depends on nothing but the change's own
-   * state (its version moves whenever that does) and the repository's
-   * maintainers, so it is worked out once per version. Asking "what if" with
-   * `assume` always works it out fresh.
-   */
   protected evaluate(
     repo: RepoRec,
     c: ChangeRec,
@@ -187,7 +175,6 @@ export abstract class DomainPresent extends DomainAccess {
     return reqs
   }
 
-  /** A rule's mode in a repository: what it was set to, or its default. */
   protected modeOf(repo: RepoRec, id: string): RuleMode {
     return (
       repo.ruleModes?.get(id) ??
@@ -196,7 +183,6 @@ export abstract class DomainPresent extends DomainAccess {
     )
   }
 
-  /** The person's live exception to a rule in a repository, if they have one. */
   protected exceptionFor(repo: RepoRec, rule: string, who: string) {
     const now = this.now()
     return repo.policyExceptions?.find(
@@ -204,10 +190,6 @@ export abstract class DomainPresent extends DomainAccess {
     )
   }
 
-  /**
-   * Each rule's requirement, then the repository's modes: an `off` rule is
-   * left out, and a `dry-run` rule says what it would do without blocking.
-   */
   protected evaluateFresh(
     repo: RepoRec,
     c: ChangeRec,
@@ -230,7 +212,6 @@ export abstract class DomainPresent extends DomainAccess {
     return out
   }
 
-  /** Every rule, enforced, as if no mode were set. */
   protected evaluateRules(
     repo: RepoRec,
     c: ChangeRec,
@@ -239,8 +220,6 @@ export abstract class DomainPresent extends DomainAccess {
     const head = this.head(c)
     const out: Array<Requirement> = []
 
-    // With fresh approvals, an approval holds only on the patch set it was
-    // given on, even when a rebase left the tree the same.
     const fresh = (repo.landing ?? DEFAULT_LANDING).fresh_approvals
     const reviews = this.latestReviews(c).map((r) =>
       fresh && r.patchSet !== head.n ? { ...r, carries: false } : r,
@@ -250,7 +229,6 @@ export abstract class DomainPresent extends DomainAccess {
       (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
     )
 
-    // ci-evidence: tests passed on the tree that will land.
     const runs = c.checks.filter(
       (k) => k.name === 'ci/test' && k.tree === head.tree,
     )
@@ -279,7 +257,6 @@ export abstract class DomainPresent extends DomainAccess {
       0,
     )
 
-    // findings: nothing high is left open.
     const open = c.findings.filter(
       (f) =>
         f.severity === 'high' &&
@@ -297,15 +274,11 @@ export abstract class DomainPresent extends DomainAccess {
       blocking: open.map((f) => f.id),
     })
 
-    // reviewed: someone other than the author approved. A model's review
-    // counts as much as a person's; who presses Land is the one responsible.
     out.push(reviewedRequirement(approvals, objections))
 
     for (const r of repo.customRules ?? [])
       out.push(this.evaluateCustomRule(r, c, assume, approvals, lines))
 
-    // The rules protect themselves: a change to the policy folder needs a
-    // maintainer, and a file that reads. Not a rule a repository can turn off.
     const policy = policyFileCheck(
       head,
       policyRules,
@@ -314,7 +287,6 @@ export abstract class DomainPresent extends DomainAccess {
     )
     if (policy) out.push(policy)
 
-    // An exception for the author lets their change through a rule.
     return out.map((r) => {
       if (r.state === 'pass' || r.state === 'na') return r
       const e = this.exceptionFor(repo, r.id, c.author.handle)
@@ -330,7 +302,6 @@ export abstract class DomainPresent extends DomainAccess {
     })
   }
 
-  /** A rule the repository wrote, against one change. */
   protected evaluateCustomRule(
     r: CustomRuleRec,
     c: ChangeRec,
@@ -509,11 +480,6 @@ export abstract class DomainPresent extends DomainAccess {
     }
   }
 
-  /**
-   * A change as a caller sees it, already serialized. Keyed by everything the
-   * answer depends on, which includes the change's version, so an entry is never
-   * stale, only replaced. A list of fifty unchanged changes is fifty lookups.
-   */
   protected readonly shown = new Map<string, Pre>()
 
   protected shownChars = 0
@@ -538,8 +504,6 @@ export abstract class DomainPresent extends DomainAccess {
     const pre = new Pre(JSON.stringify(obj), obj, key)
     this.shown.set(key, pre)
     this.shownChars += pre.json.length
-    // First in, first out. Dropping an entry that is still wanted costs one rebuild;
-    // reordering on every hit costs more than that across a busy list.
     while (
       (this.shown.size > DomainPresent.SHOWN_MAX ||
         this.shownChars > DomainPresent.SHOWN_CHARS_MAX) &&
@@ -634,7 +598,6 @@ export abstract class DomainPresent extends DomainAccess {
     }
   }
 
-  /** An issue already serialized, kept by version like `shownChange`. The object is rebuilt from the text only if someone asks for it. */
   protected readonly shownIssues = new Map<string, Pre>()
 
   protected shownIssueChars = 0

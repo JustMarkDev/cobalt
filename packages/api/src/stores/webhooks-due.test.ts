@@ -7,13 +7,8 @@ import { claimsOf } from '../domain/convex'
 import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 
-// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
-/**
- * API servers send webhooks when `nextDue` says the next one comes due,
- * instead of asking Convex every few seconds (`dueTimer`).
- */
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
 for (const f of new Bun.Glob('**/*.{ts,js}').scanSync(dir))
@@ -59,10 +54,8 @@ test('nextDue: nothing pending, then the delivery, then its claim', async () => 
     event: JSON.stringify({ id: 'evt_1', type: 'webhook.ping' }),
     redeliveryOf: null,
   })
-  // Due now.
   expect(await nextDue(asApi)).toBeLessThanOrEqual(START)
 
-  // Claimed by a server: not due again until the claim lapses.
   const claimed = JSON.parse(
     await asApi.mutation(forge.forge.webhooks.claim, { limit: 10 }),
   ) as Array<unknown>
@@ -95,12 +88,10 @@ test('nextDue sees a new delivery behind more than 64 being sent', async () => {
       event: JSON.stringify({ id: `evt_${n}`, type: 'webhook.ping' }),
       redeliveryOf: null,
     })
-  // 100 due and claimed by servers (two servers' worth in flight).
   for (let n = 0; n < 100; n++) await ping(n)
   for (let n = 0; n < 2; n++)
     await asApi.mutation(forge.forge.webhooks.claim, { limit: 64 })
   expect(await nextDue(asApi)).toBe(START + 60_000)
-  // A new one, due a second later, is not hidden behind them.
   setSystemTime(new Date(START + 1_000))
   await ping(100)
   expect(await nextDue(asApi)).toBe(START + 1_000)

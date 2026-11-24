@@ -25,7 +25,6 @@ interface UAData {
   ) => Promise<{ architecture?: string; platform?: string }>
 }
 
-/** Apple silicon Macs report an "Apple" GPU, Intel Macs report Intel or AMD. */
 function isAppleGpu(): boolean {
   try {
     const gl = document.createElement('canvas').getContext('webgl')
@@ -67,7 +66,6 @@ function start() {
     override = null
   }
   emit({ detected, override })
-  // Chromium exposes the real CPU architecture; refine when available.
   const uad = (navigator as Navigator & { userAgentData?: UAData })
     .userAgentData
   void uad?.getHighEntropyValues?.(['architecture']).then((v) => {
@@ -83,13 +81,10 @@ export function setTargetOverride(target: Target | null) {
   try {
     if (target) localStorage.setItem(OVERRIDE_KEY, JSON.stringify(target))
     else localStorage.removeItem(OVERRIDE_KEY)
-  } catch {
-    // Storage can be blocked; the override then lasts for this page view.
-  }
+  } catch {}
   emit({ override: target })
 }
 
-/** The first subscriber looks at the machine; later ones only listen. */
 function subscribe(cb: () => void) {
   listeners.add(cb)
   start()
@@ -98,14 +93,6 @@ function subscribe(cb: () => void) {
 
 const SERVER: State = { detected: null, override: null }
 
-/**
- * The machine the visitor is on. `target` is null until the client has looked,
- * so server and first client render agree.
- *
- * A choice made in this browser comes first, then the one kept with the
- * account (so it follows the person to a new browser), then what was
- * detected. Picking one while signed in keeps it with the account too.
- */
 export function useTarget() {
   const s = React.useSyncExternalStore(
     subscribe,
@@ -150,11 +137,6 @@ export const osLabel: Record<Platform, string> = {
 
 export type Fit = 'exact' | 'os' | 'none'
 
-/**
- * How well a release fits a machine. `exact`: same OS and CPU. `os`: same OS,
- * another CPU (the asset is the one that is there). `none`: no build for this
- * OS at all, and we say so instead of offering a file that will not run.
- */
 export function matchAsset(
   release: Release,
   target: Target | null,
@@ -169,7 +151,6 @@ export function matchAsset(
   return { asset: undefined, fit: 'none' }
 }
 
-/** Operating systems a release has at least one build for. */
 export function availableOses(release: Release): Array<Platform> {
   return [...new Set(release.assets.map((a) => a.platform))]
 }

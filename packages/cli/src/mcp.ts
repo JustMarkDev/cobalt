@@ -1,8 +1,3 @@
-/**
- * The cobalt MCP server. Every tool runs the matching `cb` command with
- * --json, so an agent gets exactly what the CLI and the web page give a person:
- * same data, same blockers, same error codes and hints.
- */
 import { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import { run } from './main'
@@ -50,15 +45,9 @@ type Hint = {
   readOnly?: boolean
   idempotent?: boolean
   destructive?: boolean
-  /** Exit codes that carry a successful answer, such as policy blocked (5). */
   allowExit?: Array<number>
 }
 
-/**
- * `client` is the caller's own: over HTTP it carries the token the request
- * arrived with, so every tool is checked against that token's scopes.
- */
-/** A client's name as a receipt label: plain, printable, short. */
 const cleanName = (raw: string | undefined) => {
   const t = raw?.trim().slice(0, 80)
   return t && /^[\p{L}\p{N} ._:+/()@-]+$/u.test(t) ? t : null
@@ -69,9 +58,6 @@ export function createSxMcpServer(
 ): McpServer {
   const server = new McpServer({ name: 'cobalt', version }, { instructions })
 
-  // The connecting client names the tool on every receipt (an orchestrator's
-  // CB_TOOL wins). A hosted server labels only its own client; over stdio the
-  // process serves one client, so the label is the process's.
   server.server.oninitialized = () => {
     const name = cleanName(server.server.getClientVersion()?.name)
     if (!name || process.env.CB_TOOL) return
@@ -85,11 +71,6 @@ export function createSxMcpServer(
     cb: (a: unknown) => Promise<CallToolResult>,
   ) => void
 
-  /**
-   * While an agent works on a change, it is in that change's room, so the
-   * people reviewing it see it there. One heartbeat per change per interval,
-   * sent before the call and never in its way.
-   */
   const lastBeat = new Map<string, number>()
   const lookingAt = async (args: Array<string>) => {
     const [group, sub] = args
@@ -109,13 +90,10 @@ export function createSxMcpServer(
     shape: TShape,
     argv: (a: z.infer<z.ZodObject<TShape>>) => Array<string>,
     hint: Hint = {},
-    // What the agent gets: by default the CLI's JSON, kept within budget.
     shapeAnswer: (out: string, a: z.infer<z.ZodObject<TShape>>) => string = (
       out,
     ) => fitText(out),
   ) => {
-    // The SDK's generic handler types do not survive a shared helper, so the
-    // schema is the contract and the handler is checked by the tests.
     register(
       name,
       {
@@ -415,7 +393,6 @@ export function createSxMcpServer(
     { readOnly: true },
   )
 
-  // Every operation, for what the named tools do not cover.
   let own: ApiClient | undefined
   const client = () => options.client ?? (own ??= makeClient())
   const answer = async (

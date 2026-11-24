@@ -37,10 +37,6 @@ import { opQuery, useOp, useWrite } from '~/lib/forge'
 import { toRun, toRunDetail } from '~/lib/pipeline'
 import { field } from '~/components/ui/input'
 
-// ---------------------------------------------------------------------------
-// Pieces
-// ---------------------------------------------------------------------------
-
 function StatusIcon({
   status,
   className,
@@ -102,10 +98,6 @@ const statusTone = {
   canceled: 'muted',
 } as const
 
-// ---------------------------------------------------------------------------
-// The list
-// ---------------------------------------------------------------------------
-
 type Filter = 'all' | 'running' | 'failure'
 
 function RunList({ repo }: { repo: Repo }) {
@@ -135,7 +127,6 @@ function RunList({ repo }: { repo: Repo }) {
       </EmptyState>
     )
   const workflows = [...new Set(list.map((r) => r.workflow))]
-  // A workflow on the newest commit of the default branch, queued for a runner.
   const start = (name: string) =>
     void write('pipelines.start', {
       owner: repo.owner,
@@ -216,10 +207,6 @@ function RunList({ repo }: { repo: Repo }) {
     </>
   )
 }
-
-// ---------------------------------------------------------------------------
-// The log
-// ---------------------------------------------------------------------------
 
 type LevelFilter = 'all' | 'warn' | 'error'
 
@@ -333,11 +320,6 @@ function StepBlock({
   )
 }
 
-// ---------------------------------------------------------------------------
-// One run
-// ---------------------------------------------------------------------------
-
-/** A run with every step's log, read before it draws. */
 function RunLoader({ repo, n }: { repo: Repo; n: number }) {
   const at = { owner: repo.owner, repo: repo.name, run: n }
   const api = useOp('pipelines.get', at)
@@ -641,12 +623,6 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
   )
 }
 
-/**
- * What a waiting run waits for, and the button that answers it. The step
- * resumes as passed or failed in one write; the runner holding the job
- * carries on from there. An agent resumes it from its own login with the
- * command shown.
- */
 function WaitingPanel({ repo, detail }: { repo: Repo; detail: RunDetail }) {
   const write = useWrite()
   const [busy, setBusy] = React.useState(false)

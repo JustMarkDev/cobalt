@@ -2,18 +2,6 @@ import type { GitAdmin } from '@cobaltforge/git/admin'
 import type { BlobStore } from '../uploads'
 import type { ConvexCall } from './convex'
 
-/**
- * The API server's chores against stores Convex cannot reach, driven by
- * `convex/storeWorker.ts`:
- *
- *  - delete the git stores and uploaded files an erasure left behind,
- *  - measure repositories that were pushed to,
- *  - report how much was transferred out of them.
- *
- * Each step is safe to repeat: a deletion is only taken off the queue after it
- * worked, and a failure leaves it there for the next tick. A worker without
- * `git` leaves git deletions queued; one without `blobs.delete` leaves files.
- */
 type Claimed = {
   sweeps: Array<{ id: string; kind: 'git' | 'blob'; key: string }>
   measure: Array<string>
@@ -22,7 +10,6 @@ type Claimed = {
 export type Tick = {
   deleted: number
   measured: number
-  /** Bytes of transfer reported this tick. */
   transferred: number
   failed: number
 }
@@ -87,7 +74,6 @@ export class StoreWorker {
     return result
   }
 
-  /** Transfer out since the last call, per store. Needs `git.egress`. */
   private async egress(): Promise<number> {
     const { call, secret, git } = this.o
     if (!git?.egress) return 0
@@ -99,12 +85,10 @@ export class StoreWorker {
       await call('storeWorker:addTransfer', { secret, storeId, bytes })
       total += bytes
     }
-    // Only after it was all reported: a failure re-asks for the same window.
     this.sinceEgress = now
     return total
   }
 
-  /** Ticks every `everyMs` until the returned function is called. A slow tick is never overlapped. */
   start(everyMs = 30_000): () => void {
     let running = false
     const timer = setInterval(() => {

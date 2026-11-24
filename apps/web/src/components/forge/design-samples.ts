@@ -1,5 +1,3 @@
-// Sample data for the design system page (`/design`), so each pattern can
-// be shown without reading anything.
 import type { Asset, Platform, Repo, Source } from '~/lib/model/data'
 
 function assets(name: string, v: string, total: number): Array<Asset> {
@@ -112,7 +110,6 @@ export const sampleRepos: Array<Repo> = [
     releases: [],
   },
   {
-    // Owned by an organization, not by a person.
     owner: 'northwind',
     name: 'relay',
     description:

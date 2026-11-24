@@ -1,12 +1,3 @@
-/**
- * Every record that moves through states, and the moves it may make. Each
- * is a table read by both the in-memory domain and the Convex functions, so
- * the two cannot drift: a write asks `canMove` before it changes a state,
- * and a state not reachable here is never written.
- *
- * Plain JavaScript: the Convex functions import it too.
- */
-
 export type Machine<S extends string> = {
   readonly name: string
   readonly moves: { readonly [K in S]: ReadonlyArray<S> }
@@ -23,16 +14,12 @@ export function canMove<S extends string>(m: Machine<S>, from: S, to: S) {
   return m.moves[from].includes(to)
 }
 
-/** A state with no way out. */
 export function isTerminal<S extends string>(m: Machine<S>, s: S) {
   return m.moves[s].length === 0
 }
 
-// ---- Changes -----------------------------------------------------------------
-
 export type ChangeState = 'draft' | 'open' | 'landed' | 'abandoned'
 
-/** A change. Abandoning remembers where it was, so restoring returns there. */
 export const changeLifecycle = machine<ChangeState>('change', {
   draft: ['open', 'abandoned'],
   open: ['landed', 'abandoned'],
@@ -42,11 +29,6 @@ export const changeLifecycle = machine<ChangeState>('change', {
 
 export type ChangeAction = 'ready' | 'abandon' | 'restore' | 'land'
 
-/**
- * Where an action takes a change from where it is, or null when it cannot.
- * `abandonedFrom` is the state it was abandoned from (absent on changes
- * abandoned before it was kept: those were open or draft, and reopen open).
- */
 export function changeTarget(
   action: ChangeAction,
   c: { state: ChangeState; abandonedFrom?: 'draft' | 'open' | null },
@@ -63,8 +45,6 @@ export function changeTarget(
   if (action === 'restore' && c.state !== 'abandoned') return null
   return canMove(changeLifecycle, c.state, to) ? to : null
 }
-
-// ---- Long operations and their steps ------------------------------------------
 
 export type OperationState =
   | 'queued'
@@ -96,8 +76,6 @@ export const landingStepLifecycle = machine<StepState>('landing step', {
   skipped: [],
 })
 
-// ---- Pipelines ---------------------------------------------------------------
-
 export type PipelineStatus =
   | 'queued'
   | 'running'
@@ -106,14 +84,8 @@ export type PipelineStatus =
   | 'failure'
   | 'canceled'
 
-/**
- * A pipeline run and each of its jobs. `waiting` is a run paused on a person
- * or an outside agent: it keeps its runner, no runner claims it again, and it
- * resumes, is canceled, or fails when the wait runs out.
- */
 export const pipelineLifecycle = machine<PipelineStatus>('pipeline', {
   queued: ['running', 'canceled'],
-  // Back to `queued` only when its runner's lease ran out.
   running: ['queued', 'waiting', 'success', 'failure', 'canceled'],
   waiting: ['running', 'canceled', 'failure'],
   success: [],
@@ -123,7 +95,6 @@ export const pipelineLifecycle = machine<PipelineStatus>('pipeline', {
 
 export type PipelineStepStatus = PipelineStatus | 'skipped'
 
-/** One step of a job, as its runner reports it. */
 export const pipelineStepLifecycle = machine<PipelineStepStatus>(
   'pipeline step',
   {
@@ -147,13 +118,6 @@ type StepLike = {
 }
 type JobLike = { status: string; duration: number; steps: Array<StepLike> }
 
-/**
- * A runner's report on one step, applied to its job: checks the move, then
- * finishes what it finishes. A failed step skips the rest of its job; a job
- * whose steps are all over is over; a run whose jobs are all over is over.
- * A report that repeats the step's state is answered as it is, so a runner
- * may retry. Returns a refusal, or null once applied.
- */
 export function reportStep(
   r: { number: number; status: string; jobs: Array<JobLike> },
   job: number,
@@ -193,7 +157,6 @@ export function reportStep(
   return { repeated: false }
 }
 
-/** After a step changed: finish the job and the run when everything is over. */
 export function settlePipeline(
   r: { status: string; finished: number | null; jobs: Array<JobLike> },
   at: number,
@@ -216,7 +179,6 @@ export function settlePipeline(
   }
 }
 
-/** Cancel a run: every job and step not yet over is canceled with it. */
 export function cancelPipeline(
   r: { status: string; finished: number | null; jobs: Array<JobLike> },
   at: number,
@@ -233,12 +195,10 @@ export function cancelPipeline(
   }
 }
 
-/** What a waiting step waits for. Kept on the step; the job shows its waiting step's. */
 export type PipelineWait = {
   kind: 'person' | 'agent' | 'approval'
   reason: string
   target: string | null
-  /** Milliseconds since the epoch. */
   expires: number
 }
 
@@ -251,17 +211,12 @@ type WaitRun = {
   jobs: Array<WaitJob>
 }
 
-/** The run is waiting when no job of it is still running and one waits. */
 function runStatusAfterWait(r: WaitRun) {
   if (r.jobs.some((j) => j.status === 'running')) return 'running'
   if (r.jobs.some((j) => j.status === 'waiting')) return 'waiting'
   return r.status
 }
 
-/**
- * Pause a running step: the step, its job and (when nothing else of it runs)
- * the run wait. Returns a refusal, or null once applied.
- */
 export function waitStep(
   r: WaitRun,
   job: number,
@@ -299,10 +254,6 @@ export function waitStep(
   return null
 }
 
-/**
- * Resume a waiting step with how it ended, in one write: it runs again and
- * finishes. A failure skips the rest of its job. Returns a refusal, or null.
- */
 export function resumeStep(
   r: WaitRun,
   job: number,
@@ -318,7 +269,6 @@ export function resumeStep(
     return {
       refusal: `Step ${step} of job ${job} is ${s.status}; only a waiting step resumes.`,
     }
-  // waiting -> running -> success|failure, each move checked.
   for (const [m, from, next] of [
     [pipelineStepLifecycle, s.status, 'running'],
     [pipelineStepLifecycle, 'running', to],
@@ -341,11 +291,6 @@ export function resumeStep(
   return null
 }
 
-/**
- * A wait that ran out: the step fails, its job fails, and the run fails with
- * every job that was not over. Null when the step is no longer waiting on
- * that same wait, so a late timer does nothing.
- */
 export function expireWait(
   r: WaitRun,
   job: number,
@@ -375,11 +320,6 @@ export function expireWait(
   return true
 }
 
-/**
- * A running job whose runner stopped answering goes back to the queue: its
- * unfinished steps start over, and the run is queued again when nothing else
- * of it runs. False when the job is not running.
- */
 export function requeueJob(
   r: { status: string; jobs: Array<JobLike> },
   job: number,
@@ -404,16 +344,12 @@ export function requeueJob(
   return true
 }
 
-/** The wait a job shows: its waiting step's, if any. */
 export function jobWait(j: { steps: Array<{ wait?: PipelineWait | null }> }) {
   return j.steps.find((s) => s.wait)?.wait ?? null
 }
 
-/** Default and longest wait. */
 export const WAIT_DEFAULT_MS = 7 * 86_400_000
 export const WAIT_MAX_MS = 30 * 86_400_000
-
-// ---- Webhook deliveries ---------------------------------------------------------
 
 export type DeliveryState = 'pending' | 'succeeded' | 'failed'
 
@@ -423,24 +359,13 @@ export const deliveryLifecycle = machine<DeliveryState>('delivery', {
   failed: [],
 })
 
-// ---- Uploads -------------------------------------------------------------------
-
 export type UploadState = 'pending' | 'uploaded'
 
-/**
- * An upload gets its file once; once it has it, it is attached once. It goes
- * back to pending only when its bytes could not be kept after it was marked
- * (`unreceive`), never by a save.
- */
 export const uploadLifecycle = machine<UploadState>('upload', {
   pending: ['uploaded'],
   uploaded: ['pending'],
 })
 
-/**
- * Whether `next` follows from `now`: the file arrives once, and an upload is
- * attached to one thing only. Saving what it already is changes nothing.
- */
 export function uploadMoveRefusal(
   now: { state: UploadState; sha256: string | null; attachedTo: string | null },
   next: {
@@ -466,18 +391,13 @@ export function uploadMoveRefusal(
   return null
 }
 
-// ---- Device sign-in ----------------------------------------------------------
-
 export type DeviceStatus = 'pending' | 'approved' | 'denied'
 
-/** A device code waits for a person, who approves or denies it once. */
 export const deviceLifecycle = machine<DeviceStatus>('device code', {
   pending: ['approved', 'denied'],
   approved: [],
   denied: [],
 })
-
-// ---- Production confirmations ----------------------------------------------------------------
 
 export type GrantState = 'pending' | 'active' | 'revoked'
 

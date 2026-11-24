@@ -17,12 +17,6 @@ import type { ChangeRec } from '../lib/changeTypes'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 
-/**
- * Triggers: `.source/triggers/*.yml` says what starts a workflow when
- * something happens. The only event that dispatches in this version is
- * `change.landed`, from the land path, in the same transaction.
- */
-
 async function ran(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -40,12 +34,6 @@ async function ran(
     .unique()
 }
 
-/**
- * Starts what an event triggers: each matching trigger once per event (what
- * it did is recorded first, so a retry finds it), at most three. A workflow
- * that never ran is recorded and the change's author told; the land itself
- * never fails here.
- */
 export async function dispatchTriggers(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -98,7 +86,6 @@ export async function dispatchTriggers(
       })
       await ctx.db.patch('triggerRuns', id, { runId: r.id, run: r.number })
     } catch (err) {
-      // `startWorkflow` refuses before it writes anything, so nothing is left half done.
       const why =
         err instanceof ConvexError
           ? String((err.data as { detail?: string }).detail ?? err.message)

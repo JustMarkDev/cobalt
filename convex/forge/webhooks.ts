@@ -11,13 +11,6 @@ import { emit } from '../lib/events'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * Webhooks and their deliveries. The API checks who may manage them; this
- * keeps them, makes one delivery per matching event (`deliverEvent`, from
- * the fan-out), and decides what each attempt means: done, try again later,
- * or turn the endpoint off. API servers do the sending.
- */
-
 export const RETRY_DELAYS_MS = [
   5_000, 300_000, 1_800_000, 7_200_000, 18_000_000, 36_000_000, 36_000_000,
 ]
@@ -157,7 +150,6 @@ export const update = mutation({
     if (!changed) return out(null)
     await ctx.db.patch('webhooks', h._id, {
       ...p,
-      // Turning it back on clears the reason it was turned off.
       ...(p.active ? { disabledReason: null, failures: 0 } : {}),
       updatedAt: Date.now(),
       version: h.version + 1,
@@ -186,7 +178,6 @@ export const remove = mutation({
   },
 })
 
-/** A deleted repository's webhooks go with it. */
 export async function dropRepoHooks(ctx: MutationCtx, repoId: Id<'repos'>) {
   for (const h of await ctx.db
     .query('webhooks')
@@ -195,7 +186,6 @@ export async function dropRepoHooks(ctx: MutationCtx, repoId: Id<'repos'>) {
     await removeHook(ctx, h)
 }
 
-/** A new secret signs from now on; the old one keeps signing for a day so receivers can switch. */
 export const rotate = mutation({
   args: { id: v.string(), secret: v.string() },
   returns: v.string(),
@@ -233,7 +223,6 @@ export const getDelivery = query({
   },
 })
 
-/** Newest first, below a sequence. */
 export const deliveries = query({
   args: {
     id: v.string(),
@@ -260,7 +249,6 @@ export const deliveries = query({
   },
 })
 
-/** Queue one event for one webhook. Keeps the newest thousand. */
 export async function enqueue(
   ctx: MutationCtx,
   h: Doc<'webhooks'>,
@@ -295,7 +283,6 @@ export async function enqueue(
   return publicId
 }
 
-/** Deliveries for an event, for every active webhook of its repository that wants it. */
 export async function deliverEvent(
   ctx: MutationCtx,
   e: { type: string; repo_id: string | null },
@@ -312,7 +299,6 @@ export async function deliverEvent(
       await enqueue(ctx, h, json, null)
 }
 
-/** A delivery the API made: a ping, a redelivery, a replayed event. */
 export const enqueueOne = mutation({
   args: {
     id: v.string(),
@@ -332,21 +318,11 @@ export const enqueueOne = mutation({
   },
 })
 
-/**
- * When the next pending delivery can be claimed (ms), or null when nothing is
- * pending. API servers subscribe to it and claim only then, rather than ask
- * on a timer: it does not read the clock, so Convex keeps the answer cached
- * and sends a new one only when a delivery is added, claimed or settled.
- */
 export const nextDue = query({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
     await system(ctx)
-    // In order of nextAt. A row is due at max(nextAt, claimedUntil), never
-    // before its nextAt, so once a row's nextAt is no earlier than the best
-    // found, no later row can be earlier: stop there. Rows being sent (claimed)
-    // are passed over, however many there are. The cap only bounds the read.
     let at: number | null = null
     let read = 0
     for await (const d of ctx.db
@@ -361,10 +337,6 @@ export const nextDue = query({
   },
 })
 
-/**
- * Due deliveries, now this server's to send for a minute. A delivery for an
- * endpoint that was turned off fails here, without a send.
- */
 export const claim = mutation({
   args: { limit: v.number() },
   returns: v.string(),
@@ -419,7 +391,6 @@ export const claim = mutation({
   },
 })
 
-/** How a send went. Answers when to try again, if it will be tried again. */
 export const report = mutation({
   args: {
     id: v.string(),
@@ -436,11 +407,7 @@ export const report = mutation({
       .withIndex('by_publicId', (q) => q.eq('publicId', a.id))
       .unique()
     const h = d && (await ctx.db.get('webhooks', d.hookId))
-    // Gone while it was being sent: nothing to count it on.
     if (!d || !h) return out({ retryAt: null })
-    // Only the claim that sent it reports on it. A late answer from a claim
-    // that ran out (another server holds it now, or already finished it) is
-    // dropped, so a delivery is counted once and never leaves a final state.
     if (
       !canMove(deliveryLifecycle, d.state, 'succeeded') ||
       d.claimedUntil !== a.at + CLAIM_MS
@@ -500,7 +467,6 @@ export const report = mutation({
       await ctx.db.patch('webhooks', h._id, { failures: 0 })
       return out({ retryAt: null })
     }
-    // 410 Gone is the receiver saying it no longer wants these.
     if (a.status === 410) {
       await done('The endpoint answered 410 Gone.')
       return out({ retryAt: null })

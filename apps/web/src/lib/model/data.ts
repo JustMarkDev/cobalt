@@ -1,6 +1,3 @@
-// How the screens see a repository and its releases, and small helpers for
-// showing them. `lib/repo.ts` builds these from the API's objects.
-
 export type Source = 'native' | 'github' | 'gitlab' | 'codeberg' | 'gitea'
 export type Platform = 'macos' | 'windows' | 'linux'
 export type Channel = 'stable' | 'beta' | 'nightly'
@@ -43,7 +40,6 @@ export type Asset = {
   size: string
   downloads: number
   sha: string
-  /** The file is kept here and can be downloaded, not only counted. */
   stored?: boolean
 }
 
@@ -55,9 +51,7 @@ export type Release = {
   title: string
   notes: { added: Array<string>; changed: Array<string>; fixed: Array<string> }
   assets: Array<Asset>
-  /** The commit a beta or nightly was built from. */
   commit?: string
-  /** Set when a release was pulled. The reason is shown on its page. */
   withdrawn?: string
 }
 
@@ -65,7 +59,6 @@ export type Repo = {
   owner: string
   name: string
   description: string
-  /** Public when absent: the sample repositories are all public. */
   visibility?: 'public' | 'private'
   category: Category
   language: string
@@ -76,11 +69,9 @@ export type Repo = {
   license: string
   updated: string
   source: Source
-  /** Where the code really lives when it is mirrored here. */
   upstream?: string
   releases: Array<Release>
   install?: string
-  /** The project's own site and documentation, when it has them. */
   website?: string
   docs?: string
 }
@@ -92,7 +83,6 @@ export const categories = [
   'Databases',
 ] as const
 
-/** "3 hours ago", "yesterday", "2 weeks ago" as hours, so a list can be sorted by it. */
 export function hoursAgo(text: string): number {
   if (text === 'yesterday') return 24
   const m = /^(\d+) (minute|hour|day|week|month|year)s? ago$/.exec(text)
@@ -122,7 +112,6 @@ export function totalDownloads(release: Release) {
   return release.assets.reduce((sum, a) => sum + a.downloads, 0)
 }
 
-// Deterministic pseudo-random so the contribution graph is stable across SSR and client.
 export function seeded(seed: number) {
   let a = seed
   return () => {

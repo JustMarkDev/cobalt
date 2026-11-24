@@ -10,10 +10,6 @@ import type { Effective, Quota } from '@cobaltforge/api/plans'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * The plan of an account, and what it allows. Every check that depends on a
- * plan asks here, so the rules live in one place (`@cobaltforge/api/plans`).
- */
 type Ctx = Pick<QueryCtx, 'db'>
 
 export async function planOf(
@@ -32,11 +28,9 @@ export async function planOf(
   return effectivePlan(sub, grants, now)
 }
 
-/** Whether `owner` is waiting to be deleted. */
 export const pendingDeletion = (owner: Doc<'accounts'> | null): boolean =>
   owner?.purgeAt !== undefined
 
-/** A repository is made private, or created private, on an account that may not have one. */
 export async function assertMayHavePrivate(ctx: Ctx, owner: Doc<'accounts'>) {
   if (pendingDeletion(owner)) failReadOnly(owner.handle, 'deletion')
   const { plan } = await planOf(ctx, owner._id)
@@ -51,20 +45,13 @@ export async function assertMayHavePrivate(ctx: Ctx, owner: Doc<'accounts'>) {
     )
 }
 
-/** Creating anything new in an account that is waiting to be deleted. */
 export function assertNotPendingDeletion(owner: Doc<'accounts'>) {
   if (pendingDeletion(owner)) failReadOnly(owner.handle, 'deletion')
 }
 
-/**
- * A write to a repository. A private repository on the Free plan, and every
- * repository of an account waiting to be deleted, only reads: history stays
- * readable and cloneable, and nothing new goes in.
- */
 export async function assertRepoWritable(ctx: Ctx, repo: Doc<'repos'>) {
   const owner = await ctx.db.get('accounts', repo.ownerId)
   const pending = pendingDeletion(owner)
-  // Public repositories stay open on the Free plan: no need to read the plan.
   const plan =
     repo.visibility === 'private' && !pending
       ? (await planOf(ctx, repo.ownerId)).plan
@@ -74,12 +61,6 @@ export async function assertRepoWritable(ctx: Ctx, repo: Doc<'repos'>) {
     failReadOnly(`${repo.owner}/${repo.name}`, state.why)
 }
 
-/**
- * A push, or anything that puts commits in a repository (landing a change,
- * publishing a release). On the Free plan it also stops once the account is past
- * its storage, transfer or push allowance; that pauses new pushes and nothing
- * else, and never deletes. A paid plan is billed for the excess instead.
- */
 export async function assertPushAllowed(ctx: Ctx, repo: Doc<'repos'>) {
   await assertRepoWritable(ctx, repo)
   const { plan } = await planOf(ctx, repo.ownerId)

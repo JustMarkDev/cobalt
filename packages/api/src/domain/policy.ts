@@ -40,13 +40,7 @@ import type {
 } from './records'
 import { DomainPipelines } from './pipelines'
 
-/**
- * A repository's policy: which rules apply and how hard, and who a rule bends
- * for and until when. A change's requirements come from the evaluator in
- * `present.ts`; this layer edits what it reads and reports what the rules did.
- */
 export abstract class DomainPolicy extends DomainPipelines {
-  /** The built-in rules, then the repository's own, as the list shows them. */
   private rulesOf(repo: RepoRec) {
     return [
       ...policyRules.map((r) => ({ ...r, custom: null })),
@@ -60,7 +54,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     ]
   }
 
-  /** The rules as settings say them, in the file's terms. */
   private contentOf(repo: RepoRec): PolicyContent {
     return {
       modes: Object.fromEntries(repo.ruleModes ?? []),
@@ -70,7 +63,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     }
   }
 
-  /** The policy file as it stands on the default branch, or as the move would write it. */
   protected policyText(repo: RepoRec) {
     return (
       repo.policyFile?.text ??
@@ -78,12 +70,10 @@ export abstract class DomainPolicy extends DomainPipelines {
     )
   }
 
-  /** Once the rules live in the file, a write proposes instead of applying. */
   async policyInFile(owner: string, name: string, p: Viewer) {
     return !!this.resolve(owner, name, p).policyFile
   }
 
-  /** Open changes that edit the policy file. */
   private policyChanges(repo: RepoRec) {
     return [...repo.changes.values()].filter(
       (c) =>
@@ -97,7 +87,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     const changes = [...repo.changes.values()].filter(
       (c) => c.state !== 'abandoned',
     )
-    // What each rule said about every change, enforced, as if no mode were set.
     const said = changes.map((c) => ({
       c,
       reqs: this.evaluateRules(repo, c, {}),
@@ -168,33 +157,16 @@ export abstract class DomainPolicy extends DomainPipelines {
     }
   }
 
-  // ---- the file is the source of truth ------------------------------------------
-
-  /**
-   * A change that edits the policy file landed: the file on the default
-   * branch is now its text. When it reads, its rules are the repository's;
-   * when it does not, the last valid rules stay and the errors are shown.
-   * On code.storage this runs from the push that lands it.
-   */
   protected override doLand(repo: RepoRec, c: ChangeRec, by: ActorRec) {
     const landed = super.doLand(repo, c, by)
     const head = this.head(c)
     const text = head.contents?.[POLICY_FILE]
     if (typeof text === 'string') this.readPolicyFile(repo, text, head.sha, by)
-    // Right after the policy: the triggers it landed, then the ones it starts.
     this.readTriggerFiles(repo, c, by)
     this.dispatchTriggers(repo, c, landed.event, landed.rev)
     return landed
   }
 
-  // ---- triggers --------------------------------------------------------------
-
-  /**
-   * A change that edits trigger files landed. Every trigger file is read
-   * together; when they read, their triggers are in force, and when they do
-   * not, the last valid set stays and the errors are shown. A trigger file
-   * that does not read never blocks the change itself.
-   */
   protected readTriggerFiles(repo: RepoRec, c: ChangeRec, by: ActorRec) {
     const head = this.head(c)
     const touched = Object.entries(head.contents ?? {}).filter(([path]) =>
@@ -223,11 +195,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     )
   }
 
-  /**
-   * Starts what a landed change triggers: each matching trigger once per
-   * event (a retry finds it recorded), at most three. A workflow that never
-   * ran is recorded and its author told; the land itself never fails here.
-   */
   protected dispatchTriggers(
     repo: RepoRec,
     c: ChangeRec,
@@ -300,8 +267,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     }
   }
 
-  // ---- access rules ---------------------------------------------------------
-
   private presentAccessRule(repo: RepoRec, r: AccessRule) {
     return {
       object: 'access_rule' as const,
@@ -315,7 +280,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     }
   }
 
-  /** Administrators see every rule; a reader sees the rules they read; others none. */
   async listAccessRules(owner: string, name: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
     const v = this.ruleViewer(repo, p)
@@ -373,7 +337,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     }
     if (!dry) {
       repo.accessRules = [...rules.filter((r) => r.id !== id), rule]
-      // Who sees what changed: nothing cached may outlive it.
       this.accessRevision++
       for (const c of repo.changes.values()) c.version++
       repo.changeRev++
@@ -448,13 +411,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     )
   }
 
-  /**
-   * Edits to the rules as a change to the policy file. Your open policy
-   * change takes them as a new patch set; without one a change is opened.
-   * Nothing applies until it lands. In a repository whose rules are still
-   * settings, the first proposal is the move: the file written from them,
-   * with the edits made.
-   */
   async proposePolicy(
     owner: string,
     name: string,
@@ -549,14 +505,10 @@ export abstract class DomainPolicy extends DomainPipelines {
     return shown(c)
   }
 
-  // ---- whether a change may land, and how ---------------------------------------
-
-  /** The landing steps that hold a change back now: checks it waits for. */
   protected landingWaits(repo: RepoRec, c: ChangeRec): Array<Requirement> {
     return landingWaits(repo.landing ?? DEFAULT_LANDING, c.checks, this.head(c))
   }
 
-  /** The policy file's steps after landing: start a pipeline, or call a webhook. */
   protected override async runLandingStep(
     repo: RepoRec,
     s: LandingStepRec,
@@ -572,8 +524,6 @@ export abstract class DomainPolicy extends DomainPipelines {
       )
       return `Started ${s.target} run #${r.number}.`
     }
-    // The URL must be one of the repository's webhooks, so the call is signed
-    // with its secret and retried like any delivery.
     const hook = (await this.svc.hooks.list(`${repo.owner}/${repo.name}`)).find(
       (h) => h.url === s.target,
     )
@@ -676,7 +626,6 @@ export abstract class DomainPolicy extends DomainPipelines {
     return `${repo.id}.pol${repo.policyRev ?? 0}.${repo.changeRev}.${this.accessRevision}`
   }
 
-  /** Policy changed: every change's requirements are worked out again. */
   private policyChanged(repo: RepoRec, p: Viewer, what: string) {
     repo.policyRev = (repo.policyRev ?? 0) + 1
     for (const c of repo.changes.values()) c.version++

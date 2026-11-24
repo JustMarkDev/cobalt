@@ -1,17 +1,9 @@
-/**
- * The CLI described as data. `cb commands` prints it so an agent can learn the
- * whole surface in one call instead of guessing from help text.
- */
-
 export type CommandSpec = {
   command: string
   summary: string
   args: string
-  /** Changes something, so `--dry-run` is worth running first. */
   mutates: boolean
-  /** Safe to run twice: the second run returns the existing thing. */
   idempotent: boolean
-  /** Exit codes beyond 0 this command can return. */
   exits: Array<number>
   example: string
 }

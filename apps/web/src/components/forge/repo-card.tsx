@@ -42,7 +42,6 @@ function Counts({ repo, showToday }: { repo: Repo; showToday?: boolean }) {
   )
 }
 
-/** A compact tile for grids. */
 export function RepoCard({ repo }: { repo: Repo }) {
   return (
     <article className="pop surface relative flex flex-col gap-2.5 rounded-2xl border bg-card p-4">
@@ -68,7 +67,6 @@ export function RepoCard({ repo }: { repo: Repo }) {
   )
 }
 
-/** One line per project, for lists you scan. */
 export function RepoRow({
   repo,
   showToday,

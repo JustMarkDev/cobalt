@@ -3,10 +3,6 @@ import { EditProvider } from '@pierre/diffs/react'
 import { useQuery } from '@tanstack/react-query'
 import type { EditorFactory } from '@pierre/diffs/react'
 
-/**
- * Pierre's editor is loaded the first time someone edits, not with the page.
- * Until it arrives `factory` is undefined and a diff should stay read-only.
- */
 export function useEditorFactory(wanted: boolean) {
   return useQuery({
     queryKey: ['pierre-editor'],
@@ -17,7 +13,6 @@ export function useEditorFactory(wanted: boolean) {
             new Editor(type, options, key)) as EditorFactory<any, any>,
       ),
     enabled: wanted,
-    // Code, not data: loaded once, kept for the page's life.
     staleTime: Infinity,
     gcTime: Infinity,
   }).data

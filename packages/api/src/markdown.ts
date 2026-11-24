@@ -1,8 +1,3 @@
-/**
- * A short, readable form of the objects an agent reads first, for
- * `Accept: text/markdown`. It carries the same facts as the JSON, in less text,
- * and it is built from the JSON, so the two cannot disagree.
- */
 type Json = Record<string, any>
 
 const line = (...parts: Array<string | null | undefined | false>) =>

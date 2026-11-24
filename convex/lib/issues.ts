@@ -5,8 +5,6 @@ import type { ActorRef } from './events'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** Issues, as the API shows them, and the bookkeeping every issue write does. */
-
 export function presentIssue(
   repo: Doc<'repos'>,
   i: Doc<'issues'>,
@@ -45,7 +43,6 @@ export async function issueOf(ctx: QueryCtx, repo: Doc<'repos'>, n: number) {
   return i
 }
 
-/** The actor a handle names, if it is anyone we know. */
 export async function knownActor(
   ctx: QueryCtx,
   h: string,
@@ -59,10 +56,6 @@ export async function knownActor(
   return row ? { id: row.publicId, handle: h } : null
 }
 
-/**
- * The actors named by handle, if each may be given the issue: someone who
- * can read the repository. Unknown and unable handles are a 400.
- */
 export async function assignable(
   ctx: QueryCtx,
   repo: Doc<'repos'>,
@@ -92,10 +85,6 @@ export async function assignable(
   return out
 }
 
-/**
- * Label counts follow issues: an open issue counts for each of its labels.
- * Called with the issue before and after a write.
- */
 export async function recountLabels(
   ctx: MutationCtx,
   repoId: Id<'repos'>,
@@ -122,7 +111,6 @@ export async function recountLabels(
   }
 }
 
-/** The labels every repository starts with. */
 const DEFAULT_LABELS: Array<[string, string, string]> = [
   ['bug', 'red', 'Something does not work'],
   ['enhancement', 'blue', 'A new feature or a better one'],

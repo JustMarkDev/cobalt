@@ -2,12 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { sampleTokens } from './sample'
 import { asPerson, harness } from './testing'
 
-/**
- * Access rules: branches and paths only some people may see, in a repository
- * many people read. dana owns dana/gitfs; hollis and ines collaborate on it;
- * it is public, so anyone can read the rest.
- */
-
 const R = '/repos/dana/gitfs'
 
 async function rule(
@@ -75,14 +69,12 @@ describe('a private branch', () => {
     const path = `${R}/changes/${c.number}`
     expect((await h.call('GET', path)).status).toBe(200)
     expect((await asPerson(h, 'hollis', 'GET', path)).status).toBe(200)
-    // A collaborator not named, and a stranger reading a public repository.
     expect((await asPerson(h, 'ines', 'GET', path)).status).toBe(404)
     expect((await h.call('GET', path, { token: null })).status).toBe(404)
     const listed = (
       await asPerson(h, 'ines', 'GET', `${R}/changes?state=all&limit=100`)
     ).json.data
     expect(listed.some((x: any) => x.number === c.number)).toBe(false)
-    // Nor in the event feed, search or a sync.
     const events = (
       await asPerson(h, 'ines', 'GET', '/events?repo=dana/gitfs&limit=200')
     ).json.data
@@ -99,7 +91,6 @@ describe('a private branch', () => {
       await asPerson(h, 'ines', 'GET', '/sync?repo=dana/gitfs&limit=200')
     ).json
     expect(JSON.stringify(sync)).not.toContain('Acquire Acme')
-    // And she cannot open a change on such a branch.
     const opened = await asPerson(h, 'ines', 'POST', `${R}/changes`, {
       branch: 'deal/beta',
     })
@@ -129,7 +120,6 @@ describe('a private branch', () => {
 describe('a private path', () => {
   test('its files and every change touching them are hidden from everyone else', async () => {
     const h = harness()
-    // #216 touches src/refs.rs and tests/refs_test.rs.
     await rule(h, 'tests', {
       kind: 'path',
       patterns: ['tests/**'],
@@ -177,7 +167,6 @@ describe('a private path', () => {
       patterns: ['src/**'],
       readers: ['dana'],
     })
-    // A change from a branch touches src/<branch>.rs in the sample store.
     const r = await asPerson(h, 'ines', 'POST', `${R}/changes`, {
       branch: 'touch-src',
     })

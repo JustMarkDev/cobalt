@@ -74,10 +74,6 @@ function Checks({ checks }: { checks: 'pass' | 'fail' | null }) {
   return null
 }
 
-/**
- * Everything that happened, newest first: who did it, when, and whether it
- * passed. Pages through `git.commits`; the filters narrow what is loaded.
- */
 export function HistoryView({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const [author, setAuthor] = React.useState('')
@@ -217,7 +213,6 @@ export function HistoryView({ repo }: { repo: Repo }) {
   )
 }
 
-/** One commit: who, when, whether it passed, what changed. */
 export function CommitView({ repo, sha }: { repo: Repo; sha: string }) {
   const dark = useIsDark()
   const overflow = useCodeOverflow()
@@ -350,7 +345,6 @@ export function CommitView({ repo, sha }: { repo: Repo; sha: string }) {
   )
 }
 
-/** `PatchDiff` wants a whole file patch; the API sends the hunks. */
 function patchOf(f: { path: string; state: string; patch: string }) {
   if (f.patch.startsWith('diff --git') || f.patch.startsWith('---'))
     return f.patch

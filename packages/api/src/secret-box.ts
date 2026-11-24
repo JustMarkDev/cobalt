@@ -1,22 +1,3 @@
-/**
- * Secret values at rest. Each value is sealed with AES-256-GCM under a key
- * that belongs to one repository, derived (HKDF-SHA-256) from the server's
- * master key and the repository's stable id, so a renamed repository keeps
- * its key and no two repositories share one.
- *
- * A sealed value is bound to where it lives: the repository id, the
- * environment and the variable name are the additional authenticated data.
- * A ciphertext copied into another variable, environment or repository fails
- * to open instead of answering with the wrong secret.
- *
- *   v1.<iv>.<ciphertext and tag>      (both base64url)
- *
- * The master key is `CB_SECRETS_KEY`: 32 random bytes, base64. Without it the
- * server keeps no values at all (`secrets_unavailable`), rather than keeping
- * them under a key anyone could guess. Plain Web Crypto, so the API server
- * and anything else that has the key seal and open the same way.
- */
-
 const VERSION = 'v1'
 const SALT = new TextEncoder().encode('cobalt secrets v1')
 
@@ -44,7 +25,6 @@ export class SecretBox {
 
   private constructor(private readonly master: CryptoKey) {}
 
-  /** From `CB_SECRETS_KEY`; null when it is missing or not 32 bytes. */
   static async fromBase64(text: string | undefined | null) {
     if (!text) return null
     let raw: Uint8Array
@@ -57,7 +37,6 @@ export class SecretBox {
     return SecretBox.fromBytes(raw)
   }
 
-  /** A key that lives only as long as this process: sample data and tests. */
   static ephemeral() {
     return SecretBox.fromBytes(crypto.getRandomValues(new Uint8Array(32)))
   }
@@ -105,7 +84,6 @@ export class SecretBox {
     return `${VERSION}.${b64url.encode(iv)}.${b64url.encode(ct)}`
   }
 
-  /** The value, or null when the seal does not open for this slot. */
   async open(slot: Slot, sealed: string): Promise<string | null> {
     const [version, iv, ct] = sealed.split('.')
     if (version !== VERSION || !iv || !ct) return null

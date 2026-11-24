@@ -19,9 +19,6 @@ import type { DomainPort } from '../domain'
 
 const environment = z.enum(ENVIRONMENTS)
 
-// ---------------------------------------------------------------------------
-// Repositories
-
 export const createRepo = defineOp({
   id: 'repos.create',
   summary: 'Create a repository',
@@ -75,9 +72,6 @@ export const createRepo = defineOp({
       })
     }),
 })
-
-// ---------------------------------------------------------------------------
-// Mirrors
 
 const presentMirror = (
   d: DomainPort,
@@ -343,10 +337,6 @@ export const deleteMirror = defineOp({
     }),
 })
 
-// ---------------------------------------------------------------------------
-// Environment variables, their values, and production confirmations
-
-/** How long a production confirmation may be given for. */
 const MAX_CONFIRM_MINUTES = 8 * 60
 
 const confirmUrl = (d: DomainPort, full: string, id: string) =>
@@ -361,7 +351,6 @@ const presentConfirmation = (
   object: 'confirmation',
   id: c.id,
   environment: c.environment,
-  // A request nobody answered in time, or an answer past its time, is over.
   state:
     (c.state === 'pending' || c.state === 'active') && c.expires <= now
       ? 'expired'
@@ -376,14 +365,12 @@ const presentConfirmation = (
   created_at: iso(c.created),
 })
 
-/** Who did something with a value, as the audit log says it. */
 const whoOf = (p: Principal) => {
   if (p.session) return `${p.handle} in the browser`
   const r = receiptFor(p)
   return `${p.handle} on ${r.machine ?? 'an unnamed machine'}${r.tool ? ` via ${r.tool}` : ''}${r.model ? ` (${r.model})` : ''}`
 }
 
-/** The box that seals values, or `secrets_unavailable` when the server has none. */
 async function boxOf(d: DomainPort) {
   const box = await d.svc.secrets
   if (!box)
@@ -394,7 +381,6 @@ async function boxOf(d: DomainPort) {
   return box
 }
 
-/** The caller must be in the repository's team to touch values at all. */
 async function teamOf(
   d: DomainPort,
   owner: string,
@@ -413,11 +399,6 @@ async function teamOf(
   return access
 }
 
-/**
- * Production values need a confirmation for this very login, given from a
- * signed-in page. Without one the request waits, and the caller gets a link
- * to confirm it.
- */
 async function requireConfirmed(
   d: DomainPort,
   x: RepoExtras,
@@ -430,7 +411,6 @@ async function requireConfirmed(
   if (env !== 'production' || p.session) return null
   const ok = x.confirmed(p.loginId, env)
   if (ok) return ok
-  // A dry run says it would be refused, and queues nothing for the person.
   if (!ask)
     throw apiError(
       'confirmation_required',
@@ -445,8 +425,6 @@ async function requireConfirmed(
     tool: receiptFor(p).tool,
     reason: null,
   })
-  // The request is refused, but the question it asked must be kept, so the
-  // person can answer it: saved before the refusal unwinds the request.
   await d.svc.extras.flush?.()
   throw apiError(
     'confirmation_required',
@@ -600,8 +578,6 @@ export const setEnv = defineOp({
             },
             ctx.body.value,
           )
-          // Sealing waited: if the repository changed hands meanwhile, the
-          // value is the old team's, and must not land in the new owner's.
           const still = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
           if (still.repoId !== access.repoId || still.full !== access.full)
             throw apiError(
@@ -726,8 +702,6 @@ export const envValues = defineOp({
             },
             v.sealed,
           )
-          // A seal that does not open here (moved, tampered with, or sealed
-          // under another key) is left out, never guessed at.
           if (value === null) {
             unopened++
             continue
@@ -839,7 +813,6 @@ export const confirmConfirmation = defineOp({
         const c = x.confirmations.find(
           (e) => e.id === ctx.params.confirmation && e.handle === p.handle,
         )
-        // Someone else's request answers 404: only its owner may see or confirm it.
         if (!c)
           throw apiError(
             'not_found',
@@ -902,9 +875,6 @@ export const revokeConfirmation = defineOp({
           'read',
         )
         const x = await d.svc.extras.open(full)
-        // Only the person whose login it is: anyone else's is not there. Any of
-        // their own logins may end it (one machine can cut off another of
-        // theirs), which only ever takes access away.
         const c = x.confirmations.find(
           (e) => e.id === ctx.params.confirmation && e.handle === p.handle,
         )
@@ -947,7 +917,6 @@ export const envAudit = defineOp({
           ctx.principal,
           'write',
         )
-        // Who read which values, from where: the team's business only.
         await teamOf(d, ctx.params.owner, ctx.params.repo, ctx.principal!)
         return (await d.svc.extras.open(full)).audit.slice(0, 200).map((a) => ({
           object: 'audit_entry' as const,

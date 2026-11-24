@@ -24,13 +24,11 @@ describe('line comments', () => {
     const reply = await h.call('POST', C, {
       body: { body: 'Yes, below.', reply_to: start.json.id },
     })
-    // A reply sits where the thread does.
     expect(reply.json).toMatchObject({
       file: 'src/refs.rs',
       line: 3,
       reply_to: start.json.id,
     })
-    // Settling goes on the comment that starts it.
     expect(
       (
         await h.call('PATCH', `${C}/${reply.json.id}`, {
@@ -45,7 +43,6 @@ describe('line comments', () => {
     expect(
       (await h.call('GET', `${C}?unresolved=true`)).json.data,
     ).toHaveLength(0)
-    // A new reply reopens it.
     await h.call('POST', C, {
       ...hollis,
       body: { body: 'One more thing.', reply_to: start.json.id },
@@ -57,7 +54,6 @@ describe('line comments', () => {
 
   test('the change author hears about it', async () => {
     const h = harness()
-    // dana wrote #216.
     await h.call('POST', C, {
       ...hollis,
       body: { body: 'A question on the whole change.' },

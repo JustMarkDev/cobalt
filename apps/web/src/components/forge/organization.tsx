@@ -21,7 +21,6 @@ import {
 import { useOpMaybe, useWrite } from '~/lib/forge'
 import { toRepo } from '~/lib/repo'
 
-/** An account's picture: round for a person, rounded square for an organization. */
 export function AccountTile({
   account,
   className,
@@ -54,18 +53,15 @@ export function RoleBadge({ role }: { role: Role }) {
   )
 }
 
-/** The public page of an organization: its repositories and its people. */
 export function OrgPage({
   handle,
   embedded = false,
 }: {
   handle: string
-  /** Shown inside another page that already has the h1. */
   embedded?: boolean
 }) {
   const Name = embedded ? 'h2' : 'h1'
   const found = useOrganization(handle)
-  // Read before any early return, so the hooks run the same every time.
   const listed = useOpMaybe('repos.list', { owner: handle, limit: 100 })
   if (found === undefined || listed === undefined) return null
   if (!found)
@@ -176,9 +172,6 @@ export function OrgPage({
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// Settings
 
 export type OrgSection = 'general' | 'members'
 export const orgSections: Array<[OrgSection, string]> = [
@@ -429,8 +422,6 @@ function Members({ me, org, role, members, invites, owners }: Context) {
     return r.error === null
   }
 
-  // An email gets an invitation. Anything else is the address of someone who
-  // already has an account, and they are added at once.
   const onAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     const value = who.trim()
@@ -486,7 +477,6 @@ function Members({ me, org, role, members, invites, owners }: Context) {
           {members.map(({ person, role: r }) => {
             const self = person.handle === me.handle
             const onlyOwner = r === 'owner' && owners === 1
-            // Owners remove anyone. Admins remove members. Nobody removes the last owner.
             const mayRemove =
               !self &&
               !onlyOwner &&
@@ -548,7 +538,6 @@ function Members({ me, org, role, members, invites, owners }: Context) {
                     Remove
                   </Button>
                 ) : (
-                  // Keeps the columns aligned. No button, so nothing empty to focus.
                   <span aria-hidden className="w-16" />
                 )}
               </li>
@@ -683,7 +672,6 @@ function Members({ me, org, role, members, invites, owners }: Context) {
   )
 }
 
-/** The "new organization" form: a name, and a note on what happens next. */
 export function NewOrganizationForm() {
   const { me } = useAccounts()
   const navigate = useNavigate()
@@ -699,7 +687,6 @@ export function NewOrganizationForm() {
     if (!me || !name.trim()) return
     setBusy(true)
     setError(null)
-    // The address is generated, like a person's. A clash is rare: try again.
     for (let attempt = 0; attempt < 5; attempt++) {
       const handle = randomHandle()
       const r = await write('accounts.create', {
@@ -711,7 +698,6 @@ export function NewOrganizationForm() {
         setError(r.error.message)
         return
       }
-      // The new organization is now the account in use, so the dashboard is its own.
       switchAccount(me, r.data.handle)
       void navigate({ to: '/dashboard' })
       return

@@ -19,9 +19,7 @@ import type {
 } from './records'
 import { DomainAccounts } from './accounts'
 
-/** Accounts and repositories. */
 export abstract class DomainRepos extends DomainAccounts {
-  /** Private repositories are a paid feature: an account on Free has none. */
   private assertPrivateAllowed(
     acct: { handle: string; plan?: PlanId } | undefined,
   ) {
@@ -320,7 +318,6 @@ export abstract class DomainRepos extends DomainAccounts {
       changed.push('declined_models')
     }
     if (body.auto_land !== undefined && body.auto_land !== !!repo.autoLand) {
-      // Whoever turns it on answers for what lands by itself.
       repo.autoLand = body.auto_land ? { by: p.handle } : null
       changed.push('auto_land')
     }
@@ -360,7 +357,6 @@ export abstract class DomainRepos extends DomainAccounts {
       repo.version++
       if (changed.includes('visibility') || changed.includes('name'))
         this.accessRevision++
-      // Search keeps the repository's name, description and visibility in every document.
       if (
         renaming ||
         changed.includes('visibility') ||
@@ -434,22 +430,16 @@ export abstract class DomainRepos extends DomainAccounts {
     const changed = repo.owner === acct.handle ? ['name'] : ['owner']
     const newOwner = repo.owner !== acct.handle
     if (newOwner) {
-      // Teams belong to the account it leaves, so their access ends here.
       for (const t of this.teams.values())
         if (t.repos.delete(from)) {
           t.updated = this.now()
           t.version++
         }
       if (toName !== repo.name) changed.push('name')
-      // So does everything the old owner granted: people, maintainers,
-      // landing by itself, and tokens limited to this repository. The new
-      // owner grants their own.
       repo.collaborators.clear()
       repo.maintainerGrants.clear()
       repo.maintainers.clear()
       repo.autoLand = null
-      // The old owner's judgments and endpoints too: whom it declined,
-      // vouched for or denounced, and where its webhooks sent events.
       repo.declinedModels = []
       repo.vouched = []
       repo.denounced = []
@@ -457,8 +447,6 @@ export abstract class DomainRepos extends DomainAccounts {
       this.memAuth.dropRepo(from)
     }
     this.moveRepo(repo, acct.handle, toName)
-    // Secret values belonged to the old team: none crosses to another
-    // account, in the same step as the move.
     if (newOwner) {
       const x = await this.svc.extras.open(to)
       if (x.clearValues()) {
@@ -484,11 +472,6 @@ export abstract class DomainRepos extends DomainAccounts {
     return this.presentRepo(repo)
   }
 
-  /**
-   * Give a repository a new address, in the same account or another. The old
-   * address answers 308 with the new one, and everything keyed by the address
-   * moves with it.
-   */
   protected moveRepo(repo: RepoRec, toOwner: string, toName: string) {
     const from = `${repo.owner}/${repo.name}`
     const to = `${toOwner}/${toName}`
@@ -499,8 +482,6 @@ export abstract class DomainRepos extends DomainAccounts {
     this.memAuth.renameRepo(from, to)
     this.svc.git.setRepo?.(to, repo.storeId)
     if (from.toLowerCase() !== to.toLowerCase()) this.svc.git.dropRepo?.(from)
-    // The old address keeps working: it answers 308 with the new one. Any
-    // alias that pointed at the old name follows the chain.
     for (const [key, value] of this.aliases)
       if (value === from || value.toLowerCase() === from.toLowerCase())
         this.aliases.set(key, to)
@@ -518,7 +499,6 @@ export abstract class DomainRepos extends DomainAccounts {
     this.onRepoMoved(from, to)
   }
 
-  /** For a layer above that keys something by the address. */
   protected onRepoMoved(_from: string, _to: string) {}
 
   async deleteRepo(
@@ -552,7 +532,6 @@ export abstract class DomainRepos extends DomainAccounts {
         },
       )
     if (dry) return { deleted: false, full }
-    // The event is written first, while the repository still exists to be named.
     this.emit(
       repo,
       'repo.deleted',
@@ -626,11 +605,6 @@ export abstract class DomainRepos extends DomainAccounts {
     return this.presentRepo(this.resolve(owner, name, p))
   }
 
-  /**
-   * What the forge knows about commits beyond git: whose account wrote each,
-   * the change it landed through and whether its checks passed. The caller
-   * has already been checked.
-   */
   async commitFacts(
     full: string,
     commits: ReadonlyArray<{ sha: string; author: { email: string } }>,
@@ -664,15 +638,10 @@ export abstract class DomainRepos extends DomainAccounts {
     })
   }
 
-  /** Whether the caller starred it, and how many people did. */
   async getStar(owner: string, name: string, p: Viewer) {
     return this.presentStar(this.resolve(owner, name, p), p)
   }
 
-  /**
-   * Star or unstar. A star is one person saying a repository is worth
-   * knowing about, so only people give them: an agent or a bot cannot.
-   */
   async setStar(
     owner: string,
     name: string,
@@ -700,8 +669,6 @@ export abstract class DomainRepos extends DomainAccounts {
       repo.starTimes.pop()
     }
     repo.stars += on ? 1 : -1
-    // The count is part of the repository, so its ETag moves. `updated_at`
-    // does not: nothing about the project changed.
     repo.version++
     return { star: this.presentStar(repo, p), changed: true }
   }
@@ -733,12 +700,10 @@ export abstract class DomainRepos extends DomainAccounts {
     return `${r.id}.${r.version}.${r.rev}.${r.changes.size}.${r.issues.size}.${this.accessRevision}`
   }
 
-  /** The repository id behind an address, after checking the caller may read it. */
   async repoIdOf(owner: string, name: string, p: Viewer) {
     return this.resolve(owner, name, p).id
   }
 
-  /** Marks a repository's derived state (env metadata, say) as changed without an event. */
   async bumpRepo(owner: string, name: string, p: Viewer) {
     const r = this.resolve(owner, name, p, 'write')
     r.updated = this.now()
@@ -825,5 +790,3 @@ export abstract class DomainRepos extends DomainAccounts {
     }
   }
 }
-
-/** Declared model names as a repository keeps them: trimmed, distinct, case-insensitive. */

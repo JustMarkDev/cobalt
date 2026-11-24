@@ -24,7 +24,6 @@ const tone: Record<State, { dot: string; label: string }> = {
   down: { dot: 'bg-danger', label: 'Down' },
 }
 
-/** One bar a day: no requests is gray, any failure amber, over 5% red. */
 function Days({ days }: { days: Service['days'] }) {
   return (
     <div
@@ -61,11 +60,6 @@ function Days({ days }: { days: Service['days'] }) {
 const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/**
- * A moment as "Nov 23, 2026, 13:43 UTC". Built by hand, in UTC, so the
- * server's ICU and the browser's (and their time zones) write the same text
- * and hydration never sees two dates.
- */
 const moment = (iso: string) => {
   const d = new Date(iso)
   return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`

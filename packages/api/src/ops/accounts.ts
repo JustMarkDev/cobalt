@@ -285,7 +285,6 @@ export const revokeInvitation = defineOp({
 export const acceptInvitation = defineOp({
   ...write,
   id: 'invitations.accept',
-  // The link is what lets you in, so any token of yours can use it.
   scopes: ['repo:read'],
   summary: 'Join an organization with an invitation',
   description:

@@ -8,19 +8,6 @@ import { ALL, READY, add, metrics, monthOf, ready, total } from '../lib/stats'
 import type { Metric } from '../lib/stats'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * What the status page adds up, kept so that reading it costs little.
- *
- * Health: each API server sends its requests a minute at a time (counts and
- * latency buckets per area). Minutes are kept two hours, for the last hour's
- * percentiles; days are kept 91, for the uptime bars. Every server reads the
- * same totals, so the page says the same thing whichever one answers.
- *
- * Counts: how many accounts, repositories, changes and issues there are, from
- * the tallies kept as rows are written (`lib/stats.ts`). The page reads a few
- * documents each.
- */
-
 const DAY_MINUTES = 1_440
 const KEEP_MINUTES = 120
 const KEEP_DAYS = 91
@@ -81,7 +68,6 @@ export const record = mutation({
   },
 })
 
-/** Per area: the days and the last hour's minutes. The API does the arithmetic. */
 export const report = query({
   args: { areas: v.array(v.string()) },
   returns: v.string(),
@@ -133,7 +119,6 @@ export const report = query({
   },
 })
 
-/** Minutes past two hours and days past 91 go, a batch at a time. */
 export const sweep = internalMutation({
   args: {},
   returns: v.null(),
@@ -157,8 +142,6 @@ export const sweep = internalMutation({
   },
 })
 
-// ----- counts ---------------------------------------------------------------
-
 type Counts = {
   accounts: number
   repositories: number
@@ -166,11 +149,6 @@ type Counts = {
   issues: number
 }
 
-/**
- * The counts, from the tallies (`lib/stats.ts`): a few documents each. Until
- * the tallies are filled in on a deployment, a table is counted directly, up to
- * a bound, so the page is right from the first minute.
- */
 export async function countsOf(ctx: QueryCtx | MutationCtx): Promise<Counts> {
   const of = async (
     m: Metric,
@@ -179,7 +157,6 @@ export async function countsOf(ctx: QueryCtx | MutationCtx): Promise<Counts> {
     (await ready(ctx, m))
       ? await total(ctx, m)
       : (await ctx.db.query(table).take(10_000)).length
-  // `repo.deleted` is ready before `repo.created` (an earlier step).
   const repos = (await ready(ctx, 'repo.created'))
     ? (await total(ctx, 'repo.created')) - (await total(ctx, 'repo.deleted'))
     : await of('repo.created', 'repos')
@@ -191,10 +168,6 @@ export async function countsOf(ctx: QueryCtx | MutationCtx): Promise<Counts> {
   }
 }
 
-/**
- * The tallies for a month (`2026-11`), or for all time without one. For the
- * dashboard or the CLI: `npx convex run forge/health:tallies '{"period":"2026-11"}'`.
- */
 export const tallies = internalQuery({
   args: { period: v.optional(v.string()) },
   returns: v.record(v.string(), v.number()),
@@ -205,15 +178,6 @@ export const tallies = internalQuery({
   },
 })
 
-/**
- * Filling the tallies in from rows written before they existed, once per
- * deployment. Each step reads one table a page at a time and adds what it
- * finds; a metric is marked ready when the last step that feeds it finishes,
- * in the same transaction that reads its last page, so a row written during
- * the fill is counted by the fill or by the write, never both.
- *
- * A repository deleted during the fill can be off by one: rare, and once.
- */
 type Row = { _creationTime: number; created?: number; deleted?: number }
 const STEPS: ReadonlyArray<{
   table: 'accounts' | 'repos' | 'deletedRepos' | 'changes' | 'issues' | 'pushes'
@@ -225,7 +189,6 @@ const STEPS: ReadonlyArray<{
       { metric: 'account.created', at: (r) => r.created ?? r._creationTime },
     ],
   },
-  // A deleted repository was created too, in a month no longer known.
   {
     table: 'deletedRepos',
     out: [
@@ -258,7 +221,6 @@ const lastStepOf = (m: Metric) => {
   return last
 }
 
-/** Starts the fill, unless every metric is ready or a fill is running. */
 export const startSeed = internalMutation({
   args: {},
   returns: v.null(),
@@ -268,9 +230,7 @@ export const startSeed = internalMutation({
     if (done.size === metrics.length) return null
     const row = await ctx.db.query('tallySeed').first()
     const now = Date.now()
-    // A fill that has not moved in five minutes died; start over.
     if (row?.pass && now - row.pass.moved < 5 * 60_000) return null
-    // What a dead fill added is taken away, so nothing counts twice.
     for (const m of metrics) {
       if (done.has(m)) continue
       for (const t of await ctx.db
@@ -279,7 +239,6 @@ export const startSeed = internalMutation({
         .take(4_000))
         await ctx.db.delete('tallies', t._id)
     }
-    // The old counting pass kept its result here.
     for (const old of await ctx.db.query('statusCounts').take(10))
       await ctx.db.delete('statusCounts', old._id)
     const pass = { step: 0, cursor: null, moved: now }
@@ -290,7 +249,6 @@ export const startSeed = internalMutation({
   },
 })
 
-/** Adds up one page of one table, then hands on to the next step. */
 export const seedStep = internalMutation({
   args: {},
   returns: v.null(),

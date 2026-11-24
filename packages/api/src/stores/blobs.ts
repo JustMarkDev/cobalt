@@ -9,12 +9,6 @@ import {
 import { join } from 'node:path'
 import type { BlobStore } from '../uploads'
 
-/**
- * Where uploaded bytes live. Never in Convex: a bucket in production, a
- * folder on this machine in development, so files survive a restart.
- */
-
-/** Files in a folder, one per upload id. For development. */
 export class DiskBlobStore implements BlobStore {
   private total = 0
   constructor(private readonly dir: string) {
@@ -52,10 +46,6 @@ export class DiskBlobStore implements BlobStore {
   }
 }
 
-/**
- * An S3-compatible bucket (Railway buckets, R2, S3), through Bun's own S3
- * client. Set S3_BUCKET, S3_ENDPOINT, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY.
- */
 export class BucketBlobStore implements BlobStore {
   readonly bytes = 0
   private readonly client: {
@@ -98,7 +88,6 @@ export class BucketBlobStore implements BlobStore {
   }
 }
 
-/** The bucket when one is configured, else a folder. */
 export function blobStoreFromEnv(
   env: Record<string, string | undefined>,
   folder: string,

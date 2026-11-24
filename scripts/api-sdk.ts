@@ -1,10 +1,3 @@
-/**
- * Writes the TypeScript client, `packages/sdk/index.ts`, from the API's own
- * definitions. Run it after changing an operation or a schema; a test fails
- * until you do.
- *
- *   bun scripts/api-sdk.ts
- */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { allOperations } from '@cobaltforge/api'
 import { buildOpenApi } from '@cobaltforge/api/openapi'

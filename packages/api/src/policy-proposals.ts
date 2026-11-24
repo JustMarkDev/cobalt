@@ -1,11 +1,5 @@
 import type { Landing, PolicyEdit, RuleMode } from './policy-file'
 
-/**
- * Edits to the rules, as the API takes them (`POST …/policy/proposals` and
- * the policy endpoints of a repository whose rules live in the file), turned
- * into edits of the file. Plain JavaScript: the Convex functions import it.
- */
-
 export type ProposalEditBody =
   | { op: 'set_mode'; rule: string; mode: RuleMode }
   | {
@@ -121,7 +115,6 @@ export function proposalEdits(
   })
 }
 
-/** A short title for the change or patch set that carries the edits. */
 export function proposalTitle(
   edits: ReadonlyArray<PolicyEdit>,
   moving: boolean,
@@ -135,7 +128,6 @@ export function proposalTitle(
     if (e.op === 'remove_exception') return `end exception ${e.exception}`
     return 'landing settings'
   }
-  // A landing edit that sets nothing is how the move is asked for on its own.
   const real = edits.filter(
     (e) => e.op !== 'set_landing' || Object.keys(e.landing).length > 0,
   )

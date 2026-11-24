@@ -76,7 +76,6 @@ describe('what reaches it', () => {
     expect(got).toHaveLength(1)
     expect(got[0]).toMatchObject({ kind: 'issue', repo: 'dana/gitfs' })
     expect(got[0].title).toContain('dana assigned you #209')
-    // A later edit does not tell them again.
     await h.call('PATCH', `${R}/issues/209`, { body: { title: 'Renamed' } })
     expect(
       (await h.call('GET', '/notifications', hollis)).json.data,
@@ -91,7 +90,6 @@ describe('what reaches it', () => {
     const got = (await h.call('GET', '/notifications', hollis)).json.data
     expect(got[0]).toMatchObject({ kind: 'mention' })
     expect(got[0].html_url).toEndWith('/dana/gitfs/issues?n=4')
-    // dana wrote it, so dana is not told.
     expect(
       (await h.call('GET', '/notifications?kind=mention')).json.data,
     ).toHaveLength(1)
@@ -138,7 +136,6 @@ describe('what reaches it', () => {
 
   test('nothing about a repository you cannot read', async () => {
     const h = harness()
-    // dana/notes is private, and hollis is not in it.
     await h.call('POST', '/repos/dana/notes/issues', {
       body: { title: 'Private' },
     })

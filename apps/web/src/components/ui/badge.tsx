@@ -3,10 +3,6 @@ import { cva } from 'class-variance-authority'
 import { cn } from 'cn'
 import type { VariantProps } from 'class-variance-authority'
 
-/**
- * Status and metadata. Tones come from the semantic tokens, so a badge needs
- * no `dark:` variants: the colours flip with the theme.
- */
 const badgeVariants = cva(
   'inline-flex h-[22px] shrink-0 items-center gap-1 rounded-sm px-1.5 text-xs font-medium whitespace-nowrap [&_svg]:size-3',
   {

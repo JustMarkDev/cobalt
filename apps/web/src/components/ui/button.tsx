@@ -3,10 +3,6 @@ import { cva } from 'class-variance-authority'
 import { cn } from 'cn'
 import type { VariantProps } from 'class-variance-authority'
 
-/**
- * One primary action per screen. `brand` is that action; everything else is
- * deliberately quiet so the page has a clear next step.
- */
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap focus-ring select-none disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
@@ -31,8 +27,6 @@ const buttonVariants = cva(
         'icon-sm': 'size-8',
       },
     },
-    // A link sits in a sentence, so it drops the control height and padding.
-    // compoundVariants come after the size classes, so these win the merge.
     compoundVariants: [{ variant: 'link', class: 'h-auto px-0' }],
     defaultVariants: { variant: 'outline', size: 'md' },
   },

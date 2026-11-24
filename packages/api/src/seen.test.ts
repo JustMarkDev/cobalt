@@ -14,7 +14,6 @@ describe('each reviewer has their own seen state per file', () => {
       body: { paths: ['src/refs.rs', 'tests/refs_test.rs'] },
     })
     expect(marked.json.seen).toBe(2)
-    // Someone else's marks are theirs.
     const theirs = await h.call('GET', `${C}/seen`, {
       token: sampleTokens.hollis,
     })

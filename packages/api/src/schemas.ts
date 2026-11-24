@@ -1,11 +1,5 @@
 import { z } from 'zod'
 
-/**
- * The public shape of every object. These are the contract: the OpenAPI
- * document is generated from them, and the tests check each response against
- * them with no extra members allowed, so a field cannot be added without
- * being written down here first. Clients must still ignore unknown members.
- */
 const obj = <T extends z.ZodRawShape>(shape: T) => z.strictObject(shape)
 const named = <T extends z.ZodType>(id: string, schema: T): T =>
   schema.meta({ id })
@@ -84,7 +78,6 @@ export const Member = named(
   }),
 )
 
-/** Where Discover lists a repository. */
 export const repoCategories = [
   'Developer tools',
   'Apps',
@@ -1715,9 +1708,6 @@ export const listOf = <T extends z.ZodType>(item: T) =>
     next_cursor: z.string().nullable(),
   })
 
-// ---------------------------------------------------------------------------
-// Teams
-
 export const Team = named(
   'Team',
   obj({
@@ -1737,9 +1727,6 @@ export const Team = named(
     version: z.number().int(),
   }),
 )
-
-// ---------------------------------------------------------------------------
-// Git data
 
 const Person = obj({ name: z.string(), email: z.string() })
 
@@ -1870,7 +1857,6 @@ export const GitCommitDiff = named(
   }),
 )
 
-/** Entries of `GET /v1`, `/v1/errors` and `/v1/limits`. */
 export const Root = named(
   'Root',
   obj({
@@ -2312,9 +2298,6 @@ export const AuditEntry = named(
     kind: z.enum(['rotate', 'grant', 'revoke', 'read', 'reject']).nullable(),
   }),
 )
-
-// ---------------------------------------------------------------------------
-// Timelines
 
 export const timelineKinds = [
   'patch_set',

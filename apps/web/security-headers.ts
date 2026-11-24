@@ -1,16 +1,3 @@
-/**
- * Headers every answer from this server carries unless it set its own.
- *
- *  - No other site may frame a page (`frame-ancestors`, and
- *    `X-Frame-Options` for older browsers), so a click on a hidden settings,
- *    token or delete page cannot be stolen.
- *  - Browsers keep to https once they have seen it (HSTS).
- *  - Content is taken as the type it says it is, and a link out sends only
- *    the origin.
- *
- * A response with its own `Content-Security-Policy` (an upload served by the
- * API, the OAuth pages) keeps it and its framing rules untouched.
- */
 export const baseHeaders: Record<string, string> = {
   'strict-transport-security': 'max-age=31536000',
   'x-content-type-options': 'nosniff',
@@ -31,7 +18,6 @@ export function withSecurityHeaders(res: Response): Response {
     for (const [k, v] of add) res.headers.set(k, v)
     return res
   } catch {
-    // A response from `fetch` has headers that cannot change: copy it.
     const headers = new Headers(res.headers)
     for (const [k, v] of add) headers.set(k, v)
     return new Response(res.body, {

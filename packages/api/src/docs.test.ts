@@ -24,7 +24,6 @@ function mdxFiles(dir: string): Array<string> {
   })
 }
 
-/** Every event type the code can write, found in its source. */
 function allEventTypes(): Array<string> {
   const dir = new URL('.', import.meta.url).pathname
   const sources = [
@@ -54,7 +53,6 @@ describe('the API documentation', () => {
     expect(files.size).toBe(15)
     for (const [file, text] of files)
       expect(read(`api/${file}`), file).toBe(text)
-    // The sidebar lists every reference page, and only those.
     const nav = (
       JSON.parse(read('api/reference/meta.json')) as { pages: Array<string> }
     ).pages
@@ -75,7 +73,6 @@ describe('the API documentation', () => {
   })
 
   test('every operation has a real example in the reference', async () => {
-    // The event stream is a live connection, documented in prose.
     expect(await exampleless()).toEqual(['events.stream'])
   })
 

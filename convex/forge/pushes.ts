@@ -8,12 +8,6 @@ import { counters } from '../lib/events'
 import { pushReceipt } from '@cobaltforge/api/trailers'
 import { contributionRefusal } from '@cobaltforge/api/via'
 
-/**
- * A push code.storage told us about. Recorded once, however many times the
- * webhook arrives. A push to the branch of an open change is that change's
- * new patch set; every push is a `repository.pushed` event, which webhooks
- * can deliver.
- */
 const STORAGE_ACTOR = {
   id: 'acc_codestorage000000',
   handle: 'code.storage',
@@ -55,12 +49,7 @@ export const recordPush = internalMutation({
         const l = await hydrate(ctx, doc)
         const c = l.rec
         const prev = c.patchSets[c.patchSets.length - 1]
-        // A git push carries no headers: the commit's trailers declare the model.
         const via = pushReceipt(message)
-        // A repository that declines the declared model, or has denounced the
-        // change's author, does not take the push into the change: the branch
-        // moved, the change did not. (A push names no pusher; the change's
-        // author answers for it.)
         const refused = contributionRefusal(
           repo,
           c.author.handle,
@@ -81,7 +70,6 @@ export const recordPush = internalMutation({
             kind: 'update',
             via,
           })
-          // An approval follows a rewrite only when the code did not change.
           for (const r of c.reviews) r.carries = false
           c.updated = Math.max(Date.now(), c.updated + 1)
           c.version++

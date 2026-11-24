@@ -15,7 +15,6 @@ const tone: Record<Level, string> = {
   unclear: 'text-muted-foreground/60',
 }
 
-/** The mark for a level. The words are there for screen readers and the legend. */
 function Mark({ level, className }: { level: Level; className?: string }) {
   const props = {
     'aria-hidden': true as const,
@@ -24,7 +23,6 @@ function Mark({ level, className }: { level: Level; className?: string }) {
   if (level === 'yes') return <CheckCircleIcon {...props} />
   if (level === 'partly') return <MinusCircleIcon {...props} />
   if (level === 'no') return <XCircleIcon {...props} />
-  // Not documented: a quiet dash, so it reads as a gap rather than a verdict.
   return (
     <span {...props} className={cn(props.className, 'grid place-items-center')}>
       <span className="h-0.5 w-2.5 rounded-full bg-current" />
@@ -54,10 +52,6 @@ function NoteDot() {
   )
 }
 
-/**
- * A mark with a note opens it on hover, focus or tap, floating over the table
- * so nothing around it moves.
- */
 function NoteMark({ cell, product }: { cell: Cell; product: string }) {
   return (
     <Popover.Root>
@@ -101,17 +95,11 @@ function CellMark({ cell, product }: { cell: Cell; product: string }) {
   )
 }
 
-/** Our column carries the brand tint top to bottom. */
 const ours = (id: Product) => id === 'us' && 'bg-brand/[0.07]'
 
-/**
- * A checklist: one short line per feature, one mark per product. Marks that
- * need a word of explanation carry a dot and show it in a popover.
- */
 export function CompareTable() {
   return (
     <div className="surface lit-edge overflow-hidden rounded-2xl border bg-card">
-      {/* The table scrolls sideways on narrow screens; its right edge fades until the end. */}
       <div className="scroll-fade-x overflow-x-auto">
         <table className="w-full min-w-[38rem] sm:min-w-[52rem] text-sm">
           <caption className="sr-only">

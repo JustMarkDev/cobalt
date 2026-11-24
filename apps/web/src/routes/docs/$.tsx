@@ -19,7 +19,6 @@ export const Route = createFileRoute('/docs/$')({
   loader: async ({ params }) => {
     const slugs = params._splat?.split('/').filter(Boolean) ?? []
     const data = await serverLoader({ data: slugs })
-    // Fetch the page body now so rendering does not suspend.
     await docs.getPage(data.path)?.preload()
     return data
   },
@@ -36,19 +35,12 @@ const serverLoader = createServerFn({ method: 'GET' })
     }
   })
 
-/**
- * Fumadocs draws its own page furniture. It leaves the table of contents
- * outside any landmark, has two banners, and gives every scrollable code block
- * the same unnamed region. Name them once the page is there, so a screen
- * reader's landmark list reads as one page.
- */
 function useDocsLandmarks(path: string) {
   React.useEffect(() => {
     document.getElementById('nd-toc')?.setAttribute('role', 'complementary')
     document
       .getElementById('nd-toc')
       ?.setAttribute('aria-label', 'On this page')
-    // The sidebar's header is part of the navigation, not a second page banner.
     document
       .querySelectorAll('#nd-sidebar header')
       .forEach((h) => h.setAttribute('role', 'none'))

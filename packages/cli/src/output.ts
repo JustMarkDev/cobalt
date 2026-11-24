@@ -1,12 +1,3 @@
-/**
- * Output rules:
- *  - JSON when `--json` is passed or stdout is not a terminal, so scripts and
- *    agents get data without asking for it.
- *  - Human text otherwise, kept short.
- *  - Errors are always one JSON object on stderr when output is JSON, with a
- *    stable `code` and a `hint` that says what to run next.
- */
-
 import type { ApiClient } from './client'
 
 export const exit = {
@@ -35,7 +26,6 @@ export type Ctx = {
   json: boolean
   out: (s: string) => void
   err: (s: string) => void
-  /** The API client for this run. Made on first use. */
   api: () => ApiClient
 }
 

@@ -37,8 +37,6 @@ import type { Actor } from '../lib/actor'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** Accounts' repositories: creating, finding, renaming, moving and deleting them. */
-
 const position = v.union(
   v.null(),
   v.object({ key: v.union(v.string(), v.number()), id: v.string() }),
@@ -136,7 +134,6 @@ export const create = mutation({
     const existing = await repoByKey(ctx, `${owner}/${args.name}`)
     if (existing)
       return out({ repo: await presentRepo(ctx, existing, at), created: false })
-    // The Free plan is for public repositories.
     if (args.visibility === 'private') await assertMayHavePrivate(ctx, acct)
     else assertNotPendingDeletion(acct)
     const publicId = newId('repo', at)
@@ -188,7 +185,6 @@ export const create = mutation({
     })
     await seedLabels(ctx, id, publicId, at, seededId)
     await syncGrants(ctx, id)
-    // A name taken back from a rename stops redirecting.
     const lower = `${owner}/${args.name}`.toLowerCase()
     for (const a of await ctx.db
       .query('repoAliases')
@@ -204,10 +200,6 @@ export const create = mutation({
   },
 })
 
-/**
- * Give a repository a new address. The old one answers 308 with the new one,
- * and so does any older address that led to it.
- */
 async function moveRepo(
   ctx: MutationCtx,
   repo: Doc<'repos'>,
@@ -272,12 +264,10 @@ export const update = mutation({
   returns: v.string(),
   handler: async (ctx, { owner, name, body: given, ifMatch, dry }) => {
     const p = await signedIn(ctx)
-    // Checked as the API checks it: a page can call this directly.
     const body = await bodyOf(ctx, 'repos.update', given)
     const at = Date.now()
     const repo = await resolve(ctx, owner, name, p, 'manage')
     await assertAdmin(ctx, repo, p)
-    // Making it private is a paid feature: the Free plan is for public ones.
     if (body.visibility === 'private' && repo.visibility !== 'private') {
       const owning = await ctx.db.get('accounts', repo.ownerId)
       if (owning) await assertMayHavePrivate(ctx, owning)
@@ -338,7 +328,6 @@ export const update = mutation({
       changed.push('declined_models')
     }
     if (body.auto_land !== undefined && body.auto_land !== !!repo.autoLand) {
-      // Whoever turns it on answers for what lands by itself.
       patch.autoLand = body.auto_land ? { by: p.handle } : null
       changed.push('auto_land')
     }
@@ -455,7 +444,6 @@ export const transfer = mutation({
           hint: 'Ask an owner or admin of that account to do it.',
         },
       )
-    // A private repository only goes to an account that may have one.
     if (repo.visibility === 'private' && repo.owner !== acct.handle)
       await assertMayHavePrivate(ctx, acct)
     const toName = args.toName ?? repo.name
@@ -468,7 +456,6 @@ export const transfer = mutation({
       })
     const changed = repo.owner === acct.handle ? ['name'] : ['owner']
     if (repo.owner !== acct.handle) {
-      // Teams belong to the account it leaves, so their access ends here.
       for (const g of await ctx.db
         .query('teamRepos')
         .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
@@ -485,22 +472,17 @@ export const transfer = mutation({
       const old = await ctx.db.get('accounts', repo.ownerId)
       if (old) await bumpAcl(ctx, old)
       await bumpAcl(ctx, acct)
-      // So does everything the old owner granted: people, maintainers,
-      // landing by itself, and tokens limited to it (`ownerSince`). Secret
-      // values belonged to the old team: none crosses, in this same step.
       await ctx.db.patch('repos', repo._id, {
         collaborators: [],
         maintainerGrants: [],
         maintainers: [],
         autoLand: null,
-        // The old owner's judgments too.
         declinedModels: [],
         vouched: [],
         denounced: [],
         ownerSince: at,
       })
       await syncGrants(ctx, repo._id)
-      // And its endpoints: webhooks and integrations it turned on.
       await dropRepoHooks(ctx, repo._id)
       for (const i of await ctx.db
         .query('repoIntegrations')
@@ -569,7 +551,6 @@ export const remove = mutation({
         },
       )
     if (args.dry) return out({ deleted: false, full })
-    // The event is written first, while the repository still exists to be named.
     await emit(
       ctx,
       repo,
@@ -612,7 +593,6 @@ export const remove = mutation({
     const acct = await ctx.db.get('accounts', repo.ownerId)
     if (acct) await bumpAcl(ctx, acct)
     await dropRepoHooks(ctx, repo._id)
-    // Its sealed values, confirmations and audit go with it.
     for (const x of await ctx.db
       .query('repoExtras')
       .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
@@ -699,7 +679,6 @@ export const get = query({
   },
 })
 
-/** What a cached answer about the repository depends on. */
 export async function repoKey(ctx: QueryCtx, r: Doc<'repos'>) {
   const c = await counters(ctx, r)
   return `${r.publicId}.${r.version}.${c.rev}.${c.nextNumber}.${await accessStamp(ctx, r)}`
@@ -782,7 +761,6 @@ export const canActAs = query({
   },
 })
 
-/** Follows renames from a lowercase `owner/name`, at most ten steps. */
 async function follow(ctx: QueryCtx, key: string) {
   const seen = new Set([key])
   for (let i = 0; i < 10; i++) {
@@ -809,7 +787,6 @@ async function deletedId(ctx: QueryCtx, key: string) {
   )
 }
 
-/** The stable id behind an address, without requiring that it still exists. */
 export async function historyId(
   ctx: QueryCtx,
   full: string,
@@ -875,7 +852,6 @@ export const replayKey = query({
   },
 })
 
-/** Marks a repository's derived state as changed, without an event. */
 export const bump = mutation({
   args: { owner: v.string(), name: v.string() },
   returns: v.string(),
@@ -889,8 +865,6 @@ export const bump = mutation({
     return out(null)
   },
 })
-
-// ---- stars -------------------------------------------------------------------
 
 async function starOf(ctx: QueryCtx, repo: Doc<'repos'>, p: Actor | null) {
   const mine = p
@@ -947,15 +921,11 @@ export const setStar = mutation({
         at: Date.now(),
       })
     else await ctx.db.delete('stars', mine!._id)
-    // The count is part of the repository, so its ETag moves. `updated_at`
-    // does not: nothing about the project changed.
     const stars = repo.stars + (args.on ? 1 : -1)
     await ctx.db.patch('repos', repo._id, { stars, version: repo.version + 1 })
     return finish(args.dry, { star: star(args.on, stars), changed: true })
   },
 })
-
-// ---- facts that need changes and issues ----------------------------------------------
 
 export const numberRef = query({
   args: { owner: v.string(), name: v.string(), number: v.number() },
@@ -991,7 +961,6 @@ export const numberRef = query({
   },
 })
 
-/** What a coding agent needs first: the repository, what is open, what policy wants. */
 export const context = query({
   args: { owner: v.string(), name: v.string(), at: v.number() },
   returns: v.string(),
@@ -1049,7 +1018,6 @@ export const context = query({
         title: i.title,
         labels: i.labels,
       })),
-      // Environment names are kept by the API for now; it adds them when this says so.
       envAllowed:
         !!p?.scopes.has('secrets:schema') && (await hasGrant(ctx, r, p)),
       full: `${r.owner}/${r.name}`,
@@ -1066,10 +1034,6 @@ function sampleFacts(sha: string) {
   }
 }
 
-/**
- * Per commit: whose account wrote it, the change it landed through and
- * whether its checks passed. The caller has already been checked.
- */
 export const commitFacts = query({
   args: {
     full: v.string(),
@@ -1116,10 +1080,6 @@ export const commitFacts = query({
   },
 })
 
-/**
- * Forgets a repository's secret values, confirmations and audit log, keeping
- * the names: what a transfer does, in the transfer's own transaction.
- */
 async function clearExtrasValues(
   ctx: MutationCtx,
   repoId: Doc<'repos'>['_id'],
@@ -1140,8 +1100,6 @@ async function clearExtrasValues(
     audit?: Array<unknown>
     mirrors?: Array<unknown>
   }
-  // The same rule as `RepoExtras.clearValues`: an entry only when there was
-  // something to forget.
   const had =
     Object.keys(x.sealed ?? {}).length > 0 ||
     (x.confirmations ?? []).length > 0 ||

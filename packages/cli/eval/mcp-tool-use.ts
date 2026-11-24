@@ -1,23 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Does a model use cobalt's MCP tools the way their descriptions ask?
- * Each case gives a model the server's real instructions and tool list, lets
- * it call the tools on the sample data in this process (nothing leaves the
- * machine but the model requests), and checks the calls it made
- * (`grade.ts`). Change a tool description, run it before and after, compare.
- *
- *   bun packages/cli/eval/mcp-tool-use.ts --dry-run          what would run, free
- *   bun packages/cli/eval/mcp-tool-use.ts --out before.json  every case, 3 samples
- *   bun packages/cli/eval/mcp-tool-use.ts --baseline before.json
- *   … --case blocked-landing-stops --samples 1 --model claude-sonnet-5-5 --effort low
- *
- * A run calls the Claude API and costs money: about 10 cases × samples ×
- * 2 to 4 requests. The report prints the token use and an estimate. It needs
- * credentials (ANTHROPIC_API_KEY, or a profile from `ant auth login`).
- *
- * Refusal fallbacks are off on purpose: an answer from a fallback model would
- * be scored as the model under test. A refusal counts as a failure.
- */
 import { readFileSync, writeFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
 import { Client } from '@modelcontextprotocol/client'
@@ -40,10 +21,8 @@ const ONLY = arg('case', '')
 const OUT = arg('out', '')
 const BASELINE = arg('baseline', '')
 const CONCURRENCY = Number(arg('concurrency', '4'))
-/** Model turns per sample; a case that needs more is failing anyway. */
 const MAX_TURNS = 8
 
-/** Per million tokens, for the estimate: input, output, cache read, cache write. */
 const PRICES: Record<string, [number, number, number, number]> = {
   'claude-opus-5-5': [4, 20, 0.2, 5],
   'claude-sonnet-5-5': [2, 10, 0.2, 2.5],
@@ -63,7 +42,6 @@ type Sample = {
   error?: string
 }
 
-/** The MCP server as an agent sees it, fresh for each sample. */
 async function connect() {
   const [a, b] = InMemoryTransport.createLinkedPair()
   await createSxMcpServer().connect(b)
@@ -96,8 +74,6 @@ async function runSample(api: Anthropic, k: Case): Promise<Sample> {
         max_tokens: 16000,
         output_config: { effort: EFFORT },
         tools,
-        // Tools come first, then the system prompt: a breakpoint here
-        // caches both, the same for every case and sample.
         system: [
           {
             type: 'text',
@@ -111,7 +87,6 @@ async function runSample(api: Anthropic, k: Case): Promise<Sample> {
       usage.output += last.usage.output_tokens
       usage.cacheRead += last.usage.cache_read_input_tokens ?? 0
       usage.cacheWrite += last.usage.cache_creation_input_tokens ?? 0
-      // The whole content goes back, thinking blocks included.
       messages.push({ role: 'assistant', content: last.content })
       if (last.stop_reason !== 'tool_use') break
       const results: Array<Anthropic.ToolResultBlockParam> = []
@@ -133,7 +108,6 @@ async function runSample(api: Anthropic, k: Case): Promise<Sample> {
           content: r.content.map((c) => c.text ?? '').join('\n'),
         })
       }
-      // Every result of a turn in one message, as parallel calls expect.
       messages.push({ role: 'user', content: results })
     }
   } catch (e) {
@@ -160,7 +134,6 @@ async function runSample(api: Anthropic, k: Case): Promise<Sample> {
   return { failures, calls, usage }
 }
 
-/** Runs `jobs` with at most `n` at a time. */
 async function pool<T>(jobs: Array<() => Promise<T>>, n: number) {
   const out: Array<T> = []
   let next = 0

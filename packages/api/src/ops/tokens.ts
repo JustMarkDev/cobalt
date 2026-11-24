@@ -41,7 +41,6 @@ async function own(
   id: string,
 ): Promise<TokenRecord> {
   const t = await d.svc.auth.get(id)
-  // Someone else's token answers like one that does not exist.
   if (!t || t.handle !== p.handle || t.revokedAt !== null || t.kind === 'oauth')
     throw apiError('not_found', `No token ${id}.`)
   return t
@@ -165,8 +164,6 @@ export const createToken = defineOp({
         const requestedName = new Map<string, string>()
         for (const r of body.repos ?? [])
           requestedName.set(canonical.get(r)!, r)
-        // A signed-in page never gets values, so it cannot make itself a
-        // token that reads them either: a machine signs in for that.
         if (p.session && body.scopes.includes('secrets:decrypt'))
           throw apiError(
             'forbidden',
@@ -187,7 +184,6 @@ export const createToken = defineOp({
             'forbidden',
             'Your token is limited to repositories, so a token you create must be limited to some of them.',
           )
-        // Nor can a token limited to paths make one that reaches further.
         if (p.paths && (!paths || paths.some((g) => !p.paths!.includes(g))))
           throw apiError(
             'forbidden',
@@ -197,7 +193,6 @@ export const createToken = defineOp({
           try {
             await d.getRepo(...(r.split('/') as [string, string]), p)
           } catch (e) {
-            // Do not reveal the new name of a private repository through an old alias.
             if (e instanceof ApiError && e.code === 'not_found')
               throw apiError(
                 'not_found',

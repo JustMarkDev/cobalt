@@ -114,10 +114,6 @@ describe('landing on evidence', () => {
     expect(land.json.state).toBe('landed')
   })
 
-  /**
-   * A git store where `main` is the base and any other ref is the change's
-   * head, which may carry a different policy file.
-   */
   const gitWith = (headPolicy: string) => {
     const tree = (ref: string | undefined): Map<string, string> =>
       new Map(
@@ -226,8 +222,6 @@ describe('landing on evidence', () => {
     ).toBe('open')
   })
 
-  // The landing steps live in the memory domain's record; Convex reads the
-  // same steps from its own policy and is checked by the same rule.
   test.skipIf(onConvex)(
     'a landing that waits on more checks waits for them',
     async () => {
@@ -289,7 +283,6 @@ describe('landing on evidence', () => {
     })
     expect(r.status).toBe(403)
     expect(r.json.required_scopes).toEqual(['pulls:merge'])
-    // The same token may still change other settings.
     const ok = await h.call('PATCH', R, {
       token: secret,
       body: { description: 'still fine' },

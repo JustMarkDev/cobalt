@@ -18,7 +18,6 @@ export const Route = createFileRoute('/sign-in')({
   component: SignIn,
 })
 
-/** Where someone was headed, in words. A raw path means nothing to most people. */
 function describe(path: string): string {
   const [pathname] = path.split(/[?#]/)
   const seg = pathname.split('/').filter(Boolean)
@@ -48,7 +47,6 @@ function SignIn() {
     [router, target],
   )
 
-  // Opening this page while already signed in has nothing to do.
   React.useEffect(() => {
     if (!isPending && session && !submitted.current) go()
   }, [isPending, session, go])

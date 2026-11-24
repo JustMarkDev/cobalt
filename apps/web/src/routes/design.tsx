@@ -95,7 +95,6 @@ function Section({
   )
 }
 
-/** A specimen with a caption and where it lives in the code. */
 function Specimen({
   label,
   source,
@@ -185,8 +184,6 @@ function Design() {
             variants. Icons are Heroicons. Charts are our own SVG. Brand logos
             are the vendors&apos; own.
           </p>
-          {/* Below lg there is no side index: the sections as one row of
-              chips that scrolls sideways. */}
           <nav
             aria-label="On this page"
             className="scroll-fade-x -mx-6 overflow-x-auto px-6 pt-2 pb-1 [scrollbar-width:none] lg:hidden"

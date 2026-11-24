@@ -1,9 +1,3 @@
-/**
- * The repository screens were designed on sample data shaped as `mock/data`'s
- * `Repo`. This turns the API's repository into that shape, so a component
- * moves to the API by changing where its repository comes from, not how it
- * reads one.
- */
 import type {
   Release as ApiRelease,
   Repo as ApiRepo,
@@ -11,7 +5,6 @@ import type {
 } from '@cobaltforge/sdk'
 import type { Release, Repo, Source } from '~/lib/model/data'
 
-/** "3 hours ago", "yesterday", "2 weeks ago", from an RFC 3339 time. */
 export function timeAgo(iso: string, now = Date.now()): string {
   const h = (now - Date.parse(iso)) / 3_600_000
   if (h < 1) return 'just now'
@@ -26,7 +19,6 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return `${Math.round(d / 30)} months ago`
 }
 
-/** "Nov 2, 2026", in UTC so the server and the browser agree. */
 export const dayOf = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', {
     month: 'short',
@@ -69,7 +61,6 @@ export function toRepo(r: ApiRepo, releases?: Array<Release>): Repo {
   }
 }
 
-/** "14.2 MB", from bytes. */
 const sizeOf = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`
 
 export function toRelease(r: ApiRelease): Release {
@@ -94,10 +85,8 @@ export function toRelease(r: ApiRelease): Release {
   }
 }
 
-/** Who wrote a commit: an account, or a name git knows and we do not. */
 export type Committer = { name: string; kind: 'human' | 'agent' | 'bot' }
 
-/** Who wrote a commit, as the history screens show them. */
 export function committerOf(c: GitCommit): Committer {
   if (!c.actor) return { name: c.author.name, kind: 'human' }
   return { name: c.actor.handle, kind: 'human' }

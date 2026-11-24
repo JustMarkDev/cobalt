@@ -9,20 +9,6 @@ import type { ApiClient } from '../client'
 import type { Ctx } from '../output'
 import type { Command } from './types'
 
-/**
- * Runners: a machine that takes pipeline jobs.
- *
- *   cb runner register mac-mini --labels macos,arm64,xcode-16
- *   cb runner list
- *   cb runner revoke rnr_...
- *   CB_RUNNER_TOKEN=cbr_... cb runner start
- *
- * `register` shows the runner's token once. `start` needs nothing but that
- * token, the API and a working directory: it sends a heartbeat every 30
- * seconds, claims jobs its labels cover, fetches the repository at the job's
- * commit through the API, runs each step's `run:` and reports it.
- */
-
 type Runner = {
   id: string
   name: string
@@ -199,7 +185,6 @@ async function start(
   }
 }
 
-/** The repository at `sha`, written under `dir`, through the API alone. */
 async function checkout(
   api: ApiClient,
   repo: string,
@@ -229,7 +214,6 @@ async function checkout(
   }
 }
 
-/** What each step runs, by its position, from the workflow file at the job's commit. */
 async function stepsToRun(api: ApiClient, repo: string, job: Job) {
   const res = await api
     .call('GET', `/repos/${repo}/git/blob`, {

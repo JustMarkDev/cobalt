@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-/** A repository's address opens its code. */
 export const Route = createFileRoute('/$handle/$repo/')({
   beforeLoad: ({ params, search }) => {
     const { path } = search as { path?: unknown }

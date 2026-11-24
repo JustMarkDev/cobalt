@@ -8,14 +8,8 @@ import { Health, reportFrom } from '../health'
 import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 
-// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
-/**
- * The status page says the same thing whichever server answers: each sends
- * its minutes to Convex and reads everyone's. Counts come from tallies kept
- * as rows are written, so reading the page costs a few documents.
- */
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
 for (const f of new Bun.Glob('**/*.{ts,js}').scanSync(dir))
@@ -45,7 +39,6 @@ test('two servers’ requests add up on one page', async () => {
   b.record('git', 3, 200)
   await asApi.mutation(forge.forge.health.record, { buckets: a.drain() })
   await asApi.mutation(forge.forge.health.record, { buckets: b.drain() })
-  // Drained means sent: nothing goes twice.
   expect(a.drain()).toEqual([])
 
   const r = JSON.parse(
@@ -57,7 +50,6 @@ test('two servers’ requests add up on one page', async () => {
   expect(api.requests).toBe(40)
   expect(api.errors).toBe(5)
   expect(api.last_hour.requests).toBe(40)
-  // 30 fast and 10 slow: the median is fast, the slowest 5% are not.
   expect(api.last_hour.p50_ms).toBe(25)
   expect(api.last_hour.p95_ms).toBe(1_000)
   expect(api.recent_error_rate).toBe(5 / 40)
@@ -98,16 +90,13 @@ test('the tally fill counts every table once, then writes keep it', async () => 
         counts: Record<string, number>
       }
     ).counts
-  // Before the fill the page counts the tables directly.
   const before = await facts()
   expect(before.repositories).toBeGreaterThan(0)
   await t.mutation(internal.forge.health.startSeed, {})
-  // A second start while one runs does not count twice.
   await t.mutation(internal.forge.health.startSeed, {})
   await t.finishAllScheduledFunctions(() => {})
   expect(await facts()).toEqual(before)
 
-  // Writes now keep the tallies: a repository made and one deleted.
   const dana = t.withIdentity({
     subject: 'dana',
     cb_tok: 'tok',
@@ -142,11 +131,9 @@ test('the tally fill counts every table once, then writes keep it', async () => 
   })
   expect(month['repo.created']).toBeGreaterThanOrEqual(2)
   expect(month['repo.deleted']).toBe(1)
-  // Once ready, starting again counts nothing twice.
   await t.mutation(internal.forge.health.startSeed, {})
   await t.finishAllScheduledFunctions(() => {})
   expect((await facts()).repositories).toBe(after.repositories)
-  // Without POSTHOG_KEY nothing is queued for analytics.
   const queued = await t.run((ctx) => ctx.db.query('analyticsOutbox').collect())
   expect(queued).toHaveLength(0)
 })
@@ -185,7 +172,6 @@ test('product events are queued with the write and sent in a batch', async () =>
       distinct_id: 'dana',
       properties: { visibility: 'private', $process_person_profile: false },
     })
-    // Sent events leave the queue.
     const left = await t.run((ctx) => ctx.db.query('analyticsOutbox').collect())
     expect(left).toHaveLength(0)
   } finally {

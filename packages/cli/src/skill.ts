@@ -5,7 +5,6 @@ import { exitMeaning } from './schema'
 const MARK = '<!-- cb:begin -->'
 const END = '<!-- cb:end -->'
 
-/** What a model that has never seen cb needs to know, kept short enough to always load. */
 export const skillBody = `# Using cb (the cobalt CLI)
 
 cb is the command line for cobalt, a git host. You have probably not seen
@@ -96,7 +95,6 @@ export function installSkill(
     writeFileSync(path, skillFile)
     return { path, action: prev === undefined ? 'created' : 'updated' }
   }
-  // AGENTS.md is shared with other tools, so only our marked block is touched.
   const path = join(root, 'AGENTS.md')
   const block = `${MARK}\n${skillBody}${END}\n`
   const prev = existsSync(path) ? readFileSync(path, 'utf8') : undefined

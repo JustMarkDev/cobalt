@@ -28,7 +28,6 @@ import { loader } from 'fumadocs-core/source'
 import type { ComponentType, SVGProps } from 'react'
 import { GitMergeIcon } from '~/components/icons'
 
-// Docs pages name their icon in frontmatter (`icon: KeyIcon`). Same icon set as the app.
 const icons: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -55,8 +54,6 @@ const icons: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   VariableIcon,
 }
 
-// `async` keeps the compiled pages out of the route's bundle: each one loads on
-// demand (see the docs route's loader) instead of all of them with the first.
 export const docs = defineDocs({
   dir: 'content/docs',
   docs: { async: true },

@@ -23,7 +23,6 @@ export const Route = createFileRoute('/sign-up')({
   component: SignUp,
 })
 
-/** Step 1 of 2. Step 2 (`/welcome`) offers to bring history from another host. */
 function SignUp() {
   const { redirect } = Route.useSearch()
   const router = useRouter()
@@ -37,7 +36,6 @@ function SignUp() {
   const [error, setError] = React.useState<string | null>(null)
   const submitted = React.useRef(false)
 
-  // Opening this page while already signed in has nothing to do.
   React.useEffect(() => {
     if (!isPending && session && !submitted.current)
       router.history.push(redirect ?? '/dashboard')

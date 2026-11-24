@@ -4,16 +4,6 @@ import { actorOf } from '../lib/actor'
 import { canRead, isMember, repoByKey } from '../lib/access'
 import type { QueryCtx } from '../_generated/server'
 
-/**
- * What a page watches to stay current. A page names the repositories and
- * accounts it shows; this answers a number for each that moves when
- * something in it changes, and one for the viewer's own things. The page
- * reads again only what moved, so a write in one repository does not make
- * every open page in the world read everything again.
- *
- * A repository the viewer cannot read, or that does not exist, answers 0,
- * which never moves: the answer says nothing about it.
- */
 export const watch = query({
   args: {
     repos: v.array(v.string()),
@@ -37,8 +27,6 @@ export const watch = query({
         .query('repoCounters')
         .withIndex('by_repoId', (q) => q.eq('repoId', r._id))
         .unique()
-      // The repository's own fields change without an event too (a rename,
-      // a visibility change); its ACL revision covers those.
       repos[key] = (c?.rev ?? 0) * 1_000 + (r.aclRev % 1_000)
     }
     const accounts: Record<string, number> = {}

@@ -4,20 +4,8 @@ import { assertSecret } from './apiStores'
 import type { Id } from './_generated/dataModel'
 import { addUsage } from './lib/usage'
 
-/**
- * What the API server's store worker asks of Convex (`packages/api/src/stores/
- * store-worker.ts`). The worker holds the credentials Convex does not: it
- * deletes git stores in code.storage and files in the bucket after an erasure,
- * measures repositories after pushes, and reports what was transferred.
- *
- * Public mutations like the other shared stores (`apiStores.ts`): the worker is
- * not a signed-in user, so each needs `secret`, the deployment's
- * `API_STORE_SECRET`.
- */
-
 const LEASE_MS = 5 * 60_000
 
-/** Takes up to `max` pending deletions of the kinds the worker can do, and the repositories that need measuring. */
 export const claim = mutation({
   args: {
     secret: v.string(),
@@ -67,7 +55,6 @@ export const claim = mutation({
   },
 })
 
-/** The worker did these: they leave the queue. */
 export const done = mutation({
   args: { secret: v.string(), ids: v.array(v.id('sweeps')) },
   returns: v.null(),
@@ -78,11 +65,6 @@ export const done = mutation({
   },
 })
 
-/**
- * The store's size for a repository. Growth counts as pushed this month for the
- * account that owns it. A push that lands in the instant between measuring and
- * reporting is picked up by the next push's measurement.
- */
 export const reportSize = mutation({
   args: { secret: v.string(), storeId: v.string(), bytes: v.number() },
   returns: v.null(),
@@ -97,14 +79,12 @@ export const reportSize = mutation({
       .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
       .unique()
     if (!repo) {
-      // The repository is gone; so is what we knew of its size.
       if (row) await ctx.db.delete('repoSizes', row._id)
       return null
     }
     const now = Date.now()
     const bytes = Math.max(0, Math.floor(a.bytes))
     const grew = Math.max(0, bytes - (row?.bytes ?? 0))
-    // A first measurement of a repository that was pushed to is not a push.
     if (row && row.measured > 0 && grew > 0)
       await addUsage(ctx, repo.ownerId, { pushBytes: grew }, now)
     if (row)
@@ -125,7 +105,6 @@ export const reportSize = mutation({
   },
 })
 
-/** Bytes sent out of a repository's store (clones, fetches, downloads), for the owner's monthly allowance. */
 export const addTransfer = mutation({
   args: { secret: v.string(), storeId: v.string(), bytes: v.number() },
   returns: v.null(),

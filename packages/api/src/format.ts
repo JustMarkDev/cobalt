@@ -1,11 +1,5 @@
 import { format } from 'oxfmt'
 
-/**
- * Formats generated files the way `vp fmt` does, so a regenerated file matches
- * what is committed. Keep these options equal to the `fmt` block in
- * `vite.config.ts`; the tests that compare generated output with the committed
- * files fail when they drift.
- */
 export async function formatSource(
   fileName: string,
   text: string,

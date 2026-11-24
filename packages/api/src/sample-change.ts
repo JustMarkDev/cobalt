@@ -1,8 +1,3 @@
-/**
- * The files change #216 in dana/gitfs touches, whole: on main and at each of
- * its three patch sets. The review screen draws its diffs from these, and an
- * edit in the browser starts from them.
- */
 export const change216 = {
   base: {
     'src/refs.rs':

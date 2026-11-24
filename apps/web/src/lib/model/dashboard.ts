@@ -1,5 +1,3 @@
-// What the dashboard shows for one account (`lib/dashboard.ts` builds it
-// from the API's dashboard).
 import type { LinkProps } from '@tanstack/react-router'
 import type { Repo, Source } from './data'
 
@@ -15,8 +13,6 @@ export type NeedsItem = {
   link: LinkProps
 }
 
-/** Ordered by how much it costs to wait: lost sync, a red main, a review, a task. */
-
 export type InProgress = {
   kind: 'agent' | 'change'
   title: string
@@ -26,8 +22,6 @@ export type InProgress = {
   detail: string
   link: LinkProps
 }
-
-/** Work that is moving without you. Nothing here needs a decision yet. */
 
 export type ActivityKind = 'review' | 'release' | 'agent' | 'other'
 
@@ -39,7 +33,6 @@ export type Activity = {
   when: string
   day: 'Today' | 'Yesterday' | 'Earlier this week'
   kind: ActivityKind
-  /** The model the write declared, when it declared one. */
   model?: string
 }
 
@@ -50,8 +43,6 @@ export type Health = {
   updated: string
 }
 
-/** Per-repository state for the list. Keyed by repository name. */
-
 export type Mirror = {
   host: Extract<Source, 'github' | 'gitlab' | 'codeberg'>
   name: string
@@ -61,9 +52,7 @@ export type Mirror = {
 
 type Series = { daily: Array<number>; total: number; change: number }
 
-/** Everything the dashboard shows for one account. */
 export type DashboardData = {
-  /** No repositories yet: show how to start instead of empty charts. */
   empty: boolean
   needsYou: Array<NeedsItem>
   inProgress: Array<InProgress>

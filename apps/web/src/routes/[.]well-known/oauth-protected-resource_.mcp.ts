@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getApi } from '~/lib/api/instance'
 
-/** RFC 9728 for the MCP endpoint, at the path-inserted address clients derive from /mcp. */
 export const Route = createFileRoute(
   '/.well-known/oauth-protected-resource_/mcp',
 )({

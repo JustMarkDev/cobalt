@@ -10,8 +10,6 @@ import { bumpAcl } from './accounts'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** Teams and their access to repositories. */
-
 const MAX_TEAM = 500
 
 async function teamRec(ctx: QueryCtx, org: string, slug: string) {
@@ -274,7 +272,6 @@ export const setRepo = mutation({
     const { acct } = await orgFor(ctx, args.org, p, 'admin')
     const t = await teamRec(ctx, args.org, args.slug)
     const repo = await resolve(ctx, args.owner, args.name, p, 'read')
-    // A team belongs to an organization and reaches only that organization's repositories.
     if (repo.owner !== args.org)
       fail(
         'invalid_request',

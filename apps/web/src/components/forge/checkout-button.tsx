@@ -6,13 +6,6 @@ import { api } from '../../../../../convex/_generated/api'
 import { Button } from '~/components/ui/button'
 import type { PaidPlanId } from '~/lib/pricing'
 
-/**
- * Paying: the button sends the person to Polar's checkout, and the plan
- * arrives back through Polar's webhook (`convex/billing.ts`). Signed out, it
- * goes to sign-up first and comes back to the pricing page.
- */
-
-/** Whether this browser looks to be in Europe, where Polar charges in euros. */
 export function useEurope(): boolean {
   const [europe, setEurope] = React.useState(false)
   React.useEffect(() => {

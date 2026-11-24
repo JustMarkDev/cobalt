@@ -7,7 +7,6 @@ import type { Command } from './types'
 export const skill: Command = ({ rest, flags }, ctx) => {
   const sub = rest.at(0)
   if (sub === undefined) {
-    // Raw markdown, ready to redirect into a file.
     ctx.out(skillFile.trimEnd())
     return
   }
@@ -38,7 +37,6 @@ export const skill: Command = ({ rest, flags }, ctx) => {
   print(ctx, { target, ...r }, () => `${r.action} ${r.path}`)
 }
 
-/** `cb commands`: the whole CLI as JSON. Always JSON, since its reader is a program. */
 export const commandsList: Command = (_args, ctx) => {
   ctx.out(JSON.stringify({ commands: schema }, null, 2))
 }

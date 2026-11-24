@@ -1,4 +1,3 @@
-/** Latency histogram with 2% buckets from 1 µs, mergeable across processes. */
 const GROWTH = 1.02
 const LOG = Math.log(GROWTH)
 export const BUCKETS = 1200
@@ -22,7 +21,6 @@ export class Histogram {
     this.max = Math.max(this.max, o.max)
   }
 
-  /** Milliseconds at a percentile (0..1), as the upper edge of its bucket. */
   at(p: number) {
     if (this.total === 0) return 0
     const want = Math.ceil(this.total * p)

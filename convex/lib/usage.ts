@@ -2,14 +2,8 @@ import type { Usage } from '@cobaltforge/api/plans'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/**
- * What an account has used: the size of the repositories it owns, as the git
- * store last reported it, and what it moved this month. Fed by the store
- * worker (`storeWorker.ts`).
- */
 type Ctx = Pick<QueryCtx, 'db'>
 
-/** `2026-11`, in UTC: the month a transfer allowance is counted in. */
 export const monthOf = (ms: number): string =>
   new Date(ms).toISOString().slice(0, 7)
 
@@ -43,7 +37,6 @@ export async function usageOf(
   }
 }
 
-/** A push landed: the repository's size is out of date until the worker measures it. */
 export async function markStale(ctx: MutationCtx, repo: Doc<'repos'>) {
   const row = await ctx.db
     .query('repoSizes')
@@ -62,7 +55,6 @@ export async function markStale(ctx: MutationCtx, repo: Doc<'repos'>) {
   })
 }
 
-/** Adds to what an account moved this month. */
 export async function addUsage(
   ctx: MutationCtx,
   accountId: Id<'accounts'>,

@@ -1,14 +1,3 @@
-/**
- * Following lines of text from one version of a file to the next: which line
- * a line became, or that it is gone. Blame uses it to find the version that
- * wrote a line, and comments use it to stay on the code they are about when
- * a new patch set arrives.
- *
- * Plain JavaScript with no dependencies, so the Convex functions use the
- * same code (`convex/` imports it as `@cobaltforge/api/lines`).
- */
-
-/** Past this many cells the middle of a diff is not aligned line by line. */
 const MAX_CELLS = 4_000_000
 
 export const splitLines = (text: string | null | undefined) =>
@@ -16,11 +5,6 @@ export const splitLines = (text: string | null | undefined) =>
     ? []
     : text.replace(/\n$/, '').split('\n')
 
-/**
- * For each line of `a` (0-based), the line of `b` it is when it is
- * unchanged, or null when it was removed or rewritten. Lines are matched by a
- * longest common subsequence, after the common start and end are taken off.
- */
 export function mapLines(
   a: ReadonlyArray<string>,
   b: ReadonlyArray<string>,
@@ -41,7 +25,6 @@ export function mapLines(
   const n = endA - start
   const m = endB - start
   if (n === 0 || m === 0 || n * m > MAX_CELLS) return out
-  // dp[i][j]: the common subsequence of a[start+i..] and b[start+j..].
   const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
   for (let i = n - 1; i >= 0; i--)
     for (let j = m - 1; j >= 0; j--)
@@ -62,12 +45,6 @@ export function mapLines(
   return out
 }
 
-/**
- * Which version wrote a line. `versions` run oldest first; `line` is 1-based
- * in the newest. Answers the index of the version whose text first had the
- * line as it is now, or -1 when it was already in the oldest version and
- * the oldest counts as "before" (`baseIsBefore`).
- */
 export function blameLine(
   versions: ReadonlyArray<string | null>,
   line: number,
@@ -85,12 +62,6 @@ export function blameLine(
   return baseIsBefore ? -1 : 0
 }
 
-/**
- * Where a quoted piece of text is in a file, by its own lines and the lines
- * around it: the 1-based line its first line is on, nearest to `near` when
- * there are several, or null. A candidate must match the quote exactly; the
- * lines around it break ties, then distance does.
- */
 export function findQuote(
   lines: ReadonlyArray<string>,
   quote: ReadonlyArray<string>,

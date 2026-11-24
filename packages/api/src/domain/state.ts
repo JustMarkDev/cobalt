@@ -25,7 +25,6 @@ import type {
   Urls,
 } from './records'
 
-/** Records, indexes and seeding: the data every other layer reads and writes. */
 export abstract class DomainState {
   readonly events: EventLog
 
@@ -39,24 +38,18 @@ export abstract class DomainState {
 
   readonly aliases = new Map<string, string>()
 
-  /** Teams by `org/slug`, and the teams each person is in. */
   readonly teams = new Map<string, TeamRec>()
 
   readonly teamsOf = new Map<string, Set<string>>()
 
   readonly operations = new Map<string, OperationRec>()
 
-  /** Bumped by every ACL change, so cached bodies and ETags cannot outlive access. */
   accessRevision = 0
 
-  /** Delay between steps of a long operation. Tests set it to 0. */
   stepDelayMs = 5
 
-  /** Attached by whoever assembles the API: tokens, webhooks, search, blobs. */
   svc = {} as Attached
 
-  /** The memory domain always runs on the memory token store, which answers at once. */
-  /** The memory domain keeps extras in memory too, and reads them at once. */
   protected get memExtras(): ExtrasStore {
     return this.svc.extras as ExtrasStore
   }
@@ -264,7 +257,6 @@ export abstract class DomainState {
     return `${this.urls.api}/repos/${r.owner}/${r.name}`
   }
 
-  /** Names of deleted repositories, with the account that owned each. */
   protected readonly deleted = new Map<string, string>()
 
   protected readonly deletedRepos = new Map<
@@ -275,7 +267,6 @@ export abstract class DomainState {
   protected readonly deletedIds = new Map<string, string>()
 }
 
-/** The labels every repository starts with. */
 const DEFAULT_LABELS: Array<[string, LabelColor, string]> = [
   ['bug', 'red', 'Something does not work'],
   ['enhancement', 'blue', 'A new feature or a better one'],

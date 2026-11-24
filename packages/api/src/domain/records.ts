@@ -39,15 +39,9 @@ export type AccountRec = {
   bio: string
   created: number
   updated: number
-  /** Rises when the name, the bio or the members change. */
   version: number
   members: Map<string, Role>
-  /** Invitations by email that were not accepted yet, by id. */
   invites: Map<string, InviteRec>
-  /**
-   * The plan, when it is not the sample's: an account made here starts on
-   * Free. The sample accounts have none and hold every feature.
-   */
   plan?: PlanId
 }
 
@@ -55,7 +49,6 @@ export type InviteRec = {
   id: string
   email: string
   role: Role
-  /** Hash of the secret in the emailed link. The secret is never kept. */
   secretHash: string
   invitedBy: string
   created: number
@@ -76,11 +69,6 @@ export type TeamRec = {
 }
 
 export type FileStat = { hash: string; add: number; del: number }
-/**
- * Which run made a part, and with what kind of token. Filled in from the
- * caller's token, never sent by a client. Older parts have none.
- */
-/** How a write got here: the receipt (`receipt.ts`). */
 export type ViaRec = Receipt
 export type PatchSetRec = {
   n: number
@@ -91,11 +79,6 @@ export type PatchSetRec = {
   created: number
   files: Record<string, FileStat>
   kind: 'initial' | 'update' | 'rebase'
-  /**
-   * Every file the change touches, whole, as it is at this patch set. Null is
-   * deleted. Absent when the change came without contents (a push the store
-   * has not read), so a reader says the files are not available.
-   */
   contents?: Record<string, string | null>
   via?: ViaRec
 }
@@ -137,7 +120,6 @@ export type FindingRec = {
   patchSet: number
   created: number
   suggestion?: SuggestionRec
-  /** The same fix as instructions for an agent. */
   prompt?: string
   via?: ViaRec
 }
@@ -150,7 +132,6 @@ export type CheckRec = {
   detailsUrl: string | null
   created: number
   updated: number
-  /** Test results, case by case, when the check reported them. */
   cases?: Array<TestCaseRec>
 }
 export type ChangeRec = {
@@ -159,7 +140,6 @@ export type ChangeRec = {
   title: string
   description: string
   state: 'draft' | 'open' | 'landed' | 'abandoned'
-  /** While abandoned: the state it was abandoned from. */
   abandonedFrom?: 'draft' | 'open'
   author: ActorRec
   base: string
@@ -172,18 +152,12 @@ export type ChangeRec = {
   labels: Array<string>
   mirrors: Array<{ host: string; number: number; origin: 'here' | 'there' }>
   evidence?: Array<EvidenceRec>
-  /** Review comments, oldest first: on a line, on a file or on the whole change. */
   comments?: Array<ReviewCommentRec>
-  /** The newest guide; a new one replaces it. */
   guide?: GuideRec
-  /** Bumped by every comment write, for the comments list's version. */
   commentRev?: number
-  /** The touched files as they are on the base. Null is "not there". */
   baseFiles?: Record<string, string | null>
-  /** What policy said at `version`. A change does not change between versions. */
   policyMemo?: {
     version: number
-    /** The repository's policy revision it was worked out under. */
     rev?: number
     reqs: Array<z.infer<typeof S.Requirement>>
   }
@@ -193,7 +167,6 @@ export type ChangeRec = {
   landed: number | null
   version: number
 }
-/** How to read a change: what it does and its files in order. */
 export type GuideRec = {
   patchSet: number
   summary: string
@@ -206,23 +179,16 @@ export type ReviewCommentRec = {
   id: string
   author: ActorRec
   body: string
-  /** Null for a comment on the whole change. */
   file: string | null
-  /** Null for a comment on the whole file. */
   line: number | null
-  /** The patch set it was written against. */
   patchSet: number
-  /** The comment that starts the thread; null when this one starts it. */
   replyTo: string | null
   resolved: boolean
   created: number
   updated: number
   version: number
-  /** What a comment on a line is about, so it can follow the code. */
   anchor?: Anchor | null
-  /** Where the thread is in each later patch set. Only on a thread's start. */
   placements?: Record<string, Placement>
-  /** The patch set that answers this thread, said by whoever pushed it. */
   addressed?: Addressed | null
   via?: ViaRec
 }
@@ -242,11 +208,8 @@ export type IssueRec = {
   state: 'open' | 'closed'
   author: ActorRec
   labels: Array<string>
-  /** Who is working on it. Absent is none. */
   assignees?: Array<ActorRec>
-  /** Its comments, oldest first. Absent is none. */
   comments?: Array<CommentRec>
-  /** Images and recordings attached to it, oldest first. */
   evidence?: Array<EvidenceRec>
   created: number
   updated: number
@@ -279,7 +242,6 @@ export type LabelRec = {
 export type OperationRec = {
   id: string
   kind: string
-  /** The repository this operation belongs to, checked when it is read. */
   repoId: string
   state: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
   done: number
@@ -288,7 +250,6 @@ export type OperationRec = {
   error: Record<string, unknown> | null
   created: number
   finished: number | null
-  /** A landing's plan, each step with how it went. */
   steps?: Array<LandingStepRec>
 }
 
@@ -296,7 +257,6 @@ export type RepoCategory = (typeof S.repoCategories)[number]
 
 export type RepoRec = {
   id: string
-  /** The immutable git store key. A rename keeps it; a recreate gets a new one. */
   storeId: string
   owner: string
   name: string
@@ -304,11 +264,8 @@ export type RepoRec = {
   visibility: 'public' | 'private'
   defaultBranch: string
   stars: number
-  /** People who starred it since it was created here. `stars` counts them too. */
   starredBy: Set<string>
-  /** When each recent star was given, to count the last day's. */
   starTimes: Array<number>
-  /** Stars a day the sample starts with, so its numbers look lived-in. */
   starsTodayBase: number
   forks: number
   upstream: {
@@ -316,69 +273,44 @@ export type RepoRec = {
     slug: string
   } | null
   install: string | null
-  /** Sample only: what to say about a commit no change of ours landed. */
   sampleCommitFacts?: (sha: string) => {
     change: number | null
     checks: 'pass' | 'fail' | null
   }
   category: RepoCategory | null
-  /** Share of the code by language, largest first. */
   languages: Array<[name: string, percent: number]>
   license: string | null
   website: string | null
   docsUrl: string | null
-  /** Declared models this repository takes no changes from, lowercase. */
   declinedModels?: Array<string>
-  /** Land a change by itself once it can land, under this account's name. */
   autoLand?: { by: string } | null
-  /** Accounts the owners trust: their changes come first. */
   vouched?: Array<string>
-  /** Accounts that may not open changes or issues here, with why. */
   denounced?: Array<{ handle: string; reason: string }>
   created: number
   updated: number
   version: number
-  /** Bumped by every event in the repository. Anything derived from many objects keys on it. */
   rev: number
-  /** Per-collection counters, so a changes list is not invalidated by an issue event. */
   changeRev: number
   issueRev: number
   nextNumber: number
   collaborators: Set<string>
   maintainers: Set<string>
-  /** Collaborators granted only because they were maintainers, so removal revokes them. */
   maintainerGrants: Set<string>
   changes: Map<number, ChangeRec>
   issues: Map<number, IssueRec>
-  /** Newest first. */
   releases?: Array<ReleaseRec>
-  /** Newest first. */
   pipelines?: Array<PipelineRunRec>
-  /** Rule modes that differ from the default. */
   ruleModes?: Map<string, RuleMode>
   policyExceptions?: Array<PolicyExceptionRec>
-  /** Rules the repository wrote for itself, after the built-in ones. */
   customRules?: Array<CustomRuleRec>
-  /** Bumped by every policy write, so evaluations are worked out again. */
   policyRev?: number
-  /**
-   * The policy file, once the rules live in it: its text as last landed, the
-   * commit, and why it did not read if it did not (the last valid rules then
-   * stay in force).
-   */
   policyFile?: {
     text: string
     sha: string
     errors: Array<FileError>
     at: number
   }
-  /** How changes land: from the policy file, or the defaults. */
   landing?: Landing
-  /**
-   * `.source/triggers/*.yml` as last landed: every file's text, the commit,
-   * the triggers in force (the last valid set) and why the newest did not
-   * read, if it did not.
-   */
   triggers?: {
     files: Record<string, string>
     sha: string
@@ -386,29 +318,19 @@ export type RepoRec = {
     errors: Array<TriggerFileError>
     rev: number
   }
-  /** What each trigger did for each event, by `trigger:event`. */
   triggerRuns?: Map<string, TriggerRunRec>
-  /** Parts only some people may see: branches and paths (`access-rules.ts`). */
   accessRules?: Array<AccessRule>
-  /** By lowercase name. */
   labels: Map<string, LabelRec>
-  /** Bumped by every label write, for the list's version. */
   labelRev: number
   stacks: Map<string, Array<number>>
   byUpdated: Sorted<ChangeRec>
   byNumber: Sorted<ChangeRec>
   issuesByNumber: Sorted<IssueRec>
-  /** Open issues by exact title, so opening the same one twice is a lookup, not a scan. */
   openIssueByTitle: Map<string, IssueRec>
-  /** Open and draft changes by branch, so a second push finds its change without a scan. */
   openChangeByBranch: Map<string, ChangeRec>
-  /** Counts shown on the repository, recomputed only after something changed. */
   counts: { key: string; openChanges: number; openIssues: number }
   env: Array<{ name: string; kind: string; set: Array<string> }>
 }
-
-// ---------------------------------------------------------------------------
-// A list kept in order, so a page costs the same however deep the cursor is.
 
 export class Sorted<T> {
   readonly items: Array<T> = []
@@ -436,7 +358,6 @@ export class Sorted<T> {
     return lo
   }
 
-  /** Kept ascending. Things usually arrive newest, so adding is usually an append. */
   add(t: T) {
     const n = this.items.length
     if (n === 0 || this.cmp(this.items[n - 1], t) < 0) this.items.push(t)
@@ -455,8 +376,6 @@ export const issueNumber = (i: IssueRec) => i.number
 export const recId = (r: { id: string }) => r.id
 export const seqId = (e: { sequence: number }) => String(e.sequence)
 
-// The same instant is formatted many times (a write stamps the object, the event
-// and the answer), so remember the last one.
 let isoMs = Number.NaN
 let isoText = ''
 export const iso = (ms: number) => {
@@ -477,21 +396,15 @@ export type PolicyState = 'met' | 'blocked' | 'pending'
 
 export type Viewer = Principal | null
 
-/** Services the domain's operations reach, attached when the API is assembled. */
 export type Attached = {
   auth: TokenService
   hooks: HookPort
   search: SearchIndex
   uploads: UploadPort
   extras: ExtrasPort
-  /**
-   * Seals and opens secret values (`secret-box.ts`). Null when the server has
-   * no `CB_SECRETS_KEY`: then no value is kept or given out at all.
-   */
   secrets: Promise<SecretBox | null>
   git: GitData
   mail: Mailer
-  /** What the API measured about its own requests, for the status page. */
   health?: Health
 }
 
@@ -507,15 +420,12 @@ export type NotificationRec = {
   id: string
   kind: NotificationKind
   title: string
-  /** `owner/name`, an account-level place such as "Linked accounts", or null. */
   repo: string | null
-  /** Where it leads in the web app. */
   path: string
   unread: boolean
   created: number
 }
 export type NotificationPrefs = Record<NotificationKind, boolean> & {
-  /** One email a week with what changed. Kept; nothing sends it yet. */
   digest: boolean
 }
 
@@ -524,11 +434,9 @@ export type AssetRec = {
   name: string
   platform: 'macos' | 'windows' | 'linux'
   arch: string
-  /** Bytes. */
   size: number
   downloads: number
   sha256: string
-  /** The uploaded file, when the release carries it here. */
   uploadId?: string
 }
 export type ReleaseRec = {
@@ -538,9 +446,7 @@ export type ReleaseRec = {
   title: string
   notes: { added: Array<string>; changed: Array<string>; fixed: Array<string> }
   signed: boolean
-  /** The commit a beta or nightly was built from. */
   commit: string | null
-  /** Pulled, and why. The release stays listed so its page can say so. */
   withdrawn: { reason: string; at: number } | null
   assets: Array<AssetRec>
   author: ActorRec
@@ -551,10 +457,8 @@ export type ReleaseRec = {
 export type { PipelineStatus } from '../lifecycles'
 import type { PipelineStatus, PipelineWait } from '../lifecycles'
 export type LogLevel = 'cmd' | 'info' | 'dim' | 'ok' | 'warn' | 'error'
-/** One trigger, for one event: started (with its run), failed, or over the cap. */
 export type TriggerRunRec = {
   triggerId: string
-  /** The repository's event revision of the event that started it. */
   eventSequence: number
   runId: string | null
   run: number | null
@@ -563,7 +467,6 @@ export type TriggerRunRec = {
   at: number
 }
 
-/** A machine that takes pipeline jobs (`runners.ts`). */
 export type RunnerRec = {
   id: string
   account: string
@@ -571,7 +474,6 @@ export type RunnerRec = {
   kind: 'self-hosted' | 'hosted'
   provider: string | null
   labels: Array<string>
-  /** Lowercase `owner/name`; null for every repository of the account. */
   repos: Array<string> | null
   concurrency: number
   disabled: boolean
@@ -590,14 +492,11 @@ export type PipelineRunRec = {
   sha: string
   status: PipelineStatus
   trigger: 'push' | 'change' | 'tag' | 'schedule' | 'manual' | 'event'
-  /** A trigger started it and its `runs-on` is not read yet: no runner takes it. */
   runsOnPending?: boolean
-  /** The run its jobs and provisional labels were copied from. */
   runsOnFrom?: number
   actor: string
   started: number
   finished: number | null
-  /** The workflow file it ran. */
   file: string
   annotations: Array<{
     level: 'error' | 'warn'
@@ -610,11 +509,8 @@ export type PipelineRunRec = {
     runner: string
     status: PipelineStatus | 'skipped'
     duration: number
-    /** The labels it asked for (`runs-on`); empty takes any runner. */
     runsOn?: Array<string>
-    /** The registered runner holding it. */
     runnerId?: string | null
-    /** When it goes back to the queue unless its runner reports. */
     lease?: number | null
     steps: Array<{
       name: string
@@ -631,7 +527,6 @@ export type RuleMode = 'enforce' | 'dry-run' | 'off'
 export type PolicyExceptionRec = {
   id: string
   rule: string
-  /** Who the rule bends for. */
   who: string
   reason: string
   createdBy: string
@@ -639,20 +534,14 @@ export type PolicyExceptionRec = {
   expires: number
 }
 
-/** A rule a repository wrote for itself. */
 export type CustomRuleRec = {
   id: string
   name: string
   kind: 'required_check' | 'path_approval' | 'max_lines' | 'allowed_paths'
-  /** required_check: the check that has to pass on the tree that lands. */
   check?: string
-  /** path_approval: globs, such as `docs/**` or `*.sql`. */
   paths?: Array<string>
-  /** path_approval: how many people have to approve. */
   approvals?: number
-  /** path_approval: who counts; empty is anyone but the author. */
   from?: Array<string>
-  /** max_lines: the most lines a change may add and remove. */
   maxLines?: number
   createdBy: string
   created: number

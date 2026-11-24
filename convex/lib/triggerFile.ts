@@ -5,7 +5,6 @@ import type { ChangeRec } from './changeTypes'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-/** A repository's trigger files and the set in force, as stored. */
 export async function loadTriggers(ctx: QueryCtx, repo: Doc<'repos'>) {
   return await ctx.db
     .query('repoTriggers')
@@ -13,13 +12,6 @@ export async function loadTriggers(ctx: QueryCtx, repo: Doc<'repos'>) {
     .unique()
 }
 
-/**
- * A change that edits trigger files landed: every trigger file is read
- * together. When they read, their triggers are in force; when they do not,
- * the last valid set stays and the errors are shown. A broken trigger file
- * never blocks the change. Runs right after `readLandedPolicy`, from the
- * landed patch set's contents (on code.storage, from the push that lands it).
- */
 export async function readLandedTriggers(
   ctx: MutationCtx,
   repo: Doc<'repos'>,

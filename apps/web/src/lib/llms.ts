@@ -1,7 +1,3 @@
-/**
- * The docs as plain text for agents. Models have not seen cobalt or cb,
- * so we publish an index (/llms.txt) and the full text (/llms-full.txt).
- */
 const raw = import.meta.glob<string>('/content/docs/**/*.mdx', {
   query: '?raw',
   import: 'default',

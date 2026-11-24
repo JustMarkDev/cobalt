@@ -19,7 +19,6 @@ describe('charts render on the server', () => {
     const html = renderToString(<TrendChart data={data} unit="Commits" />)
     expect(html).toContain('<path')
     expect(html).toContain('non-scaling-stroke')
-    // Every point is in the hidden table; only a few are labelled on the axis.
     expect(html.match(/<tr>/g)?.length).toBe(13)
     expect(text(html)).toContain('W1')
     expect(text(html)).toContain('W12')

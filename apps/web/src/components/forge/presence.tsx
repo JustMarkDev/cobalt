@@ -3,12 +3,6 @@ import { Tile } from './bits'
 import { useOpMaybe, useWrite } from '~/lib/forge'
 import { useMe } from '~/lib/auth/accounts'
 
-/**
- * Who else is looking at a change or an issue. While the page is open it
- * sends a heartbeat every interval with the file in view, and says it left
- * when it closes. Each page is in its own room only.
- */
-
 type At = { owner: string; repo: string; number: string }
 type Kind = 'change' | 'issue'
 
@@ -17,7 +11,6 @@ export type Viewer = {
   path: string | null
 }
 
-/** One id per tab, so two tabs of yours are two sessions of one viewer. */
 const tab =
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? `web-${crypto.randomUUID().slice(0, 13)}`
@@ -27,7 +20,6 @@ export function usePresence(
   kind: Kind,
   at: At,
   path: string | null,
-  /** Off for someone signed out: presence is for people with an account. */
   enabled = true,
 ): Array<Viewer> {
   const write = useWrite()
@@ -39,7 +31,6 @@ export function usePresence(
     enabled,
   )
   const interval = (listed?.interval ?? 20) * 1000
-  // The heartbeat always sends the newest path without restarting its timer.
   const where = React.useRef(path)
   const key = `${at.owner}/${at.repo}/${kind}/${at.number}`
   React.useEffect(() => {
@@ -49,7 +40,6 @@ export function usePresence(
       ...(input as At),
       body: { session: tab, path, leave: false },
     })
-    // Only a move to another file sends one at once.
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- `key` stands for `at`
   }, [path, key, enabled])
   React.useEffect(() => {
@@ -77,7 +67,6 @@ export function usePresence(
   return listed?.viewers ?? []
 }
 
-/** The others looking, as a row of faces. Your own agents are you, so they are not shown. */
 export function Viewers({ viewers }: { viewers: Array<Viewer> }) {
   const me = useMe()
   const others = viewers.filter((v) => v.actor.handle !== me?.handle)
@@ -114,7 +103,6 @@ function Face({ v, small }: { v: Viewer; small?: boolean }) {
   )
 }
 
-/** Who else has this file in view, for a file's header. */
 export function FileViewers({
   viewers,
   path,
@@ -141,13 +129,7 @@ export function FileViewers({
   )
 }
 
-/**
- * The file nearest the top of the screen among `[data-presence-file]`
- * elements, for the heartbeat to name.
- */
 export function useFileInView(enabled: boolean): string | null {
-  // One store per hook while it is on: the observers start with the first
-  // subscriber and stop with the last.
   const store = React.useMemo(() => (enabled ? fileInView() : null), [enabled])
   return React.useSyncExternalStore(
     store?.subscribe ?? noSubscribe,

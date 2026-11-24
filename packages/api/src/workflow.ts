@@ -1,22 +1,13 @@
 import { parse } from 'yaml'
 
-/**
- * What a workflow file says about where its jobs run: `runs-on`, per job.
- * The forge reads nothing else from it; a runner reads the rest at the run's
- * commit. Plain JavaScript, so the Convex functions read it the same way.
- */
-
 export type RunsOn = {
-  /** Lowercase labels by job, under both its key and its `name`. */
   jobs: Map<string, Array<string>>
-  /** What could not be read. A run still starts; its jobs take any runner. */
   warnings: Array<string>
 }
 
 const label = (x: unknown) =>
   typeof x === 'string' && x.trim() ? x.trim().toLowerCase() : null
 
-/** `runs-on: macos` or `runs-on: [macos, xcode-16]`. Anything else is a warning and no labels. */
 export function runsOnOf(yamlText: string): RunsOn {
   const jobs = new Map<string, Array<string>>()
   const warnings: Array<string> = []

@@ -12,7 +12,6 @@ type Change = any
 const label = (c: Change) => c.state
 const num = (id: string) => id.replace(/^#/, '')
 
-/** What stops this change from landing, said once and the same everywhere. */
 export function blockers(
   requirements: Array<{ state: string; detail: string }>,
 ): Array<string> {
@@ -77,8 +76,6 @@ export const change: Command = async (
   }
 
   if (sub === 'create') {
-    // No questions: the title is your last commit, the base is the default
-    // branch, and running it twice adds a patch set instead of a duplicate.
     const git = gitContext()
     const branch = str(flags, 'branch') ?? git.branch
     const title = str(flags, 'title') ?? git.subject
@@ -92,7 +89,6 @@ export const change: Command = async (
     const base = str(flags, 'base') ?? resolve('change.base').value
     const draft =
       has(flags, 'draft') || resolve('change.draft').value === 'true'
-    // The review threads this patch set fixes: `--addresses cmt_1,cmt_2`.
     const addresses = (str(flags, 'addresses') ?? '')
       .split(',')
       .map((x) => x.trim())
@@ -129,7 +125,6 @@ export const change: Command = async (
 
   const c = await find(ctx, repo.path, rest.at(0))
   if (sub === 'guide') {
-    // `--set '<json>'` writes it: {"summary": "...", "order": [{"path", "why", "risk"}]}.
     const set = str(flags, 'set')
     const path = `${repo.path}/changes/${c.number}/guide`
     let body: unknown
@@ -196,7 +191,6 @@ export const change: Command = async (
 
   if (sub === 'land') {
     try {
-      // Land exactly the tree we just read, so nothing lands that was not looked at.
       await api.post(`${repo.path}/changes/${c.number}/land`, {
         body: { expected_tree: c.head.tree },
         dryRun: dry,

@@ -11,7 +11,6 @@ import { useWrite } from '~/lib/forge'
 type Platform = 'macos' | 'windows' | 'linux'
 type Picked = { file: File; platform: Platform; arch: 'arm64' | 'x64' }
 
-/** What a file probably runs on, from its name. */
 function guess(name: string): Pick<Picked, 'platform' | 'arch'> {
   const n = name.toLowerCase()
   const platform: Platform = /darwin|mac|\.dmg$|\.pkg$/.test(n)
@@ -36,10 +35,6 @@ const lines = (s: string) =>
     .map((l) => l.replace(/^[-*]\s*/, '').trim())
     .filter(Boolean)
 
-/**
- * Publish a release: its notes and its files. Each file is uploaded straight
- * to its signed address, then the release names the uploads.
- */
 export function PublishRelease({ repo }: { repo: Repo }) {
   const write = useWrite()
   const [open, setOpen] = React.useState(false)

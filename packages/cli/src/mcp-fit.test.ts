@@ -80,7 +80,6 @@ describe('pageTimeline', () => {
     const later = JSON.parse(
       pageTimeline(timeline(130), { before: first.from }),
     ) as Page
-    // New entries go at the end; the page before position 70 is the same.
     expect(later.entries.at(-1)?.i).toBe(first.from - 1)
   })
 })

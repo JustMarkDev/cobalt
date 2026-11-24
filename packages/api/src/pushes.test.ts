@@ -6,10 +6,8 @@ import { load } from '../../../convex/seed'
 import { createSampleApi } from './index'
 import { exportWorld } from './seed-export'
 
-// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
-/** code.storage telling us about a push: checked, recorded once, a patch set for an open change. */
 const dir = new URL('../../../convex/', import.meta.url).pathname
 const modules: Record<string, () => Promise<never>> = {}
 for (const f of new Bun.Glob('**/*.{ts,js}').scanSync(dir))
@@ -62,7 +60,6 @@ test('a signed push to an open change branch is its next patch set, once', async
   const first = await send()
   expect(first.status).toBe(200)
   expect(await first.text()).toBe('patch_set_added')
-  // The same webhook again: recorded once.
   expect(await (await send()).text()).toBe('duplicate')
   const sets = await t.run(async (ctx) => {
     const c = await ctx.db

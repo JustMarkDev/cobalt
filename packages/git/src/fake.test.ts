@@ -6,7 +6,6 @@ import { getGitRepo } from './index'
 test('fake repo walks history and produces patches Pierre can parse', async () => {
   const repo = getGitRepo('tinyqueue')
   const { commits } = await repo.listCommits()
-  // The written commits are the newest; a generated history comes before them.
   expect(commits.length).toBe(61)
   expect(commits.slice(0, 3).map((c) => c.message)).toEqual([
     'Document retries',

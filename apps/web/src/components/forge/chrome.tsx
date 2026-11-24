@@ -46,11 +46,6 @@ export function Logo({ className }: { className?: string }) {
   )
 }
 
-/**
- * The account menu. It is also the account switcher: one login, and the
- * accounts it can act as listed first, so changing who you are acting as is
- * one click from anywhere.
- */
 function UserMenu({ unread }: { unread: number }) {
   const navigate = useNavigate()
   const { me, accounts, active } = useAccounts()
@@ -165,7 +160,6 @@ function UserMenu({ unread }: { unread: number }) {
       <MenuItem
         className="text-muted-foreground"
         onClick={() => {
-          // Leave first: a private page would send the visitor to sign in.
           void navigate({ to: '/' }).then(() => authClient.signOut())
         }}
       >
@@ -175,7 +169,6 @@ function UserMenu({ unread }: { unread: number }) {
   )
 }
 
-/** Palette entries that make no sense without an account. */
 const accountOnly = new Set([
   'dashboard',
   'inbox',
@@ -207,7 +200,6 @@ function CommandPalette({
   const { me, accounts, active: acting } = useAccounts()
   const [query, setQuery] = React.useState('')
   const [active, setActive] = React.useState(0)
-  // Read when the palette opens, not on every page.
   const repos = useOpMaybe('repos.list', { limit: 200 }, open)?.data ?? []
   const people = useOpMaybe('people.list', { limit: 200 }, open)?.data ?? []
 
@@ -324,7 +316,6 @@ function CommandPalette({
 
   const results = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    // Switching is as close as search: every account you can act as, and a way to make one.
     const accountCommands: Array<Command> =
       me && acting
         ? [
@@ -349,7 +340,6 @@ function CommandPalette({
             },
           ]
         : []
-    // Pages that need an account are only offered to someone who has one.
     const available = signedIn
       ? [...accountCommands, ...commands]
       : [
@@ -439,7 +429,6 @@ function CommandPalette({
                   onMouseMove={() => setActive(i)}
                   onClick={() => pick(c)}
                   className={cn(
-                    // The popup's radius minus its p-1.5 and 1px border: exactly concentric.
                     'flex w-full items-center gap-3 rounded-[calc(var(--radius-2xl)-0.375rem-1px)] px-3 py-2 text-left text-sm',
                     i === active && 'bg-muted',
                   )}
@@ -485,7 +474,6 @@ const navItem =
   'relative inline-flex h-9 shrink-0 items-center rounded-lg px-3.5 text-[14.5px] whitespace-nowrap text-muted-foreground focus-ring-inset transition-colors hover:bg-muted hover:text-foreground max-[359px]:px-2.5'
 const navActive = 'font-medium text-foreground'
 
-/** One entry of the main nav. The active one carries the sliding pill. */
 function NavItem({
   pill,
   label,
@@ -537,7 +525,6 @@ const resourceLinks = [
   { icon: SignalIcon, label: 'Status', link: { to: '/status' } },
 ] as const
 
-/** The Product menu: what the platform does, where to read more, and the setup prompt. */
 function ProductMenu({
   id,
   onNavigate,
@@ -545,7 +532,6 @@ function ProductMenu({
 }: {
   id: string
   onNavigate: () => void
-  /** Opened from the keyboard: move focus into the panel at once. */
   focusFirst: boolean
 }) {
   const [copied, setCopied] = React.useState(false)
@@ -633,12 +619,9 @@ export function SiteHeader() {
   const mobilePill = React.useId()
   const productId = React.useId()
   const [productOpen, setProductOpen] = React.useState(false)
-  // Hovering opens the menu, and the click that usually follows must not
-  // close it again: a click within a moment of a hover-open keeps it open.
   const hoverOpenedAt = React.useRef(0)
   const openedByKeyboard = React.useRef(false)
   const productButton = React.useRef<HTMLButtonElement>(null)
-  // Any navigation (a nav link, the logo, sign in) closes the menu.
   const pathname = useRouterState({ select: (st) => st.location.pathname })
   React.useEffect(() => setProductOpen(false), [pathname])
   const [scrolled, setScrolled] = React.useState(false)
@@ -667,7 +650,6 @@ export function SiteHeader() {
       window.removeEventListener('mousedown', onClick)
     }
   }, [productOpen])
-  // The key handler lives for the whole page; it reads the session from here.
   const signedInRef = React.useRef(signedIn)
   signedInRef.current = signedIn
   React.useEffect(() => {
@@ -717,8 +699,6 @@ export function SiteHeader() {
   }, [navigate])
   const unread = useOpMaybe('notifications.count', {}, signedIn)?.unread ?? 0
   const { target } = useTarget()
-  // Search used to be a shortcut and nothing else. This is the way in for everyone who
-  // reaches for the mouse, and the only way on a phone.
   const searchButton = (
     <button
       type="button"
@@ -744,8 +724,6 @@ export function SiteHeader() {
       data-open={productOpen || undefined}
       className="group/nav sticky top-0 z-40"
       onMouseLeave={() => setProductOpen(false)}
-      // Any link in the header closes the menu, the current page's too, and so
-      // does keyboard focus leaving the header.
       onClickCapture={(e) => {
         if ((e.target as Element).closest('a')) setProductOpen(false)
       }}
@@ -753,7 +731,6 @@ export function SiteHeader() {
         if (!e.currentTarget.contains(e.relatedTarget)) setProductOpen(false)
       }}
     >
-      {/* Progressive blur: the page melts into the bar instead of meeting an edge. */}
       <div aria-hidden="true" className="progressive-blur">
         <i />
         <i />
@@ -772,7 +749,6 @@ export function SiteHeader() {
               aria-controls={productId}
               ref={productButton}
               onClick={(e) => {
-                // detail is 0 for a keyboard press (Enter or Space).
                 openedByKeyboard.current = e.detail === 0
                 setProductOpen(
                   (o) => !o || Date.now() - hoverOpenedAt.current < 400,
@@ -852,8 +828,6 @@ export function SiteHeader() {
         />
       )}
       <div className="relative mx-auto max-w-6xl px-6 pb-2 md:hidden">
-        {/* h-11: the track's inside (h-11 less the 4px inset each side) must
-            hold the h-9 tabs, or the scroll box clips the current tab's pill. */}
         <nav aria-label="Main" className="trough flex h-11 w-fit max-w-full">
           <div className="trough-scroll">
             {links.map((l) => (
@@ -865,7 +839,6 @@ export function SiteHeader() {
               params={{ _splat: '' }}
               label="Docs"
             />
-            {/* Below sm the bar has no room for Sign in, so it lives here. */}
             {!signedIn && (
               <span className="contents sm:hidden">
                 <NavItem pill={mobilePill} to="/sign-in" label="Sign in" />
@@ -888,7 +861,6 @@ const socialIcons = {
 
 type FooterLink = { label: string; link: LinkProps | null }
 
-/** Internal destinations are router links so a click never reloads the page. `null` is a plain file. */
 const footerColumns: Array<[string, Array<FooterLink>]> = [
   [
     'Product',

@@ -32,12 +32,6 @@ import type { EventLog } from './events'
 import type { Ctx, Op } from './registry'
 import type { IdempotencyStore } from './idempotency'
 
-/**
- * The request pipeline. Everything that is the same for every operation lives
- * here, so no handler has to remember it: request id, version, authentication,
- * rate limits, validation, idempotency, conditional requests, field selection,
- * waiting, the headers and the error shape.
- */
 export const API_VERSION = '2026-11-07'
 export const SUPPORTED_VERSIONS = [API_VERSION]
 export const PAGE = { default: 50, max: 200 }
@@ -45,7 +39,6 @@ export const BODY_LIMIT = 1_048_576
 export const BATCH_LIMIT = 25
 export const WAIT_MAX = 30
 const SERVER_BUDGET_MS = 5_000
-// Parsed once. Parsing '5000 millis' on every request showed up in the profile.
 const BUDGET = Duration.millis(SERVER_BUDGET_MS)
 
 export type ApiOptions = {
@@ -53,11 +46,8 @@ export type ApiOptions = {
   domain: DomainPort
   events: EventLog
   tokens: TokenStore
-  /** The OAuth server, when this API runs one. Its routes live under `{mount}/oauth`. */
   oauth?: OAuthServer
-  /** Where `WWW-Authenticate` points clients to find the authorization server (RFC 9728). */
   resourceMetadataUrl?: string
-  /** Where the API is mounted: `/v1` on its own host, `/api/v1` inside the app. */
   mount?: string
   base?: string
   htmlBase?: string
@@ -65,15 +55,8 @@ export type ApiOptions = {
   idempotency?: IdempotencyStore
   now?: () => number
   concurrencyPerToken?: number
-  /**
-   * How many proxies in front of this node append to X-Forwarded-For. The
-   * client address is the entry that many from the end, because a client can
-   * put anything at the start. Default 1.
-   */
   trustedProxyHops?: number
-  /** Entries in the body cache. 0 turns it off. */
   bodyCache?: number
-  /** Replace the rate-limit pools. Tests use it to hit a limit quickly. */
   pools?: Record<string, Policy>
 }
 
@@ -90,7 +73,6 @@ const CORS = {
 const hash = (text: string) =>
   createHash('sha1').update(text).digest('base64url').slice(0, 16)
 
-/** Read a request body while enforcing a byte limit, so a chunked body is stopped as it arrives. */
 async function readLimited(
   req: Request,
   max: number,
@@ -123,7 +105,6 @@ async function readLimited(
   return bytes
 }
 
-/** A small least-recently-used cache of serialized bodies, bounded by count and size. */
 class BodyCache {
   private readonly map = new Map<string, string>()
   private held = 0
@@ -182,7 +163,6 @@ function unwrap(schema: z.ZodType): z.ZodType {
   return s
 }
 
-/** Whether a dotted path names a real member, all the way down. */
 function hasSchemaPath(schema: z.ZodType | undefined, path: string): boolean {
   if (!schema) return false
   const [head, ...rest] = path.split('.')
@@ -194,7 +174,6 @@ function hasSchemaPath(schema: z.ZodType | undefined, path: string): boolean {
   return rest.length === 0 || hasSchemaPath(shape[head], rest.join('.'))
 }
 
-/** Keeps only the listed dotted paths of an object. */
 function project(value: unknown, paths: ReadonlyArray<string>): unknown {
   if (Array.isArray(value)) return value.map((v) => project(v, paths))
   if (value === null || typeof value !== 'object') return value
@@ -207,7 +186,6 @@ function project(value: unknown, paths: ReadonlyArray<string>): unknown {
     if (rest.length) list.push(rest.join('.'))
     byHead.set(head, list)
   }
-  // Identity always stays, so a projected object can still be recognised.
   for (const k of ['object', 'id']) if (k in src) out[k] = src[k]
   for (const [head, rest] of byHead)
     if (head in src)
@@ -228,8 +206,6 @@ export function createApi(options: ApiOptions) {
   const concurrency = new Concurrency(options.concurrencyPerToken ?? 20)
   const idem = options.idempotency ?? new MemoryIdempotencyStore(undefined, now)
   const cache = new BodyCache(options.bodyCache ?? 5_000)
-  // Leases, windows and idempotency records all expire. Nothing else calls
-  // these sweeps in the running app, so without this the maps only grow.
   const sweeper = setInterval(() => {
     limiter.sweep()
     if (limitStore instanceof MemoryLimitStore) limitStore.sweep(now())
@@ -244,29 +220,19 @@ export function createApi(options: ApiOptions) {
   const policyHeaders: Record<string, string> = {}
   const variants = new Map<string, string>()
   const hops = options.trustedProxyHops ?? 1
-  /** The caller's address as our own proxy saw it, never as the caller claims it. */
   const clientAddress = (req: Request) => {
     const chain = (req.headers.get('x-forwarded-for') ?? '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
-    // A chain shorter than the trusted proxies cannot name a client: the
-    // entries present may all be client-supplied. Refuse to trust any of them.
     if (chain.length === 0 || chain.length < hops) return 'unknown'
     return chain[chain.length - hops] ?? 'unknown'
   }
 
-  /**
-   * The domain as handlers see it. `held` is the Idempotency-Key the request
-   * holds: the scope is entered here, inside the promise, so it follows this
-   * request's calls and no other's.
-   */
   const domainFor = (held: HeldKey | null) =>
     Domain.of({
       run: <TValue>(f: (core: DomainPort) => PromiseLike<TValue> | TValue) =>
         Effect.tryPromise({
-          // A throw before the first await is a failure too, not an escape.
-          // Extras a request opened are saved once its work is done.
           try: () => {
             const work = () =>
               extrasScope.run(new Set(), () =>
@@ -287,8 +253,6 @@ export function createApi(options: ApiOptions) {
               })
             if (e instanceof Error && e.name === 'ApiError')
               return e as ApiError
-            // An unexpected failure is a bug. Its message may name internals,
-            // so it goes to the log, never into the client's problem body.
             console.error('[api] domain failure', e)
             return apiError('internal', 'Unexpected failure.')
           },
@@ -297,7 +261,6 @@ export function createApi(options: ApiOptions) {
   const runtime = ManagedRuntime.make(
     Layer.merge(Layer.succeed(Domain)(domainFor(null)), TelemetryLive),
   )
-  /** Each request's span, so the operation it runs is traced under it. */
   const spans = new WeakMap<Request, Tracer.Span>()
 
   const problemResponse = (
@@ -323,7 +286,6 @@ export function createApi(options: ApiOptions) {
   const authChallenge = (extra = '') =>
     `Bearer realm="cobalt"${options.resourceMetadataUrl ? `, resource_metadata="${options.resourceMetadataUrl}"` : ''}${extra}`
 
-  /** Checks a bearer token for an audience. Used by the API itself and by the MCP endpoint. */
   async function verifyToken(token: string, audience: Audience) {
     if (!tokenShape.test(token))
       return { ok: false as const, reason: 'unknown' as const }
@@ -337,11 +299,6 @@ export function createApi(options: ApiOptions) {
     return found
   }
 
-  /**
-   * Requests the app's own server makes for a person it already signed in.
-   * Only code in this process can put a request here; nothing that arrives
-   * over the network can.
-   */
   const trusted = new WeakMap<Request, Principal>()
 
   async function authenticate(
@@ -402,7 +359,6 @@ export function createApi(options: ApiOptions) {
     const started = performance.now()
     const requestId = newId('request', now())
     const url = new URL(req.url)
-    // CORS headers are for browsers. Scripts and agents send no Origin and do not need them.
     const common: Record<string, string> = req.headers.has('origin')
       ? { 'cb-request-id': requestId, 'cb-version': API_VERSION, ...CORS }
       : { 'cb-request-id': requestId, 'cb-version': API_VERSION }
@@ -431,9 +387,6 @@ export function createApi(options: ApiOptions) {
         headers: { ...CORS, 'cb-request-id': requestId },
       })
 
-    // The path under the mount. `/v1/repos/rep_x/changes` is the id form of a
-    // repository address, read as owner `rep_x` and name `~`.
-    // The mount is a path segment, not a prefix: /v1batch is outside /v1.
     const prefix =
       mount === '/' ? '/' : mount.endsWith('/') ? mount : `${mount}/`
     if (url.pathname !== mount && !url.pathname.startsWith(prefix))
@@ -496,7 +449,6 @@ export function createApi(options: ApiOptions) {
       return fail(apiError('unauthenticated', 'This needs a token.'), {
         'www-authenticate': authChallenge(),
       })
-    // Anonymous callers may read public things; what they can see is decided by the data.
     if (principal || op.auth === 'required')
       for (const scope of op.scopes ?? [])
         if (!principal?.scopes.has(scope))
@@ -514,7 +466,6 @@ export function createApi(options: ApiOptions) {
             },
           )
 
-    // Rate limit. The key is the token, or the client address when anonymous.
     const poolName = principal
       ? op.pool === 'none'
         ? 'none'
@@ -531,7 +482,6 @@ export function createApi(options: ApiOptions) {
     if (poolName !== 'none') {
       const policy = pools[poolName] ?? defaultPools[poolName]
       const lk = `${poolName}:${budgetKey}`
-      // Almost always the node already holds units for this token: no promise, no store.
       const d =
         limiter.tryLocal(lk, policy, cost) ??
         (await limiter.check(lk, policy, cost))
@@ -590,7 +540,6 @@ export function createApi(options: ApiOptions) {
           'server-timing',
           `total;dur=${(performance.now() - started).toFixed(2)}`,
         )
-      // A streaming response keeps its concurrency slot until the body closes.
       if (op.streaming && res.body && req.method !== 'HEAD') {
         const reader = res.body.getReader()
         let released = false
@@ -650,7 +599,6 @@ export function createApi(options: ApiOptions) {
       problemResponse(e, requestId, extra)
     const timing: Record<string, string | number> = {}
 
-    // Query: the parameters every operation shares come off first.
     const raw: Record<string, string | undefined> = {}
     for (const [k, v] of url.searchParams) raw[k] = v
     const fields = raw.fields
@@ -745,7 +693,6 @@ export function createApi(options: ApiOptions) {
       else parsedParams = p.data
     }
 
-    // Body.
     let body: unknown = undefined
     let bodyText = ''
     if (op.body) {
@@ -822,7 +769,6 @@ export function createApi(options: ApiOptions) {
         ),
       )
 
-    // Unknown `fields` names are an error, not a silently empty answer.
     const fieldPaths = fields
       ? fields
           .split(',')
@@ -869,8 +815,6 @@ export function createApi(options: ApiOptions) {
           return Promise.reject(
             apiError('invalid_request', 'Batches cannot nest.'),
           )
-        // A sub-request runs with the same identity, including the account the
-        // caller acts as. Dropping Cb-Account would silently change its view.
         const inherited: Record<string, string> = {}
         for (const name of ['authorization', 'cb-account', 'cb-version']) {
           const value = req.headers.get(name)
@@ -927,7 +871,6 @@ export function createApi(options: ApiOptions) {
     }
 
     const isRead = op.method === 'GET'
-    // What the body depends on. `wait` and `dry_run` do not change it.
     const canonical = [
       ...Object.entries(raw),
       ...(fields ? [['fields', fields]] : []),
@@ -951,13 +894,9 @@ export function createApi(options: ApiOptions) {
     }
     const cacheKey = (v: string) => `${op.id}|${url.pathname}|${variant}|${v}`
 
-    // Idempotency for writes.
     const key = req.headers.get('idempotency-key')
     let scope = ''
-    // The key this request holds while it works, once it has begun.
     let holding: HeldKey | null = null
-    // `If-Match: *` accepts any version, so it is not a concrete precondition:
-    // a retry must replay rather than run again and overwrite a newer edit.
     const wildcardIfMatch =
       ifMatch !== null &&
       ifMatch
@@ -1032,8 +971,6 @@ export function createApi(options: ApiOptions) {
             { retryAfter: 1 },
           ),
         )
-      // A concrete If-Match must be checked against the current version, not
-      // answered from the version it saw the first time.
       if (begun.state === 'replay' && !checkIfMatch) {
         const replayBody =
           begun.response.status === 204 ||
@@ -1050,7 +987,6 @@ export function createApi(options: ApiOptions) {
 
     let applied = false
     try {
-      // Conditional reads and the body cache, before any body is built.
       let versionKey: string | null = null
       const etagOf = (v: string) => `W/"${v}-${variant}"`
       const wantsWait =
@@ -1069,7 +1005,6 @@ export function createApi(options: ApiOptions) {
           try {
             versionKey = await op.probe(ctx, domain)
           } catch (e) {
-            // A renamed repository answers at its old address with a redirect, on reads too.
             if (e instanceof Moved)
               throw apiError('moved', `${e.from} is now ${e.to}.`, {
                 extra: { from: e.from, to: e.to },
@@ -1094,7 +1029,6 @@ export function createApi(options: ApiOptions) {
 
       let step = await compute()
       if (wantsWait && step.kind === 'not_modified') {
-        // Real elapsed time, not the injectable clock: waiting is physical.
         const deadline = performance.now() + waitSeconds * 1000
         const topic = await op.waitOn!(parsedParams, query, domain)
         while (step.kind === 'not_modified' && performance.now() < deadline) {
@@ -1156,9 +1090,6 @@ export function createApi(options: ApiOptions) {
         }
         const wantsNdjsonList =
           wantsNdjson && (out as { object?: string } | null)?.object === 'list'
-        // Objects that arrive already serialized are sent as they are, unless the
-        // caller wants a shape that needs the object. `seed` stands in for the
-        // body when an ETag is made, so a long body is not hashed.
         let ready: string | null = null
         let seed: string | null = null
         let markdown: string | null = null
@@ -1192,8 +1123,6 @@ export function createApi(options: ApiOptions) {
           }
         }
         if (fieldPaths) {
-          // Build the readable form from the full object before projecting it:
-          // a markdown builder reads members that `fields` may have removed.
           if (wantsMarkdown && status < 300)
             markdown = op.markdown!(out as Record<string, unknown>)
           const list = out as { object?: string; data?: Array<unknown> } | null
@@ -1240,7 +1169,6 @@ export function createApi(options: ApiOptions) {
           })
         }
         json = ready ?? JSON.stringify(out)
-        // The readable form is made from the JSON, so the two cannot disagree.
         if (markdown !== null) json = markdown
         else if (wantsMarkdown && status < 300)
           json = op.markdown!(JSON.parse(json) as Record<string, unknown>)
@@ -1285,7 +1213,6 @@ export function createApi(options: ApiOptions) {
         req.method === 'HEAD' || status === 204 ? null : json,
         { status, headers },
       )
-      // Only the request that holds the key finishes it.
       if (!isRead && holding) {
         if (dryRun) await idem.abort(holding.scope, holding.key, holding.lease)
         else {
@@ -1297,8 +1224,6 @@ export function createApi(options: ApiOptions) {
               body: status === 204 ? '' : json,
             })
           } catch (e) {
-            // The write already happened. Do not turn success into a 500; the key
-            // stays in progress, so a retry waits instead of writing again.
             console.error(`[api] ${requestId} idempotency completion failed`, e)
           }
         }
@@ -1316,8 +1241,6 @@ export function createApi(options: ApiOptions) {
       if (e instanceof ApiError && e.code === 'moved') {
         const to = (e.extra as { to: string }).to
         const from = (e.extra as { from: string }).from
-        // Rebuild the address from its segments, so empty or percent-encoded
-        // segments in the request cannot make the redirect point at itself.
         const parts = path.split('/').filter(Boolean)
         const at = op.path.split('/').filter(Boolean).indexOf('repos')
         if (at >= 0 && parts.length > at + 2)
@@ -1386,11 +1309,6 @@ export function createApi(options: ApiOptions) {
   const health = options.domain.svc.health ?? new Health(now)
   options.domain.svc.health = health
 
-  /**
-   * Every answer is measured by area, for the status page, and traced as one
-   * span (`telemetry.ts`). The span carries the route, not the query string,
-   * which can hold tokens.
-   */
   async function fetchAll(req: Request): Promise<Response> {
     const started = performance.now()
     const pathname = new URL(req.url).pathname
@@ -1438,13 +1356,11 @@ export function createApi(options: ApiOptions) {
         }
       }
     }
-    // What the client declared (tool, model) rides along to every receipt.
     return declaredScope.run(declaredFrom(req.headers), () => handle(req))
   }
 
   return {
     fetch: fetchAll,
-    /** A request as a person the caller already signed in. Server code only. */
     fetchAs: (principal: Principal, req: Request) => {
       trusted.set(req, principal)
       return fetchAll(req)

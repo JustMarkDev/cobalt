@@ -1,22 +1,3 @@
-/**
- * The app's charts: ink on paper, with the brand accent as the data.
- *
- * Everything is SVG and HTML drawn from the theme tokens, so a chart follows
- * light and dark like the rest of the page and renders the same on the server.
- * Plots are drawn in a 0–100 box stretched to their parent
- * (`preserveAspectRatio="none"`, strokes that do not scale), so nothing is
- * measured and nothing waits for the browser. Text sits in HTML over the plot,
- * so it is never stretched.
- *
- * Marks: 2px lines, a 10% wash under an area, columns at most 24px wide with a
- * 4px rounded end, 2px gaps between touching marks, hairline solid grid lines.
- * Series colours come in a fixed order (`--chart-1` … `--chart-4`, then
- * `--chart-5` for "Other"); text always wears text colours. Each chart carries
- * a visually hidden table of its numbers for screen readers.
- *
- * Trend, grouped bars and sparkline fill a parent with a height. Share and
- * ranked bars size to their content.
- */
 import * as React from 'react'
 import { cn } from 'cn'
 import { scaleLinear } from 'd3-scale'
@@ -37,11 +18,9 @@ const short = new Intl.NumberFormat('en', {
   notation: 'compact',
   maximumFractionDigits: 1,
 })
-/** Ticks in full under 10,000, compact on an axis that reaches it. */
 const tickFormat = (top: number) => (n: number) =>
   top >= 10_000 ? short.format(n) : full.format(n)
 
-/** Clean ticks from zero, and the top of the axis they imply. */
 function yAxis(values: Array<number>) {
   const max = Math.max(0, ...values)
   const scale = scaleLinear()
@@ -52,7 +31,6 @@ function yAxis(values: Array<number>) {
   return { ticks, top, format: tickFormat(top) }
 }
 
-/** At most `most` evenly spaced indexes, always the first and the last. */
 function spaced(n: number, most: number) {
   if (n <= most) return Array.from({ length: n }, (_, i) => i)
   const step = Math.ceil((n - 1) / (most - 1))
@@ -63,7 +41,6 @@ function spaced(n: number, most: number) {
   return out
 }
 
-/** A label along the bottom, kept inside the plot at the two ends. */
 function XLabel({ at, children }: { at: number; children: React.ReactNode }) {
   const shift = at < 8 ? '0%' : at > 92 ? '-100%' : '-50%'
   return (
@@ -106,14 +83,7 @@ function Grid({
   )
 }
 
-function Tip({
-  at,
-  children,
-}: {
-  /** Horizontal position of the thing it describes, in percent. */
-  at: number
-  children: React.ReactNode
-}) {
+function Tip({ at, children }: { at: number; children: React.ReactNode }) {
   const side = at > 60 ? { right: `${100 - at}%` } : { left: `${at}%` }
   return (
     <div
@@ -135,8 +105,6 @@ function Table({
   head: Array<string>
   rows: Array<Array<string | number>>
 }) {
-  // Hidden by a wrapper, not on the table: a caption sits outside the table's
-  // own box, so `sr-only` on the table leaves it on screen in some browsers.
   return (
     <div className="sr-only">
       <table>
@@ -177,10 +145,6 @@ function Empty({ className }: { className?: string }) {
   )
 }
 
-/**
- * Which of `n` evenly spread points the pointer is over, from a pointer or
- * arrow-key event on the plot. Points sit at band centres when `banded`.
- */
 function useHover(n: number, banded: boolean) {
   const [index, setIndex] = React.useState<number | null>(null)
   const pick = (e: React.PointerEvent<HTMLElement>) => {
@@ -209,9 +173,6 @@ function useHover(n: number, banded: boolean) {
   }
 }
 
-// ---------------------------------------------------------------------------
-
-/** One series over time: a line on a soft wash, with a crosshair on hover. */
 export function TrendChart({
   data,
   unit = '',
@@ -219,9 +180,7 @@ export function TrendChart({
   className,
 }: {
   data: Array<Point>
-  /** What is counted, for the tooltip and the hidden table ("Commits"). */
   unit?: string
-  /** Off for a compact card: no tick labels, no grid. */
   axes?: boolean
   className?: string
 }) {
@@ -313,14 +272,12 @@ export function TrendChart({
   )
 }
 
-/** Several series side by side per label: columns grouped on one baseline. */
 export function GroupedBars({
   data,
   series,
   className,
 }: {
   data: Array<Record<string, string | number>>
-  /** In a fixed order: the first takes the first series colour, and so on. */
   series: Array<{ key: string; label: string }>
   className?: string
 }) {
@@ -423,10 +380,6 @@ export function GroupedBars({
   )
 }
 
-/**
- * Parts of a whole: one segmented bar, and the parts listed largest first
- * with their share. Past four parts the rest are folded into "Other".
- */
 export function ShareBar({
   data,
   className,
@@ -499,7 +452,6 @@ export function ShareBar({
   )
 }
 
-/** A profile across a few categories: horizontal bars, largest first. */
 export function RankedBars({
   data,
   className,
@@ -536,14 +488,12 @@ export function RankedBars({
   )
 }
 
-/** A trend in a dense row: line and end dot, no axes. */
 export function Sparkline({
   data,
   label = 'Trend',
   className,
 }: {
   data: Array<number>
-  /** What the line is, for screen readers ("Downloads per day"). */
   label?: string
   className?: string
 }) {
@@ -552,7 +502,6 @@ export function Sparkline({
   const max = Math.max(...data)
   const min = Math.min(...data)
   const span = max - min || 1
-  // A little headroom so the 2px line and the end dot are not cut off.
   const x = (i: number) => (n === 1 ? 50 : (i / (n - 1)) * 100)
   const y = (v: number) => 92 - ((v - min) / span) * 84
   const pts = data.map((v, i) => [x(i), y(v)] as [number, number])

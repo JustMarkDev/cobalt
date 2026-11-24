@@ -7,15 +7,6 @@ import { fail } from './lib/errors'
 import { accountByHandle, roleIn } from './lib/access'
 import type { ActionCtx } from './_generated/server'
 
-/**
- * Paying for a plan, with Polar. The browser asks here for an address on
- * Polar's site, and Polar calls back (`http.ts`, `/hooks/polar`) when the
- * subscription changes. Nothing about a card passes through this deployment.
- *
- * The access token (`POLAR_ACCESS_TOKEN`) lives only in this deployment's
- * environment: it is read here, on the server, and never sent to a page.
- */
-
 const POLAR = 'https://api.polar.sh/v1'
 
 const paid = v.union(
@@ -24,10 +15,6 @@ const paid = v.union(
   v.literal('business'),
 )
 
-/**
- * Who is paying: the signed-in person for their own account, or an owner for
- * an organization. Read from the sign-in, never from an argument.
- */
 export const payerOf = internalQuery({
   args: { account: v.optional(v.string()) },
   returns: v.object({
@@ -35,7 +22,6 @@ export const payerOf = internalQuery({
     handle: v.string(),
     members: v.number(),
     subscribed: v.boolean(),
-    // The signed-in person's own, so the checkout does not ask for it again.
     email: v.union(v.string(), v.null()),
     name: v.union(v.string(), v.null()),
   }),
@@ -95,11 +81,6 @@ function site(): string {
   return s.replace(/\/$/, '')
 }
 
-/**
- * Polar's answer, or null when it refused the request (a 4xx), after logging
- * which fields it did not like (never their values: they can be an email).
- * An outage or a server error is not a refusal: that one ends the call.
- */
 async function polar(path: string, body: unknown): Promise<unknown> {
   const res = await fetch(`${POLAR}${path}`, {
     method: 'POST',
@@ -135,14 +116,6 @@ const payer = (ctx: ActionCtx, account: string | undefined) =>
     account === undefined ? {} : { account },
   )
 
-/**
- * An address on Polar where the person pays for a plan. The plan and the
- * paying account ride in the checkout's metadata, which Polar hands back on
- * every subscription event.
- *
- * `currency` is a hint from the browser (euros in Europe): Polar's own guess
- * would come from this server's address, not the customer's.
- */
 export const checkout = action({
   args: {
     plan: paid,
@@ -172,9 +145,6 @@ export const checkout = action({
       success_url: `${site()}/settings/plan?billing=done`,
       return_url: `${site()}/pricing`,
     }
-    // The person's email and name save typing. Polar checks that the email's
-    // domain takes mail, and refuses one that does not: then the checkout
-    // asks for it instead of failing.
     const prefill = {
       ...(who.email === null ? {} : { customer_email: who.email }),
       ...(who.name === null ? {} : { customer_name: who.name }),
@@ -191,7 +161,6 @@ export const checkout = action({
   },
 })
 
-/** An address on Polar where the person manages the subscription: card, invoices, cancel. */
 export const portal = action({
   args: { account: v.optional(v.string()) },
   returns: v.string(),

@@ -1,12 +1,5 @@
 import { apiError } from './problem'
 
-/**
- * A list cursor is the sort key and ID of the last item sent, plus a short
- * fingerprint of the filter and sort. That makes it keyset pagination: the next
- * page starts after that item, whatever was added or removed in between. It
- * does not expire. Changing the filter or sort makes it fail loudly instead of
- * returning a page from the wrong list.
- */
 export type CursorPosition = { key: string | number; id: string }
 
 export function fingerprint(parts: ReadonlyArray<string>): string {
@@ -50,13 +43,6 @@ export function decodeCursor(cursor: string, fp: string): CursorPosition {
 
 export type Page<T> = { items: Array<T>; next: CursorPosition | null }
 
-/**
- * Pages through an array already in key order. `stored` is the order the array
- * is kept in and `desc` the order the caller wants; if they differ the array is
- * read backwards, so no copy is made. Binary search finds the start, so a deep
- * cursor costs the same as the first page, and a page costs no more than the
- * items it returns plus the ones a filter skips.
- */
 export function pageSorted<T>(
   arr: ReadonlyArray<T>,
   key: (item: T) => string | number,
@@ -74,7 +60,6 @@ export function pageSorted<T>(
   const sign = options.desc ? -1 : 1
   const n = arr.length
   const after = options.after
-  // Is this item strictly after the cursor, in the order the caller wants?
   const isAfter = (t: T) => {
     const k = key(t)
     const c =
@@ -94,7 +79,6 @@ export function pageSorted<T>(
     let lo = 0
     let hi = n
     if (forward) {
-      // false ... false true ... true: the first true.
       while (lo < hi) {
         const mid = (lo + hi) >>> 1
         if (isAfter(arr[mid])) hi = mid
@@ -102,7 +86,6 @@ export function pageSorted<T>(
       }
       start = lo
     } else {
-      // true ... true false ... false: the last true.
       while (lo < hi) {
         const mid = (lo + hi) >>> 1
         if (isAfter(arr[mid])) lo = mid + 1

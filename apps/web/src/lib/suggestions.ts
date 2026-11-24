@@ -1,20 +1,8 @@
-// Applying a reviewer's suggested change to a file. Reviewers point at a line
-// number, but the number stops being true the moment another suggestion lands
-// above it. So a suggestion carries the text it replaces and is found by that
-// text. If the text is gone, the suggestion no longer applies and says so.
-
 export type Suggestion = {
-  /** What the change does, in a few words. */
   summary: string
   file: string
-  /**
-   * The lines to replace, exactly as they are now. Empty for a pure insertion,
-   * which goes after `after`.
-   */
   replace: Array<string>
-  /** The line an insertion follows. Only used when `replace` is empty. */
   after?: string
-  /** The new lines. Empty to delete. */
   lines: Array<string>
 }
 
@@ -28,7 +16,6 @@ const split = (contents: string) => {
   return { lines, trailing }
 }
 
-/** Where a block of lines starts in a file, one-based, or what went wrong. */
 function find(lines: Array<string>, block: Array<string>) {
   const hits: Array<number> = []
   for (let i = 0; i + block.length <= lines.length; i++)
@@ -57,14 +44,9 @@ export function applySuggestion(contents: string, s: Suggestion): Applied {
   }
 }
 
-/** Whether a suggestion still applies to a file as it is now. */
 export const canApply = (contents: string, s: Suggestion) =>
   applySuggestion(contents, s).ok
 
-/**
- * The line a comment sits on now. The comment remembers the text of its line,
- * so it follows the code when lines are added above it.
- */
 export function lineOf(contents: string, text: string, fallback: number) {
   const { lines } = split(contents)
   const hits = lines.flatMap((l, i) => (l === text ? [i + 1] : []))

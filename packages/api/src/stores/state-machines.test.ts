@@ -14,21 +14,12 @@ import { load } from '../../../../convex/seed'
 import { createSampleApi } from '../index'
 import { exportWorld } from '../seed-export'
 
-// convex-test's issuer: Convex trusts the API's JWT only from its own issuer.
 process.env.API_JWT_ISSUER = 'https://convex.test'
 
-/**
- * The races and stale states the Convex functions used to allow, each
- * reproduced against the functions themselves. The moves they may make are
- * in `lifecycles.ts`.
- */
 const dir = new URL('../../../../convex/', import.meta.url).pathname
 
-// A landing step that fails after it wrote something: its writes must not
-// be kept. Armed per test; otherwise the real function.
 const failAfterWrite = { armed: false }
 const pipelinesPath = `${dir}forge/pipelines.ts`
-// Taken before mocking: Bun updates the module's bindings in place.
 const realPipelines = { ...(await import(pipelinesPath)) }
 const realStart = realPipelines.startWorkflow as (
   ...a: Array<unknown>
@@ -95,8 +86,6 @@ async function setup() {
   return { t, sys, dana, repo: repo! }
 }
 
-// ---- Webhook deliveries ---------------------------------------------------------
-
 test('a late report from a claim that ran out does not undo a delivery', async () => {
   const { t, sys, repo } = await setup()
   const hookId = await t.run((ctx) =>
@@ -124,10 +113,8 @@ test('a late report from a claim that ran out does not undo a delivery', async (
   })
   const claim = async () =>
     JSON.parse(await sys.mutation(forge.forge.webhooks.claim, { limit: 1 }))[0]
-  // Server A claims it, and goes quiet past its claim.
   const a = await claim()
   advance(2 * MINUTE)
-  // Server B claims it again and delivers it.
   const b = await claim()
   expect(b.id).toBe(a.id)
   const report = (at: number, status: number) =>
@@ -139,20 +126,15 @@ test('a late report from a claim that ran out does not undo a delivery', async (
       ms: 5,
     })
   await report(b.at, 200)
-  // A's answer arrives at last: the receiver said 410 Gone to it.
   await report(a.at, 410)
   const [d, h] = await t.run(async (ctx) => [
     (await ctx.db.query('webhookDeliveries').collect())[0],
     await ctx.db.get('webhooks', hookId),
   ])
-  // It used to turn the delivered event into a failed one, count two
-  // attempts, and turn the endpoint off.
   expect(d.state).toBe('succeeded')
   expect(d.attempts).toHaveLength(1)
   expect(h!.active).toBe(true)
 })
-
-// ---- Idempotency leases -------------------------------------------------------
 
 test('a request whose key was taken over can no longer write, finish or give it up', async () => {
   const { t, dana } = await setup()
@@ -168,8 +150,6 @@ test('a request whose key was taken over can no longer write, finish or give it 
   const first = await begin()
   expect(first.state).toBe('new')
   const firstLease = first.state === 'new' ? first.lease : undefined
-  // The first request goes quiet before writing; past its lease a retry
-  // takes the key over.
   advance(11 * MINUTE)
   const second = await begin()
   expect(second.state).toBe('new')
@@ -181,12 +161,9 @@ test('a request whose key was taken over can no longer write, finish or give it 
       forge.forge.issues.create,
       { owner: 'dana', name: 'gitfs', title },
     )
-  // The first comes back to life: its write used to go through, so the
-  // request ran twice.
   await expect(openIssue(firstLease, 'From the stale request')).rejects.toThrow(
     /Another request now holds/,
   )
-  // Nor may it give the key up from under the second, or answer for it.
   await t.mutation(forge.apiStores.abortIdempotency, {
     secret: SECRET,
     scope,
@@ -203,7 +180,6 @@ test('a request whose key was taken over can no longer write, finish or give it 
     body: 'stale',
   })
   expect((await begin()).state).toBe('in_progress')
-  // The holder writes and finishes as ever.
   await openIssue(secondLease, 'From the holder')
   await t.mutation(forge.apiStores.completeIdempotency, {
     secret: SECRET,
@@ -223,8 +199,6 @@ test('a request whose key was taken over can no longer write, finish or give it 
   expect(titles).toContain('From the holder')
   expect(titles).not.toContain('From the stale request')
 })
-
-// ---- Uploads ---------------------------------------------------------------------
 
 async function uploaded(t: Awaited<ReturnType<typeof setup>>) {
   const u = JSON.parse(
@@ -263,9 +237,7 @@ test('one upload cannot be attached to two things', async () => {
       .filter((i) => i.repoId === s.repo._id)
       .map((i) => i.number),
   )
-  // Two requests, each having seen the upload unattached.
   await add(issues[0])
-  // The second used to be kept too: one file shown on two issues.
   await expect(add(issues[1])).rejects.toThrow(/already attached/)
   const evidence = await s.t.run((ctx) =>
     ctx.db.query('issueEvidence').collect(),
@@ -287,7 +259,6 @@ test('saving an upload never re-points it or takes its file away', async () => {
       attachedRepoId: fields.attachedTo ? 'rep_x' : null,
     })
   await save({ state: 'uploaded', sha256: 'aa', attachedTo: 'dana/gitfs' })
-  // A request holding an older copy saves it as it saw it: it used to win.
   await expect(
     save({ state: 'uploaded', sha256: 'aa', attachedTo: 'dana/notes' }),
   ).rejects.toThrow(/already attached/)
@@ -319,8 +290,6 @@ test('of two requests sending one upload its file, one is told no before keeping
   expect([a, b].filter((x) => x === null)).toHaveLength(1)
   expect([a, b].find((x) => x !== null)).toContain('already has its file')
 })
-
-// ---- Landing steps ---------------------------------------------------------------------
 
 async function landingStep(s: Awaited<ReturnType<typeof setup>>) {
   const operation = await s.t.run((ctx) =>
@@ -376,12 +345,10 @@ test('a landing step that succeeds keeps its writes, and runs once', async () =>
   await l.step(0)
   expect(await l.countRuns()).toBe(before + 1)
   expect((await l.op())!.state).toBe('running')
-  // Run again (as a duplicate schedule would), it does nothing.
   await l.step(0)
   expect(await l.countRuns()).toBe(before + 1)
   await l.step(1)
   expect((await l.op())!.state).toBe('succeeded')
-  // Over is over.
   await l.step(1)
   expect((await l.op())!.state).toBe('succeeded')
 })
@@ -399,14 +366,9 @@ test('a landing step that fails keeps none of its writes', async () => {
     state: 'failed',
     detail: 'Failed after a write.',
   })
-  // The step started a pipeline run, then failed: that run used to be kept,
-  // though the operation says the step did not happen.
   expect(await l.countRuns()).toBe(before)
 })
 
-// ---- Waiting steps and runner leases ----------------------------------------------
-
-/** A run of `build` in dana/gitfs, its first job claimed by name and step 1 running. */
 async function runningStep(s: Awaited<ReturnType<typeof setup>>) {
   const run = JSON.parse(
     await s.dana().mutation(forge.forge.pipelines.start, {
@@ -522,7 +484,6 @@ test('a wait timer at its deadline fails the step and the run', async () => {
   const after = await runOf(s, n)
   expect(after.status).toBe('failure')
   expect(after.jobs[job - 1].steps[0].status).toBe('failure')
-  // A second timer for the same wait finds nothing to do.
   await s.t.mutation(internal.forge.pipelines.expire, {
     runId,
     job,
@@ -561,7 +522,6 @@ test('the lease sweep puts a silent runner’s job back in the queue, once', asy
     a.text.includes('Runner quiet'),
   )
   expect(notes).toHaveLength(1)
-  // Swept again, nothing more happens.
   await s.t.mutation(internal.forge.pipelines.sweepLeases, {})
   expect((await runOf(s, job.run)).version).toBe(after.version)
 })

@@ -1,23 +1,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
 
-/**
- * Idempotency keys. A POST with `Idempotency-Key` runs at most once. The store
- * remembers the key, a hash of the request and, when it finishes, the response.
- *
- * In memory here. On Convex (`stores/convex.ts`) every API server shares the
- * keys, and each write marks its key in its own transaction, so a request
- * that crashed can be told apart: one that wrote nothing runs again once its
- * lease ends, one that wrote never does. The interface is the same.
- */
-/**
- * The key the current request holds, while its domain work runs. The Convex
- * domain signs it into the JWT of each call, so a write marks the key in the
- * write's own transaction.
- */
 export const heldKey = new AsyncLocalStorage<HeldKey>()
 
-/** A key, as the request that holds it holds it: its lease names the holder. */
 export type HeldKey = { scope: string; key: string; lease: string }
 
 export type StoredResponse = {
@@ -26,11 +11,6 @@ export type StoredResponse = {
   body: string
 }
 
-/**
- * What became of a key. `new` gives the caller the key, under a lease: a
- * request whose lease was taken over can no longer finish the key or write
- * under it.
- */
 export type Begin =
   | { state: 'new'; lease: string }
   | { state: 'replay'; response: StoredResponse }
@@ -39,17 +19,12 @@ export type Begin =
 
 export interface IdempotencyStore {
   begin: (scope: string, key: string, fingerprint: string) => Promise<Begin>
-  /** Keeps the answer, if `lease` still holds the key. */
   complete: (
     scope: string,
     key: string,
     lease: string,
     response: StoredResponse,
   ) => Promise<void>
-  /**
-   * The request failed before it had an effect we can replay; allow a retry.
-   * Only while `lease` still holds the key.
-   */
   abort: (scope: string, key: string, lease: string) => Promise<void>
 }
 
@@ -58,11 +33,9 @@ type Entry = {
   lease: string
   response?: StoredResponse
   expires: number
-  /** Rough size in characters: the key, the fingerprint, the headers and the body. */
   chars: number
 }
 
-/** What a stored response costs, near enough: its text plus a fixed overhead per entry. */
 function sizeOf(
   id: string,
   fingerprint: string,
@@ -82,13 +55,7 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
   constructor(
     private readonly ttlMs = 24 * 3_600_000,
     private readonly now: () => number = Date.now,
-    /**
-     * The most keys kept. Every key holds its response for 24 hours, so a busy
-     * writer would otherwise fill memory. The oldest go first, which only costs a
-     * retry that arrives a very long time after the original.
-     */
     private readonly max = 100_000,
-    /** And the most text kept, so large responses cannot fill memory under the key cap. */
     private readonly maxChars = 24_000_000,
   ) {}
 
@@ -105,8 +72,6 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
           victim = id
           break
         }
-      // An in-progress key has no response yet. Never drop it: a retry would
-      // repeat a write that may already be running or done.
       if (victim === undefined) break
       this.held -= this.entries.get(victim)!.chars
       this.entries.delete(victim)

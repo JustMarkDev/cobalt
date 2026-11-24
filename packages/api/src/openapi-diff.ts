@@ -1,15 +1,3 @@
-/**
- * The stability promise, as a check. Within v1 we only add. This compares the
- * committed OpenAPI document with the one the code produces and lists every
- * change a client written against the old one could trip over. An empty list
- * means the change is additive.
- *
- * Breaking:
- *  - an operation, a response status or a response member is gone
- *  - a response member's type changed
- *  - a request member, parameter or enum value a client may send is gone
- *  - a request member or parameter became required, or a new one is required
- */
 type Json = Record<string, any>
 
 export function findBreaking(before: Json, after: Json): Array<string> {
@@ -76,7 +64,6 @@ export function findBreaking(before: Json, after: Json): Array<string> {
     const x = resolve(before, a)
     const y = resolve(after, b)
     if (!x || depth > 6) {
-      // A schema that did not exist before: anything required is new.
       if (!x && y?.required?.length)
         out.push(`${path}: new required ${y.required.join(', ')}`)
       return

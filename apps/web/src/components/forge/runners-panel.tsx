@@ -21,10 +21,6 @@ const list = (s: string) =>
     .map((x) => x.trim())
     .filter(Boolean)
 
-/**
- * Runners of an account you own or administer. Registering one shows its
- * token once; revoking one disables it and its token in the same write.
- */
 export function RunnersPanel() {
   const accounts = useOp('accounts.list', {}).data.filter(
     (a) => a.role === 'owner' || a.role === 'admin',

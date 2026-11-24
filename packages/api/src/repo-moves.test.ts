@@ -15,7 +15,6 @@ describe('transferring a repository', () => {
     const old = await h.call('GET', R)
     expect(old.status).toBe(308)
     expect(old.headers.get('location')).toContain('/repos/northwind/gitfs')
-    // Its changes and releases went with it.
     expect(
       (await h.call('GET', '/repos/northwind/gitfs/changes')).json.data.length,
     ).toBeGreaterThan(0)
@@ -30,7 +29,6 @@ describe('transferring a repository', () => {
       body: { owner: 'northwind', confirm: 'gitfs' },
     })
     expect(unconfirmed.status).toBe(400)
-    // dana is only a member of lumen-studio.
     const member = await h.call('POST', `${R}/transfer`, {
       body: { owner: 'lumen-studio', confirm: 'dana/gitfs' },
     })

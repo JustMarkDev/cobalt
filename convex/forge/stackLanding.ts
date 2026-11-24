@@ -28,10 +28,8 @@ import type { MutationCtx } from '../_generated/server'
 const stepArgs = {
   operation: v.id('operations'),
   repo: v.id('repos'),
-  // `[number, tree]` pairs: the tree each change must still be at.
   trees: v.array(v.array(v.string())),
   i: v.number(),
-  // Who asked, as they were checked when they asked.
   as: v.object({
     handle: v.string(),
     actingAs: v.string(),
@@ -46,17 +44,6 @@ const stepArgs = {
   by: actorRef,
 }
 
-/**
- * The landing engine: one step of an operation's plan per transaction. Each
- * change lands in its own step (a single change is a stack of one), then the
- * policy file's landing steps run. A step that fails stops the operation with
- * the reason and the rest are skipped; what landed stays landed. Each step's
- * outcome is kept on the operation.
- *
- * The operation and its steps move only as `lifecycles.ts` allows. A step's
- * own work runs as a nested transaction (`doStep`): when it fails, every
- * write it made rolls back, and only the failure is kept.
- */
 export const step = internalMutation({
   args: stepArgs,
   returns: v.null(),
@@ -64,7 +51,6 @@ export const step = internalMutation({
     const op = await ctx.db.get('operations', a.operation)
     const repo = await ctx.db.get('repos', a.repo)
     if (!op || !repo) return null
-    // Already over (or this step already ran): nothing more to do.
     if (isTerminal(operationLifecycle, op.state)) return null
     const steps = JSON.parse(op.steps ?? '[]') as Array<LandingStepRec>
     if (a.i < steps.length && steps[a.i].state !== 'pending') return null
@@ -155,7 +141,6 @@ export const step = internalMutation({
   },
 })
 
-/** One step's work. It throws to refuse, and then none of its writes are kept. */
 export const doStep = internalMutation({
   args: stepArgs,
   returns: v.string(),
@@ -192,10 +177,6 @@ export const doStep = internalMutation({
   },
 })
 
-/**
- * A `webhook` step: one delivery to the repository's webhook at that URL, so
- * it is signed with its secret and retried like any other.
- */
 async function callWebhook(
   ctx: MutationCtx,
   repo: Doc<'repos'>,

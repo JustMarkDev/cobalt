@@ -1,8 +1,3 @@
-/**
- * The change screens were designed on `mock/platform`'s shapes. These turn the
- * API's change, findings, checks and patch sets into them, so the components
- * keep reading what they read and only where it comes from changes.
- */
 import type {
   Finding as ApiFinding,
   PatchSet as ApiPatchSet,
@@ -46,11 +41,9 @@ export function toChangeItem(
   return {
     id: String(c.number),
     title: c.title,
-    // One kind of account: the receipt, not a class, says how it was written.
     author: { name: c.author.handle, kind: 'human', via: c.head.via },
     state: c.state === 'abandoned' ? 'abandoned' : c.state,
     stack: c.stack ? { index: c.stack.position, of: c.stack.size } : undefined,
-    // A list row only needs the newest; the detail passes them all.
     patchSets: patchSets
       ? patchSets.map(toPatchSet)
       : [{ n: c.head.patch_set, when: '', note: '', tree: c.head.tree }],
@@ -76,7 +69,6 @@ export function toChangeItem(
   }
 }
 
-/** A finding as the review screen shows it. `humans` are the handles of people. */
 export function toFinding(f: ApiFinding, humans: Set<string>): Finding {
   return {
     id: f.label,
@@ -100,7 +92,6 @@ export function toFinding(f: ApiFinding, humans: Set<string>): Finding {
   }
 }
 
-/** The base and every patch set's files, as the diff and the editor read them. */
 export function toVersions(all: Array<PatchSetFiles>): {
   base: FileVersions
   versions: Array<FileVersions>
@@ -116,7 +107,6 @@ export function toVersions(all: Array<PatchSetFiles>): {
   }
 }
 
-/** The check that reported test cases, as a test report. */
 export function toTestRun(checks: Array<CheckRun>): TestRun | undefined {
   const k = checks.find((x) => x.cases?.length)
   if (!k?.cases) return undefined
@@ -135,7 +125,6 @@ export function toTestRun(checks: Array<CheckRun>): TestRun | undefined {
   }
 }
 
-/** Images, recordings and preview pages attached to a change. Test results are drawn by the test report. */
 export function toMedia(
   evidence: Array<
     Pick<Evidence, 'id' | 'caption' | 'created_by' | 'upload'> & {
@@ -166,7 +155,6 @@ export function toMedia(
 const ago = (iso: string, now: number) =>
   Math.max(0, (now - Date.parse(iso)) / HOUR)
 
-/** What happened to a change, from the change itself: no separate log needed. */
 export function timelineOf(
   c: Change,
   patchSets: Array<ApiPatchSet>,

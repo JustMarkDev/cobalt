@@ -58,19 +58,6 @@ type Line = {
 const iso = (t: number) => new Date(t).toISOString()
 const RUNNER_TTL_MS = 365 * 86_400_000
 
-/**
- * Pipeline runs: a workflow run on a runner, its jobs, their steps and the log
- * each step wrote. Starting a run queues its jobs; a runner claims the oldest
- * queued job it may take, reads the workflow file at the run's commit, and
- * reports each step's status and log lines back, which finishes the job and
- * then the run. A step may wait on a person or an outside agent, and resumes
- * with how it ended.
- *
- * Runners are registered here too: an identity, labels, the repositories it
- * may serve and a token it alone holds. A job goes to a runner whose labels
- * cover its `runs-on`; a runner that stops answering loses its job back to
- * the queue when its lease runs out.
- */
 export abstract class DomainPipelines extends DomainReleases {
   readonly runners = new Map<string, RunnerRec>()
 
@@ -164,7 +151,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
   }
 
-  /** Runs a trigger started whose labels are not read yet. */
   async pendingRunsOn() {
     const out: Array<{
       owner: string
@@ -186,7 +172,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return out
   }
 
-  /** The labels a run's workflow file says, now read; null when it could not be. */
   async setRunsOn(
     owner: string,
     name: string,
@@ -205,11 +190,6 @@ export abstract class DomainPipelines extends DomainReleases {
     r.version++
   }
 
-  /**
-   * Waits that ran out fail their run; jobs whose runner stopped answering
-   * go back to the queue. Convex does both on a schedule; here they are
-   * settled whenever runs are looked at.
-   */
   protected settleTimers(repo: RepoRec) {
     const now = this.now()
     for (const r of repo.pipelines ?? []) {
@@ -247,7 +227,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
   }
 
-  /** Settle every repository's timers. A runner claim does this first. */
   sweepPipelineTimers() {
     for (const repo of this.repos.values()) this.settleTimers(repo)
   }
@@ -293,7 +272,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return `${repo.id}.p${repo.pipelines?.length ?? 0}.${v}.${this.runnerRev}.${this.accessRevision}`
   }
 
-  /** Bumped by every runner write, so a run's "waiting for a runner" is not cached past it. */
   protected runnerRev = 0
 
   async getPipelineRun(owner: string, name: string, n: number, p: Viewer) {
@@ -326,7 +304,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
   }
 
-  /** Run a workflow again on the same commit. It is queued for a runner, asking for the same labels. */
   async rerunPipeline(
     owner: string,
     name: string,
@@ -344,7 +321,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentPipelineRun(repo, r, true)
   }
 
-  /** Labels by job from the workflow file at `ref`, when the file is there. */
   protected async readRunsOn(repo: RepoRec, file: string, ref: string) {
     let bytes: Uint8Array | null = null
     try {
@@ -355,7 +331,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return bytes ? runsOnOf(new TextDecoder().decode(bytes)) : null
   }
 
-  /** Start a workflow on the newest commit of a branch, from its last run's jobs. */
   async startPipeline(
     owner: string,
     name: string,
@@ -379,9 +354,7 @@ export abstract class DomainPipelines extends DomainReleases {
       sha =
         (await this.svc.git.commits(`${repo.owner}/${repo.name}`, 1))[0]?.sha ??
         sha
-    } catch {
-      // No history in the store: start it on the commit it last ran on.
-    }
+    } catch {}
     const r = this.queuedFrom(repo, last, p!.handle)
     r.branch = branch
     r.sha = sha
@@ -396,11 +369,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentPipelineRun(repo, r, true)
   }
 
-  /**
-   * A run an event started (a trigger): no person asked, so no principal.
-   * It takes its labels from the workflow's last run, and says they may be
-   * stale. Throws `not_found` when the workflow never ran.
-   */
   startPipelineForEvent(
     repo: RepoRec,
     workflow: string,
@@ -417,8 +385,6 @@ export abstract class DomainPipelines extends DomainReleases {
     r.branch = at.branch
     r.sha = at.sha
     r.title = `${workflow} on ${at.branch}`
-    // Its labels are read from the workflow file at this commit before any
-    // runner may take it (`settleRunsOn`); until then the last run's stand in.
     r.runsOnPending = true
     r.runsOnFrom = last.number
     this.seedPipelineRun(repo, r)
@@ -479,11 +445,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
   }
 
-  /**
-   * A runner asks for work by name: the oldest queued job in the repository
-   * that asks for no labels, now running on it. Null when there is nothing to
-   * do. A job with `runs-on` waits for a registered runner with those labels.
-   */
   async claimPipelineJob(
     owner: string,
     name: string,
@@ -513,7 +474,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return null
   }
 
-  /** The report itself, once the caller may make it. */
   private applyReport(
     repo: RepoRec,
     r: PipelineRunRec,
@@ -534,7 +494,6 @@ export abstract class DomainPipelines extends DomainReleases {
       )
     const moved = reportStep(r, job, step, body.status)
     if ('refusal' in moved) throw apiError('invalid_state', moved.refusal)
-    // The same report again (a runner's retry) changes nothing.
     if (moved.repeated) return this.presentPipelineRun(repo, r, true)
     if (body.duration_ms !== undefined) s.duration = body.duration_ms
     for (const l of body.lines ?? [])
@@ -551,7 +510,6 @@ export abstract class DomainPipelines extends DomainReleases {
         step: s.name,
       })
     }
-    // A report is a sign of life: the lease runs from now.
     if (j.runnerId && j.status === 'running') j.lease = this.now() + LEASE_MS
     if (j.runnerId && j.status !== 'running') j.lease = null
     settlePipeline(r, this.now())
@@ -560,7 +518,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentPipelineRun(repo, r, true)
   }
 
-  /** A runner says how a step went, with the lines it wrote. */
   async reportPipelineStep(
     owner: string,
     name: string,
@@ -599,9 +556,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentPipelineRun(repo, r, true)
   }
 
-  // ---- waiting ---------------------------------------------------------------
-
-  /** When a wait ends: `expires_at` if given, else in 7 days; never past 30. */
   protected waitUntil(body: WaitBody) {
     const now = this.now()
     if (body.expires_at === undefined) return now + WAIT_DEFAULT_MS
@@ -641,7 +595,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentPipelineRun(repo, r, true)
   }
 
-  /** Pauses a running step and tells whom it waits on. Shared with a runner's own wait. */
   private applyWait(
     repo: RepoRec,
     r: PipelineRunRec,
@@ -666,7 +619,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
   }
 
-  /** The runner pauses a step of a job it holds. */
   async runnerWait(p: Viewer, body: RunnerWaitBody) {
     const runner = this.runnerOf(p)
     const [o, n] = body.repo.split('/')
@@ -691,7 +643,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentPipelineRun(repo, r, true)
   }
 
-  /** Someone the step waits on is told: the target, or whoever started the run. */
   private toldOfWait(
     repo: RepoRec,
     r: PipelineRunRec,
@@ -746,15 +697,11 @@ export abstract class DomainPipelines extends DomainReleases {
           step: s.name,
         })
     }
-    // The runner that holds the job carries on from here.
     if (j.runnerId && j.status === 'running') j.lease = this.now() + LEASE_MS
     if (!dry) r.version++
     return this.presentPipelineRun(repo, r, true)
   }
 
-  // ---- runners ---------------------------------------------------------------
-
-  /** Whether `p` may manage runners of `account`: their own, or an organization they own or administer. */
   private manages(account: string, p: Principal) {
     const acct = this.accounts.get(account)
     if (!acct) return false
@@ -812,7 +759,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
   }
 
-  /** Labels and repositories as a runner keeps them, or a refusal that points at the field. */
   private async checkRunnerFields(
     account: string,
     p: Principal,
@@ -985,7 +931,6 @@ export abstract class DomainPipelines extends DomainReleases {
     }
     if (dry) return this.presentRunner(next)
     Object.assign(r, next)
-    // Its token follows the repositories it may serve.
     const t = await this.svc.auth.get(r.tokenId)
     if (t) t.repos = r.repos
     this.runnerRev++
@@ -1003,7 +948,6 @@ export abstract class DomainPipelines extends DomainReleases {
     return this.presentRunner(r)
   }
 
-  /** The runner behind a runner token, or a refusal. */
   protected runnerOf(p: Viewer): RunnerRec {
     const r = p?.runnerId ? this.runners.get(p.runnerId) : undefined
     if (!r || r.disabled)

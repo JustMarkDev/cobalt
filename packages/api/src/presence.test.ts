@@ -36,7 +36,6 @@ describe('everyone can see who else is looking', () => {
     )
     expect(byHandle.dana).toMatchObject({ path: 'src/refs.rs' })
     expect(byHandle.hollis).toMatchObject({ path: null })
-    // dana's agent on her laptop is dana: one account, not a second viewer.
     now.advance(500)
     const agent = await h.call('PUT', C, {
       token: sampleTokens.scoped,
@@ -47,7 +46,6 @@ describe('everyone can see who else is looking', () => {
         (v: { actor: { handle: string } }) => v.actor.handle === 'dana',
       ),
     ).toEqual([expect.objectContaining({ path: 'src/lib.rs' })])
-    // Two tabs of one person count once, at the newer file.
     now.advance(1000)
     const tabs = await h.call('PUT', C, {
       body: { session: 'tab-aaaa-2', path: 'tests/refs_test.rs' },
@@ -57,7 +55,6 @@ describe('everyone can see who else is looking', () => {
         (v: { actor: { handle: string } }) => v.actor.handle === 'dana',
       ),
     ).toEqual([expect.objectContaining({ path: 'tests/refs_test.rs' })])
-    // Leaving one tab leaves the other.
     const left = await h.call('PUT', C, {
       body: { session: 'tab-aaaa-2', leave: true },
     })
@@ -66,7 +63,6 @@ describe('everyone can see who else is looking', () => {
         .map((v: { actor: { handle: string } }) => v.actor.handle)
         .sort(),
     ).toEqual(['dana', 'hollis'])
-    // Silence for two and a half intervals and you are gone.
     now.advance(51_000)
     const later = await h.call('GET', C)
     expect(later.json.viewers).toEqual([])

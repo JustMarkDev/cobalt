@@ -1,17 +1,3 @@
-/**
- * The auth client: Better Auth, with sessions, users and credentials kept by
- * the `betterAuth` Convex component (`convex/auth.ts`). Requests go to
- * `/api/auth/*` on this site, which forwards them to Convex.
- *
- * The app only uses what is exported here (`useSession()` ->
- * `{ data, isPending }`, `signIn.email`, `signUp.email`, `updateUser`,
- * `signOut`, results as `{ data, error }`), so screens do not import Better
- * Auth themselves.
- *
- * The session is a cookie. The first server render does not read it, so
- * `isPending` is true until the browser has asked. Pages that need a user
- * wait on it (see `RequireAuth`); server code asks `~/lib/auth/server`.
- */
 import { convexClient } from '@convex-dev/better-auth/client/plugins'
 import { usernameClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
@@ -23,12 +9,7 @@ export type AuthUser = {
   id: string
   name: string
   email: string
-  /**
-   * The address in every URL (cobaltforge.dev/<handle>). Generated at sign-up, and
-   * the person can change it in Settings. It is Better Auth's `username`.
-   */
   handle: string
-  /** Whether they proved the address is theirs. */
   emailVerified?: boolean
 }
 
@@ -41,10 +22,6 @@ const client = createAuthClient({
   plugins: [usernameClient(), convexClient()],
 })
 
-/**
- * Better Auth itself, for the Convex client only: it asks it for the token
- * that signs the page's Convex reads and writes in as the person.
- */
 export const sessionClient = client
 
 type RawUser = {
@@ -68,7 +45,6 @@ const fail = (code: string, message: string): AuthResult => ({
   error: { code, message },
 })
 
-/** What a person can act on, in our words, for the codes they can cause. */
 const MESSAGES: Partial<Record<string, string>> = {
   INVALID_EMAIL_OR_PASSWORD: 'Wrong email or password.',
   USER_ALREADY_EXISTS: 'An account with this email already exists.',
@@ -92,7 +68,6 @@ const toError = (error: RawError): AuthError => {
   }
 }
 
-/** The session as it is now, after a call that changed it. */
 async function current(): Promise<AuthResult> {
   const { data, error } = await client.getSession()
   if (error) return { data: null, error: toError(error) }
@@ -109,8 +84,6 @@ async function signUp(input: {
   password: string
   handle?: string
 }): Promise<AuthResult> {
-  // A new account starts at a generated address. A clash is rare, so try a
-  // few before giving up; an address the caller chose is tried once.
   for (let attempt = 0; attempt < 5; attempt++) {
     const { error } = await client.signUp.email({
       name: input.name.trim(),
@@ -135,7 +108,6 @@ export const authClient = {
     const handle = user?.username
     const verified = user?.emailVerified ?? false
     const sessionId = data?.session.id
-    // Stable between renders unless something in it really changes.
     const session = React.useMemo<Session | null>(
       () =>
         id && name !== undefined && email && sessionId
@@ -178,7 +150,6 @@ export const authClient = {
     },
   },
 
-  /** Change the name, email or address on the signed-in account. */
   async updateUser(
     input: Partial<Pick<AuthUser, 'name' | 'email' | 'handle'>>,
   ): Promise<AuthResult> {
@@ -214,11 +185,6 @@ export const authClient = {
     return current()
   },
 
-  /**
-   * Ask for a reset link. It always answers ok, so it never says whether an
-   * email has an account. Until an email provider is connected the link is
-   * written to the Convex deployment's log, not sent.
-   */
   async forgotPassword(input: { email: string }): Promise<{ ok: true }> {
     await client.requestPasswordReset({
       email: input.email.trim().toLowerCase(),
@@ -227,7 +193,6 @@ export const authClient = {
     return { ok: true }
   },
 
-  /** Choose a new password with the token from a reset link. */
   async resetPassword(input: {
     token: string
     password: string
@@ -239,7 +204,6 @@ export const authClient = {
     return { error: error ? toError(error) : null }
   },
 
-  /** Send (for now: log) a link that proves the address is the person's. */
   async sendVerification(email: string): Promise<{ error: AuthError | null }> {
     const { error } = await client.sendVerificationEmail({
       email,
@@ -253,11 +217,9 @@ export const authClient = {
   },
 }
 
-/** Only follow redirects that stay on this site. */
 export function safeRedirect(to: unknown): string | undefined {
   if (typeof to !== 'string') return undefined
   if (!to.startsWith('/') || to.startsWith('//')) return undefined
-  // Coming back to an account screen would only bounce the person around.
   if (/^\/(sign-in|sign-up|forgot-password|reset-password)(?:[/?#]|$)/.test(to))
     return undefined
   return to

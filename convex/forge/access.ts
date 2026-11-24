@@ -27,11 +27,6 @@ import { repoUrl } from '../lib/present'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 
-/**
- * Access rules: branches and paths only some people may see. Only the
- * repository's administrators write them; a reader sees the rules they read.
- */
-
 function present(repo: Doc<'repos'>, r: AccessRule) {
   return {
     object: 'access_rule' as const,
@@ -60,7 +55,6 @@ export const list = query({
   },
 })
 
-/** Every change's representation and every cached answer move with who may see what. */
 async function changed(ctx: MutationCtx, repo: Doc<'repos'>) {
   await bumpAccess(ctx)
   await ctx.db.patch('repos', repo._id, { aclRev: repo.aclRev + 1 })
@@ -169,7 +163,6 @@ export const remove = mutation({
   },
 })
 
-/** What the caller may not see in a repository's branches and files. */
 export const view = query({
   args: { owner: v.string(), name: v.string() },
   returns: v.string(),
@@ -186,7 +179,6 @@ export const view = query({
   },
 })
 
-/** The numbers of a repository's changes the caller may not see, by repository id. */
 export const hiddenChanges = query({
   args: { id: v.string() },
   returns: v.string(),

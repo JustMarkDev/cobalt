@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { globMatcher } from './glob'
 
-/** The regular expression the matcher replaced: the same answers, slowly. */
 function oldRegExp(glob: string) {
   let out = ''
   for (let i = 0; i < glob.length; i++) {

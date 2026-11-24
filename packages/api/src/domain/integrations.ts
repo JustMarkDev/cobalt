@@ -6,19 +6,12 @@ import { DomainPolicy } from './policy'
 
 export type ConnectionRec = {
   id: string
-  /** The last four characters of a key, to recognise it by. Never the key. */
   hint: string | null
-  /** A hash of the key, to tell a new one from the same one. */
   keyHash: string | null
   by: string
   connected: number
 }
 
-/**
- * Services connected to an account, and which of them each repository uses.
- * A repository can only use what its owner has connected; disconnecting turns
- * it off everywhere. Keys are kept as a hash and a hint, never shown again.
- */
 export abstract class DomainIntegrations extends DomainPolicy {
   readonly connections = new Map<string, Map<string, ConnectionRec>>()
   readonly repoIntegrations = new Map<string, Set<string>>()
@@ -30,7 +23,6 @@ export abstract class DomainIntegrations extends DomainPolicy {
     return i
   }
 
-  /** The account, if the viewer may manage its connections. */
   private managedAccount(handle: string, p: Viewer): AccountRec {
     const a = this.accounts.get(handle)
     if (!a || !p) throw apiError('not_found', `No account ${handle}.`)
@@ -137,7 +129,6 @@ export abstract class DomainIntegrations extends DomainPolicy {
     super.onRepoMoved(from, to)
     const set = this.repoIntegrations.get(from)
     this.repoIntegrations.delete(from)
-    // Services belong to the account, so they stay with the one it left.
     if (set && from.split('/')[0] === to.split('/')[0])
       this.repoIntegrations.set(to, set)
     this.integrationRev++

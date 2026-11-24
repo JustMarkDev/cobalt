@@ -1,5 +1,3 @@
-/** A tiny argument parser: `--flag`, `--key value`, `--key=value`, `-R value`, positionals. */
-
 export type Parsed = {
   positionals: Array<string>
   flags: Record<string, string | boolean>
@@ -14,7 +12,6 @@ const short: Record<string, string> = {
   h: 'help',
 }
 
-/** Flags that never take a value, so `--json foo` keeps `foo` positional. */
 const booleans = new Set([
   'json',
   'yes',

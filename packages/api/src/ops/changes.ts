@@ -115,7 +115,6 @@ export const listChanges = defineOp({
           expand: q.expand ? q.expand.split(',') : [],
         }),
       )
-      // The items are already JSON text; the pipeline joins them without parsing.
       return listOf(
         page.items as unknown as Array<z.infer<typeof S.Change>>,
         page.next,
@@ -260,7 +259,6 @@ export const updateChange = defineOp({
           ctx.ifMatch,
           ctx.dryRun,
         )
-        // A repository that lands by itself looks again after this write.
         if (!ctx.dryRun)
           await tryAutoLand(
             d,
@@ -389,7 +387,6 @@ export const createPatchSet = defineOp({
           ctx.body,
           ctx.dryRun,
         )
-        // A repository that lands by itself looks again after this write.
         if (!ctx.dryRun)
           await tryAutoLand(
             d,
@@ -506,7 +503,6 @@ export const createReview = defineOp({
           ctx.body,
           ctx.dryRun,
         )
-        // A repository that lands by itself looks again after this write.
         if (!ctx.dryRun)
           await tryAutoLand(
             d,
@@ -634,7 +630,6 @@ export const resolveFinding = defineOp({
           null,
           ctx.dryRun,
         )
-        // A repository that lands by itself looks again after this write.
         if (!ctx.dryRun)
           await tryAutoLand(
             d,
@@ -674,7 +669,6 @@ export const dismissFinding = defineOp({
           ctx.body.reason,
           ctx.dryRun,
         )
-        // A repository that lands by itself looks again after this write.
         if (!ctx.dryRun)
           await tryAutoLand(
             d,
@@ -761,7 +755,6 @@ export const reportCheck = defineOp({
           ctx.body,
           ctx.dryRun,
         )
-        // A repository that lands by itself looks again after this write.
         if (!ctx.dryRun)
           await tryAutoLand(
             d,
@@ -889,10 +882,8 @@ export const landChange = defineOp({
           ctx.dryRun,
         ),
       )
-      // A run the land triggered gets its labels from the workflow at its commit.
       if (!ctx.dryRun) yield* run((d) => settleRunsOn(d))
       if (!('operation' in out)) return out
-      // The operation's other answer (`accepted`), not its usual response.
       return reply(out.operation, {
         status: 202,
         headers: { location: out.operation.url },
@@ -930,7 +921,6 @@ const transitionOp = (
             action,
             ctx.dryRun,
           )
-          // A repository that lands by itself looks again after this write.
           if (!ctx.dryRun)
             await tryAutoLand(
               d,

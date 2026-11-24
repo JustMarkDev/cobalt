@@ -10,36 +10,13 @@ import type { Audience, Scope, TokenService } from './auth'
 
 const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
 
-/**
- * The OAuth server. It speaks the OAuth 2.1 profile, which is OAuth 2.0
- * (RFC 6749, 6750) with the practices that have since become mandatory:
- *
- *  - the authorization code flow only, and PKCE with S256 on every request
- *  - exact redirect URI matching, https or loopback only
- *  - no implicit flow, no password grant
- *  - refresh tokens that rotate, and revoke the whole grant if one is replayed
- *  - an authorization code that is used twice revokes what it produced
- *
- * Also built: the device authorization grant for the CLI (RFC 8628), dynamic
- * client registration (RFC 7591), revocation (RFC 7009), authorization server
- * metadata (RFC 8414), protected resource metadata (RFC 9728), resource
- * indicators (RFC 8707) and the `iss` response parameter (RFC 9207).
- *
- * One token works for the REST API and for MCP, because its audience names
- * both unless the client asked for one with `resource`.
- */
 export type SessionUser = { handle: string; name: string }
 
 export interface SessionResolver {
   current: (req: Request) => SessionUser | null | Promise<SessionUser | null>
-  /** Accounts a visitor may pick on the sign-in page. Empty: sign-in is not available. */
   logins: () => ReadonlyArray<SessionUser>
   start: (handle: string) => { cookie: string; csrf: string } | null
   csrf: (req: Request) => string | null
-  /**
-   * Where a signed-out visitor signs in, when that is the app's own page and
-   * not the account picker here. It is given the local path to come back to.
-   */
   signInUrl?: (returnTo: string) => string
 }
 
@@ -90,7 +67,6 @@ export class MemorySessions implements SessionResolver {
     const user = this.users.find((u) => u.handle === handle)
     if (!user) return null
     if (this.sessions.size >= MAX_SESSIONS) {
-      // Drop expired sessions first; if none are, drop the oldest.
       for (const [sid, session] of this.sessions)
         if (session.expires <= this.now()) this.sessions.delete(sid)
       while (this.sessions.size >= MAX_SESSIONS)
@@ -137,25 +113,18 @@ type Refresh = {
   clientId: string
 }
 
-/**
- * A device code. It moves only as `deviceLifecycle` allows, and only by a
- * swap from the state it was read in; polling writes `DevicePoll`, never this.
- */
 type Device = {
   userCode: string
   client: Client
   scopes: ReadonlyArray<Scope>
   audience: ReadonlyArray<Audience>
   expires: number
-  /** The interval it started with; `DevicePoll` keeps the current one. */
   interval: number
   status: DeviceStatus
   handle: string | null
-  /** The machine, as the client named it: shown on the approval page. */
   name?: string | null
 }
 
-/** How a device code is being polled: kept apart, so a poll never rewrites the code. */
 type DevicePoll = { interval: number; lastPoll: number }
 
 export type Guard = (
@@ -167,21 +136,12 @@ export type Guard = (
 
 export type OAuthOptions = {
   auth: TokenService
-  /** Where clients, codes and refresh tokens are kept. Default: this process. */
   state?: OAuthState
-  /** `https://cobaltforge.dev`: scheme and host, no path. */
   issuer: string
-  /** The API's full base URL, such as `https://cobaltforge.dev/api/v1`. Endpoints live under it. */
   apiBase: string
   resources: { api: string; mcp: string }
   sessions: SessionResolver
-  /**
-   * Whether a device login (`cb auth login`) may also be given
-   * `secrets:decrypt`, beyond `userScopes`. Default: yes. Set it to refuse,
-   * or make it refuse for some people, and their machines read no values.
-   */
   deviceDecrypt?: (handle: string) => boolean
-  /** The most a person may delegate. */
   userScopes?: (handle: string) => ReadonlyArray<Scope>
   now?: () => number
   guard?: Guard
@@ -221,7 +181,6 @@ const json = (
     headers: { 'content-type': 'application/json', ...noStore, ...headers },
   })
 
-/** OAuth requests are small. Read no more than this, with or without a Content-Length. */
 const MAX_FORM_BYTES = 64 * 1024
 async function readText(req: Request): Promise<string | null> {
   const declared = Number(req.headers.get('content-length') ?? '0')
@@ -259,7 +218,6 @@ async function formOf(req: Request): Promise<URLSearchParams | null> {
   return text === null ? null : new URLSearchParams(text)
 }
 
-/** A `return_to` must stay on this origin. Backslashes and control bytes are not paths. */
 function localReturn(to: string): boolean {
   if (!to.startsWith('/') || to.startsWith('//') || to.includes('\\'))
     return false
@@ -310,8 +268,6 @@ function validRedirect(uri: string): boolean {
     return (
       ['127.0.0.1', '[::1]', 'localhost'].includes(u.hostname) && !u.username
     )
-  // A native app's reverse-DNS scheme, such as com.example.app:/callback.
-  // The dot requirement already excludes bare schemes; the list is defence in depth.
   if (dangerousSchemes.has(u.protocol)) return false
   return /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/.test(u.protocol)
 }
@@ -332,9 +288,6 @@ const page = (
           "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
         'x-frame-options': 'DENY',
         'x-content-type-options': 'nosniff',
-        // same-origin, not no-referrer: with no-referrer a browser posts this
-        // page's own forms with `Origin: null`, and the same-origin check
-        // refuses them. Codes in the URL still never reach another site.
         'referrer-policy': 'same-origin',
         ...noStore,
         ...extra,
@@ -358,8 +311,6 @@ export class OAuthServer {
   metadataUrl() {
     return `${this.o.issuer}/.well-known/oauth-protected-resource`
   }
-
-  // ----- discovery --------------------------------------------------------
 
   metadata() {
     return {
@@ -399,8 +350,6 @@ export class OAuthServer {
     return { ...this.protectedResource(), resource: this.o.resources.mcp }
   }
 
-  // ----- entry ------------------------------------------------------------
-
   async handle(req: Request, rest: string): Promise<Response | null> {
     const m = req.method
     await this.sweep()
@@ -417,7 +366,6 @@ export class OAuthServer {
     return null
   }
 
-  /** Set by the API that mounts this server, so limits share its limiter. */
   guardWith: Guard | undefined
 
   private async guard(
@@ -437,8 +385,6 @@ export class OAuthServer {
   private sweep() {
     return this.state.sweep(this.now())
   }
-
-  // ----- registration (RFC 7591) -------------------------------------------
 
   private async register(req: Request) {
     const limited = await this.guard(req, 'oauth-register', 20, 3_600_000)
@@ -517,8 +463,6 @@ export class OAuthServer {
       201,
     )
   }
-
-  // ----- helpers -----------------------------------------------------------
 
   private parseScopes(
     raw: string | null | undefined,
@@ -604,8 +548,6 @@ export class OAuthServer {
   private async signIn(req: Request) {
     const limited = await this.guard(req, 'oauth-session', 30, 60_000)
     if (limited) return limited
-    // A state-changing form must come from this origin. Browsers always send
-    // Origin on a POST; a request without one is not a browser sign-in.
     if (req.headers.get('origin') !== this.o.issuer)
       return page('Error', '<h1>Request refused</h1>', 403)
     const form = await formOf(req)
@@ -625,8 +567,6 @@ export class OAuthServer {
     return !origin || origin === this.o.issuer
   }
 
-  // ----- authorization code (RFC 6749, 7636, 8707, 9207) ----------------------
-
   private async authorize(req: Request): Promise<Response> {
     const limited = await this.guard(req, 'oauth-authorize', 120, 60_000)
     if (limited) return limited
@@ -638,7 +578,6 @@ export class OAuthServer {
       p.get('client_id') ?? '',
     )
     const redirectUri = p.get('redirect_uri') ?? ''
-    // Until the client and redirect are known to be good, never redirect.
     if (!client || !client.redirectUris.includes(redirectUri))
       return page(
         'Error',
@@ -749,7 +688,6 @@ export class OAuthServer {
         headers: { location: to.toString(), ...noStore },
       })
     }
-    // A web application never gets values, whatever a person may delegate.
     const scopes = pending.scopes.filter(
       (s) => this.maxScopes(user.handle).includes(s) && oauthScopes.includes(s),
     )
@@ -774,8 +712,6 @@ export class OAuthServer {
       headers: { location: to.toString(), ...noStore },
     })
   }
-
-  // ----- tokens ---------------------------------------------------------------
 
   private async issue(
     authorizationId: string,
@@ -848,7 +784,6 @@ export class OAuthServer {
       )
     if (!code || code.expires < this.now()) return bad()
     if (code.used) {
-      // A code used twice means it leaked: take back what it produced.
       if (code.authorizationId)
         await this.o.auth.revokeAuthorization(code.authorizationId)
       return bad()
@@ -878,7 +813,6 @@ export class OAuthServer {
         )
       audience = aud
     }
-    // Of two requests with the same code at once, only one gets past here.
     const was = await this.state.use<Code>('code', key)
     if (!was || was.used) return bad()
     const a = await this.o.auth.createAuthorization({
@@ -920,7 +854,6 @@ export class OAuthServer {
     const a = await this.o.auth.getAuthorization(r.authorizationId)
     if (!a || a.revokedAt !== null) return bad()
     if (r.used) {
-      // A refresh token used twice was copied. Revoke the whole grant.
       await this.o.auth.revokeAuthorization(a.id)
       return bad()
     }
@@ -957,8 +890,6 @@ export class OAuthServer {
     )
   }
 
-  // ----- revocation (RFC 7009) ----------------------------------------------------
-
   private async revoke(req: Request): Promise<Response> {
     const limited = await this.guard(req, 'oauth-revoke', 120, 60_000)
     if (limited) return limited
@@ -978,11 +909,8 @@ export class OAuthServer {
       )
         await this.o.auth.revokeAuthorization(found.record.authorizationId)
     }
-    // Always 200: the caller learns nothing about which tokens exist.
     return new Response(null, { status: 200, headers: noStore })
   }
-
-  // ----- device authorization (RFC 8628) -----------------------------------------------
 
   private async deviceAuthorization(req: Request): Promise<Response> {
     const limited = await this.guard(req, 'oauth-device', 30, 60_000)
@@ -1078,7 +1006,6 @@ export class OAuthServer {
         'authorization_pending',
         'Waiting for the person to approve.',
       )
-    // Of two polls at once, only one turns the approval into a token.
     const was = await this.state.use<Device & { used?: boolean }>(
       'device',
       hash,
@@ -1128,7 +1055,6 @@ export class OAuthServer {
       form.get('csrf') !== this.o.sessions.csrf(req)
     )
       return page('Error', '<h1>Request refused</h1>', 403)
-    // Guessing codes is the attack here: slow it down per address.
     const limited = await this.guard(req, 'oauth-user-code', 10, 15 * 60_000)
     if (limited)
       return page(
@@ -1146,8 +1072,6 @@ export class OAuthServer {
     const decision = form.get('decision')
     if (decision === 'approve' || decision === 'deny') {
       const to: DeviceStatus = decision === 'approve' ? 'approved' : 'denied'
-      // Moved only from the state it was read in: of two answers at once,
-      // one counts, and nothing else ever writes the code back.
       const moved =
         canMove(deviceLifecycle, d.status, to) &&
         (await this.state.swap(
@@ -1159,10 +1083,6 @@ export class OAuthServer {
             ...d,
             status: to,
             handle: user.handle,
-            // What the person may delegate, and values only to a machine
-            // they sign in themselves.
-            // Values only to a machine the person signs in, and only as
-            // `deviceDecrypt` allows: it alone decides that scope.
             scopes: d.scopes.filter((s) =>
               s === 'secrets:decrypt'
                 ? (this.o.deviceDecrypt?.(user.handle) ?? true)

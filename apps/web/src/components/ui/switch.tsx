@@ -16,7 +16,6 @@ function Switch({ className, ...props }: SwitchPrimitive.Root.Props) {
   )
 }
 
-/** A switch with its label and a one-line explanation beside it. */
 function SwitchRow({
   checked,
   onChange,

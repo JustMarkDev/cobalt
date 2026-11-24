@@ -48,7 +48,6 @@ function Variables({
             const has = v.set[env]
             const needed = v.required.includes(env)
             return (
-              // A missing required value is the one thing here that needs doing, so it stands out.
               <tr key={v.name} className={cn(!has && needed && 'bg-danger/5')}>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2 font-mono text-xs font-semibold">
@@ -188,12 +187,6 @@ type Confirmation = {
   created_at: string
 }
 
-/**
- * Production values wait for the person to confirm the login that asked,
- * from here: a page you are signed in to, which a token cannot reach. A link
- * from `cb` (`?confirm=cnf_…`) opens the request; nothing is confirmed until
- * you press the button.
- */
 function Confirmations({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const write = useWrite()
@@ -299,7 +292,6 @@ function Confirmations({ repo }: { repo: Repo }) {
   )
 }
 
-/** Who reads values: the team, through their own logins. Nobody else. */
 function WhoReads({ repo }: { repo: Repo }) {
   return (
     <Panel className="space-y-3 p-5 text-sm">
@@ -378,7 +370,6 @@ export function SecretsPage({ repo }: { repo: Repo }) {
     by: v.rotated_by ?? '',
   }))
   const [rotating, setRotating] = React.useState<EnvVar | null>(null)
-  // The audit log is the team's: anyone else sees the names and no log.
   const events: Array<AuditEvent> | null =
     useOpMaybe('env.audit', at)?.data.map((a) => ({
       when: timeAgo(a.at),
@@ -387,7 +378,6 @@ export function SecretsPage({ repo }: { repo: Repo }) {
       target: a.target ?? '',
       kind: a.kind ?? 'read',
     })) ?? null
-  // The schema file, as the variables say it.
   const envSchema = vars
     .map(
       (v) =>

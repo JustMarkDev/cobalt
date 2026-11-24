@@ -16,9 +16,7 @@ import type {
 } from './records'
 import { DomainTeams } from './teams'
 
-/** Issues. */
 export abstract class DomainIssues extends DomainTeams {
-  /** Drop finished operations after a week. */
   sweepOperations() {
     const cutoff = this.now() - 7 * 86_400_000
     for (const [id, op] of this.operations)
@@ -108,7 +106,6 @@ export abstract class DomainIssues extends DomainTeams {
       closed: null,
       version: 1,
     }
-    // The same object goes into the event and the answer, so it is built once.
     const shown = this.presentIssue(repo, issue)
     if (!dry) {
       repo.nextNumber++
@@ -202,10 +199,6 @@ export abstract class DomainIssues extends DomainTeams {
     return this.presentIssue(repo, preview)
   }
 
-  /**
-   * The actors named by handle, if each may be given the issue: someone who
-   * can read the repository. Unknown and unable handles are a 400.
-   */
   protected assignable(repo: RepoRec, list: Array<string>): Array<ActorRec> {
     const out: Array<ActorRec> = []
     for (const [k, h] of list.entries()) {
@@ -230,8 +223,6 @@ export abstract class DomainIssues extends DomainTeams {
     }
     return out
   }
-
-  // ---- labels ---------------------------------------------------------------
 
   async listLabels(owner: string, name: string, p: Viewer) {
     const repo = this.resolve(owner, name, p)
@@ -332,7 +323,6 @@ export abstract class DomainIssues extends DomainTeams {
     }
     if (dry) return this.presentLabel(repo, next)
     if (renamed) {
-      // Issues carry the name, so a rename follows it onto every issue.
       for (const i of repo.issues.values()) {
         const k = i.labels.indexOf(l.name)
         if (k < 0) continue
@@ -370,8 +360,6 @@ export abstract class DomainIssues extends DomainTeams {
     repo.labelRev++
   }
 
-  // ---- comments -------------------------------------------------------------
-
   protected issueOf(repo: RepoRec, n: number) {
     const i = repo.issues.get(n)
     if (!i)
@@ -405,8 +393,6 @@ export abstract class DomainIssues extends DomainTeams {
     const repo = this.resolve(owner, name, p)
     const i = this.issueOf(repo, n)
     const all = i.comments ?? []
-    // Oldest first. The cursor is the last comment sent, by position and id,
-    // so a comment deleted before it moves the page back by one, never skips.
     let start = 0
     if (q.after) {
       const k = all.findIndex((c) => c.id === q.after!.id)
@@ -437,7 +423,6 @@ export abstract class DomainIssues extends DomainTeams {
     body: { body: string },
     dry: boolean,
   ) {
-    // Anyone who can read the repository may comment on its issues.
     const repo = this.resolve(owner, name, p)
     const i = this.issueOf(repo, n)
     const at = this.now()
@@ -525,8 +510,6 @@ export abstract class DomainIssues extends DomainTeams {
     repo.issueRev++
   }
 
-  // ---- evidence -------------------------------------------------------------
-
   protected presentIssueEvidence(i: IssueRec, e: EvidenceRec, u: UploadRec) {
     return {
       object: 'issue_evidence' as const,
@@ -546,7 +529,6 @@ export abstract class DomainIssues extends DomainTeams {
     }
   }
 
-  /** Anyone who can read the repository may show what they saw on an issue. */
   async addIssueEvidence(
     owner: string,
     name: string,

@@ -1,14 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
-/**
- * Every public Convex function can be called by anyone who has the
- * deployment's URL, and the URL ships in the web app. So each one either asks
- * who is calling before it reads anything, or is listed here with the reason
- * it may answer anyone. A function the API calls "as the system" must say so
- * itself with `system(ctx)`; the API calling it that way protects nothing.
- */
-// `payer` is an action's way to ask: it runs a query that calls `signedIn`.
 const guard =
   /\b(signedIn|actorOf|system|resolve|who|assertSecret|bodyOf|payer)\(/
 
@@ -92,7 +84,6 @@ describe('an anonymous caller', () => {
 
   test('sees no private repository’s name or id', async () => {
     const q = await world()
-    // dana/notes is private in the sample.
     const repos = JSON.parse(
       (await q('forge/people:profileRepos', {
         handle: 'dana',

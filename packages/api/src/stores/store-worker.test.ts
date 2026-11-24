@@ -4,7 +4,6 @@ import { MemoryBlobStore } from '../uploads'
 import { StoreWorker } from './store-worker'
 import type { ConvexCall } from './convex'
 
-/** A Convex that holds the queue in an array and records what it is told. */
 function fakeConvex(
   sweeps: Array<{ id: string; kind: 'git' | 'blob'; key: string }>,
   measure: Array<string> = [],
@@ -97,7 +96,6 @@ describe('the store worker', () => {
     ).toMatchObject({
       bytes: 4096,
     })
-    // The same window is not reported again.
     expect((await w.tick()).transferred).toBe(0)
   })
 })

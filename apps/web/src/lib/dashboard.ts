@@ -1,7 +1,3 @@
-/**
- * The dashboard was designed on `mock/dashboard`'s shape. This turns the API's
- * dashboard and the account's repositories into it.
- */
 import type { LinkProps } from '@tanstack/react-router'
 import type { Repo as ApiRepo, Dashboard } from '@cobaltforge/sdk'
 import type { Activity, DashboardData, Health } from '~/lib/model/dashboard'
@@ -9,7 +5,6 @@ import { timeAgo, toRepo } from '~/lib/repo'
 
 const DAY = 86_400_000
 
-/** A path the API gave, such as `/dana/gitfs/issues?n=4`, as a link. */
 function linkTo(path: string): LinkProps {
   const [to, query = ''] = path.split('?')
   return {
@@ -25,7 +20,6 @@ const hostName: Record<string, string> = {
   gitea: 'Gitea',
 }
 
-/** An event, in words. */
 function said(
   type: string,
   n: number | null,

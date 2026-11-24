@@ -198,7 +198,6 @@ export const putUpload = defineOp({
       const { run } = yield* Domain
       return yield* run(async (d) => {
         const rec = await d.svc.uploads.get(ctx.params.id)
-        // An unknown id and a bad signature look the same.
         if (!rec || !d.svc.uploads.verify(rec, ctx.query.exp, ctx.query.sig))
           throw apiError(
             'signature_invalid',
@@ -260,8 +259,6 @@ export const getUpload = defineOp({
       const { run } = yield* Domain
       return yield* run(async (d) => {
         const rec = await d.svc.uploads.get(ctx.params.id)
-        // A repository-limited token cannot use ownership to step around the
-        // repository limit of an attached upload.
         const mine =
           rec &&
           rec.owner === ctx.principal!.handle &&

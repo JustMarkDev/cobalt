@@ -18,7 +18,6 @@ const p99 = (xs: Array<number>) =>
 const p50 = (xs: Array<number>) =>
   [...xs].sort((a, b) => a - b)[Math.floor(xs.length * 0.5)]
 
-/** A shared store that counts how often it is asked. */
 function counted() {
   const inner = new MemoryLimitStore()
   const store = {
@@ -43,9 +42,7 @@ describe('rate limits across many nodes', () => {
       if (d.allowed) admitted++
     }
     expect(admitted).toBeLessThanOrEqual(1000)
-    // Units leased and not spent are lost until the window ends: at most nodes * lease.
     expect(admitted).toBeGreaterThanOrEqual(1000 - 4 * 50)
-    // 3000 requests, but the shared store saw a small fraction of them.
     expect(store.calls).toBeLessThan(60)
   })
 
@@ -93,7 +90,6 @@ describe('rate limits across many nodes', () => {
       limit: 5,
       window_seconds: 60,
     })
-    // Another token has its own budget; so does an anonymous caller.
     expect(
       (await h.call('GET', '/repos', { token: h.tokens.hollis })).status,
     ).toBe(200)
@@ -118,7 +114,6 @@ describe('rate limits across many nodes', () => {
         anonymous: pool,
       },
     })
-    // A second token for the same login, as a script or an OAuth sign-in would hold.
     const other = await h.api.port.svc.auth.create({
       name: 'second',
       kind: 'personal',
@@ -128,10 +123,8 @@ describe('rate limits across many nodes', () => {
     })
     for (let i = 0; i < 3; i++)
       expect((await h.call('GET', '/repos')).status).toBe(200)
-    // Minting a token does not buy requests.
     const denied = await h.call('GET', '/repos', { token: other.secret })
     expect(denied.status).toBe(429)
-    // Another person still has their own.
     expect(
       (await h.call('GET', '/repos', { token: h.tokens.hollis })).status,
     ).toBe(200)
@@ -148,7 +141,6 @@ describe('rate limits across many nodes', () => {
         anonymous: pool,
       },
     })
-    // Our proxy appends the real address last. Whatever comes before it is the caller's claim.
     const as = (claimed: string) => ({
       'x-forwarded-for': `${claimed}, 9.9.9.9`,
     })
@@ -237,7 +229,6 @@ describe('rate limits across many nodes', () => {
     expect(results.find((r) => r.status === 429)!.json.code).toBe(
       'concurrency_limited',
     )
-    // And the slots are free again.
     expect((await h.call('GET', '/slow')).status).toBe(200)
   })
 
@@ -262,7 +253,6 @@ describe('rate limits across many nodes', () => {
     })
     expect(second.headers.get('cb-replayed')).toBe('true')
     expect(second.json.id).toBe(first.json.id)
-    // Each node alone would admit 4 reads; together they admit 4.
     let admitted = 0
     for (let i = 0; i < 8; i++)
       if ((await [a, b][i % 2].call('GET', '/repos')).status === 200) admitted++
@@ -310,7 +300,6 @@ describe('speed (generous bounds; scripts/api-bench.ts prints the real numbers)'
     })
     const base = '/repos/dana/huge/changes?state=all&limit=50'
     const firstPage = await h.call('GET', base)
-    // Walk to the last page, remembering a deep cursor.
     let cursor: string | null = firstPage.json.next_cursor
     let deep = cursor
     for (let i = 0; i < 150 && cursor; i++) {
@@ -487,7 +476,6 @@ describe('what keeps it fast must not make it wrong', () => {
         'etag',
       ),
     )
-    // The same list for someone who cannot do anything must not carry dana's abilities.
     const anon = (await h.call('GET', url, { token: null })).json.data.find(
       (c: { number: number }) => c.number === 212,
     )
@@ -496,7 +484,6 @@ describe('what keeps it fast must not make it wrong', () => {
     )
     expect(anon.actions.abandon.allowed).toBe(false)
     expect(mine.actions.abandon.allowed).toBe(true)
-    // And a conditional request on the list answers 304 until something in it moves.
     const etag = (await h.call('GET', url)).headers.get('etag')!
     expect(
       (await h.call('GET', url, { headers: { 'if-none-match': etag } })).status,
@@ -520,7 +507,6 @@ describe('what keeps it fast must not make it wrong', () => {
       body: { key: 'ci/test', state: 'pass', tree: '9c4d7e1' },
     })
     expect((await state()).state).toBe('met')
-    // A new patch set that rewrites the code takes the approval and the evidence with it.
     await h.call('POST', `${REPO}/changes/216/patch-sets`, {
       body: { sha: 'ccccccc3', kind: 'update' },
     })
@@ -575,12 +561,9 @@ describe('what keeps it fast must not make it wrong', () => {
     console.log(
       `  500 issues into 20,000: ${issues.toFixed(0)} ms; 300 pushes by branch into 20,000 changes: ${changes.toFixed(0)} ms`,
     )
-    // A scan of 20,000 per write would take seconds. Generous: well under a second each.
-    // On Convex every call is a whole transaction in convex-test, so the budget is per call there.
     const budget = onConvex ? 100 * 500 : 1500
     expect(issues).toBeLessThan(budget)
     expect(changes).toBeLessThan(budget)
-    // Duplicates are still found: that is what the index is for.
     expect(
       (
         await h.call('POST', '/repos/dana/big/issues', {
@@ -588,7 +571,6 @@ describe('what keeps it fast must not make it wrong', () => {
         })
       ).headers.get('cb-outcome'),
     ).toBe('unchanged')
-    // Closing frees the title; renaming moves it.
     expect(
       (
         await h.call('POST', '/repos/dana/big/issues', {
@@ -668,7 +650,6 @@ describe('what keeps it fast must not make it wrong', () => {
   })
 
   test('a search kept across writes gives the answer a fresh search would', () => {
-    // A small vocabulary, so that documents and queries collide a lot.
     const vocab = [
       'cache',
       'cachet',
@@ -717,7 +698,6 @@ describe('what keeps it fast must not make it wrong', () => {
     ].map(parseQuery)
     const all = () => true
     for (let step = 0; step < 600; step++) {
-      // Mostly new documents, some rewrites of old ones.
       const i = rnd() < 0.7 ? step : Math.floor(rnd() * (step + 1))
       const doc = make(i, step)
       docs.set(doc.key, doc)

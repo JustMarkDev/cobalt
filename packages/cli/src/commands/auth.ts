@@ -19,8 +19,6 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
     : null
   const token = process.env.CB_TOKEN ?? saved?.access_token
   if (sub === 'status') {
-    // Over the network the token is checked by asking who it is. In the preview
-    // there is no server to ask, so a token in the environment is enough.
     const authenticated = !!token
     let account: string | null = null
     let login: string | null = null
@@ -37,7 +35,6 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
       host: network ? apiConfig.value : resolve('host').value,
       authenticated,
       via: process.env.CB_TOKEN ? 'CB_TOKEN' : saved ? 'credentials' : null,
-      // Who the token acts as, once signed in. `cb account list` shows the others.
       account,
       login,
       scopes,
@@ -54,7 +51,6 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
     const api = resolve('api').value
     const c = api ? readCredentials(api.replace(/\/$/, '')) : null
     if (c) {
-      // Tell the server first, so a stolen copy of the file stops working too.
       await fetch(`${api.replace(/\/$/, '')}/oauth/revoke`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -75,7 +71,6 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
   )
 }
 
-/** The device authorization grant: show a code, wait while the person approves it in a browser. */
 export async function signIn(
   ctx: Ctx,
   flags: Parsed['flags'],
@@ -84,8 +79,6 @@ export async function signIn(
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   },
 ) {
-  // With no API set, sign in to the host's own (https://cobaltforge.dev/api/v1
-  // by default) and remember it, so every later command talks to it too.
   const given = resolve('api').value.replace(/\/$/, '')
   const api = given || `${resolve('host').value.replace(/\/$/, '')}/api/v1`
   const form = (data: Record<string, string>) => ({
@@ -120,9 +113,6 @@ export async function signIn(
     typeof flags.scope === 'string'
       ? flags.scope
       : 'repo:read repo:write issues:read issues:write issues:comment pulls:read pulls:write pulls:comment pulls:merge secrets:schema secrets:write secrets:decrypt'
-  // The machine's name goes on every receipt this login writes (public in a
-  // public repository) and on the approval page. Not the hostname, which is
-  // often a person's name: the system, unless you name it with --device.
   const device =
     typeof flags.device === 'string'
       ? flags.device
@@ -145,7 +135,6 @@ export async function signIn(
       exit.error,
     )
   const d = started.json
-  // This goes to stderr: stdout stays clean for scripts.
   ctx.err(
     `Open ${d.verification_uri_complete}\nand check the code is ${d.user_code}`,
   )

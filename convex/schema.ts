@@ -1,35 +1,22 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
-/**
- * Repositories belong to an account. An account is a person or an
- * organization, and both live in one namespace (`cobaltforge.dev/<handle>`), so a
- * name can never mean two things. A login is a person; a person can be a
- * member of any number of organizations and acts as one account at a time.
- */
 export const role = v.union(
   v.literal('owner'),
   v.literal('admin'),
   v.literal('member'),
 )
 
-/**
- * Legacy: actors once had a class (human, agent, bot). Nothing writes it any
- * more and nothing reads it; old documents may still carry it until a
- * migration drops it.
- */
 const legacyClass = v.optional(
   v.union(v.literal('human'), v.literal('agent'), v.literal('bot')),
 )
 
-/** How a write got here: machine, tool and declared model. */
 export const viaRef = v.object({
   machine: v.union(v.null(), v.string()),
   tool: v.union(v.null(), v.string()),
   model: v.union(v.null(), v.string()),
 })
 
-/** Who did something, as events and records show it. */
 export const actorRef = v.object({
   id: v.string(),
   handle: v.string(),
@@ -39,13 +26,10 @@ export const actorRef = v.object({
 export default defineSchema({
   accounts: defineTable({
     kind: v.union(v.literal('person'), v.literal('organization')),
-    // The address in every URL. Generated for new accounts, changeable.
     handle: v.string(),
-    // A person's full name, or an organization's name.
     name: v.string(),
     bio: v.string(),
     now: v.optional(v.string()),
-    // How a person works with agents. Organizations have none.
     setup: v.optional(
       v.object({
         agents: v.array(v.string()),
@@ -53,22 +37,12 @@ export default defineSchema({
         tools: v.array(v.string()),
       }),
     ),
-    // The sign-in user this person is (`auth.ts`). Organizations and the
-    // seeded sample accounts have none.
     authId: v.optional(v.string()),
-    // The public id (`acc_...`). Ours, never the database's own.
     publicId: v.string(),
     created: v.number(),
     updated: v.number(),
-    // Rises when the name, the bio or the members change.
     version: v.number(),
-    // Rises when who may see what changes in this account: members, teams,
-    // a repository's visibility or collaborators. Versions of what the
-    // account owns include it, so a cached answer cannot outlive access.
     aclRev: v.number(),
-    // Set when the person asked to delete this account. Until `purgeAt` the
-    // account is read-only and the request can be taken back; after it the
-    // account and what it owns are erased (`deletion.ts`).
     deletionRequested: v.optional(v.number()),
     purgeAt: v.optional(v.number()),
   })
@@ -77,26 +51,19 @@ export default defineSchema({
     .index('by_publicId', ['publicId'])
     .index('by_purgeAt', ['purgeAt']),
 
-  // The paid plan of an account. One row per account, written by the payment
-  // provider's webhook (`plans.ts`). A row that ended stays, as `lapsed`, so
-  // the 90 days history is kept from the moment it ended can be counted.
   subscriptions: defineTable({
     accountId: v.id('accounts'),
     plan: v.union(v.literal('solo'), v.literal('team'), v.literal('business')),
     status: v.union(v.literal('active'), v.literal('lapsed')),
     seats: v.optional(v.number()),
-    // The end of the period paid for, as the provider reports it.
     periodEnd: v.optional(v.number()),
     lapsedAt: v.optional(v.number()),
     provider: v.optional(v.string()),
     providerRef: v.optional(v.string()),
-    // The provider's own time for the event that wrote this row.
     eventAt: v.optional(v.number()),
     updated: v.number(),
   }).index('by_accountId', ['accountId']),
 
-  // A plan given to one account by hand, to try the product. It always has
-  // an end. Only an operator makes one, from the command line.
   planGrants: defineTable({
     accountId: v.id('accounts'),
     plan: v.union(v.literal('solo'), v.literal('team'), v.literal('business')),
@@ -107,16 +74,11 @@ export default defineSchema({
     revoked: v.optional(v.number()),
   }).index('by_accountId', ['accountId']),
 
-  // Addresses of deleted accounts, as a hash, so nobody can sign up as
-  // someone who was here. The address itself is not kept.
   retiredHandles: defineTable({ hash: v.string(), retired: v.number() }).index(
     'by_hash',
     ['hash'],
   ),
 
-  // How big a repository's git store is, as the store reports it. Kept
-  // apart from `repos` so a repository's own writes never touch it. `stale`
-  // means a push landed since it was measured.
   repoSizes: defineTable({
     repoId: v.id('repos'),
     storeId: v.string(),
@@ -128,8 +90,6 @@ export default defineSchema({
     .index('by_storeId', ['storeId'])
     .index('by_stale_and_measured', ['stale', 'measured']),
 
-  // What an account moved this month, for the plan's transfer allowance.
-  // One row per account and month.
   accountUsage: defineTable({
     accountId: v.id('accounts'),
     month: v.string(),
@@ -137,10 +97,6 @@ export default defineSchema({
     pushBytes: v.number(),
   }).index('by_accountId_and_month', ['accountId', 'month']),
 
-  // Things outside Convex that must be deleted, queued by an account or
-  // repository erasure and taken by the store worker on the API server
-  // (`storeWorker.ts`). `key` is an opaque store or upload id, never a name.
-  // `lease` is until when a worker holds it; 0 is free.
   sweeps: defineTable({
     kind: v.union(v.literal('git'), v.literal('blob')),
     key: v.string(),
@@ -148,9 +104,6 @@ export default defineSchema({
     lease: v.number(),
   }).index('by_kind_and_lease', ['kind', 'lease']),
 
-  // Handles that act without an account of their own here, such as a review
-  // service. People and organizations are accounts; their actor id is the
-  // account's.
   actors: defineTable({
     key: v.string(),
     publicId: v.string(),
@@ -158,8 +111,6 @@ export default defineSchema({
     class: legacyClass,
   }).index('by_key', ['key']),
 
-  // Who belongs to which organization, and what they may do there. An
-  // organization always has at least one owner.
   memberships: defineTable({
     organizationId: v.id('accounts'),
     personId: v.id('accounts'),
@@ -168,13 +119,11 @@ export default defineSchema({
     .index('by_organizationId_and_personId', ['organizationId', 'personId'])
     .index('by_personId', ['personId']),
 
-  // Invitations by email that were not accepted yet.
   invitations: defineTable({
     publicId: v.string(),
     organizationId: v.id('accounts'),
     email: v.string(),
     role,
-    // Hash of the secret in the emailed link. The secret is never kept.
     secretHash: v.string(),
     invitedBy: v.string(),
     created: v.number(),
@@ -185,8 +134,6 @@ export default defineSchema({
     .index('by_secretHash', ['secretHash'])
     .index('by_publicId', ['publicId']),
 
-  // Old addresses. A renamed account keeps answering at its old address by
-  // redirecting, and nobody else can take the name.
   handleAliases: defineTable({
     handle: v.string(),
     accountId: v.id('accounts'),
@@ -194,12 +141,10 @@ export default defineSchema({
 
   repos: defineTable({
     publicId: v.string(),
-    // The immutable git store key. A rename keeps it.
     storeId: v.string(),
     ownerId: v.id('accounts'),
     owner: v.string(),
     name: v.string(),
-    // `owner/name` in lowercase, for lookups that ignore case.
     key: v.string(),
     description: v.string(),
     visibility: v.union(v.literal('public'), v.literal('private')),
@@ -226,7 +171,6 @@ export default defineSchema({
     website: v.union(v.null(), v.string()),
     docsUrl: v.union(v.null(), v.string()),
     collaborators: v.array(v.string()),
-    // Legacy: bot installs. Never read.
     installs: v.optional(v.array(v.string())),
     maintainers: v.array(v.string()),
     maintainerGrants: v.array(v.string()),
@@ -237,23 +181,15 @@ export default defineSchema({
         set: v.array(v.string()),
       }),
     ),
-    // Sample data only: invent believable facts for commits no change landed.
     sampleFacts: v.optional(v.boolean()),
-    // Legacy: run transcripts and the `Run-Id:` trailer. Never read.
     transcripts: v.optional(v.union(v.literal('off'), v.literal('on'))),
     runTrailer: v.optional(
       v.union(v.literal('auto'), v.literal('on'), v.literal('off')),
     ),
-    // Declared models this repository takes no changes from.
     declinedModels: v.optional(v.array(v.string())),
-    // Land a change by itself once it can, under this account's name.
     autoLand: v.optional(v.union(v.null(), v.object({ by: v.string() }))),
-    // When it last changed hands. A token limited to it from before then
-    // no longer reaches it: it was given by the old owner.
     ownerSince: v.optional(v.number()),
-    // Accounts the owners trust: their changes come first.
     vouched: v.optional(v.array(v.string())),
-    // Accounts that may not open changes or issues here.
     denounced: v.optional(
       v.array(v.object({ handle: v.string(), reason: v.string() })),
     ),
@@ -274,15 +210,10 @@ export default defineSchema({
     .index('by_created_and_publicId', ['created', 'publicId'])
     .index('by_updated', ['updated']),
 
-  // The busy numbers of a repository, apart from the repository itself, so
-  // a new issue does not wake every page that only read the repository.
-  // One small document per repository: every new change and issue writes it.
   repoCounters: defineTable({
     repoId: v.id('repos'),
     nextNumber: v.number(),
-    // The repository's own event sequence: gapless, 1, 2, 3...
     seq: v.number(),
-    // Bumped by every event, and per collection.
     rev: v.number(),
     changeRev: v.number(),
     issueRev: v.number(),
@@ -290,7 +221,6 @@ export default defineSchema({
     policyRev: v.number(),
     openChanges: v.number(),
     openIssues: v.number(),
-    // Pipeline runs: how many, the highest number, and a revision for lists.
     pipelines: v.optional(v.number()),
     pipelineNumber: v.optional(v.number()),
     pipelineRev: v.optional(v.number()),
@@ -298,20 +228,16 @@ export default defineSchema({
     triggersRev: v.optional(v.number()),
   }).index('by_repoId', ['repoId']),
 
-  // A renamed or transferred repository keeps answering at its old address.
   repoAliases: defineTable({
-    // Lowercase `owner/name`.
     from: v.string(),
     to: v.string(),
   })
     .index('by_from', ['from'])
     .index('by_to', ['to']),
 
-  // A deleted repository's history stays readable by who administered it.
   deletedRepos: defineTable({
     publicId: v.string(),
     full: v.string(),
-    // `full` in lowercase.
     key: v.string(),
     owner: v.string(),
     deleted: v.number(),
@@ -358,34 +284,22 @@ export default defineSchema({
     .index('by_teamId_and_repoId', ['teamId', 'repoId'])
     .index('by_repoId', ['repoId']),
 
-  // Every write's one event. `seq` is the repository's own sequence;
-  // account-level events have no repository and use their account's.
   forgeEvents: defineTable({
-    // The repository's public id, or `~handle` for an account's own events.
     stream: v.string(),
-    // Gapless within the stream: 1, 2, 3...
     seq: v.number(),
     type: v.string(),
     repo: v.union(v.null(), v.string()),
     repoId: v.union(v.null(), v.string()),
     created: v.number(),
-    // The event as the API shows it, as JSON text (`EventRecord`).
     json: v.string(),
-    // Its place in the whole feed, gapless. A write leaves it null and the
-    // sequencer (`forge/events:sequence`) numbers events in the order it finds
-    // them, so no two writes ever wait on one counter. Readers only see
-    // events that have a number.
     sequence: v.union(v.null(), v.number()),
   })
     .index('by_stream_and_seq', ['stream', 'seq'])
     .index('by_sequence', ['sequence'])
     .index('by_created', ['created']),
 
-  // State changes of changes and issues (opened, landed, closed...), by what
-  // they happened to, so a timeline reads them without reading the feed.
   stateChanges: defineTable({
     repoId: v.id('repos'),
-    // `change:216` or `issue:4`.
     subject: v.string(),
     to: v.string(),
     at: v.number(),
@@ -394,8 +308,6 @@ export default defineSchema({
     via: v.optional(viaRef),
   }).index('by_repoId_and_subject_and_at', ['repoId', 'subject', 'at']),
 
-  // The issues a change names (`Fixes #4`, `Refs #4`), kept on every write
-  // of the change, so an issue's timeline finds the changes that link it.
   issueRefs: defineTable({
     repoId: v.id('repos'),
     issue: v.number(),
@@ -405,26 +317,18 @@ export default defineSchema({
     .index('by_repoId_and_issue', ['repoId', 'issue'])
     .index('by_changeId', ['changeId']),
 
-  // The feed's head: the last sequence handed out. Only the sequencer writes it.
   eventHead: defineTable({ head: v.number() }),
 
-  // Rises whenever who may see what changes anywhere: rare writes (members,
-  // teams, visibility), read by API servers so a cached answer never
-  // outlives the access it was made under.
   accessRevision: defineTable({ rev: v.number() }),
-
-  // ---- Issues ----------------------------------------------------------------
 
   labels: defineTable({
     repoId: v.id('repos'),
     publicId: v.string(),
     name: v.string(),
-    // `name` in lowercase: a repository has one label per name, any case.
     key: v.string(),
     color: v.string(),
     description: v.string(),
     created: v.number(),
-    // Open issues with this label, kept up to date on every issue write.
     openIssues: v.number(),
   }).index('by_repoId_and_key', ['repoId', 'key']),
 
@@ -434,7 +338,6 @@ export default defineSchema({
     number: v.number(),
     title: v.string(),
     body: v.string(),
-    // Title and body, for the full-text search index.
     text: v.string(),
     state: v.union(v.literal('open'), v.literal('closed')),
     author: actorRef,
@@ -468,7 +371,6 @@ export default defineSchema({
     .index('by_issueId', ['issueId'])
     .index('by_repoId_and_publicId', ['repoId', 'publicId']),
 
-  // Images and recordings shown on an issue. The bytes are an upload's.
   issueEvidence: defineTable({
     issueId: v.id('issues'),
     publicId: v.string(),
@@ -484,19 +386,12 @@ export default defineSchema({
     created: v.number(),
   }).index('by_issueId', ['issueId']),
 
-  // ---- Changes ---------------------------------------------------------------
-  // A change is one aggregate: the change itself, and its parts (patch sets,
-  // reviews, findings, checks, line comments, evidence) in `changeParts`. A
-  // write loads the change and its parts, changes them, and writes back only
-  // the parts that changed. A change has tens of parts, not thousands.
-
   changes: defineTable({
     repoId: v.id('repos'),
     publicId: v.string(),
     number: v.number(),
     title: v.string(),
     description: v.string(),
-    // Title and description, for the full-text search index.
     text: v.string(),
     state: v.union(
       v.literal('draft'),
@@ -504,7 +399,6 @@ export default defineSchema({
       v.literal('landed'),
       v.literal('abandoned'),
     ),
-    // While abandoned: the state it was abandoned from, which restoring returns to.
     abandonedFrom: v.optional(v.union(v.literal('draft'), v.literal('open'))),
     author: actorRef,
     base: v.string(),
@@ -518,10 +412,8 @@ export default defineSchema({
         origin: v.union(v.literal('here'), v.literal('there')),
       }),
     ),
-    // The touched files as they are on the base, as JSON text.
     baseFiles: v.optional(v.string()),
     commentRev: v.number(),
-    // The newest patch set's commit, to find the change a commit landed through.
     headSha: v.string(),
     created: v.number(),
     updated: v.number(),
@@ -554,17 +446,11 @@ export default defineSchema({
       v.literal('evidence'),
       v.literal('guide'),
     ),
-    // The part's own id (a patch set's number), unique within its kind.
     key: v.string(),
-    // Order within the kind: patch sets by number, the rest as they came.
     seq: v.number(),
-    // The part as JSON text.
     json: v.string(),
   }).index('by_changeId_and_kind_and_seq', ['changeId', 'kind', 'seq']),
 
-  // Which files of a change each reviewer has seen. A file counts as seen
-  // only while its hash matches the file at the head patch set, so a new
-  // patch set that touches it clears the mark. Personal state, no event.
   reviewSeen: defineTable({
     changeId: v.id('changes'),
     handle: v.string(),
@@ -573,47 +459,32 @@ export default defineSchema({
     contentHash: v.string(),
   }).index('by_changeId_and_handle_and_path', ['changeId', 'handle', 'path']),
 
-  // The presence component's token for listing a room, kept so a reader
-  // who has not sent a heartbeat yet can still see who is there. A room is
-  // `change:<id>` or `issue:<id>`.
   presenceRooms: defineTable({
     room: v.string(),
     token: v.string(),
   }).index('by_room', ['room']),
 
-  // A repository's policy settings: rule modes, its own rules, exceptions.
   repoPolicy: defineTable({
     repoId: v.id('repos'),
     ruleModes: v.array(v.object({ id: v.string(), mode: v.string() })),
-    // JSON text of `CustomRuleRec[]` and `PolicyExceptionRec[]`.
     customRules: v.string(),
     exceptions: v.string(),
-    // JSON text of the `landing:` section, when the file gave one.
     landing: v.optional(v.string()),
-    // Once the rules live in .source/policy/main.yml: the file as last
-    // landed, the commit it came from, and (JSON) why it did not read, if it
-    // did not. The fields above are then the file's last valid rules.
     sourceSha: v.optional(v.string()),
     sourceText: v.optional(v.string()),
     errors: v.optional(v.string()),
   }).index('by_repoId', ['repoId']),
 
-  // Parts of a repository only some people may see: branches (and the
-  // changes on them) and paths (and every change touching one).
   repoAccessRules: defineTable({
     repoId: v.id('repos'),
     ruleId: v.string(),
     kind: v.union(v.literal('branch'), v.literal('path')),
     patterns: v.array(v.string()),
-    // Handles, and `team:<slug>` for a team of the owning organization.
     readers: v.array(v.string()),
     createdBy: v.string(),
     created: v.number(),
   }).index('by_repoId_and_ruleId', ['repoId', 'ruleId']),
 
-  // `.source/triggers/*.yml` as last landed. `sourceText` is JSON of every
-  // trigger file by path; `triggersJson` the set in force (the last that
-  // read); `errors` JSON of why the newest did not read.
   repoTriggers: defineTable({
     repoId: v.id('repos'),
     sourceText: v.string(),
@@ -623,12 +494,9 @@ export default defineSchema({
     rev: v.number(),
   }).index('by_repoId', ['repoId']),
 
-  // What a trigger did for an event, written before the run starts: the same
-  // event never starts the same trigger twice.
   triggerRuns: defineTable({
     repoId: v.id('repos'),
     triggerId: v.string(),
-    // The repository's event sequence of the event.
     eventSequence: v.number(),
     runId: v.union(v.null(), v.string()),
     run: v.union(v.null(), v.number()),
@@ -647,7 +515,6 @@ export default defineSchema({
     ])
     .index('by_repoId_and_at', ['repoId', 'at']),
 
-  // Long operations (landing a stack), watched with GET /operations/{id}.
   operations: defineTable({
     publicId: v.string(),
     kind: v.string(),
@@ -665,12 +532,9 @@ export default defineSchema({
       v.null(),
       v.object({ object: v.string(), id: v.string(), url: v.string() }),
     ),
-    // JSON text of the problem, when it failed.
     error: v.union(v.null(), v.string()),
     created: v.number(),
     finished: v.union(v.null(), v.number()),
-    // A landing: JSON text of its plan (`LandingStepRec[]`), each step with
-    // how it went, and the result it gives once every step succeeded.
     steps: v.optional(v.string()),
     pending: v.optional(
       v.object({ object: v.string(), id: v.string(), url: v.string() }),
@@ -679,10 +543,6 @@ export default defineSchema({
     .index('by_publicId', ['publicId'])
     .index('by_finished', ['finished']),
 
-  // ---- Pipelines ---------------------------------------------------------------
-  // A pipeline run, its jobs and steps, as JSON text without the logs. Each
-  // step's log is its own document, written once per report, never per line.
-
   pipelineRuns: defineTable({
     repoId: v.id('repos'),
     publicId: v.string(),
@@ -690,7 +550,6 @@ export default defineSchema({
     workflow: v.string(),
     status: v.string(),
     started: v.number(),
-    // `PipelineRunRec` without step lines.
     json: v.string(),
   })
     .index('by_repoId_and_started', ['repoId', 'started'])
@@ -698,30 +557,23 @@ export default defineSchema({
     .index('by_repoId_and_status_and_started', ['repoId', 'status', 'started'])
     .index('by_status_and_started', ['status', 'started']),
 
-  // Machines that take pipeline jobs: an identity, labels, the repositories
-  // they may serve and a token only they hold.
   runners: defineTable({
     publicId: v.string(),
     account: v.string(),
     name: v.string(),
     kind: v.union(v.literal('self-hosted'), v.literal('hosted')),
     provider: v.union(v.null(), v.string()),
-    // Lowercase.
     labels: v.array(v.string()),
-    // Repository ids (`rep_...`); null for every repository of the account.
     repos: v.union(v.null(), v.array(v.string())),
     concurrency: v.number(),
     status: v.union(v.literal('active'), v.literal('disabled')),
     createdBy: v.string(),
     created: v.number(),
-    // The public id of its token.
     tokenId: v.string(),
   })
     .index('by_account_and_name', ['account', 'name'])
     .index('by_publicId', ['publicId']),
 
-  // When each runner last sent a heartbeat. Kept apart from the runner, so a
-  // heartbeat every 30 seconds does not invalidate every page that reads one.
   runnerSeen: defineTable({
     runnerId: v.id('runners'),
     at: v.number(),
@@ -731,12 +583,9 @@ export default defineSchema({
     runId: v.id('pipelineRuns'),
     job: v.number(),
     step: v.number(),
-    // `Array<{ t, level }>` as JSON text, the newest 5,000 lines.
     lines: v.string(),
     count: v.number(),
   }).index('by_runId_and_job_and_step', ['runId', 'job', 'step']),
-
-  // ---- Releases ----------------------------------------------------------------
 
   releases: defineTable({
     repoId: v.id('repos'),
@@ -744,15 +593,12 @@ export default defineSchema({
     tag: v.string(),
     channel: v.string(),
     published: v.number(),
-    // `ReleaseRec` as JSON text, with each asset's downloads as they were seeded.
     json: v.string(),
     version: v.number(),
   })
     .index('by_repoId_and_published', ['repoId', 'published'])
     .index('by_repoId_and_tag', ['repoId', 'tag']),
 
-  // Downloads, counted on a few shards per file so a popular one is never
-  // a document every download waits on.
   downloads: defineTable({
     releaseId: v.id('releases'),
     asset: v.string(),
@@ -760,9 +606,6 @@ export default defineSchema({
     n: v.number(),
   }).index('by_releaseId_and_asset_and_shard', ['releaseId', 'asset', 'shard']),
 
-  // ---- Integrations, linked accounts --------------------------------------------
-
-  // A service connected to an account. A key is kept as a hash and a hint.
   connections: defineTable({
     account: v.string(),
     integration: v.string(),
@@ -772,13 +615,11 @@ export default defineSchema({
     connected: v.number(),
   }).index('by_account_and_integration', ['account', 'integration']),
 
-  // Which connected services a repository uses.
   repoIntegrations: defineTable({
     repoId: v.id('repos'),
     integration: v.string(),
   }).index('by_repoId_and_integration', ['repoId', 'integration']),
 
-  // Who someone says they are on another host. Unverified until sign-in with it is built.
   links: defineTable({
     handle: v.string(),
     host: v.string(),
@@ -787,15 +628,11 @@ export default defineSchema({
     linked: v.number(),
   }).index('by_handle_and_host', ['handle', 'host']),
 
-  // Rises with every connection and link write, for versions.
   integrationRev: defineTable({ account: v.string(), rev: v.number() }).index(
     'by_account',
     ['account'],
   ),
 
-  // ---- People ------------------------------------------------------------------
-
-  // What a person chose their profile shows. JSON text of `AccountPrefs`.
   accountPrefs: defineTable({ handle: v.string(), prefs: v.string() }).index(
     'by_handle',
     ['handle'],
@@ -805,17 +642,13 @@ export default defineSchema({
     .index('by_who_and_whom', ['who', 'whom'])
     .index('by_whom_and_who', ['whom', 'who']),
 
-  // Counts shown on profiles, kept on write rather than counted on read.
   peopleStats: defineTable({
     handle: v.string(),
     followers: v.number(),
     following: v.number(),
-    // Rises with every contribution, for the profile's version.
     rev: v.number(),
   }).index('by_handle', ['handle']),
 
-  // What a person did, recorded as it happens (from events), so a profile
-  // reads one person's work instead of every repository.
   contributions: defineTable({
     handle: v.string(),
     kind: v.union(
@@ -827,21 +660,17 @@ export default defineSchema({
     at: v.number(),
     title: v.string(),
     repoId: v.id('repos'),
-    // The work was an agent's, and this person approved it.
     agent: v.boolean(),
   }).index('by_handle_and_at', ['handle', 'at']),
 
-  // Rises when the directory of people changes (preferences, follows).
   peopleRev: defineTable({ rev: v.number() }),
 
-  // Downloads per repository per day, for the insights charts.
   downloadDays: defineTable({
     repoId: v.id('repos'),
     day: v.number(),
     n: v.number(),
   }).index('by_repoId_and_day', ['repoId', 'day']),
 
-  // Who is assigned which open issue, so "assigned to you" is one lookup.
   issueAssignees: defineTable({
     handle: v.string(),
     issueId: v.id('issues'),
@@ -850,21 +679,16 @@ export default defineSchema({
     .index('by_handle', ['handle'])
     .index('by_issueId', ['issueId']),
 
-  // Repositories a person or bot was given directly (collaborators, installs),
-  // so finding them does not read every repository.
   repoGrants: defineTable({ handle: v.string(), repoId: v.id('repos') })
     .index('by_handle', ['handle'])
     .index('by_repoId_and_handle', ['repoId', 'handle']),
 
-  // A repository's extras (mirrors, environment schema, sealed values,
-  // recipients, grants, audit), as JSON text, with a version for saves.
   repoExtras: defineTable({
     repoId: v.id('repos'),
     json: v.string(),
     version: v.number(),
   }).index('by_repoId', ['repoId']),
 
-  // An upload's record. Its bytes are in the bucket, under its id; never here.
   uploads: defineTable({
     publicId: v.string(),
     owner: v.string(),
@@ -888,8 +712,6 @@ export default defineSchema({
     .index('by_attachedRepoId', ['attachedRepoId'])
     .index('by_state_and_expires', ['state', 'expires']),
 
-  // ---- Webhooks -----------------------------------------------------------------
-
   webhooks: defineTable({
     publicId: v.string(),
     repoId: v.id('repos'),
@@ -898,7 +720,6 @@ export default defineSchema({
     events: v.array(v.string()),
     active: v.boolean(),
     disabledReason: v.union(v.null(), v.string()),
-    // Signing secrets: the newest, and an older one for a day after a rotation.
     secrets: v.array(
       v.object({
         value: v.string(),
@@ -911,19 +732,15 @@ export default defineSchema({
     updatedAt: v.number(),
     version: v.number(),
     lastDelivery: v.union(v.null(), v.string()),
-    // The next delivery's place in this webhook's list.
     nextSequence: v.number(),
   })
     .index('by_publicId', ['publicId'])
     .index('by_repoId', ['repoId']),
 
-  // One event to send to one webhook, and every attempt at it. An API server
-  // claims due ones (`claimedUntil`), sends them, and reports how it went.
   webhookDeliveries: defineTable({
     publicId: v.string(),
     hookId: v.id('webhooks'),
     sequence: v.number(),
-    // The event as JSON text.
     event: v.string(),
     state: v.union(
       v.literal('pending'),
@@ -948,8 +765,6 @@ export default defineSchema({
     .index('by_hookId_and_sequence', ['hookId', 'sequence'])
     .index('by_state_and_nextAt', ['state', 'nextAt']),
 
-  // Pushes code.storage told us about. The same webhook can arrive twice; a
-  // push is recorded once, by repository, ref and the commit it moved to.
   pushes: defineTable({
     storeId: v.string(),
     ref: v.string(),
@@ -958,18 +773,13 @@ export default defineSchema({
     pushedAt: v.number(),
   }).index('by_storeId_and_ref_and_after', ['storeId', 'ref', 'after']),
 
-  // ---- Notifications -----------------------------------------------------------
-
   notifications: defineTable({
     handle: v.string(),
     publicId: v.string(),
     kind: v.string(),
     title: v.string(),
-    // The repository it is about, by id, so a rename moves it along; or null.
     repoId: v.union(v.null(), v.string()),
-    // `owner/name` when it was made, an account-level place, or null.
     repo: v.union(v.null(), v.string()),
-    // Where it leads: after `/<owner>/<name>` when it is about a repository.
     path: v.string(),
     unread: v.boolean(),
     created: v.number(),
@@ -978,17 +788,12 @@ export default defineSchema({
     .index('by_handle_and_unread', ['handle', 'unread'])
     .index('by_publicId', ['publicId']),
 
-  // One per person: their inbox's revision and size, and what they want to hear about.
   inboxes: defineTable({
     handle: v.string(),
     rev: v.number(),
     count: v.number(),
     prefs: v.union(v.null(), v.record(v.string(), v.boolean())),
   }).index('by_handle', ['handle']),
-
-  // ---- Tokens ---------------------------------------------------------------
-  // Only the hash of a secret is kept. The API checks a bearer token here,
-  // then calls the forge functions with a short JWT of its own.
 
   tokens: defineTable({
     publicId: v.string(),
@@ -1003,15 +808,11 @@ export default defineSchema({
     ),
     handle: v.string(),
     actingAs: v.string(),
-    // Legacy: a token's class. Never read.
     class: legacyClass,
-    // The machine it was made on, as its owner named it; receipts show it.
     device: v.optional(v.union(v.null(), v.string())),
     scopes: v.array(v.string()),
     repos: v.union(v.null(), v.array(v.string())),
-    // Globs a change made with it may touch; absent or null for any path.
     paths: v.optional(v.union(v.null(), v.array(v.string()))),
-    // A runner's token: the runner's public id.
     runnerId: v.optional(v.string()),
     audience: v.array(v.union(v.literal('api'), v.literal('mcp'))),
     prefix: v.string(),
@@ -1044,39 +845,23 @@ export default defineSchema({
     .index('by_publicId', ['publicId'])
     .index('by_handle_and_createdAt', ['handle', 'createdAt']),
 
-  // What the OAuth server remembers between requests: clients, sign-ins
-  // waiting for consent, codes, refresh tokens and device codes.
   oauthState: defineTable({
     kind: v.string(),
     key: v.string(),
-    // JSON text.
     value: v.string(),
     expires: v.union(v.null(), v.number()),
   })
     .index('by_kind_and_key', ['kind', 'key'])
     .index('by_expires', ['expires']),
 
-  // Mail waiting to be sent. A write that sends mail adds it here in the same
-  // transaction, and `mail.deliver` delivers it, so mail goes out only for
-  // writes that committed. A row stays until Resend took the message, or the
-  // attempts ran out, so a failed send is tried again; `mail.sweep` drops
-  // what a crash left behind.
   outbox: defineTable({
     to: v.string(),
     subject: v.string(),
     text: v.string(),
     created: v.number(),
-    // Sends that failed so far.
     attempts: v.optional(v.number()),
   }).index('by_created', ['created']),
 
-  // ---- Shared state of the HTTP API (packages/api) --------------------------
-  // Everything below is read and written by the API servers through
-  // `apiStores.ts`, never by a browser. It is what lets many API nodes agree.
-
-  // One row per rate-limit key: the window it is in and the units already
-  // handed out. A node leases a block of units at a time, so this row is written
-  // once per block and not once per request.
   apiLimits: defineTable({
     key: v.string(),
     start: v.number(),
@@ -1085,9 +870,6 @@ export default defineSchema({
     .index('by_key', ['key'])
     .index('by_start', ['start']),
 
-  // A POST with an Idempotency-Key runs once. The row holds the key, a hash of
-  // the request, and (when it finishes) the response to replay.
-  // What the status page adds up (`forge/health.ts`).
   healthMinutes: defineTable({
     area: v.string(),
     minute: v.number(),
@@ -1105,18 +887,13 @@ export default defineSchema({
   })
     .index('by_area_and_day', ['area', 'day'])
     .index('by_day', ['day']),
-  // What the forge adds up about itself (`lib/stats.ts`): one row per metric,
-  // period (`all` or `2026-11`) and shard, and a `ready` row per metric once
-  // it has been filled in.
   tallies: defineTable({
     metric: v.string(),
     period: v.string(),
     shard: v.number(),
     value: v.number(),
   }).index('by_metric_and_period_and_shard', ['metric', 'period', 'shard']),
-  // The one-time fill of tallies from rows written before they existed.
   tallySeed: defineTable({
-    /** A fill under way: which step, where in its table, when it last moved. */
     pass: v.optional(
       v.object({
         step: v.number(),
@@ -1125,23 +902,18 @@ export default defineSchema({
       }),
     ),
   }),
-  // Product events waiting to go to PostHog (`analytics.ts`).
   analyticsOutbox: defineTable({
     event: v.string(),
     who: v.string(),
     at: v.number(),
-    /** JSON: a flat object of strings, numbers and booleans. */
     props: v.string(),
   }),
-  /** No longer written: counts are tallies now. Its one row is removed by the tally fill. */
   statusCounts: defineTable({
     accounts: v.number(),
     repositories: v.number(),
     changes: v.number(),
     issues: v.number(),
-    /** When the last pass finished; 0 before the first. */
     at: v.number(),
-    /** A pass under way. */
     pass: v.optional(
       v.object({
         table: v.number(),
@@ -1162,14 +934,8 @@ export default defineSchema({
     key: v.string(),
     fingerprint: v.string(),
     expires: v.number(),
-    /** When the request that holds the key began. */
     started: v.optional(v.number()),
-    /** Which request holds it: a new one is drawn when another takes it over. */
     lease: v.optional(v.string()),
-    /**
-     * When a write made under the key committed, set in that write's own
-     * transaction. A key with an effect never runs again.
-     */
     effect: v.optional(v.number()),
     response: v.optional(
       v.object({ status: v.number(), headers: v.string(), body: v.string() }),

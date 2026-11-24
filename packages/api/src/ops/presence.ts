@@ -5,12 +5,6 @@ import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
 import { changeParams, repoParams } from './common'
 
-/**
- * Who else is looking at a change or an issue, people and agents alike. A
- * heartbeat says you are; it is not an event and nothing keeps it once you
- * stop sending.
- */
-
 const issueParams = repoParams.extend({
   number: z.coerce.number().int().min(1).describe('The issue number'),
 })

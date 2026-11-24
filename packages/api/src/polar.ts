@@ -1,24 +1,13 @@
 import { isPlanId } from './plans'
 import type { PaidPlanId } from './plans'
 
-/**
- * What a Polar subscription webhook means for an account. Pure, so it is
- * tested without Polar: the HTTP route (`convex/http.ts`) verifies the
- * signature, calls this, and stores the answer (`plans:setSubscription`).
- *
- * The checkout puts two things in the subscription's metadata, which Polar
- * hands back on every event: `account` (the address that pays) and `plan`
- * (`solo`, `team` or `business`; the product's own metadata works too).
- */
 export type SubscriptionChange = {
   handle: string
   plan: PaidPlanId
   status: 'active' | 'lapsed'
   seats?: number
   periodEnd?: number
-  /** The provider's subscription id, to find it in their dashboard. */
   providerRef: string
-  /** When the event happened, so an old one never undoes a newer one. */
   at: number
 }
 
@@ -32,10 +21,8 @@ const time = (x: unknown): number | undefined => {
   return Number.isNaN(t) ? undefined : t
 }
 
-/** Statuses in which the customer has what they paid for. A failed payment is `past_due`: Polar retries, so access holds until it gives up. */
 const HAS = new Set(['active', 'trialing', 'past_due'])
 
-/** `null` for an event that is not about a subscription, or names no account or plan. */
 export function subscriptionChange(event: unknown): SubscriptionChange | null {
   const e = obj(event)
   const type = str(e.type)
@@ -54,8 +41,6 @@ export function subscriptionChange(event: unknown): SubscriptionChange | null {
   return {
     handle,
     plan,
-    // A subscription cancelled "at the end of the period" is still `active`
-    // until then; Polar sends `revoked` when it really ends.
     status: !ended && HAS.has(status) ? 'active' : 'lapsed',
     ...(seats === undefined ? {} : { seats }),
     ...(time(d.current_period_end) === undefined
@@ -66,31 +51,17 @@ export function subscriptionChange(event: unknown): SubscriptionChange | null {
   }
 }
 
-/**
- * The keys a secret may sign with. Polar's secrets look like `whsec_<base64>`.
- * Those made since September 2026 follow the Standard Webhooks spec: the key
- * is the base64 part, decoded. Older ones signed with the whole text as bytes.
- * Both are tried, so a secret of either age works.
- */
 function signingKeys(secret: string): Array<Uint8Array<ArrayBuffer>> {
   const keys: Array<Uint8Array<ArrayBuffer>> = []
   const encoded = secret.startsWith('whsec_') ? secret.slice(6) : secret
   try {
     const bin = atob(encoded)
     keys.push(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
-  } catch {
-    // Not base64: only the text itself can be the key.
-  }
+  } catch {}
   keys.push(new TextEncoder().encode(secret))
   return keys
 }
 
-/**
- * Standard Webhooks (what Polar signs with): headers `webhook-id`,
- * `webhook-timestamp` and `webhook-signature` (`v1,<base64>` , several may be
- * listed), an HMAC-SHA256 of `<id>.<timestamp>.<body>` with the secret's key
- * (`signingKeys`). Five minutes either way. Returns what is wrong, or null.
- */
 export async function verifyStandardWebhook(
   body: string,
   headers: {
@@ -130,7 +101,6 @@ export async function verifyStandardWebhook(
     for (const b of mac) bin += String.fromCharCode(b)
     const want = btoa(bin)
     for (const sig of sent) {
-      // Compared in full, so the answer does not leak how much matched.
       let diff = want.length ^ sig.length
       for (let i = 0; i < Math.max(want.length, sig.length); i++)
         diff |= (want.charCodeAt(i) || 0) ^ (sig.charCodeAt(i) || 0)
@@ -140,12 +110,6 @@ export async function verifyStandardWebhook(
   return ok ? null : 'The signature does not match.'
 }
 
-/**
- * The products in Polar, one per plan and billing cycle. Each has a price in
- * dollars and the same number in euros: Polar shows the customer the euro
- * price in Europe and the dollar price elsewhere. Team and Business are
- * priced per seat. The ids are not secret.
- */
 export const polarProducts: Record<
   PaidPlanId,
   { month: string; year: string }
@@ -164,5 +128,4 @@ export const polarProducts: Record<
   },
 }
 
-/** Whether the plan is charged per seat. */
 export const perSeat = (plan: PaidPlanId): boolean => plan !== 'solo'
