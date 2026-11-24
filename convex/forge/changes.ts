@@ -28,6 +28,7 @@ import { fail, finish, out } from '../lib/errors'
 import { actorFor, counters, emit, viaOf } from '../lib/events'
 import { keysetPage } from '../lib/paginate'
 import { changeBlame } from '@cobaltforge/api/provenance'
+import { lineCounts } from '@cobaltforge/api/lines'
 import { landingWaits } from '@cobaltforge/api/policy-file'
 import {
   hasAfterSteps,
@@ -766,22 +767,6 @@ export const getPatchSet = query({
     return out(view.presentPatchSet(rec, patchSetOf(rec, a.n)))
   },
 })
-
-function lineCounts(before: string | null, after: string | null) {
-  const x = before === null ? [] : before.split('\n')
-  const y = after === null ? [] : after.split('\n')
-  const dp = Array.from({ length: x.length + 1 }, () =>
-    Array.from({ length: y.length + 1 }, () => 0),
-  )
-  for (let i = x.length - 1; i >= 0; i--)
-    for (let j = y.length - 1; j >= 0; j--)
-      dp[i][j] =
-        x[i] === y[j]
-          ? dp[i + 1][j + 1] + 1
-          : Math.max(dp[i + 1][j], dp[i][j + 1])
-  const same = dp[0][0]
-  return { add: y.length - same, del: x.length - same }
-}
 
 export const addPatchSet = mutation({
   args: {

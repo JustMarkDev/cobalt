@@ -1,4 +1,5 @@
 import { newId } from '../ids'
+import { mentions } from '../references'
 import { personPrincipal } from '../auth'
 import { apiError } from '../problem'
 import type { CursorPosition } from '../cursor'
@@ -22,13 +23,6 @@ export const defaultPrefs: NotificationPrefs = {
   issue: true,
   import: true,
   digest: false,
-}
-
-function mentions(text: string): Array<string> {
-  const out: Array<string> = []
-  for (const m of text.matchAll(/(?:^|[^\w@/])@([a-z0-9][a-z0-9-]{0,38})/gi))
-    if (!out.includes(m[1].toLowerCase())) out.push(m[1].toLowerCase())
-  return out.slice(0, 10)
 }
 
 export abstract class DomainNotifications extends DomainSync {

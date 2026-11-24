@@ -1,5 +1,6 @@
 import { env } from '../_generated/server'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
+import { monthOf } from './time'
 
 export const metrics = [
   'account.created',
@@ -13,8 +14,6 @@ export type Metric = (typeof metrics)[number]
 
 export const SHARDS = 4
 export const ALL = 'all'
-
-export const monthOf = (at: number) => new Date(at).toISOString().slice(0, 7)
 
 export const READY = 'ready'
 

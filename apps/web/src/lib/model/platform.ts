@@ -122,16 +122,5 @@ export type Trigger =
   | 'repository.pushed'
   | 'schedule'
 
-export const triggers: Array<Trigger> = [
-  'issue.created',
-  'change.opened',
-  'change.updated',
-  'finding.raised',
-  'ci.failed',
-  'bot.mentioned',
-  'repository.pushed',
-  'schedule',
-]
-
 export type Runtime = 'Claude Code' | 'Codex' | 'OpenCode' | 'Grok Build'
 export type Target = 'E2B' | 'T3 Code' | 'boat.dev'

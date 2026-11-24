@@ -3,11 +3,9 @@ import { lookup } from 'node:dns/promises'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { isIP } from 'node:net'
-import { newId, randomSource } from './ids'
+import { newId, randomBuffer } from './ids'
 import { matchesType, parseEvent } from './events'
 import type { EventLog, EventRecord } from './events'
-
-const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
 
 export const RETRY_DELAYS_MS = [
   5_000, 300_000, 1_800_000, 7_200_000, 18_000_000, 36_000_000, 36_000_000,
@@ -237,7 +235,7 @@ export type Hook = {
   lastDelivery: string | null
 }
 
-export const newSecret = () => `whsec_${randomBytes(24).toString('base64')}`
+export const newSecret = () => `whsec_${randomBuffer(24).toString('base64')}`
 
 export function sign(
   secret: string,

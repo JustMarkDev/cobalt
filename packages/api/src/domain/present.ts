@@ -31,35 +31,6 @@ import type {
 } from './records'
 import { DomainAccess } from './access'
 
-export const BIG_CHANGE = 400
-
-export { policyRules } from '../policy-builtins'
-
-export function describeCustomRule(r: CustomRuleRec) {
-  if (r.kind === 'required_check')
-    return {
-      when: 'any change',
-      requires: [`${r.check} passed, bound to the landing tree`],
-    }
-  if (r.kind === 'max_lines')
-    return {
-      when: 'any change',
-      requires: [`at most ${r.maxLines} lines added and removed`],
-    }
-  if (r.kind === 'allowed_paths')
-    return {
-      when: 'any change',
-      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
-    }
-  const n = r.approvals ?? 1
-  return {
-    when: `paths ${(r.paths ?? []).join(', ')}`,
-    requires: [
-      `${n} approval${n === 1 ? '' : 's'}, human${r.from?.length ? `, from ${r.from.join(', ')}` : ''}`,
-    ],
-  }
-}
-
 export abstract class DomainPresent extends DomainAccess {
   protected actor(a: ActorRec): z.infer<typeof S.Actor> {
     return { object: 'actor', id: a.id, handle: a.handle }

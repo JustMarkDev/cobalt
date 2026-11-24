@@ -2,10 +2,9 @@ import type { Usage } from '@cobaltforge/api/plans'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-type Ctx = Pick<QueryCtx, 'db'>
+import { monthOf } from './time'
 
-export const monthOf = (ms: number): string =>
-  new Date(ms).toISOString().slice(0, 7)
+type Ctx = Pick<QueryCtx, 'db'>
 
 export async function usageOf(
   ctx: Ctx,

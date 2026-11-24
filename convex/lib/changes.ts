@@ -33,10 +33,6 @@ import type {
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-export const BIG_CHANGE = 400
-
-export { policyRules } from '@cobaltforge/api/policy-builtins'
-
 export type RepoPolicy = {
   ruleModes: Map<string, RuleMode>
   customRules: Array<CustomRuleRec>

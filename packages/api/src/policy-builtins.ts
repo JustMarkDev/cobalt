@@ -1,5 +1,9 @@
 import { outsidePaths, touchedFiles } from './paths'
 import type { RuleMode } from './policy-file'
+import type { CustomRuleRec } from './domain/records'
+
+/** Changes past this many lines are flagged as large. */
+export const BIG_CHANGE = 400
 
 export const policyRules: ReadonlyArray<{
   id: string
@@ -102,5 +106,31 @@ export function allowedPathsRequirement(
       ? { paths: globs, outside: outside.slice(0, 20) }
       : null,
     blocking: [],
+  }
+}
+
+/** What a custom rule applies to and requires, as the policy page shows it. */
+export function describeCustomRule(r: CustomRuleRec) {
+  if (r.kind === 'required_check')
+    return {
+      when: 'any change',
+      requires: [`${r.check} passed, bound to the landing tree`],
+    }
+  if (r.kind === 'max_lines')
+    return {
+      when: 'any change',
+      requires: [`at most ${r.maxLines} lines added and removed`],
+    }
+  if (r.kind === 'allowed_paths')
+    return {
+      when: 'any change',
+      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
+    }
+  const n = r.approvals ?? 1
+  return {
+    when: `paths ${(r.paths ?? []).join(', ')}`,
+    requires: [
+      `${n} approval${n === 1 ? '' : 's'}, human${r.from?.length ? `, from ${r.from.join(', ')}` : ''}`,
+    ],
   }
 }

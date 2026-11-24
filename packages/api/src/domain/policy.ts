@@ -27,7 +27,7 @@ import type { Principal } from '../auth'
 import type { PolicyContent } from '../policy-file'
 import type { LandingStepRec } from '../landing'
 import type { ProposalEditBody } from '../policy-proposals'
-import { BIG_CHANGE, describeCustomRule, policyRules } from './present'
+import { BIG_CHANGE, describeCustomRule, policyRules } from '../policy-builtins'
 import type {
   ActorRec,
   ChangeRec,

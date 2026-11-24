@@ -4,21 +4,8 @@ import { bodies } from '../bodies'
 import { Domain, defineOp, reply } from '../registry'
 import * as S from '../schemas'
 import { issueMarkdown } from '../markdown'
-import { afterOf, fp, listOf, pageShape, repoParams } from './common'
+import { afterOf, fp, listOf, pageShape, repoParams, repoTopic } from './common'
 
-const topic = async (
-  p: { owner: string; repo: string },
-  d?: {
-    repoIdForHistory?: (full: string) => string | null | Promise<string | null>
-  },
-) => {
-  const id = await d?.repoIdForHistory?.(`${p.owner}/${p.repo}`)
-  if (id) return `repo-id:${id}`
-  const owner = p.owner.toLowerCase()
-  return owner.startsWith('rep_')
-    ? `repo-id:${owner}`
-    : `repo:${owner}/${p.repo.toLowerCase()}`
-}
 const issueParams = repoParams.extend({
   number: z.coerce.number().int().min(1).describe('The issue number'),
 })
@@ -45,7 +32,7 @@ export const listIssues = defineOp({
   response: S.listOf(S.Issue),
   errors: ['not_found', 'moved', 'cursor_mismatch'],
   shapeable: true,
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.issueListVersion(ctx.params.owner, ctx.params.repo, ctx.principal),
   handler: (ctx) =>
@@ -93,7 +80,7 @@ export const getIssue = defineOp({
   errors: ['not_found', 'moved'],
   shapeable: true,
   markdown: issueMarkdown,
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.issueVersion(
       ctx.params.owner,
@@ -226,7 +213,7 @@ export const listLabels = defineOp({
     next_cursor: z.null(),
   }),
   errors: ['not_found', 'moved'],
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.labelsVersion(ctx.params.owner, ctx.params.repo, ctx.principal),
   handler: (ctx) =>
@@ -372,7 +359,7 @@ export const listComments = defineOp({
   query: z.strictObject({ ...pageShape }),
   response: S.listOf(S.IssueComment),
   errors: ['not_found', 'moved', 'cursor_mismatch'],
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.commentsVersion(
       ctx.params.owner,

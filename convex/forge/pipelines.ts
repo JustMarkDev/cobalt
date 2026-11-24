@@ -25,7 +25,7 @@ import { actorOf, signedIn, system } from '../lib/actor'
 import { accessStamp, repoByPublicId, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { counters } from '../lib/events'
-import { repoUrl, urls } from '../lib/present'
+import { iso, repoUrl, urls } from '../lib/present'
 import { notify } from './notifications'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
@@ -73,8 +73,6 @@ export type PipelineRun = {
   jobs: Array<Job>
   version: number
 }
-
-const iso = (t: number) => new Date(t).toISOString()
 
 export async function load(
   ctx: QueryCtx,

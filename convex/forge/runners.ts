@@ -26,7 +26,7 @@ import {
   roleIn,
 } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
-import { repoUrl, urls } from '../lib/present'
+import { iso, repoUrl, urls } from '../lib/present'
 import { mintToken, revokeToken, toRefs } from '../lib/tokens'
 import {
   applyReport,
@@ -44,7 +44,6 @@ import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
 const RUNNER_TTL_MS = 365 * 86_400_000
-const iso = (t: number) => new Date(t).toISOString()
 
 async function seenAt(ctx: QueryCtx, r: Doc<'runners'>) {
   const s = await ctx.db

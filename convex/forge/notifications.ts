@@ -2,6 +2,7 @@ import { loadRules, seesChange } from '../lib/accessRules'
 import { findChange, hydrate } from '../lib/changes'
 import { v } from 'convex/values'
 import { newId } from '@cobaltforge/api/ids'
+import { mentions } from '@cobaltforge/api/references'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
@@ -97,13 +98,6 @@ export async function notify(
       await bump(ctx, handle, -1)
     }
   }
-}
-
-function mentions(text: string): Array<string> {
-  const found: Array<string> = []
-  for (const m of text.matchAll(/(?:^|[^\w@/])@([a-z0-9][a-z0-9-]{0,38})/gi))
-    if (!found.includes(m[1].toLowerCase())) found.push(m[1].toLowerCase())
-  return found.slice(0, 10)
 }
 
 type Event = {

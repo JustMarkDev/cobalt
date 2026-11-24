@@ -56,6 +56,9 @@ export const randomSource = {
   bytes: (n: number): Uint8Array => randomBytes(n),
 }
 
+/** Random bytes as a Buffer, from the (replaceable) random source. */
+export const randomBuffer = (n: number) => Buffer.from(randomSource.bytes(n))
+
 function randomBytes(n: number): Uint8Array {
   return globalThis.crypto.getRandomValues(new Uint8Array(n))
 }

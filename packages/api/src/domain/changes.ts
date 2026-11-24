@@ -41,6 +41,7 @@ import type {
 } from './records'
 import { DomainIssues } from './issues'
 import { changeBlame } from '../provenance'
+import { lineCounts } from '../lines'
 import { issueRefs } from '../references'
 import { fileKey, presentSeen } from '../seen'
 import { checkGuide, presentGuide } from '../guides'
@@ -2308,20 +2309,4 @@ export abstract class DomainChanges extends DomainIssues {
       (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at),
     )
   }
-}
-
-function lineCounts(before: string | null, after: string | null) {
-  const a = before === null ? [] : before.split('\n')
-  const b = after === null ? [] : after.split('\n')
-  const dp = Array.from({ length: a.length + 1 }, () =>
-    Array.from({ length: b.length + 1 }, () => 0),
-  )
-  for (let i = a.length - 1; i >= 0; i--)
-    for (let j = b.length - 1; j >= 0; j--)
-      dp[i][j] =
-        a[i] === b[j]
-          ? dp[i + 1][j + 1] + 1
-          : Math.max(dp[i + 1][j], dp[i][j + 1])
-  const same = dp[0][0]
-  return { add: b.length - same, del: a.length - same }
 }

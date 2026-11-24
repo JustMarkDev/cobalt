@@ -8,14 +8,17 @@ import { accessStamp, accountByHandle, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { actorFor, counters, emit } from '../lib/events'
 import {
-  BIG_CHANGE,
   branchOwner,
   hydrate,
   loadPolicy,
-  policyRules,
   savePolicy,
   viewFor,
 } from '../lib/changes'
+import {
+  BIG_CHANGE,
+  describeCustomRule,
+  policyRules,
+} from '@cobaltforge/api/policy-builtins'
 import type { Actor } from '../lib/actor'
 import type { Loaded, RepoPolicy } from '../lib/changes'
 import { urls } from '../lib/present'
@@ -39,31 +42,6 @@ const mode = v.union(
   v.literal('dry-run'),
   v.literal('off'),
 )
-
-function describeCustomRule(r: CustomRuleRec) {
-  if (r.kind === 'required_check')
-    return {
-      when: 'any change',
-      requires: [`${r.check} passed, bound to the landing tree`],
-    }
-  if (r.kind === 'max_lines')
-    return {
-      when: 'any change',
-      requires: [`at most ${r.maxLines} lines added and removed`],
-    }
-  if (r.kind === 'allowed_paths')
-    return {
-      when: 'any change',
-      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
-    }
-  const n = r.approvals ?? 1
-  return {
-    when: `paths ${(r.paths ?? []).join(', ')}`,
-    requires: [
-      `${n} approval${n === 1 ? '' : 's'}, human${r.from?.length ? `, from ${r.from.join(', ')}` : ''}`,
-    ],
-  }
-}
 
 function rulesOf(pol: RepoPolicy) {
   return [
