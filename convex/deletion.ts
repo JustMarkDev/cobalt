@@ -34,6 +34,7 @@ export const TABLES: Record<TableNames, string> = {
   repos: 'wipe: owned repositories, with everything in them',
   repoCounters: 'wipe: with its repository',
   repoAliases: 'wipe: with its repository',
+  githubLinks: 'wipe: with its repository',
   deletedRepos: 'none: names only',
   stars: 'wipe: by handle, and with its repository',
   teams: 'none: belong to organizations',
@@ -810,6 +811,11 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
     .take(10))
     await ctx.db.delete('repoAliases', a._id)
   await tally(ctx, 'repo.deleted')
+  for (const l of await ctx.db
+    .query('githubLinks')
+    .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+    .take(10))
+    await ctx.db.delete('githubLinks', l._id)
   await queueSweep(ctx, 'git', repo.storeId)
   await ctx.db.delete('repos', id)
   await syncGrants(ctx, id)

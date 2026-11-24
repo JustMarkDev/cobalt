@@ -549,51 +549,61 @@ describe('hand-off', () => {
 
 describe('import', () => {
   test('from a host and owner/name, or from its address, once', async () => {
-    const made = await cb('import', 'github', 'dana-okafor/recipes')
+    const made = await cb('import', 'github', 'dana-okafor/dotfiles')
     expect(made.code, made.err).toBe(0)
+    expect(made.err).toContain('Signed in to GitHub as dana-okafor')
     expect(JSON.parse(made.out)).toMatchObject({
-      slug: 'dana/recipes',
+      slug: 'dana/dotfiles',
       created: true,
-      upstream: { host: 'github', slug: 'dana-okafor/recipes' },
+      upstream: { host: 'github', slug: 'dana-okafor/dotfiles' },
     })
     const again = await cb(
       'import',
-      'https://github.com/dana-okafor/recipes.git',
+      'https://github.com/dana-okafor/dotfiles.git',
     )
     expect(JSON.parse(again.out)).toMatchObject({
-      slug: 'dana/recipes',
+      slug: 'dana/dotfiles',
       created: false,
     })
+    const dry = await cb('import', 'github', 'dana-okafor/notes', '--dry-run')
+    expect(dry.code, dry.err).toBe(0)
+    expect(JSON.parse(dry.out)).toMatchObject({ dryRun: true })
+    const none = JSON.parse((await cb('import', 'list')).out) as Array<{
+      repo: string
+    }>
+    expect(none.map((i) => i.repo)).not.toContain('northwind/notes')
     const placed = await cb(
       'import',
-      'git@gitlab.com:dana/zine.git',
+      'git@github.com:dana-okafor/notes.git',
       '--as',
-      'northwind/zine',
+      'northwind/notes',
       '--private',
     )
     expect(JSON.parse(placed.out)).toMatchObject({
-      slug: 'northwind/zine',
+      slug: 'northwind/notes',
       visibility: 'private',
     })
     const list = JSON.parse((await cb('import', 'list')).out) as Array<{
       repo: string
     }>
-    expect(list.map((i) => i.repo)).toContain('dana/recipes')
+    expect(list.map((i) => i.repo)).toContain('dana/dotfiles')
   })
 
-  test('a dry run makes nothing', async () => {
-    const r = await cb('import', 'codeberg', 'dana/quiet', '--dry-run')
-    expect(JSON.parse(r.out)).toMatchObject({ dryRun: true })
-    const list = JSON.parse((await cb('import', 'list')).out) as Array<{
-      repo: string
-    }>
-    expect(list.map((i) => i.repo)).not.toContain('dana/quiet')
+  test('a repository you cannot push to is refused', async () => {
+    const r = await cb('import', 'github', 'someone-else/private-thing')
+    expect(r.code).not.toBe(0)
+    expect(JSON.parse(r.err.slice(r.err.indexOf('{"error"'))).error.code).toBe(
+      'forbidden',
+    )
   })
 
   test('a host it cannot import from is a usage error with an example', async () => {
     const r = await cb('import', 'https://bitbucket.org/dana/x')
     expect(r.code).toBe(2)
     expect(JSON.parse(r.err).error.hint).toContain('cb import github')
+    const gitlab = await cb('import', 'gitlab', 'dana/zine')
+    expect(gitlab.code).toBe(2)
+    expect(JSON.parse(gitlab.err).error.hint).toContain('cb import github')
   })
 })
 

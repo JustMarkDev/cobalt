@@ -8,7 +8,7 @@ import {
   isBlockedAddress,
 } from './webhooks'
 import { seedBulk } from './sample'
-import { clock, harness } from './testing'
+import { clock, harness, onConvex } from './testing'
 import type { Scheduler, SendResult, Transport } from './webhooks'
 
 const REPO = '/repos/dana/gitfs'
@@ -1199,21 +1199,42 @@ describe('mirrors', () => {
       ['github', 'in-sync'],
       ['gitlab', 'failing'],
     ])
-    const add = await h.call('POST', R, {
-      body: { host: 'codeberg', slug: 'dana/gitfs', direction: 'push' },
-    })
-    expect([add.status, add.headers.get('cb-outcome')]).toEqual([
-      201,
-      'created',
-    ])
-    const again = await h.call('POST', R, {
-      body: { host: 'codeberg', slug: 'dana/gitfs' },
-    })
-    expect([again.status, again.json.id]).toEqual([200, add.json.id])
     const failing = list[1]
-    const synced = await h.call('POST', `${R}/${failing.id}/sync`)
-    expect(synced.json).toMatchObject({ state: 'in-sync', detail: null })
-    expect((await h.call('DELETE', `${R}/${add.json.id}`)).status).toBe(204)
+    let added: string | undefined
+    if (onConvex) {
+      // Linked repositories are GitHub ones, made by importing.
+      const add = await h.call('POST', R, {
+        body: { host: 'codeberg', slug: 'dana/gitfs', direction: 'push' },
+      })
+      expect(add.status).toBe(400)
+      const same = await h.call('POST', R, {
+        body: { host: 'github', slug: list[0].slug },
+      })
+      expect([same.status, same.json.id]).toEqual([200, list[0].id])
+      const synced = await h.call('POST', `${R}/${failing.id}/sync`)
+      expect(synced.json.state).toBe('syncing')
+      const paused = await h.call('PATCH', `${R}/${failing.id}`, {
+        body: { paused: true },
+      })
+      expect(paused.status).toBe(400)
+    } else {
+      const add = await h.call('POST', R, {
+        body: { host: 'codeberg', slug: 'dana/gitfs', direction: 'push' },
+      })
+      expect([add.status, add.headers.get('cb-outcome')]).toEqual([
+        201,
+        'created',
+      ])
+      const again = await h.call('POST', R, {
+        body: { host: 'codeberg', slug: 'dana/gitfs' },
+      })
+      expect([again.status, again.json.id]).toEqual([200, add.json.id])
+      const synced = await h.call('POST', `${R}/${failing.id}/sync`)
+      expect(synced.json).toMatchObject({ state: 'in-sync', detail: null })
+      added = add.json.id as string
+    }
+    if (added)
+      expect((await h.call('DELETE', `${R}/${added}`)).status).toBe(204)
     expect((await h.call('POST', `${R}/mir_nope/sync`)).status).toBe(404)
     expect(
       (await h.call('POST', R, { body: { host: 'nowhere', slug: 'a/b' } }))

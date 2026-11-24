@@ -626,7 +626,20 @@ export default defineSchema({
     login: v.string(),
     instance: v.union(v.null(), v.string()),
     linked: v.number(),
+    verified: v.optional(v.boolean()),
   }).index('by_handle_and_host', ['handle', 'host']),
+
+  // A GitHub repository can feed one repository here, and no more: whoever
+  // links it first holds it until that repository is deleted or unlinked.
+  githubLinks: defineTable({
+    githubId: v.number(),
+    slug: v.string(),
+    repoId: v.id('repos'),
+    by: v.string(),
+    at: v.number(),
+  })
+    .index('by_githubId', ['githubId'])
+    .index('by_repoId', ['repoId']),
 
   integrationRev: defineTable({ account: v.string(), rev: v.number() }).index(
     'by_account',

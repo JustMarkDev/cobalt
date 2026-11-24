@@ -1,3 +1,4 @@
+import { getFakeGitRepo } from '@cobaltforge/git/fake'
 import { StoreGit } from './git'
 import { T0, sampleTokens } from './sample'
 import { createSampleApi } from './index'
@@ -70,7 +71,7 @@ export function harness(overrides: Parameters<typeof createSampleApi>[0] = {}) {
 }
 
 export function gitWith(files: Record<string, string>): GitData {
-  const base = new StoreGit()
+  const base = new StoreGit(getFakeGitRepo)
   return {
     files: (repo, ref) => base.files(repo, ref),
     blob: async (repo, path, ref) =>

@@ -12,6 +12,13 @@ import type { HealthReader } from '../health'
 import { hiddenEvent, parseEvent } from '../events'
 import type { StoredEvent } from '../events'
 import type { SearchDoc } from '../search'
+import { presentMirror } from '../mirror'
+import {
+  devicePoll,
+  deviceStart,
+  needGithub,
+  presentGithubRepo,
+} from '../github-port'
 import type { MirrorRec } from '../extras'
 import { seqId } from './records'
 import { statusReport } from './status-report'
@@ -85,6 +92,28 @@ export async function run<T>(
     const more = r.more ? (JSON.parse(r.more) as Record<string, never>) : {}
     throw apiError(r.code as ErrorCode, r.detail, more)
   }
+}
+
+/** What went wrong at Code Storage while linking GitHub, as the API says it. */
+function upstreamProblem(
+  e: unknown,
+  upstream?: { owner: string; name: string },
+) {
+  const err = e as { status?: number; code?: string; message?: string }
+  if (err.code === 'github_repository_inaccessible' || err.status === 412)
+    return apiError(
+      'forbidden',
+      upstream
+        ? `Code Storage cannot reach github.com/${upstream.owner}/${upstream.name}.`
+        : 'Code Storage cannot reach the GitHub repository.',
+      { hint: 'Install the Cobalt GitHub App on that repository.' },
+    )
+  if (e instanceof Error && e.name === 'GitNotConfigured')
+    return apiError('backend_unavailable', e.message)
+  return apiError(
+    'backend_unavailable',
+    `Code Storage did not complete the request${err.status ? ` (${err.status})` : ''}.`,
+  )
 }
 
 type Port = DomainPort
@@ -241,6 +270,8 @@ export class ConvexDomain implements DomainPort {
   }
   getRepo: Port['getRepo'] = (owner, name, p) =>
     this.q('repos:get', { owner, name, at: this.now() }, p)
+  gitAccess: Port['gitAccess'] = (owner, name, p, need) =>
+    this.q('repos:gitAccess', { owner, name, need }, p)
   repoVersion: Port['repoVersion'] = (owner, name, p) =>
     this.q('repos:version', { owner, name }, p)
   changeListVersion: Port['changeListVersion'] = (owner, name, p) =>
@@ -255,18 +286,44 @@ export class ConvexDomain implements DomainPort {
     this.m('repos:setStar', { owner, name, on, dry }, p)
   bumpRepo: Port['bumpRepo'] = (owner, name, p) =>
     this.m('repos:bump', { owner, name }, p)
-  createRepo: Port['createRepo'] = async (p, input, dry) => {
+  createRepo: Port['createRepo'] = (p, input, dry) =>
+    this.createRepoWith(p, input, dry)
+
+  private async createRepoWith(
+    p: Principal,
+    input: Parameters<Port['createRepo']>[1],
+    dry: boolean,
+    link?: { upstream: { owner: string; name: string }; defaultBranch: string },
+  ) {
     const r = await this.m<Awaited<ReturnType<Port['createRepo']>>>(
       'repos:create',
       { ...input, dry },
       p,
     )
-    if (r.created && !dry) {
+    if (dry) return r
+    // Code Storage creates idempotently on the name, so asking again after a
+    // failure heals a repository that has no store yet.
+    if (!link || r.created)
+      try {
+        await this.svc.git.provision?.(r.repo.id, link)
+      } catch (e) {
+        if (link && r.created)
+          await this.deleteRepo(
+            r.repo.owner,
+            r.repo.name,
+            p,
+            r.repo.full_name,
+            false,
+          ).catch(() => undefined)
+        throw upstreamProblem(e, link?.upstream)
+      }
+    if (r.created) {
       this.svc.git.setRepo?.(r.repo.full_name, r.repo.id)
       await this.refreshSearch()
     }
     return r
   }
+
   updateRepo: Port['updateRepo'] = async (
     owner,
     name,
@@ -1244,48 +1301,232 @@ export class ConvexDomain implements DomainPort {
   unlinkAccount: Port['unlinkAccount'] = (handle, host, p) =>
     this.m('integrations:unlink', { handle, host }, p)
   importRepo: Port['importRepo'] = async (p, body, dry) => {
-    const name = body.name ?? body.slug.split('/').pop()!
-    const made = await this.createRepo(
+    if (body.host !== 'github')
+      throw apiError(
+        'invalid_request',
+        `Importing from ${body.host} is not supported: only GitHub repositories can be linked.`,
+      )
+    if (!body.github_access)
+      throw apiError(
+        'invalid_request',
+        'Importing from GitHub needs `github_access`.',
+        {
+          hint: 'Sign in with GitHub first: POST /github/device, then poll /github/device/poll.',
+        },
+      )
+    const ref = await needGithub(this.svc.github).authorize(
+      body.github_access,
+      p.handle,
+      body.slug,
+    )
+    const name = body.name ?? ref.slug.split('/')[1]
+    const held = (
+      await this.q<Record<string, string>>(
+        'integrations:githubClaims',
+        { ids: [ref.id] },
+        'system',
+      )
+    )[String(ref.id)]
+    if (held) {
+      const [ho, hn] = held.split('/')
+      if (
+        (body.owner ?? ho).toLowerCase() !== ho.toLowerCase() ||
+        name.toLowerCase() !== hn.toLowerCase()
+      )
+        throw apiError(
+          'invalid_state',
+          `${ref.slug} is already linked to ${held}.`,
+          { hint: 'A GitHub repository feeds one repository here.' },
+        )
+      return { repo: await this.getRepo(ho, hn, p), created: false }
+    }
+    const [owner, repo] = ref.slug.split('/')
+    const made = await this.createRepoWith(
       p,
       {
         owner: body.owner,
         name,
         visibility: body.visibility,
-        description: `Imported from ${body.host}:${body.slug}`,
+        description: `Linked to github.com/${ref.slug}`,
       },
       dry,
+      { upstream: { owner, name: repo }, defaultBranch: ref.defaultBranch },
     )
     if (dry) return made
-    if (!made.created && made.repo.upstream) return made
-    const full = made.repo.full_name
-    const repo = await this.m<Awaited<ReturnType<Port['getRepo']>>>(
+    if (!made.created)
+      throw apiError(
+        'invalid_state',
+        `${made.repo.full_name} already exists and is not linked to GitHub.`,
+        { hint: 'Pick another name with `name`.' },
+      )
+    try {
+      await this.m(
+        'integrations:claimGithub',
+        {
+          full: made.repo.full_name,
+          githubId: ref.id,
+          slug: ref.slug,
+          by: p.handle,
+        },
+        'system',
+      )
+    } catch (e) {
+      await this.deleteRepo(
+        made.repo.owner,
+        made.repo.name,
+        p,
+        made.repo.full_name,
+        false,
+      ).catch(() => undefined)
+      throw e
+    }
+    const linked = await this.m<Awaited<ReturnType<Port['getRepo']>>>(
       'integrations:markImported',
       {
         owner: made.repo.owner,
         name: made.repo.name,
-        host: body.host,
-        slug: body.slug,
+        host: 'github',
+        slug: ref.slug,
         at: this.now(),
+        defaultBranch: ref.defaultBranch,
       },
       p,
     )
-    const x = await this.svc.extras.open(full)
-    if (!x.mirrors.some((m) => m.host === body.host && m.slug === body.slug))
-      x.mirrors.push({
-        id: `mir_${this.now().toString(36)}${x.mirrors.length}`
-          .padEnd(22, '0')
-          .slice(0, 22),
-        host: body.host,
-        slug: body.slug,
-        direction: 'pull',
-        state: 'syncing',
-        lastSync: this.now(),
-        detail: 'Waiting for the first fetch.',
-        created: this.now(),
-      })
+    const x = await this.svc.extras.open(made.repo.full_name)
+    x.mirrors.push({
+      id: `mir_${this.now().toString(36)}0`.padEnd(22, '0').slice(0, 22),
+      host: 'github',
+      slug: ref.slug,
+      direction: 'two-way',
+      state: 'syncing',
+      lastSync: this.now(),
+      detail: 'The first sync from GitHub is running.',
+      created: this.now(),
+    })
     await this.svc.extras.flush?.()
-    return { repo, created: made.created }
+    return { repo: linked, created: true }
   }
+  githubDeviceStart: Port['githubDeviceStart'] = () =>
+    deviceStart(this.svc.github)
+
+  githubDevicePoll: Port['githubDevicePoll'] = async (p, deviceCode) => {
+    const r = await devicePoll(this.svc.github, p, deviceCode)
+    if (r.status === 'authorized' && r.login)
+      await this.m(
+        'integrations:markVerified',
+        { handle: p.handle, login: r.login },
+        'system',
+      )
+    return r
+  }
+
+  githubRepos: Port['githubRepos'] = async (p, access) => {
+    const refs = await needGithub(this.svc.github).repos(access, p.handle)
+    const held = refs.length
+      ? await this.q<Record<string, string>>(
+          'integrations:githubClaims',
+          { ids: refs.map((r) => r.id) },
+          'system',
+        )
+      : {}
+    return refs.map((r) => presentGithubRepo(r, held[String(r.id)] ?? null))
+  }
+
+  /** The name of the store that holds a repository, as Code Storage knows it. */
+  async storeIdOf(full: string) {
+    return (
+      this.svc.git.storeOf?.(full) ??
+      (await this.q<string | null>('repos:storeIdOf', { full }, 'system'))
+    )
+  }
+
+  private async mirrorOf(
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+  ) {
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const x = await this.svc.extras.open(full)
+    const m = x.mirrors.find((r) => r.id === mirror)
+    if (!m) throw apiError('not_found', `No mirror ${mirror}.`)
+    return { full, x, m }
+  }
+
+  createMirror: Port['createMirror'] = async (p, owner, name, body) => {
+    if (body.host !== 'github')
+      throw apiError(
+        'invalid_request',
+        `Mirrors on ${body.host} are not supported: only GitHub repositories can be linked.`,
+      )
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const same = (await this.svc.extras.open(full)).mirrors.find(
+      (m) =>
+        m.host === body.host &&
+        m.slug.toLowerCase() === body.slug.toLowerCase(),
+    )
+    if (same)
+      return {
+        mirror: presentMirror(this.urls.api, full, same),
+        created: false,
+      }
+    throw apiError(
+      'invalid_state',
+      'A repository is linked to GitHub when it is imported, not afterwards.',
+      { hint: 'Import it with POST /imports and a `github_access`.' },
+    )
+  }
+
+  syncMirror: Port['syncMirror'] = async (p, owner, name, mirror, dry) => {
+    const { full, x, m } = await this.mirrorOf(p, owner, name, mirror)
+    if (!dry) {
+      const store = await this.storeIdOf(full)
+      if (store)
+        try {
+          await this.svc.git.pull?.(store)
+        } catch (e) {
+          // One sync is already running: that is what was asked for.
+          if ((e as { code?: string }).code !== 'sync_in_progress')
+            throw upstreamProblem(e)
+        }
+      m.state = 'syncing'
+      m.detail = null
+      await this.svc.extras.flush?.()
+      void x
+    }
+    return presentMirror(this.urls.api, full, { ...m, state: 'syncing' })
+  }
+
+  updateMirror: Port['updateMirror'] = async (p, owner, name, mirror, body) => {
+    const { full, m } = await this.mirrorOf(p, owner, name, mirror)
+    if (body.paused)
+      throw apiError('invalid_request', 'A GitHub link cannot be paused.', {
+        hint: 'Delete the mirror to unlink the repository.',
+      })
+    if (body.direction && body.direction !== 'two-way')
+      throw apiError(
+        'invalid_request',
+        'A GitHub link always goes both ways.',
+        { hint: 'Delete the mirror to unlink the repository.' },
+      )
+    return presentMirror(this.urls.api, full, m)
+  }
+
+  deleteMirror: Port['deleteMirror'] = async (p, owner, name, mirror, dry) => {
+    const { full, x, m } = await this.mirrorOf(p, owner, name, mirror)
+    if (dry) return
+    const store = await this.storeIdOf(full)
+    if (store)
+      try {
+        await this.svc.git.detach?.(store)
+      } catch (e) {
+        if ((e as { status?: number }).status !== 404) throw upstreamProblem(e)
+      }
+    await this.m('integrations:unlinkGithub', { full }, 'system')
+    x.mirrors.splice(x.mirrors.indexOf(m), 1)
+    await this.svc.extras.flush?.()
+  }
+
   listImports: Port['listImports'] = async (p) => {
     const found = await this.q<
       Array<{ repo: string; host: string; slug: string; created: number }>

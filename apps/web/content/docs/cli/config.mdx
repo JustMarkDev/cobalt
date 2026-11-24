@@ -26,16 +26,15 @@ cb config path
 
 ## All settings
 
-| Key              | Default                   | Environment         | Meaning                                                        |
-| ---------------- | ------------------------- | ------------------- | -------------------------------------------------------------- |
-| `host`           | `https://cobaltforge.dev` | `CB_HOST`           | The server, for links and the browser                          |
-| `api`            | (set by `auth login`)     | `CB_API`            | The API to call. `cb auth login` sets it to `host` + `/api/v1` |
-| `account`        | (you)                     | `CB_ACCOUNT`        | The account commands act as. Set by `cb account switch`        |
-| `output`         | `auto`                    | `CB_OUTPUT`         | `auto`, `json` or `text`                                       |
-| `handoff.to`     | `t3`                      | `CB_HANDOFF_TO`     | Where `cb handoff` hands work: `t3` or `boat`                  |
-| `change.base`    | `main`                    | `CB_CHANGE_BASE`    | Base branch for new changes                                    |
-| `change.draft`   | `false`                   | `CB_CHANGE_DRAFT`   | Create changes as drafts                                       |
-| `clone.protocol` | `ssh`                     | `CB_CLONE_PROTOCOL` | `ssh` or `https` for `repo clone`                              |
+| Key            | Default                   | Environment       | Meaning                                                        |
+| -------------- | ------------------------- | ----------------- | -------------------------------------------------------------- |
+| `host`         | `https://cobaltforge.dev` | `CB_HOST`         | The server, for links and the browser                          |
+| `api`          | (set by `auth login`)     | `CB_API`          | The API to call. `cb auth login` sets it to `host` + `/api/v1` |
+| `account`      | (you)                     | `CB_ACCOUNT`      | The account commands act as. Set by `cb account switch`        |
+| `output`       | `auto`                    | `CB_OUTPUT`       | `auto`, `json` or `text`                                       |
+| `handoff.to`   | `t3`                      | `CB_HANDOFF_TO`   | Where `cb handoff` hands work: `t3` or `boat`                  |
+| `change.base`  | `main`                    | `CB_CHANGE_BASE`  | Base branch for new changes                                    |
+| `change.draft` | `false`                   | `CB_CHANGE_DRAFT` | Create changes as drafts                                       |
 
 ## Other environment variables
 

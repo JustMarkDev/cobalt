@@ -27,7 +27,7 @@ cb repo clone dana/gitfs
 
 `repo list` shows the repositories of the account you act as. `--all` shows every account you can act as. `repo create` takes a bare name, which goes in the account you act as, or `owner/name`. It returns `created: false` when the repository already exists, and exits `5` if you are only a member of that organization.
 
-`repo clone` prints the command and honours `clone.protocol` (`ssh` or `https`).
+`repo clone` prints the command, with your host's HTTPS address. Git asks for a username (anything) and a token as the password.
 
 ## import
 

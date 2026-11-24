@@ -25,7 +25,8 @@ http.route({
       Date.now(),
     )
     if (problem) return new Response(problem, { status: 401 })
-    if (req.headers.get('x-pierre-event') !== 'push')
+    const kind = req.headers.get('x-pierre-event')
+    if (kind !== 'push' && !kind?.startsWith('repo.sync.'))
       return new Response('ignored', { status: 202 })
     let e: unknown
     try {
@@ -33,16 +34,49 @@ http.route({
     } catch {
       return new Response('The body is not JSON.', { status: 400 })
     }
+    if (kind !== 'push') {
+      const s = e as {
+        repository?: { repo_name?: unknown }
+        started_at?: unknown
+        completed_at?: unknown
+        error?: unknown
+      }
+      const event = kind.slice('repo.sync.'.length)
+      if (
+        typeof s.repository?.repo_name !== 'string' ||
+        (event !== 'started' && event !== 'succeeded' && event !== 'failed')
+      )
+        return new Response('ignored', { status: 202 })
+      const stamp = Date.parse(
+        String(event === 'started' ? s.started_at : s.completed_at),
+      )
+      const result = await ctx.runMutation(
+        internal.forge.upstreams.recordSync,
+        {
+          storeId: s.repository.repo_name,
+          event,
+          at: Number.isNaN(stamp) ? Date.now() : stamp,
+          ...(typeof s.error === 'string' ? { error: s.error } : {}),
+        },
+      )
+      return new Response(result, { status: 200 })
+    }
     const p = e as {
-      repository?: { id?: unknown }
+      repository?: { repo_name?: unknown; id?: unknown }
       ref?: unknown
       before?: unknown
       after?: unknown
       pushed_at?: unknown
       head_commit?: { message?: unknown }
     }
+    // The documented payload names the repository by `repo_name`; `id` is the
+    // older shape.
+    const storeId =
+      typeof p.repository?.repo_name === 'string'
+        ? p.repository.repo_name
+        : p.repository?.id
     if (
-      typeof p.repository?.id !== 'string' ||
+      typeof storeId !== 'string' ||
       typeof p.ref !== 'string' ||
       typeof p.before !== 'string' ||
       typeof p.after !== 'string'
@@ -51,7 +85,7 @@ http.route({
     const at =
       typeof p.pushed_at === 'string' ? Date.parse(p.pushed_at) : Date.now()
     const result = await ctx.runMutation(internal.forge.pushes.recordPush, {
-      storeId: p.repository.id,
+      storeId,
       ref: p.ref,
       before: p.before,
       after: p.after,

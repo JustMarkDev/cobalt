@@ -38,6 +38,7 @@ import { Route as OrganizationsNewRouteImport } from './routes/organizations/new
 import { Route as SettingsSectionRouteImport } from './routes/settings/$section'
 import { Route as HandleRepoIndexRouteImport } from './routes/$handle/$repo/index'
 import { Route as HandleRepoTabRouteImport } from './routes/$handle/$repo/$tab'
+import { Route as HandleChar123repoChar125DotgitSplatRouteImport } from './routes/$handle/{$repo}[.]git.$'
 import { Route as DotwellKnownOauthProtectedResourceMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource_.mcp'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
@@ -192,6 +193,12 @@ const HandleRepoTabRoute = HandleRepoTabRouteImport.update({
   path: '/$handle/$repo/$tab',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HandleChar123repoChar125DotgitSplatRoute =
+  HandleChar123repoChar125DotgitSplatRouteImport.update({
+    id: '/$handle/{$repo}.git/$',
+    path: '/$handle/{$repo}.git/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DotwellKnownOauthProtectedResourceMcpRoute =
   DotwellKnownOauthProtectedResourceMcpRouteImport.update({
     id: '/.well-known/oauth-protected-resource_/mcp',
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/settings/$section': typeof SettingsSectionRoute
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
+  '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
   '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -292,6 +300,7 @@ export interface FileRoutesByTo {
   '/settings/$section': typeof SettingsSectionRoute
   '/$handle': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
+  '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
   '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -330,6 +339,7 @@ export interface FileRoutesById {
   '/settings/$section': typeof SettingsSectionRoute
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
+  '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
   '/.well-known/oauth-protected-resource_/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -369,6 +379,7 @@ export interface FileRouteTypes {
     | '/settings/$section'
     | '/$handle/'
     | '/$handle/$repo/$tab'
+    | '/$handle/{$repo}.git/$'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/settings/$section'
     | '/$handle'
     | '/$handle/$repo/$tab'
+    | '/$handle/{$repo}.git/$'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
@@ -443,6 +455,7 @@ export interface FileRouteTypes {
     | '/settings/$section'
     | '/$handle/'
     | '/$handle/$repo/$tab'
+    | '/$handle/{$repo}.git/$'
     | '/.well-known/oauth-protected-resource_/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
@@ -481,6 +494,7 @@ export interface RootRouteChildren {
   SettingsSectionRoute: typeof SettingsSectionRoute
   HandleIndexRoute: typeof HandleIndexRoute
   HandleRepoTabRoute: typeof HandleRepoTabRoute
+  HandleChar123repoChar125DotgitSplatRoute: typeof HandleChar123repoChar125DotgitSplatRoute
   DotwellKnownOauthProtectedResourceMcpRoute: typeof DotwellKnownOauthProtectedResourceMcpRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
@@ -695,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HandleRepoTabRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$handle/{$repo}.git/$': {
+      id: '/$handle/{$repo}.git/$'
+      path: '/$handle/{$repo}.git/$'
+      fullPath: '/$handle/{$repo}.git/$'
+      preLoaderRoute: typeof HandleChar123repoChar125DotgitSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.well-known/oauth-protected-resource_/mcp': {
       id: '/.well-known/oauth-protected-resource_/mcp'
       path: '/.well-known/oauth-protected-resource/mcp'
@@ -771,6 +792,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsSectionRoute: SettingsSectionRoute,
   HandleIndexRoute: HandleIndexRoute,
   HandleRepoTabRoute: HandleRepoTabRoute,
+  HandleChar123repoChar125DotgitSplatRoute:
+    HandleChar123repoChar125DotgitSplatRoute,
   DotwellKnownOauthProtectedResourceMcpRoute:
     DotwellKnownOauthProtectedResourceMcpRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

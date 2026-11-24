@@ -1,6 +1,7 @@
 import { activeAccount } from '../account'
 import { has, str } from '../args'
 import { CbError, exit, print, table } from '../output'
+import { githubAccess } from '../github'
 import type { Command } from './types'
 
 const hosts = ['github', 'gitlab', 'codeberg', 'gitea'] as const
@@ -55,9 +56,16 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
     throw new CbError(
       'missing_argument',
       rest.length
-        ? `${rest.join(' ')} is not a repository cb can import. It takes GitHub, GitLab, Codeberg and Gitea.`
+        ? `${rest.join(' ')} is not a repository cb can import. It takes GitHub repositories.`
         : 'import needs the repository to bring in.',
       'Example: cb import github dana/notes, or cb import https://gitlab.com/dana/notes',
+      exit.usage,
+    )
+  if (from.host !== 'github')
+    throw new CbError(
+      'missing_argument',
+      `Importing from ${from.host} is not supported: only GitHub repositories can be linked.`,
+      'Example: cb import github dana/notes',
       exit.usage,
     )
   const as = str(flags, 'as')
@@ -72,6 +80,7 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
       owner,
       ...(name ? { name } : {}),
       visibility: flags.private === true ? 'private' : 'public',
+      github_access: await githubAccess(ctx, api, flags),
     },
     dryRun: dry,
   })
@@ -79,7 +88,7 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
   const full = r.json.full_name as string
   print(ctx, { ...r.json, slug: full, created, dryRun: dry }, () =>
     created
-      ? `${dry ? 'would import' : 'imported'} ${from.host}:${from.slug} as ${full}. It keeps pulling from there until you cb mirror remove it.`
+      ? `${dry ? 'would import' : 'imported'} ${from.host}:${from.slug} as ${full}. It stays in sync with GitHub both ways until you cb mirror remove it.`
       : `${full} is already imported`,
   )
 }

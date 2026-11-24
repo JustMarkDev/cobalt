@@ -130,7 +130,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/accounts" \
 HTTP/1.1 201
 location: https://api.cobaltforge.dev/v1/accounts/harbor-tools
 cb-outcome: created
-ratelimit: "write";r=34;t=60
+ratelimit: "write";r=32;t=60
 ```
 
 ```json
@@ -262,7 +262,7 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/accounts/harbor-tools" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=33;t=60
+ratelimit: "write";r=31;t=60
 ```
 
 ```json
@@ -632,7 +632,7 @@ curl "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations" \
 ```http
 HTTP/1.1 200
 etag: W/"acc_01m6tq6r80xfyz652f.4-On-y_6txzS7Ml4td"
-ratelimit: "read";r=1128;t=60
+ratelimit: "read";r=1127;t=60
 ```
 
 ```json
@@ -641,14 +641,14 @@ ratelimit: "read";r=1128;t=60
   "data": [
     {
       "object": "invitation",
-      "id": "inv_01m6tq6r80afwa4sxb",
+      "id": "inv_01m6tq6r800rs8p99f",
       "account": "harbor-tools",
       "email": "yuki@example.com",
       "role": "member",
       "invited_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
       "expires_at": "2026-11-14T10:00:00.000Z",
-      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
+      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r800rs8p99f"
     }
   ],
   "has_more": false,
@@ -708,20 +708,20 @@ curl -X POST "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations" 
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=31;t=60
+ratelimit: "write";r=29;t=60
 ```
 
 ```json
 {
   "object": "invitation",
-  "id": "inv_01m6tq6r80afwa4sxb",
+  "id": "inv_01m6tq6r800rs8p99f",
   "account": "harbor-tools",
   "email": "yuki@example.com",
   "role": "member",
   "invited_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
   "expires_at": "2026-11-14T10:00:00.000Z",
-  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r800rs8p99f"
 }
 ```
 
@@ -762,13 +762,13 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 **Example**
 
 ```bash
-curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb" \
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r800rs8p99f" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=29;t=60
+ratelimit: "write";r=27;t=60
 ```
 
 ### `links.list`
@@ -960,7 +960,7 @@ curl "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members" \
 ```http
 HTTP/1.1 200
 etag: W/"acc_01m6tq6r80xfyz652f.3-On-y_6txzS7Ml4td"
-ratelimit: "read";r=1129;t=60
+ratelimit: "read";r=1128;t=60
 ```
 
 ```json
@@ -1032,7 +1032,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hol
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=28;t=60
+ratelimit: "write";r=26;t=60
 ```
 
 ### `members.set`
@@ -1087,7 +1087,7 @@ curl -X PUT "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hollis
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=32;t=60
+ratelimit: "write";r=30;t=60
 ```
 
 ```json
@@ -1259,8 +1259,8 @@ curl "https://api.cobaltforge.dev/v1/accounts/northwind/teams" \
 
 ```http
 HTTP/1.1 200
-etag: W/"1B2Kj1h6Cg94soKb"
-ratelimit: "read";r=1127;t=60
+etag: W/"U5UsGX2fUDNiXnRW"
+ratelimit: "read";r=1126;t=60
 ```
 
 ```json
@@ -1269,7 +1269,7 @@ ratelimit: "read";r=1127;t=60
   "data": [
     {
       "object": "team",
-      "id": "tem_01m6tq6r80kwt2gkdn",
+      "id": "tem_01m6tq6r80f3n1zt7m",
       "org": "northwind",
       "slug": "support",
       "name": "Support",
@@ -1341,13 +1341,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/accounts/northwind/teams" \
 HTTP/1.1 201
 location: https://api.cobaltforge.dev/v1/accounts/northwind/teams/support
 cb-outcome: created
-ratelimit: "write";r=27;t=60
+ratelimit: "write";r=25;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80kwt2gkdn",
+  "id": "tem_01m6tq6r80f3n1zt7m",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1404,7 +1404,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support"
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=21;t=60
+ratelimit: "write";r=19;t=60
 ```
 
 ### `teams.get`
@@ -1443,14 +1443,14 @@ curl "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-etag: W/"tem_01m6tq6r80kwt2gkdn.1-IdiBhiRqyEgMjrlC"
-ratelimit: "read";r=1126;t=60
+etag: W/"tem_01m6tq6r80f3n1zt7m.1-IdiBhiRqyEgMjrlC"
+ratelimit: "read";r=1125;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80kwt2gkdn",
+  "id": "tem_01m6tq6r80f3n1zt7m",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1516,13 +1516,13 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support" 
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=26;t=60
+ratelimit: "write";r=24;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80kwt2gkdn",
+  "id": "tem_01m6tq6r80f3n1zt7m",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1578,7 +1578,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=22;t=60
+ratelimit: "write";r=20;t=60
 ```
 
 ### `teams.members.add`
@@ -1625,13 +1625,13 @@ curl -X PUT "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/mem
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=25;t=60
+ratelimit: "write";r=23;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80kwt2gkdn",
+  "id": "tem_01m6tq6r80f3n1zt7m",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1688,7 +1688,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=23;t=60
+ratelimit: "write";r=21;t=60
 ```
 
 ### `teams.repos.set`
@@ -1744,13 +1744,13 @@ curl -X PUT "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/rep
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=24;t=60
+ratelimit: "write";r=22;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80kwt2gkdn",
+  "id": "tem_01m6tq6r80f3n1zt7m",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -2058,7 +2058,7 @@ Send the token from the link in the email. You join with the role the invitation
 curl -X POST "https://api.cobaltforge.dev/v1/invitations/accept" \
   -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"token":"cbi_gNXQGIhXPeH003y_4biZFjqQZ8wXR-Ao"}'
+  -d '{"token":"cbi_6m986iR5fUuKf2Wv7Zuh85HWjsrt_I9t"}'
 ```
 
 ```http
@@ -2116,7 +2116,7 @@ curl "https://api.cobaltforge.dev/v1/notifications?limit=2" \
 ```http
 HTTP/1.1 200
 etag: W/"dana.8.4-K58HAIxv5z0QxThw"
-ratelimit: "read";r=1133;t=60
+ratelimit: "read";r=1132;t=60
 ```
 
 ```json
@@ -2182,7 +2182,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/notifications/ntf_01m6tq6r80bcjy602
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=37;t=60
+ratelimit: "write";r=35;t=60
 ```
 
 ### `notifications.count`
@@ -2215,7 +2215,7 @@ curl "https://api.cobaltforge.dev/v1/notifications/count" \
 ```http
 HTTP/1.1 200
 etag: W/"dana.8.4-cdDRVa-SJA3uQa9Y"
-ratelimit: "read";r=1132;t=60
+ratelimit: "read";r=1131;t=60
 ```
 
 ```json
@@ -2253,7 +2253,7 @@ curl "https://api.cobaltforge.dev/v1/notifications/preferences" \
 ```http
 HTTP/1.1 200
 etag: W/"NEDeJpHfBELx3I9Y"
-ratelimit: "read";r=1130;t=60
+ratelimit: "read";r=1129;t=60
 ```
 
 ```json
@@ -2314,7 +2314,7 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/notifications/preferences" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=35;t=60
+ratelimit: "write";r=33;t=60
 ```
 
 ```json
@@ -2358,7 +2358,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/notifications/read" \
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ### `people.list`

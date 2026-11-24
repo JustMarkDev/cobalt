@@ -682,6 +682,43 @@ export type GitTree = {
   has_more: boolean
 }
 
+export type GithubDevice = {
+  object: 'github_device'
+  /** Keep it: it goes back to `github.device.poll` */
+  device_code: string
+  /** The code to type at the address */
+  user_code: string
+  /** Where to type it */
+  verification_uri: string
+  /** Seconds until the code expires */
+  expires_in: number
+  /** Seconds to wait between polls, at least */
+  interval: number
+}
+
+export type GithubDeviceStatus = {
+  object: 'github_device_status'
+  status: 'pending' | 'slow_down' | 'authorized' | 'expired' | 'denied'
+  /** Seconds to wait before the next poll, when pending */
+  interval: number | null
+  /** Once authorized: proof of who signed in, good for ten minutes, to give to `imports.create` or `github.repos.list`. Not stored here */
+  access: string | null
+  /** Their GitHub login, once authorized */
+  login: string | null
+  /** Seconds `access` stays valid */
+  expires_in: number | null
+}
+
+export type GithubRepo = {
+  object: 'github_repo'
+  /** `owner/name` on GitHub */
+  slug: string
+  private: boolean
+  default_branch: string
+  /** The repository here that already holds it, if any */
+  linked: string | null
+}
+
 export type Import = {
   object: 'import'
   /** The repository here */
@@ -902,7 +939,7 @@ export type LinkedAccount = {
   login: string
   /** For a self-hosted Gitea */
   instance: string | null
-  /** Whether the host confirmed it. Always false until signing in with each host is built */
+  /** Whether the host confirmed it. True for GitHub after signing in with it; false for the other hosts */
   verified: boolean
   /** RFC 3339 time, UTC */
   linked_at: string
@@ -2846,6 +2883,34 @@ export interface Operations {
     }
     output: GitTree
   }
+  /** Ask whether the GitHub sign-in is done (`POST /github/device/poll`) */
+  'github.device.poll': {
+    input: {
+      body: {
+        device_code: string
+      }
+    }
+    output: GithubDeviceStatus
+  }
+  /** Start signing in with GitHub (`POST /github/device`) */
+  'github.device.start': {
+    input: Record<string, never>
+    output: GithubDevice
+  }
+  /** The GitHub repositories you can import (`POST /github/repos`) */
+  'github.repos.list': {
+    input: {
+      body: {
+        access: string
+      }
+    }
+    output: {
+      object: 'list'
+      data: Array<GithubRepo>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
   /** Import a repository from another host (`POST /imports`) */
   'imports.create': {
     input: {
@@ -2857,6 +2922,8 @@ export interface Operations {
         /** Default: its name on that host */
         name?: string
         visibility?: 'public' | 'private'
+        /** For GitHub: the `access` from signing in with GitHub (`github.device.poll`). Proves you may push to the repository */
+        github_access?: string
       }
     }
     output: Repo
@@ -3263,6 +3330,8 @@ export interface Operations {
         /** `owner/name` on that host */
         slug: string
         direction?: 'push' | 'pull' | 'two-way'
+        /** For GitHub: the `access` from signing in with GitHub */
+        github_access?: string
       }
     }
     output: Mirror
@@ -5419,6 +5488,39 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'read',
   },
+  'github.device.poll': {
+    method: 'POST',
+    path: '/github/device/poll',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'github.device.start': {
+    method: 'POST',
+    path: '/github/device',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'github.repos.list': {
+    method: 'POST',
+    path: '/github/repos',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
   'imports.create': {
     method: 'POST',
     path: '/imports',
@@ -7201,6 +7303,24 @@ export interface Client extends Core {
       options?: RequestOptions,
     ) => Promise<Operations['git.tree']['output']>
   }
+  github: {
+    device: {
+      poll: (
+        input: Operations['github.device.poll']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['github.device.poll']['output']>
+      start: (
+        input?: Operations['github.device.start']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['github.device.start']['output']>
+    }
+    repos: {
+      list: (
+        input: Operations['github.repos.list']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['github.repos.list']['output']>
+    }
+  }
   imports: {
     create: (
       input: Operations['imports.create']['input'],
@@ -8047,4 +8167,57 @@ export function createClient(options: ClientOptions = {}): Client {
       call(id as OperationId, input, o)
   }
   return client as Client
+}
+
+// ----- Signing in with GitHub
+
+/**
+ * Signs in with GitHub on the device flow and returns the proof that
+ * `imports.create` and `github.repos.list` take as `github_access`.
+ * `onCode` gets the code to show the person, and where to type it. The proof
+ * is good for ten minutes and nothing is stored.
+ *
+ *   const { access } = await signInWithGitHub(cb, {
+ *     onCode: (c) => console.log(`Open ${c.verification_uri} and enter ${c.user_code}`),
+ *   })
+ *   await cb.imports.create({ body: { host: 'github', slug: 'dana/notes', github_access: access } })
+ */
+export async function signInWithGitHub(
+  cb: Client,
+  options: {
+    onCode: (code: {
+      user_code: string
+      verification_uri: string
+      expires_in: number
+    }) => void | Promise<void>
+    signal?: AbortSignal
+    /** For tests: how to wait. */
+    sleep?: (ms: number) => Promise<void>
+  },
+): Promise<{ access: string; login: string; expires_in: number }> {
+  const sleep =
+    options.sleep ??
+    ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+  const start = await cb.github.device.start()
+  await options.onCode(start)
+  let interval = start.interval * 1000
+  const deadline = Date.now() + start.expires_in * 1000
+  for (;;) {
+    if (options.signal?.aborted)
+      throw new Error('The GitHub sign-in was cancelled.')
+    const r = await cb.github.device.poll({
+      body: { device_code: start.device_code },
+    })
+    if (r.status === 'authorized' && r.access && r.login)
+      return {
+        access: r.access,
+        login: r.login,
+        expires_in: r.expires_in ?? 600,
+      }
+    if (r.status === 'denied') throw new Error('The GitHub sign-in was denied.')
+    if (r.status === 'expired' || Date.now() + interval > deadline)
+      throw new Error('The GitHub code expired before it was approved.')
+    if (r.status === 'slow_down') interval += 5000
+    await sleep(interval)
+  }
 }

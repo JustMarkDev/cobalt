@@ -15,6 +15,7 @@ import { gitOps } from './ops/git'
 import { teamOps } from './ops/teams'
 import { timelineOps } from './ops/timelines'
 import { presenceOps } from './ops/presence'
+import { getFakeGitRepo } from '@cobaltforge/git/fake'
 import { StoreGit } from './git'
 import { ExtrasStore } from './extras'
 import { SearchIndex } from './search'
@@ -33,6 +34,9 @@ import { accessOps } from './ops/access'
 import { policyRuleOps } from './ops/policy-rules'
 import { integrationOps } from './ops/integrations'
 import { importOps } from './ops/imports'
+import { githubOps } from './ops/github'
+import { sampleGithub } from './github-sample'
+import type { Github } from './github'
 import { insightOps } from './ops/insights'
 import { peopleOps } from './ops/people'
 import { metaOps, openapiOp } from './ops/meta'
@@ -86,6 +90,7 @@ export const operations: ReadonlyArray<Op> = [
   ...policyRuleOps,
   ...integrationOps,
   ...importOps,
+  ...githubOps,
   ...insightOps,
   ...peopleOps,
 ]
@@ -113,6 +118,7 @@ export function createSampleApi(
     deviceDecrypt?: (handle: string) => boolean
     mail?: Mailer
     git?: GitData
+    github?: Github | null
     secretsKey?: string
     ephemeralSecrets?: boolean
   } = {},
@@ -145,7 +151,9 @@ export function createSampleApi(
   ).then(
     (box) => box ?? (overrides.ephemeralSecrets ? SecretBox.ephemeral() : null),
   )
-  domain.svc.git = overrides.git ?? new StoreGit()
+  domain.svc.git = overrides.git ?? new StoreGit(getFakeGitRepo)
+  domain.svc.github =
+    overrides.github === undefined ? sampleGithub({ now }) : overrides.github
   domain.svc.mail = overrides.mail ?? mailerFromEnv()
   seedSample(domain)
   overrides.seed?.(domain)

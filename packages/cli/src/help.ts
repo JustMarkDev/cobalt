@@ -7,7 +7,7 @@ Output is JSON when piped or with --json.
 
 Commands
   repo      list, view, create, clone
-  import    bring a repository in from GitHub, GitLab, Codeberg or Gitea
+  import    link a GitHub repository, in sync both ways
   change    list, view, create, land, checkout
   issue     list, view, create, close
   env       list, set, run, pull, confirmations
@@ -62,7 +62,7 @@ export const groupHelp: Record<string, string> = {
   view                    the current repository
   create <name>           create one in the account you act as (--private, --description)
                           or name the owner: create owner/name
-  clone owner/name        print the clone command (uses clone.protocol)
+  clone owner/name        print the clone command
 `,
   issue: `cb issue <command>
 
@@ -92,10 +92,13 @@ export const groupHelp: Record<string, string> = {
 `,
   import: `cb import <host> <owner/name>   or   cb import <url>
 
-  Makes the repository here with its whole history and keeps pulling from the
-  original through a mirror, until you cb mirror remove it.
+  Makes the repository here with its whole history and keeps it in sync with
+  GitHub both ways: what is pushed here reaches GitHub and the other way
+  round, until you cb mirror remove it. It asks you to sign in with GitHub
+  (a code to type at github.com/login/device) to prove you may push to it.
 
-  host                    github, gitlab, codeberg or gitea
+  host                    github
+  --github-access <proof> skip the sign-in (or set CB_GITHUB_ACCESS)
   --as name|owner/name    where it goes (default: its name, in the account you act as)
   --private               private here (default: public)
   list                    what you imported and how each mirror is doing
@@ -103,9 +106,10 @@ export const groupHelp: Record<string, string> = {
   mirror: `cb mirror <command>
 
   list
-  add <host> <owner/name> --direction push|pull|two-way
-  sync <id>
-  remove <id>             stops mirroring. History here is untouched.
+  sync <id>               fetch from GitHub now
+  remove <id>             unlinks it. History here is untouched.
+
+  A repository is linked to GitHub when it is imported: cb import.
 `,
   pipeline: `cb pipeline <command>
 

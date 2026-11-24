@@ -778,8 +778,28 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       body: { login: 'dana.okafor' },
     })
     await call('links.remove', 'DELETE', '/accounts/dana/links/gitlab')
+    await call('github.device.start', 'POST', '/github/device')
+    const polled = await call(
+      'github.device.poll',
+      'POST',
+      '/github/device/poll',
+      {
+        body: {
+          device_code: (out.get('github.device.start')!.json as Json)
+            .device_code as string,
+        },
+      },
+    )
+    const access = (polled.json as Json).access as string
+    await call('github.repos.list', 'POST', '/github/repos', {
+      body: { access },
+    })
     await call('imports.create', 'POST', '/imports', {
-      body: { host: 'github', slug: 'dana-okafor/dotfiles' },
+      body: {
+        host: 'github',
+        slug: 'dana-okafor/dotfiles',
+        github_access: access,
+      },
     })
     await call('imports.list', 'GET', '/imports')
     await call('notifications.list', 'GET', '/notifications?limit=2')
@@ -1159,7 +1179,8 @@ const pages: Array<{
     description:
       'The repositories you can see, creating, changing, transferring and importing one, stars, releases and the one-call context for starting work.',
     icon: 'FolderIcon',
-    match: (id) => /^(repos|stars|releases|imports|access_rules)\./.test(id),
+    match: (id) =>
+      /^(repos|stars|releases|imports|github|access_rules)\./.test(id),
   },
   {
     file: 'pipelines',

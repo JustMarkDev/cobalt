@@ -601,6 +601,14 @@ export abstract class DomainRepos extends DomainAccounts {
     }
   }
 
+  gitAccess(owner: string, name: string, p: Viewer, need: 'read' | 'write') {
+    const repo = this.resolve(owner, name, p, need)
+    return Promise.resolve({
+      storeId: repo.storeId,
+      defaultBranch: repo.defaultBranch,
+    })
+  }
+
   async getRepo(owner: string, name: string, p: Viewer) {
     return this.presentRepo(this.resolve(owner, name, p))
   }

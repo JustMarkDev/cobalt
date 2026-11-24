@@ -1,4 +1,4 @@
-import { ApiError, GitStorage } from '@pierre/storage'
+import { NotFoundError, Pierre } from '@pierre/sdk'
 
 export interface GitAdmin {
   deleteStore: (storeId: string) => Promise<void>
@@ -8,30 +8,34 @@ export interface GitAdmin {
   ) => Promise<Array<{ storeId: string; bytes: number }>>
 }
 
-export function codeStorageAdmin(o: { name: string; key: string }): GitAdmin {
-  const store = new GitStorage({ name: o.name, key: o.key })
+/** `storeId` is the repository name in Code Storage. */
+export function codeStorageAdmin(o: {
+  org: string
+  privateKey: string
+}): GitAdmin {
+  const pierre = new Pierre({ org: o.org, privateKey: o.privateKey })
   return {
     async deleteStore(storeId) {
       try {
-        await store.deleteRepo({ id: storeId })
+        await pierre.repos.delete({ repo_name: storeId })
       } catch (e) {
-        if (e instanceof ApiError && e.status === 404) return
+        if (e instanceof NotFoundError) return
         throw e
       }
     },
     async size(storeId) {
-      const repo = await store.findOne({ id: storeId })
-      if (!repo) return 0
       let bytes = 0
-      let cursor: string | undefined
-      do {
-        const page = await repo.listFilesWithMetadata({
-          ...(cursor ? { cursor } : {}),
+      try {
+        const first = await pierre.repos.files.metadata.list({
+          repo_name: storeId,
           limit: 1000,
         })
-        for (const f of page.files) bytes += f.size
-        cursor = page.hasMore ? page.nextCursor : undefined
-      } while (cursor)
+        for await (const page of first.iterPages())
+          for (const f of page.data) bytes += f.size
+      } catch (e) {
+        if (e instanceof NotFoundError) return 0
+        throw e
+      }
       return bytes
     },
   }

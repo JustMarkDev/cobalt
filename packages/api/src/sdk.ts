@@ -229,6 +229,7 @@ export function generateSdk(doc: Json): string {
   out.push('}')
   out.push('')
   out.push(RUNTIME)
+  out.push(GITHUB_SIGN_IN)
   return out.join('\n')
 }
 
@@ -422,5 +423,55 @@ export function createClient(options: ClientOptions = {}): Client {
     node[parts.at(-1)!] = (input?: Record<string, any>, o?: RequestOptions) => call(id as OperationId, input, o)
   }
   return client as Client
+}
+`
+
+/** Written by hand: the device login for GitHub, on top of the generated operations. */
+const GITHUB_SIGN_IN = `
+// ----- Signing in with GitHub
+
+/**
+ * Signs in with GitHub on the device flow and returns the proof that
+ * \`imports.create\` and \`github.repos.list\` take as \`github_access\`.
+ * \`onCode\` gets the code to show the person, and where to type it. The proof
+ * is good for ten minutes and nothing is stored.
+ *
+ *   const { access } = await signInWithGitHub(cb, {
+ *     onCode: (c) => console.log(\`Open \${c.verification_uri} and enter \${c.user_code}\`),
+ *   })
+ *   await cb.imports.create({ body: { host: 'github', slug: 'dana/notes', github_access: access } })
+ */
+export async function signInWithGitHub(
+  cb: Client,
+  options: {
+    onCode: (code: {
+      user_code: string
+      verification_uri: string
+      expires_in: number
+    }) => void | Promise<void>
+    signal?: AbortSignal
+    /** For tests: how to wait. */
+    sleep?: (ms: number) => Promise<void>
+  },
+): Promise<{ access: string; login: string; expires_in: number }> {
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+  const start = await cb.github.device.start()
+  await options.onCode(start)
+  let interval = start.interval * 1000
+  const deadline = Date.now() + start.expires_in * 1000
+  for (;;) {
+    if (options.signal?.aborted) throw new Error('The GitHub sign-in was cancelled.')
+    const r = await cb.github.device.poll({
+      body: { device_code: start.device_code },
+    })
+    if (r.status === 'authorized' && r.access && r.login)
+      return { access: r.access, login: r.login, expires_in: r.expires_in ?? 600 }
+    if (r.status === 'denied') throw new Error('The GitHub sign-in was denied.')
+    if (r.status === 'expired' || Date.now() + interval > deadline)
+      throw new Error('The GitHub code expired before it was approved.')
+    if (r.status === 'slow_down') interval += 5000
+    await sleep(interval)
+  }
 }
 `

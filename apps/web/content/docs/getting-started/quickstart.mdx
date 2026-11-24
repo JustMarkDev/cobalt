@@ -22,9 +22,11 @@ See [Install](/docs/cli/install) for other ways.
 
 ```bash
 cb repo create dana/notes --public
-git clone git@cobaltforge.dev:dana/notes.git
+git clone https://cobaltforge.dev/dana/notes.git
 cd notes
 ```
+
+Git asks for a username and a password. Use any username, and a token with the `repo:read` and `repo:write` scopes as the password (Settings, Agents and tokens). The token is checked here: your Git client never receives a credential for the git store behind it.
 
 Running `cb repo create` twice is safe. The second call returns the repository that exists.
 

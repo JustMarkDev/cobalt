@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { guarded } from './guarded'
-import type { GitRepo } from './index'
+import type { GitRepo } from './types'
 
 const refusal = (retryAfter?: string) =>
   Object.assign(new Error('slow down'), {

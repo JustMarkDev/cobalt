@@ -10,6 +10,164 @@ description: The repositories you can see, creating, changing, transferring and 
   Examples are real responses from the sample data the preview serves.
 </Callout>
 
+### `github.device.start`
+
+`POST /github/device`
+
+**Start signing in with GitHub**
+
+Gives a code to type at github.com/login/device. Then poll `github.device.poll` until it answers `authorized`.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `201`, a `github_device`            |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/github/device" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 201
+ratelimit: "write";r=38;t=60
+```
+
+```json
+{
+  "object": "github_device",
+  "device_code": "dev_sample",
+  "user_code": "WDJB-MJHT",
+  "verification_uri": "https://github.com/login/device",
+  "expires_in": 900,
+  "interval": 5
+}
+```
+
+### `github.device.poll`
+
+`POST /github/device/poll`
+
+**Ask whether the GitHub sign-in is done**
+
+When `authorized`, `access` proves who you are on GitHub for ten minutes. Nothing about it is stored here.
+
+| About      |                                 |
+| ---------- | ------------------------------- |
+| Safety     | `write`, safe to repeat         |
+| Needs      | a token                         |
+| Scopes     | `repo:write`                    |
+| Rate limit | `write` pool, 1 unit            |
+| Success    | `200`, a `github_device_status` |
+
+**Request body**
+
+| Member        | Type                                      | Notes     |
+| ------------- | ----------------------------------------- | --------- |
+| `device_code` | string (up to 200 characters, at least 1) | Required. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/github/device/poll" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"device_code":"dev_sample"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=37;t=60
+```
+
+```json
+{
+  "object": "github_device_status",
+  "status": "authorized",
+  "interval": null,
+  "access": "ghs_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU",
+  "login": "dana-okafor",
+  "expires_in": 600
+}
+```
+
+### `github.repos.list`
+
+`POST /github/repos`
+
+**The GitHub repositories you can import**
+
+The repositories you may push to and that have the Cobalt GitHub App installed. Sent as a POST because `access` is a secret.
+
+| About      |                                |
+| ---------- | ------------------------------ |
+| Safety     | `read`, safe to repeat         |
+| Needs      | a token                        |
+| Scopes     | `repo:write`                   |
+| Rate limit | `read` pool, 1 unit            |
+| Success    | `200`, a list of `github_repo` |
+
+**Request body**
+
+| Member   | Type                                       | Notes     |
+| -------- | ------------------------------------------ | --------- |
+| `access` | string (up to 4000 characters, at least 1) | Required. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/github/repos" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"access":"ghs_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "read";r=1134;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "github_repo",
+      "slug": "dana-okafor/dotfiles",
+      "private": false,
+      "default_branch": "main",
+      "linked": null
+    },
+    {
+      "object": "github_repo",
+      "slug": "dana-okafor/notes",
+      "private": true,
+      "default_branch": "main",
+      "linked": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
 ### `imports.list`
 
 `GET /imports`
@@ -40,7 +198,7 @@ curl "https://api.cobaltforge.dev/v1/imports" \
 ```http
 HTTP/1.1 200
 etag: W/"5oyWwZ9tk8dor04o"
-ratelimit: "read";r=1134;t=60
+ratelimit: "read";r=1133;t=60
 ```
 
 ```json
@@ -75,7 +233,7 @@ ratelimit: "read";r=1134;t=60
 
 **Import a repository from another host**
 
-Makes the repository here, remembers where it came from, and pulls from it through a mirror. Naturally idempotent like `repos.create`.
+Makes the repository here and links it to the GitHub repository in a two-way sync: what is pushed here reaches GitHub, and what is pushed on GitHub reaches here. Needs `github_access`, which proves you may push to it. Naturally idempotent like `repos.create`.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -94,13 +252,14 @@ Makes the repository here, remembers where it came from, and pulls from it throu
 
 **Request body**
 
-| Member       | Type                                          | Notes                           |
-| ------------ | --------------------------------------------- | ------------------------------- |
-| `host`       | `github` or `gitlab` or `codeberg` or `gitea` | Required.                       |
-| `slug`       | string (pattern)                              | Required.                       |
-| `owner`      | string                                        | Default: the account you act as |
-| `name`       | string (pattern)                              | Default: its name on that host  |
-| `visibility` | `public` or `private`                         | Default `"public"`.             |
+| Member          | Type                                          | Notes                                                                                                              |
+| --------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `host`          | `github` or `gitlab` or `codeberg` or `gitea` | Required.                                                                                                          |
+| `slug`          | string (pattern)                              | Required.                                                                                                          |
+| `owner`         | string                                        | Default: the account you act as                                                                                    |
+| `name`          | string (pattern)                              | Default: its name on that host                                                                                     |
+| `visibility`    | `public` or `private`                         | Default `"public"`.                                                                                                |
+| `github_access` | string (up to 4000 characters)                | For GitHub: the `access` from signing in with GitHub (`github.device.poll`). Proves you may push to the repository |
 
 **Errors**
 
@@ -112,19 +271,19 @@ Makes the repository here, remembers where it came from, and pulls from it throu
 curl -X POST "https://api.cobaltforge.dev/v1/imports" \
   -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"host":"github","slug":"dana-okafor/dotfiles"}'
+  -d '{"host":"github","slug":"dana-okafor/dotfiles","github_access":"ghs_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
 ```
 
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=38;t=60
+ratelimit: "write";r=36;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80j449nb36",
+  "id": "rep_01m6tq6r80f721nfmg",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -410,7 +569,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/repos/northwind/scratch2?confirm=
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=18;t=60
+ratelimit: "write";r=16;t=60
 ```
 
 ### `repos.get`
@@ -569,7 +728,7 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=20;t=60
+ratelimit: "write";r=18;t=60
 ```
 
 ```json
@@ -1180,7 +1339,7 @@ curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/provenance?path=src/refs.r
 ```http
 HTTP/1.1 200
 etag: W/"f_nlctTORiHfwlKq"
-ratelimit: "read";r=1121;t=60
+ratelimit: "read";r=1120;t=60
 ```
 
 ```json
@@ -1873,7 +2032,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=19;t=60
+ratelimit: "write";r=17;t=60
 ```
 
 ```json

@@ -9,6 +9,7 @@ import type { Addressed, Anchor, Placement } from '../anchors'
 import type { HookPort } from '../webhooks'
 import type { SearchIndex } from '../search'
 import type { GitData } from '../git'
+import type { Github } from '../github'
 import type { Mailer } from '../mail'
 import type { Health } from '../health'
 import type { UploadPort } from '../uploads'
@@ -405,6 +406,8 @@ export type Attached = {
   secrets: Promise<SecretBox | null>
   git: GitData
   mail: Mailer
+  /** The platform's GitHub App; null where it is not set up. */
+  github?: Github | null
   health?: Health
 }
 

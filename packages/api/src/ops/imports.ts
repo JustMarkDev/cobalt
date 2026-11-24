@@ -121,7 +121,7 @@ export const importRepo = defineOp({
   id: 'imports.create',
   summary: 'Import a repository from another host',
   description:
-    'Makes the repository here, remembers where it came from, and pulls from it through a mirror. Naturally idempotent like `repos.create`.',
+    'Makes the repository here and links it to the GitHub repository in a two-way sync: what is pushed here reaches GitHub, and what is pushed on GitHub reaches here. Needs `github_access`, which proves you may push to it. Naturally idempotent like `repos.create`.',
   tags,
   method: 'POST',
   path: '/imports',
@@ -143,6 +143,13 @@ export const importRepo = defineOp({
       .optional()
       .describe('Default: its name on that host'),
     visibility: z.enum(['public', 'private']).default('public'),
+    github_access: z
+      .string()
+      .max(4000)
+      .optional()
+      .describe(
+        'For GitHub: the `access` from signing in with GitHub (`github.device.poll`). Proves you may push to the repository',
+      ),
   }),
   response: S.Repo,
   status: 201,

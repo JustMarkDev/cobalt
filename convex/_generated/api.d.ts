@@ -46,6 +46,7 @@ import type * as forge_timelines from "../forge/timelines.js";
 import type * as forge_tokens from "../forge/tokens.js";
 import type * as forge_triggers from "../forge/triggers.js";
 import type * as forge_uploads from "../forge/uploads.js";
+import type * as forge_upstreams from "../forge/upstreams.js";
 import type * as forge_webhooks from "../forge/webhooks.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
@@ -126,6 +127,7 @@ declare const fullApi: ApiFromModules<{
   "forge/tokens": typeof forge_tokens;
   "forge/triggers": typeof forge_triggers;
   "forge/uploads": typeof forge_uploads;
+  "forge/upstreams": typeof forge_upstreams;
   "forge/webhooks": typeof forge_webhooks;
   http: typeof http;
   "lib/access": typeof lib_access;

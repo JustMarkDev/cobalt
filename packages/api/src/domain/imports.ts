@@ -1,4 +1,12 @@
 import { apiError } from '../problem'
+import { presentMirror } from '../mirror'
+import {
+  devicePoll,
+  deviceStart,
+  needGithub,
+  presentGithubRepo,
+} from '../github-port'
+import type { MirrorRec } from '../extras'
 import type { Principal } from '../auth'
 import type { Viewer } from './records'
 import { DomainIntegrations } from './integrations'
@@ -94,10 +102,43 @@ export abstract class DomainImports extends DomainIntegrations {
       owner?: string
       name?: string
       visibility: 'public' | 'private'
+      github_access?: string
     },
     dry: boolean,
   ) {
+    if (body.host !== 'github')
+      throw apiError(
+        'invalid_request',
+        `Importing from ${body.host} is not supported: only GitHub repositories can be linked.`,
+      )
+    if (this.svc.github) {
+      if (!body.github_access)
+        throw apiError(
+          'invalid_request',
+          'Importing from GitHub needs `github_access`.',
+          {
+            hint: 'Sign in with GitHub first: POST /github/device.',
+          },
+        )
+      await this.svc.github.authorize(body.github_access, p.handle, body.slug)
+    }
     const name = body.name ?? body.slug.split('/').pop()!
+    for (const r of this.repos.values())
+      if (
+        r.upstream?.host === body.host &&
+        r.upstream.slug.toLowerCase() === body.slug.toLowerCase()
+      ) {
+        const held = `${r.owner}/${r.name}`
+        if (
+          (body.owner ?? r.owner).toLowerCase() !== r.owner.toLowerCase() ||
+          name.toLowerCase() !== r.name.toLowerCase()
+        )
+          throw apiError(
+            'invalid_state',
+            `${body.slug} is already linked to ${held}.`,
+            { hint: 'A GitHub repository feeds one repository here.' },
+          )
+      }
     const made = await this.createRepo(
       p,
       {
@@ -121,10 +162,10 @@ export abstract class DomainImports extends DomainIntegrations {
             .slice(0, 22),
           host: body.host,
           slug: body.slug,
-          direction: 'pull',
+          direction: 'two-way',
           state: 'syncing',
           lastSync: this.now(),
-          detail: 'Waiting for the first fetch.',
+          detail: 'The first sync from GitHub is running.',
           created: this.now(),
         })
       rec.version++
@@ -153,5 +194,124 @@ export abstract class DomainImports extends DomainIntegrations {
       })
     }
     return out.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+  }
+
+  async githubDeviceStart(_p: Principal) {
+    return deviceStart(this.svc.github)
+  }
+
+  async githubDevicePoll(p: Principal, deviceCode: string) {
+    return devicePoll(this.svc.github, p, deviceCode)
+  }
+
+  async githubRepos(p: Principal, access: string) {
+    const linked = new Map<string, string>()
+    for (const r of this.repos.values())
+      if (r.upstream?.host === 'github')
+        linked.set(r.upstream.slug.toLowerCase(), `${r.owner}/${r.name}`)
+    return (await needGithub(this.svc.github).repos(access, p.handle)).map(
+      (r) => presentGithubRepo(r, linked.get(r.slug.toLowerCase()) ?? null),
+    )
+  }
+
+  async createMirror(
+    p: Principal,
+    owner: string,
+    name: string,
+    body: { host: string; slug: string; direction: MirrorRec['direction'] },
+    dry: boolean,
+  ) {
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const x = await this.svc.extras.open(full)
+    const same = x.mirrors.find(
+      (m) => m.host === body.host && m.slug === body.slug,
+    )
+    if (same)
+      return {
+        mirror: presentMirror(this.urls.api, full, same),
+        created: false,
+      }
+    const rec: MirrorRec = {
+      id: `mir_${this.now().toString(36)}${x.mirrors.length}`
+        .padEnd(22, '0')
+        .slice(0, 22),
+      host: body.host,
+      slug: body.slug,
+      direction: body.direction,
+      state: 'in-sync',
+      lastSync: this.now(),
+      detail: null,
+      created: this.now(),
+    }
+    if (!dry) x.mirrors.push(rec)
+    return { mirror: presentMirror(this.urls.api, full, rec), created: true }
+  }
+
+  private async mirrorOf(
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+  ) {
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const m = (await this.svc.extras.open(full)).mirrors.find(
+      (x) => x.id === mirror,
+    )
+    if (!m) throw apiError('not_found', `No mirror ${mirror}.`)
+    return { full, m }
+  }
+
+  async syncMirror(
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+    dry: boolean,
+  ) {
+    const { full, m } = await this.mirrorOf(p, owner, name, mirror)
+    if (m.paused)
+      throw apiError('invalid_state', `${m.host} ${m.slug} is paused.`, {
+        hint: 'Resume it first: PATCH the mirror with paused=false.',
+      })
+    const synced = {
+      ...m,
+      state: 'in-sync' as const,
+      lastSync: this.now(),
+      detail: null,
+    }
+    if (!dry) Object.assign(m, synced)
+    return presentMirror(this.urls.api, full, synced)
+  }
+
+  async updateMirror(
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+    body: { paused?: boolean; direction?: MirrorRec['direction'] },
+    dry: boolean,
+  ) {
+    const { full, m } = await this.mirrorOf(p, owner, name, mirror)
+    const next = {
+      ...m,
+      paused: body.paused ?? m.paused,
+      direction: body.direction ?? m.direction,
+    }
+    if (!dry) Object.assign(m, next)
+    return presentMirror(this.urls.api, full, next)
+  }
+
+  async deleteMirror(
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+    dry: boolean,
+  ) {
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const x = await this.svc.extras.open(full)
+    const i = x.mirrors.findIndex((m) => m.id === mirror)
+    if (i < 0) throw apiError('not_found', `No mirror ${mirror}.`)
+    if (!dry) x.mirrors.splice(i, 1)
   }
 }

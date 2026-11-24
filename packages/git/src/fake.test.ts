@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test'
 import { parsePatchFiles } from '@pierre/diffs'
-import { ApiError } from '@pierre/storage'
-import { getGitRepo } from './index'
+import { GitError } from './types'
+import { getFakeGitRepo } from './fake'
 
 test('fake repo walks history and produces patches Pierre can parse', async () => {
-  const repo = getGitRepo('tinyqueue')
+  const repo = getFakeGitRepo('tinyqueue')
   const { commits } = await repo.listCommits()
   expect(commits.length).toBe(61)
   expect(commits.slice(0, 3).map((c) => c.message)).toEqual([
@@ -30,9 +30,9 @@ test('fake repo walks history and produces patches Pierre can parse', async () =
 })
 
 test('unknown refs fail like the real SDK', async () => {
-  const err = await getGitRepo('tinyqueue')
+  const err = await getFakeGitRepo('tinyqueue')
     .getCommit({ sha: 'deadbeef' })
     .catch((e: unknown) => e)
-  expect(err).toBeInstanceOf(ApiError)
-  expect((err as ApiError).status).toBe(404)
+  expect(err).toBeInstanceOf(GitError)
+  expect((err as GitError).status).toBe(404)
 })

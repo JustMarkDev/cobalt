@@ -6,9 +6,17 @@ description: Import from another host, mirror back to it, and leave it whenever 
 
 cobalt is designed so that no other host is a dependency. This page explains how history gets here, how copies stay elsewhere, and what happens when a host goes away.
 
-## Bring history in
+## Bring a repository in from GitHub
 
-Open **Settings, Linked accounts** and connect the host you use today. cobalt reads your repositories, issues, review threads and releases and stores them here. Your profile then counts that past work.
+Open **New repository, Import existing** and sign in with GitHub. You get a code to enter on github.com; cobalt never stores the GitHub token it receives, only a proof that you may push to the repositories you pick, which lasts ten minutes.
+
+Install the **cobalt GitHub App** on the repositories you want first. Only repositories where the app is installed and where you may push are offered. Each one becomes a repository here and stays in sync with GitHub in both directions: what you push here reaches GitHub, and what is pushed there reaches here. One GitHub repository feeds one repository here.
+
+```bash
+cb import github dana-okafor/dotfiles
+```
+
+`cb import` shows the same code and waits for you to approve it. From code, `signInWithGitHub` in the SDK does the same.
 
 <Callout title="Public pages never name the origin">
   A repository imported from another host looks like any other project to

@@ -3983,6 +3983,298 @@
         "x-cb-secret-request": false
       }
     },
+    "/github/device/poll": {
+      "post": {
+        "operationId": "github.device.poll",
+        "summary": "Ask whether the GitHub sign-in is done",
+        "description": "When `authorized`, `access` proves who you are on GitHub for ten minutes. Nothing about it is stored here.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device_code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "device_code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubDeviceStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/github/device": {
+      "post": {
+        "operationId": "github.device.start",
+        "summary": "Start signing in with GitHub",
+        "description": "Gives a code to type at github.com/login/device. Then poll `github.device.poll` until it answers `authorized`.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubDevice"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": false,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/github/repos": {
+      "post": {
+        "operationId": "github.repos.list",
+        "summary": "The GitHub repositories you can import",
+        "description": "The repositories you may push to and that have the Cobalt GitHub App installed. Sent as a POST because `access` is a secret.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "access": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "access"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GithubRepo"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
     "/imports": {
       "get": {
         "operationId": "imports.list",
@@ -4083,7 +4375,7 @@
       "post": {
         "operationId": "imports.create",
         "summary": "Import a repository from another host",
-        "description": "Makes the repository here, remembers where it came from, and pulls from it through a mirror. Naturally idempotent like `repos.create`.",
+        "description": "Makes the repository here and links it to the GitHub repository in a two-way sync: what is pushed here reaches GitHub, and what is pushed on GitHub reaches here. Needs `github_access`, which proves you may push to it. Naturally idempotent like `repos.create`.",
         "tags": [
           "imports"
         ],
@@ -4134,6 +4426,11 @@
                       "public",
                       "private"
                     ]
+                  },
+                  "github_access": {
+                    "description": "For GitHub: the `access` from signing in with GitHub (`github.device.poll`). Proves you may push to the repository",
+                    "type": "string",
+                    "maxLength": 4000
                   }
                 },
                 "required": [
@@ -16244,6 +16541,11 @@
                       "pull",
                       "two-way"
                     ]
+                  },
+                  "github_access": {
+                    "description": "For GitHub: the `access` from signing in with GitHub",
+                    "type": "string",
+                    "maxLength": 4000
                   }
                 },
                 "required": [
@@ -26042,7 +26344,7 @@
           },
           "verified": {
             "type": "boolean",
-            "description": "Whether the host confirmed it. Always false until signing in with each host is built"
+            "description": "Whether the host confirmed it. True for GitHub after signing in with it; false for the other hosts"
           },
           "linked_at": {
             "type": "string",
@@ -27351,6 +27653,147 @@
           "version",
           "versions",
           "links"
+        ]
+      },
+      "GithubDeviceStatus": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "github_device_status"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "slow_down",
+              "authorized",
+              "expired",
+              "denied"
+            ]
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seconds to wait before the next poll, when pending"
+          },
+          "access": {
+            "description": "Once authorized: proof of who signed in, good for ten minutes, to give to `imports.create` or `github.repos.list`. Not stored here",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "login": {
+            "description": "Their GitHub login, once authorized",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_in": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seconds `access` stays valid"
+          }
+        },
+        "required": [
+          "object",
+          "status",
+          "interval",
+          "access",
+          "login",
+          "expires_in"
+        ]
+      },
+      "GithubDevice": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "github_device"
+          },
+          "device_code": {
+            "type": "string",
+            "description": "Keep it: it goes back to `github.device.poll`"
+          },
+          "user_code": {
+            "type": "string",
+            "description": "The code to type at the address"
+          },
+          "verification_uri": {
+            "type": "string",
+            "description": "Where to type it"
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Seconds until the code expires"
+          },
+          "interval": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Seconds to wait between polls, at least"
+          }
+        },
+        "required": [
+          "object",
+          "device_code",
+          "user_code",
+          "verification_uri",
+          "expires_in",
+          "interval"
+        ]
+      },
+      "GithubRepo": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "github_repo"
+          },
+          "slug": {
+            "type": "string",
+            "description": "`owner/name` on GitHub"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "default_branch": {
+            "type": "string"
+          },
+          "linked": {
+            "description": "The repository here that already holds it, if any",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "slug",
+          "private",
+          "default_branch",
+          "linked"
         ]
       },
       "Import": {

@@ -40,11 +40,12 @@ const signed = (
 
 const push = (storeId: string, ref: string, after: string) =>
   JSON.stringify({
-    repository: { id: storeId, url: 'https://git.code.storage/x' },
+    type: 'push',
+    repository: { repo_name: storeId },
     ref,
     before: '1'.repeat(40),
     after,
-    customer_id: 'cus_1',
+    org: 'cobaltforge',
     pushed_at: new Date().toISOString(),
   })
 
@@ -190,4 +191,19 @@ test('a push to a change whose author is denounced does not become a patch set',
     body,
   })
   expect(await res.text()).toBe('denounced')
+})
+
+test('the older payload, which names the repository by id, still counts', async () => {
+  const { t, storeId, change } = await setup()
+  const { repository: _, ...rest } = JSON.parse(
+    push(storeId, `refs/heads/${change.branch}`, 'e'.repeat(40)),
+  )
+  const body = JSON.stringify({ ...rest, repository: { id: storeId } })
+  const res = await t.fetch('/hooks/code-storage', {
+    method: 'POST',
+    headers: { 'x-pierre-signature': signed(body), 'x-pierre-event': 'push' },
+    body,
+  })
+  expect(res.status).toBe(200)
+  expect(await res.text()).toBe('patch_set_added')
 })

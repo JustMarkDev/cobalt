@@ -1143,9 +1143,68 @@ export const LinkedAccount = named(
     verified: z
       .boolean()
       .describe(
-        'Whether the host confirmed it. Always false until signing in with each host is built',
+        'Whether the host confirmed it. True for GitHub after signing in with it; false for the other hosts',
       ),
     linked_at: ts,
+  }),
+)
+
+export const GithubDevice = named(
+  'GithubDevice',
+  obj({
+    object: z.literal('github_device'),
+    device_code: z
+      .string()
+      .describe('Keep it: it goes back to `github.device.poll`'),
+    user_code: z.string().describe('The code to type at the address'),
+    verification_uri: z.string().describe('Where to type it'),
+    expires_in: z.number().int().describe('Seconds until the code expires'),
+    interval: z
+      .number()
+      .int()
+      .describe('Seconds to wait between polls, at least'),
+  }),
+)
+
+export const GithubDeviceStatus = named(
+  'GithubDeviceStatus',
+  obj({
+    object: z.literal('github_device_status'),
+    status: z.enum(['pending', 'slow_down', 'authorized', 'expired', 'denied']),
+    interval: z
+      .number()
+      .int()
+      .nullable()
+      .describe('Seconds to wait before the next poll, when pending'),
+    access: z
+      .string()
+      .nullable()
+      .describe(
+        'Once authorized: proof of who signed in, good for ten minutes, to give to `imports.create` or `github.repos.list`. Not stored here',
+      ),
+    login: z
+      .string()
+      .nullable()
+      .describe('Their GitHub login, once authorized'),
+    expires_in: z
+      .number()
+      .int()
+      .nullable()
+      .describe('Seconds `access` stays valid'),
+  }),
+)
+
+export const GithubRepo = named(
+  'GithubRepo',
+  obj({
+    object: z.literal('github_repo'),
+    slug: z.string().describe('`owner/name` on GitHub'),
+    private: z.boolean(),
+    default_branch: z.string(),
+    linked: z
+      .string()
+      .nullable()
+      .describe('The repository here that already holds it, if any'),
   }),
 )
 

@@ -1,4 +1,4 @@
-import { MemoryTokenStore, oauthScopes } from '@cobaltforge/api/auth'
+import { oauthScopes } from '@cobaltforge/api/auth'
 import {
   ConvexIdempotencyStore,
   ConvexLimitStore,
@@ -6,7 +6,6 @@ import {
 } from '@cobaltforge/api/stores/convex'
 import { createSampleApi } from '@cobaltforge/api'
 import { createConvexApi } from '@cobaltforge/api/convex-api'
-import { exportWorld } from '@cobaltforge/api/seed-export'
 import { AppSessions } from './sessions'
 
 export const API_MOUNT = '/api/v1'
@@ -14,11 +13,14 @@ export const API_MOUNT = '/api/v1'
 type AppApi = Pick<
   ReturnType<typeof createSampleApi>,
   'fetch' | 'fetchAs' | 'ops' | 'port' | 'oauth' | 'verifyToken'
->
+> & {
+  /** Git over HTTPS. Only the real backend has it. */
+  gitHttp?: (req: Request, ip?: string) => Promise<Response>
+}
 
 let current: AppApi | undefined
 
-function convexApi(origin: string, sessions: AppSessions, live: boolean) {
+function convexApi(origin: string, sessions: AppSessions) {
   const url = process.env.CONVEX_URL ?? process.env.VITE_CONVEX_URL
   const key = process.env.API_JWT_PRIVATE_KEY
   if (!url || !key) return null
@@ -36,18 +38,6 @@ function convexApi(origin: string, sessions: AppSessions, live: boolean) {
     sessions,
     userScopes: () => oauthScopes,
     blobFolder: process.env.CB_BLOB_DIR ?? `${process.cwd()}/.data/blobs`,
-    seedSample: live
-      ? () => {
-          const sample = createSampleApi({
-            mount: API_MOUNT,
-            base: `${origin}${API_MOUNT}`,
-            htmlBase: origin,
-          })
-          return JSON.stringify(
-            exportWorld(sample.domain, sample.domain.svc.auth as never),
-          )
-        }
-      : undefined,
   })
 }
 
@@ -86,13 +76,19 @@ export function getApi(requestUrl: string) {
   const sessions = new AppSessions((user) => {
     void current?.port.knowPerson(user.handle, user.name)
   })
-  const onConvex = convexApi(origin, sessions, live)
+  const onConvex = convexApi(origin, sessions)
   if (onConvex) {
     current = onConvex
     return current
   }
+  // The in-memory sample is only for working on the app on your own machine.
+  // A deployment never serves made-up data in place of the real backend.
+  if (!live)
+    throw new Error(
+      'CONVEX_URL and API_JWT_PRIVATE_KEY are required: the API does not serve sample data outside local development.',
+    )
   console.warn(
-    '[api] No Convex key (API_JWT_PRIVATE_KEY): serving the sample from memory. Nothing written is kept.',
+    '[api] No Convex key (API_JWT_PRIVATE_KEY): serving the sample from memory for local development. Nothing written is kept.',
   )
   const api = createSampleApi({
     mount: API_MOUNT,
@@ -100,7 +96,6 @@ export function getApi(requestUrl: string) {
     htmlBase: origin,
     sessions,
     userScopes: () => oauthScopes,
-    ...(live ? {} : { tokens: new MemoryTokenStore() }),
     ...(shared && secret
       ? {
           limitStore: new ConvexLimitStore(shared, secret),

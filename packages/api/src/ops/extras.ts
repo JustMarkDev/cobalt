@@ -4,16 +4,12 @@ import { z } from 'zod'
 import { ENVIRONMENTS } from '../extras'
 import { apiError } from '../problem'
 import { receiptFor } from '../receipt'
+import { presentMirror } from '../mirror'
 import { Domain, defineOp, reply } from '../registry'
 import { iso } from '../domain'
 import * as S from '../schemas'
 import { repoParams } from './common'
-import type {
-  ConfirmationRec,
-  Environment,
-  MirrorRec,
-  RepoExtras,
-} from '../extras'
+import type { ConfirmationRec, Environment, RepoExtras } from '../extras'
 import type { Principal } from '../auth'
 import type { DomainPort } from '../domain'
 
@@ -73,24 +69,6 @@ export const createRepo = defineOp({
     }),
 })
 
-const presentMirror = (
-  d: DomainPort,
-  full: string,
-  m: MirrorRec,
-): z.infer<typeof S.Mirror> => ({
-  object: 'mirror',
-  id: m.id,
-  host: m.host,
-  slug: m.slug,
-  direction: m.direction,
-  state: m.state,
-  detail: m.detail,
-  last_sync_at: iso(m.lastSync),
-  url: `${d.urls.api}/repos/${full}/mirrors/${m.id}`,
-  created_at: iso(m.created),
-  paused: m.paused ?? false,
-})
-
 const mirrorParams = repoParams.extend({
   mirror: z.string().describe('The mirror `mir_` id'),
 })
@@ -128,7 +106,7 @@ export const listMirrors = defineOp({
           'read',
         )
         return (await d.svc.extras.open(full)).mirrors.map((m) =>
-          presentMirror(d, full, m),
+          presentMirror(d.urls.api, full, m),
         )
       })
       return {
@@ -162,6 +140,11 @@ export const createMirror = defineOp({
       .regex(/^[^/\s]+\/[^/\s]+$/)
       .describe('`owner/name` on that host'),
     direction: z.enum(['push', 'pull', 'two-way']).default('push'),
+    github_access: z
+      .string()
+      .max(4000)
+      .optional()
+      .describe('For GitHub: the `access` from signing in with GitHub'),
   }),
   response: S.Mirror,
   status: 201,
@@ -169,34 +152,16 @@ export const createMirror = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      const out = yield* run(async (d) => {
-        const full = await d.repoAccess(
+      const out = yield* run((d) =>
+        d.createMirror(
+          ctx.principal!,
           ctx.params.owner,
           ctx.params.repo,
-          ctx.principal,
-          'write',
-        )
-        const x = await d.svc.extras.open(full)
-        const same = x.mirrors.find(
-          (m) => m.host === ctx.body.host && m.slug === ctx.body.slug,
-        )
-        if (same) return { m: presentMirror(d, full, same), created: false }
-        const rec: MirrorRec = {
-          id: `mir_${ctx.now().toString(36)}${x.mirrors.length}`
-            .padEnd(22, '0')
-            .slice(0, 22),
-          host: ctx.body.host,
-          slug: ctx.body.slug,
-          direction: ctx.body.direction,
-          state: 'in-sync',
-          lastSync: ctx.now(),
-          detail: null,
-          created: ctx.now(),
-        }
-        if (!ctx.dryRun) x.mirrors.push(rec)
-        return { m: presentMirror(d, full, rec), created: true }
-      })
-      return reply(out.m, {
+          ctx.body,
+          ctx.dryRun,
+        ),
+      )
+      return reply(out.mirror, {
         status: out.created ? 201 : 200,
         headers: { 'cb-outcome': out.created ? 'created' : 'unchanged' },
       })
@@ -221,36 +186,15 @@ export const syncMirror = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      return yield* run(async (d) => {
-        const full = await d.repoAccess(
+      return yield* run((d) =>
+        d.syncMirror(
+          ctx.principal!,
           ctx.params.owner,
           ctx.params.repo,
-          ctx.principal,
-          'write',
-        )
-        const m = (await d.svc.extras.open(full)).mirrors.find(
-          (x) => x.id === ctx.params.mirror,
-        )
-        if (!m) throw apiError('not_found', `No mirror ${ctx.params.mirror}.`)
-        if (m.paused)
-          throw apiError('invalid_state', `${m.host} ${m.slug} is paused.`, {
-            hint: 'Resume it first: PATCH the mirror with paused=false.',
-          })
-        if (!ctx.dryRun) {
-          m.state = 'in-sync'
-          m.lastSync = ctx.now()
-          m.detail = null
-        }
-        const synced = ctx.dryRun
-          ? {
-              ...m,
-              state: 'in-sync' as const,
-              lastSync: ctx.now(),
-              detail: null,
-            }
-          : m
-        return presentMirror(d, full, synced)
-      })
+          ctx.params.mirror,
+          ctx.dryRun,
+        ),
+      )
     }),
 })
 
@@ -278,25 +222,16 @@ export const updateMirror = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      return yield* run(async (d) => {
-        const full = await d.repoAccess(
+      return yield* run((d) =>
+        d.updateMirror(
+          ctx.principal!,
           ctx.params.owner,
           ctx.params.repo,
-          ctx.principal,
-          'write',
-        )
-        const m = (await d.svc.extras.open(full)).mirrors.find(
-          (x) => x.id === ctx.params.mirror,
-        )
-        if (!m) throw apiError('not_found', `No mirror ${ctx.params.mirror}.`)
-        const next = {
-          ...m,
-          paused: ctx.body.paused ?? m.paused,
-          direction: ctx.body.direction ?? m.direction,
-        }
-        if (!ctx.dryRun) Object.assign(m, next)
-        return presentMirror(d, full, next)
-      })
+          ctx.params.mirror,
+          ctx.body,
+          ctx.dryRun,
+        ),
+      )
     }),
 })
 
@@ -320,19 +255,15 @@ export const deleteMirror = defineOp({
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      yield* run(async (d) => {
-        const full = await d.repoAccess(
+      yield* run((d) =>
+        d.deleteMirror(
+          ctx.principal!,
           ctx.params.owner,
           ctx.params.repo,
-          ctx.principal,
-          'write',
-        )
-        const x = await d.svc.extras.open(full)
-        const i = x.mirrors.findIndex((m) => m.id === ctx.params.mirror)
-        if (i < 0)
-          throw apiError('not_found', `No mirror ${ctx.params.mirror}.`)
-        if (!ctx.dryRun) x.mirrors.splice(i, 1)
-      })
+          ctx.params.mirror,
+          ctx.dryRun,
+        ),
+      )
       return reply(null, { status: 204 })
     }),
 })

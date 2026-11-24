@@ -1,4 +1,5 @@
 import { getGitRepo } from '@cobaltforge/git'
+import type { GitStores } from '@cobaltforge/git/stores'
 import { apiError } from './problem'
 import type { GitRepo } from '@cobaltforge/git'
 
@@ -32,6 +33,16 @@ export interface GitData {
     sha: string,
   ) => Promise<{ sha: string; base: string | null; files: Array<GitDiffFile> }>
   setRepo?: (repo: string, storeId: string) => void
+  /** Makes sure the store of a repository exists where the git data lives. */
+  provision?: (
+    storeId: string,
+    opts?: {
+      upstream?: { owner: string; name: string }
+      defaultBranch?: string
+    },
+  ) => Promise<void>
+  pull?: (storeId: string) => Promise<void>
+  detach?: (storeId: string) => Promise<void>
   dropRepo?: (repo: string) => void
   storeOf?: (repo: string) => string | undefined
 }
@@ -68,7 +79,18 @@ export class StoreGit implements GitData {
   private readonly stores = new Map<string, string>()
   constructor(
     private readonly open: (storeId: string) => GitRepo = getGitRepo,
-  ) {}
+    provisioner?: GitStores,
+  ) {
+    if (provisioner) {
+      this.provision = (storeId, opts) => provisioner.provision(storeId, opts)
+      this.pull = (storeId) => provisioner.pull(storeId)
+      this.detach = (storeId) => provisioner.detach(storeId)
+    }
+  }
+
+  provision?: GitData['provision']
+  pull?: GitData['pull']
+  detach?: GitData['detach']
 
   setRepo(repo: string, storeId: string) {
     this.stores.set(repo.toLowerCase(), storeId)
@@ -82,13 +104,26 @@ export class StoreGit implements GitData {
     return this.stores.get(repo.toLowerCase())
   }
 
-  private repo(full: string) {
-    return this.open(this.stores.get(full.toLowerCase()) ?? full.split('/')[1])
+  /**
+   * Where the store of a repository is named, when the server does not know it
+   * yet. A server that sets it never guesses a store from the repository name.
+   */
+  resolveStore?: (full: string) => Promise<string | null>
+
+  private async repo(full: string) {
+    const key = full.toLowerCase()
+    let id = this.stores.get(key)
+    if (!id && this.resolveStore) {
+      id = (await this.resolveStore(full)) ?? undefined
+      if (!id) throw apiError('not_found', `No repository ${full}.`)
+      this.stores.set(key, id)
+    }
+    return this.open(id ?? full.split('/')[1])
   }
 
   files(repo: string, ref?: string) {
     return guarded(`The ref ${ref ?? 'main'}`, async () => {
-      const store = this.repo(repo)
+      const store = await this.repo(repo)
       const paths: Array<string> = []
       let cursor: string | undefined
       let resolved = ref ?? ''
@@ -106,32 +141,34 @@ export class StoreGit implements GitData {
 
   blob(repo: string, path: string, ref?: string) {
     return guarded(`${path} at ${ref ?? 'main'}`, async () => {
-      const res = await this.repo(repo).getFileStream({ path, ref })
+      const res = await (await this.repo(repo)).getFileStream({ path, ref })
       return res.ok ? new Uint8Array(await res.arrayBuffer()) : null
     })
   }
 
   commits(repo: string, limit: number) {
     return guarded('The history', async () =>
-      (await this.repo(repo).listCommits({ limit })).commits.map(commitOf),
+      (await (await this.repo(repo)).listCommits({ limit })).commits.map(
+        commitOf,
+      ),
     )
   }
 
   commit(repo: string, sha: string) {
     return guarded(`Commit ${sha}`, async () =>
-      commitOf((await this.repo(repo).getCommit({ sha })).commit),
+      commitOf((await (await this.repo(repo)).getCommit({ sha })).commit),
     )
   }
 
   diff(repo: string, sha: string) {
     return guarded(`Commit ${sha}`, async () => {
-      const d = await this.repo(repo).getCommitDiff({ sha })
+      const d = await (await this.repo(repo)).getCommitDiff({ sha })
       return {
         sha: d.sha,
         base: d.baseSha ?? null,
         files: d.files.map((f) => ({
           path: f.path,
-          state: f.state as GitDiffFile['state'],
+          state: f.state,
           additions: f.additions,
           deletions: f.deletions,
           patch: f.raw,

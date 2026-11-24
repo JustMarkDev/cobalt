@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import { structuredPatch } from 'diff'
-import { ApiError } from '@pierre/storage'
-import type { CommitInfo, FileDiff } from '@pierre/storage'
 import { contributingFor, licenseFor, readmeFor } from './sample-docs'
-import type { GitRepo } from './index'
+import { createReadCache } from './cached'
+import { guarded } from './guarded'
+import { GitError } from './types'
+import type { CommitInfo, FileDiff, GitRepo } from './types'
 
 type FixtureCommit = {
   message: string
@@ -300,13 +301,7 @@ function history(id: string): Array<FixtureCommit> | undefined {
 }
 
 function notFound(what: string) {
-  return new ApiError({
-    message: `${what} not found`,
-    status: 404,
-    statusText: 'Not Found',
-    method: 'GET',
-    url: 'fake://',
-  })
+  return new GitError(`${what} not found`, 404)
 }
 
 type Tree = Partial<Record<string, string>>
@@ -345,7 +340,6 @@ function build(id: string): Array<Built> {
         committerName: c.author,
         committerEmail: email,
         date: new Date(c.date),
-        rawDate: c.date,
       },
     })
   }
@@ -406,9 +400,6 @@ function fileDiff(
   return {
     path,
     state,
-    rawState: state[0].toUpperCase(),
-    bytes: raw.length,
-    isEof: true,
     raw,
     additions,
     deletions,
@@ -423,7 +414,6 @@ export function fakeRepo(id: string): GitRepo {
       return {
         paths,
         ref: info.sha,
-        entries: paths.map((path) => ({ path, type: 'blob', mode: '100644' })),
         hasMore: false,
       }
     },
@@ -453,20 +443,18 @@ export function fakeRepo(id: string): GitRepo {
       const files = paths
         .filter((p) => parentTree[p] !== tree[p])
         .map((p) => fileDiff(p, parentTree[p], tree[p]))
-      const additions = files.reduce((n, f) => n + f.additions, 0)
-      const deletions = files.reduce((n, f) => n + f.deletions, 0)
       return {
         sha: info.sha,
         baseSha: info.parentShas[0],
-        stats: {
-          files: files.length,
-          additions,
-          deletions,
-          changes: additions + deletions,
-        },
         files,
-        filteredFiles: [],
       }
     },
   }
+}
+
+/** A fixture repository for tests and the in-memory sample. Never used by the running product. */
+export const fakeReadCache = createReadCache()
+
+export function getFakeGitRepo(id: string): GitRepo {
+  return fakeReadCache.wrap(id, guarded(fakeRepo(id)))
 }

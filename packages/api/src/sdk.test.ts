@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'bun:test'
 import { sdkSource } from '../../../scripts/api-sdk'
-import { CbError, createClient } from '@cobaltforge/sdk'
+import { CbError, createClient, signInWithGitHub } from '@cobaltforge/sdk'
 import { sampleTokens } from './sample'
 import { harness } from './testing'
 
@@ -39,6 +39,26 @@ describe('the TypeScript client', () => {
     expect(
       readFileSync(new URL('../../sdk/index.ts', import.meta.url), 'utf8'),
     ).toBe(await sdkSource())
+  })
+
+  test('signing in with GitHub gives the proof that imports take', async () => {
+    const { cb } = clientFor()
+    const shown: Array<string> = []
+    const { access, login } = await signInWithGitHub(cb, {
+      onCode: (c) => {
+        shown.push(`${c.verification_uri} ${c.user_code}`)
+      },
+    })
+    expect(shown).toEqual(['https://github.com/login/device WDJB-MJHT'])
+    expect(login).toBe('dana-okafor')
+    const repo = await cb.imports.create({
+      body: {
+        host: 'github',
+        slug: 'dana-okafor/dotfiles',
+        github_access: access,
+      },
+    })
+    expect(repo.upstream).toMatchObject({ slug: 'dana-okafor/dotfiles' })
   })
 
   test('reads, writes and nested groups work, with the types the server publishes', async () => {

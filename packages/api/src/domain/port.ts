@@ -193,6 +193,16 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.Member>>
   repoVersion: (owner: string, name: string, p: Viewer) => Promise<string>
+  /**
+   * Where the git data of a repository is, when `p` may read it (or push to
+   * it). Answers not_found for what they cannot see.
+   */
+  gitAccess: (
+    owner: string,
+    name: string,
+    p: Viewer,
+    need: 'read' | 'write',
+  ) => Promise<{ storeId: string; defaultBranch: string }>
   commitFacts: (
     full: string,
     commits: ReadonlyArray<{ sha: string; author: { email: string } }>,
@@ -771,10 +781,56 @@ export interface DomainPort {
       owner?: string
       name?: string
       visibility: 'public' | 'private'
+      github_access?: string
     },
     dry: Dry,
   ) => Promise<{ repo: Out<typeof S.Repo>; created: boolean }>
   listImports: (p: Viewer) => Promise<Array<Out<typeof S.Import>>>
+
+  githubDeviceStart: (p: Principal) => Promise<Out<typeof S.GithubDevice>>
+  githubDevicePoll: (
+    p: Principal,
+    deviceCode: string,
+  ) => Promise<Out<typeof S.GithubDeviceStatus>>
+  githubRepos: (
+    p: Principal,
+    access: string,
+  ) => Promise<Array<Out<typeof S.GithubRepo>>>
+
+  createMirror: (
+    p: Principal,
+    owner: string,
+    name: string,
+    body: {
+      host: string
+      slug: string
+      direction: 'push' | 'pull' | 'two-way'
+      github_access?: string
+    },
+    dry: Dry,
+  ) => Promise<{ mirror: Out<typeof S.Mirror>; created: boolean }>
+  syncMirror: (
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+    dry: Dry,
+  ) => Promise<Out<typeof S.Mirror>>
+  updateMirror: (
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+    body: { paused?: boolean; direction?: 'push' | 'pull' | 'two-way' },
+    dry: Dry,
+  ) => Promise<Out<typeof S.Mirror>>
+  deleteMirror: (
+    p: Principal,
+    owner: string,
+    name: string,
+    mirror: string,
+    dry: Dry,
+  ) => Promise<void>
 
   repoInsights: (
     owner: string,

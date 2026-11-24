@@ -5,11 +5,12 @@ import { integrations } from '@cobaltforge/api/integrations'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
-import { actorOf, signedIn } from '../lib/actor'
+import { actorOf, signedIn, system } from '../lib/actor'
 import {
   accessStamp,
   accountByHandle,
   canWrite,
+  repoByKey,
   resolve,
   roleIn,
 } from '../lib/access'
@@ -284,13 +285,14 @@ const presentLink = (l: {
   login: string
   instance: string | null
   linked: number
+  verified?: boolean
 }) => ({
   object: 'linked_account' as const,
   account: l.handle,
   host: l.host,
   login: l.login,
   instance: l.instance,
-  verified: false,
+  verified: l.verified ?? false,
   linked_at: iso(l.linked),
 })
 
@@ -354,6 +356,107 @@ export const link = mutation({
   },
 })
 
+// The platform proved, with GitHub's own answer, who this person is there.
+export const markVerified = mutation({
+  args: { handle: v.string(), login: v.string() },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const had = await ctx.db
+      .query('links')
+      .withIndex('by_handle_and_host', (q) =>
+        q.eq('handle', a.handle).eq('host', 'github'),
+      )
+      .unique()
+    const l = {
+      handle: a.handle,
+      host: 'github',
+      login: a.login,
+      instance: null,
+      linked: had?.login === a.login ? had.linked : Date.now(),
+      verified: true,
+    }
+    if (had) await ctx.db.replace('links', had._id, l)
+    else await ctx.db.insert('links', l)
+    await bump(ctx, `~${a.handle}`)
+    return null
+  },
+})
+
+export const githubClaims = query({
+  args: { ids: v.array(v.number()) },
+  returns: v.string(),
+  handler: async (ctx, { ids }) => {
+    await system(ctx)
+    const held: Record<string, string> = {}
+    for (const id of ids.slice(0, 500)) {
+      const c = await ctx.db
+        .query('githubLinks')
+        .withIndex('by_githubId', (q) => q.eq('githubId', id))
+        .unique()
+      const repo = c && (await ctx.db.get('repos', c.repoId))
+      if (repo) held[String(id)] = `${repo.owner}/${repo.name}`
+    }
+    return out(held)
+  },
+})
+
+export const claimGithub = mutation({
+  args: {
+    full: v.string(),
+    githubId: v.number(),
+    slug: v.string(),
+    by: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.full)
+    if (!repo) fail('not_found', `No repository ${a.full}.`)
+    const held = await ctx.db
+      .query('githubLinks')
+      .withIndex('by_githubId', (q) => q.eq('githubId', a.githubId))
+      .unique()
+    if (held && held.repoId !== repo._id) {
+      const other = await ctx.db.get('repos', held.repoId)
+      fail(
+        'invalid_state',
+        `${a.slug} is already linked to ${other ? `${other.owner}/${other.name}` : 'another repository'}.`,
+        { hint: 'A GitHub repository feeds one repository here.' },
+      )
+    }
+    if (!held)
+      await ctx.db.insert('githubLinks', {
+        githubId: a.githubId,
+        slug: a.slug,
+        repoId: repo._id,
+        by: a.by,
+        at: Date.now(),
+      })
+    return out(null)
+  },
+})
+
+export const unlinkGithub = mutation({
+  args: { full: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { full }) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, full)
+    if (!repo) fail('not_found', `No repository ${full}.`)
+    for (const l of await ctx.db
+      .query('githubLinks')
+      .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+      .take(10))
+      await ctx.db.delete('githubLinks', l._id)
+    await ctx.db.patch('repos', repo._id, {
+      upstream: null,
+      version: repo.version + 1,
+    })
+    return out(null)
+  },
+})
+
 export const unlink = mutation({
   args: { handle: v.string(), host: v.string() },
   returns: v.string(),
@@ -378,6 +481,7 @@ export const markImported = mutation({
     host: v.string(),
     slug: v.string(),
     at: v.number(),
+    defaultBranch: v.optional(v.string()),
   },
   returns: v.string(),
   handler: async (ctx, a) => {
@@ -390,6 +494,7 @@ export const markImported = mutation({
     )
     await ctx.db.patch('repos', repo._id, {
       upstream: { host: a.host as 'github', slug: a.slug },
+      ...(a.defaultBranch ? { defaultBranch: a.defaultBranch } : {}),
       version: repo.version + 1,
     })
     return out(

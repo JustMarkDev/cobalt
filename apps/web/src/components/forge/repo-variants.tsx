@@ -115,8 +115,7 @@ function ClonePopover({ repo }: { repo: Repo }) {
             {(
               [
                 ['HTTPS', `https://cobaltforge.dev/${path}.git`],
-                ['SSH', `git@cobaltforge.dev:${path}.git`],
-                ['CLI', `src clone ${path}`],
+                ['CLI', `cb repo clone ${path}`],
               ] as const
             ).map(([label, value]) => (
               <div key={label} className="space-y-1">

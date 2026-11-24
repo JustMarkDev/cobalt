@@ -11,7 +11,6 @@ export const defaults = {
   'handoff.to': 't3',
   'change.base': 'main',
   'change.draft': 'false',
-  'clone.protocol': 'ssh',
 } as const
 
 export type Key = keyof typeof defaults

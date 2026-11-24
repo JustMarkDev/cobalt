@@ -727,12 +727,41 @@ export const access = query({
   },
 })
 
+export const storeIdOf = query({
+  args: { full: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { full }) => {
+    await system(ctx)
+    return out((await repoByKey(ctx, full))?.storeId ?? null)
+  },
+})
+
 export const idOf = query({
   args: { owner: v.string(), name: v.string() },
   returns: v.string(),
   handler: async (ctx, args) => {
     const r = await resolve(ctx, args.owner, args.name, await actorOf(ctx))
     return out(r.publicId)
+  },
+})
+
+/** Where the git data of a repository is, once the caller may read or push to it. */
+export const gitAccess = query({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    need: v.union(v.literal('read'), v.literal('write')),
+  },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const r = await resolve(
+      ctx,
+      args.owner,
+      args.name,
+      await actorOf(ctx),
+      args.need,
+    )
+    return out({ storeId: r.storeId, defaultBranch: r.defaultBranch })
   },
 })
 

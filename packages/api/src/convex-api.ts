@@ -25,7 +25,12 @@ import {
 } from './stores/convex'
 import { blobStoreFromEnv } from './stores/blobs'
 import { StoreWorker } from './stores/store-worker'
+import { githubFromEnv } from './github'
+import { createGitHttp } from './git-http'
 import { codeStorageAdmin } from '@cobaltforge/git/admin'
+import { codeStorageStores } from '@cobaltforge/git/stores'
+import { codeStorageRemotes } from '@cobaltforge/git/remote'
+import type { GitRemotes } from '@cobaltforge/git/remote'
 import type { GitAdmin } from '@cobaltforge/git/admin'
 import type { Attached } from './domain/records'
 import type { SessionResolver } from './oauth'
@@ -46,6 +51,7 @@ export type ConvexApiOptions = {
   seedSample?: () => string
   blobFolder: string
   gitAdmin?: GitAdmin
+  gitRemotes?: GitRemotes
   env?: Record<string, string | undefined>
   allowPrivateWebhooks?: boolean
 }
@@ -73,10 +79,12 @@ export function createConvexApi(o: ConvexApiOptions) {
       transport: new HttpTransport(o.allowPrivateWebhooks ?? false),
       allowPrivate: o.allowPrivateWebhooks ?? false,
     }),
-    git: new StoreGit(),
+    git: new StoreGit(undefined, codeStorageStores()),
     mail: mailerFromEnv(),
+    github: githubFromEnv(env, o.storeSecret ?? env.CB_SECRETS_KEY),
   } as unknown as Attached
   const d = new ConvexDomain(urls, call, events, svc, now)
+  ;(svc.git as StoreGit).resolveStore = (full) => d.storeIdOf(full)
   svc.search = new SearchIndex(() => d.searchDocs(), events)
   const domain = Object.assign(d, {
     oauthState: new ConvexOAuthState(call),
@@ -100,10 +108,10 @@ export function createConvexApi(o: ConvexApiOptions) {
     if (o.storeSecret) {
       const git =
         o.gitAdmin ??
-        (env.CODE_STORAGE_NAME && env.CODE_STORAGE_KEY
+        (env.PIERRE_ORG && env.PIERRE_PRIVATE_KEY
           ? codeStorageAdmin({
-              name: env.CODE_STORAGE_NAME,
-              key: env.CODE_STORAGE_KEY,
+              org: env.PIERRE_ORG,
+              privateKey: env.PIERRE_PRIVATE_KEY,
             })
           : undefined)
       new StoreWorker({
@@ -191,5 +199,23 @@ export function createConvexApi(o: ConvexApiOptions) {
     await ready
     return api.fetchAs(principal, req)
   }
-  return { ...api, fetch, fetchAs, domain, port: domain, ready }
+  const gitHttp = createGitHttp({
+    verifyToken: api.verifyToken,
+    domain,
+    remotes: o.gitRemotes ?? codeStorageRemotes(),
+    log: (line) => console.log('[git]', JSON.stringify(line)),
+  })
+  const serveGit = async (req: Request, ip?: string) => {
+    await ready
+    return gitHttp(req, ip)
+  }
+  return {
+    ...api,
+    fetch,
+    fetchAs,
+    gitHttp: serveGit,
+    domain,
+    port: domain,
+    ready,
+  }
 }

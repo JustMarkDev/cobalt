@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { sampleTokens } from './sample'
-import { harness } from './testing'
+import { harness, onConvex } from './testing'
 
 const R = '/repos/dana/gitfs'
 
@@ -55,18 +55,24 @@ describe('transferring a repository', () => {
 })
 
 describe('pausing a mirror', () => {
-  test('a paused mirror refuses to sync until it is resumed', async () => {
-    const h = harness()
-    const [m] = (await h.call('GET', `${R}/mirrors`)).json.data
-    expect(m.paused).toBe(false)
-    const paused = await h.call('PATCH', `${R}/mirrors/${m.id}`, {
-      body: { paused: true },
-    })
-    expect(paused.json.paused).toBe(true)
-    expect((await h.call('POST', `${R}/mirrors/${m.id}/sync`)).json.code).toBe(
-      'invalid_state',
-    )
-    await h.call('PATCH', `${R}/mirrors/${m.id}`, { body: { paused: false } })
-    expect((await h.call('POST', `${R}/mirrors/${m.id}/sync`)).status).toBe(200)
-  })
+  // A link to GitHub cannot be paused, so this holds only for the sample.
+  test.skipIf(onConvex)(
+    'a paused mirror refuses to sync until it is resumed',
+    async () => {
+      const h = harness()
+      const [m] = (await h.call('GET', `${R}/mirrors`)).json.data
+      expect(m.paused).toBe(false)
+      const paused = await h.call('PATCH', `${R}/mirrors/${m.id}`, {
+        body: { paused: true },
+      })
+      expect(paused.json.paused).toBe(true)
+      expect(
+        (await h.call('POST', `${R}/mirrors/${m.id}/sync`)).json.code,
+      ).toBe('invalid_state')
+      await h.call('PATCH', `${R}/mirrors/${m.id}`, { body: { paused: false } })
+      expect((await h.call('POST', `${R}/mirrors/${m.id}/sync`)).status).toBe(
+        200,
+      )
+    },
+  )
 })

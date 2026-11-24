@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import { ApiError } from '@pierre/storage'
+import { GitError } from './types'
 import { createReadCache } from './cached'
 import { fakeRepo } from './fake'
-import type { GitRepo } from './index'
+import type { GitRepo } from './types'
 
 function counted(id: string) {
   const inner = fakeRepo(id)
@@ -152,7 +152,7 @@ describe('sharing and failure', () => {
       const err = await cached
         .getCommit({ sha: 'deadbeef' })
         .catch((e: unknown) => e)
-      expect(err).toBeInstanceOf(ApiError)
+      expect(err).toBeInstanceOf(GitError)
     }
     expect(calls.total).toBe(2)
   })

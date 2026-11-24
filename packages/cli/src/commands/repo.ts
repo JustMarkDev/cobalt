@@ -82,11 +82,7 @@ export const repo: Command = async (
         'Example: cb repo clone dana/gitfs',
         exit.usage,
       )
-    const proto = resolve('clone.protocol').value
-    const url =
-      proto === 'https'
-        ? `https://cobaltforge.dev/${slug}.git`
-        : `git@cobaltforge.dev:${slug}.git`
+    const url = `${resolve('host').value.replace(/\/$/, '')}/${slug}.git`
     print(ctx, { slug, url }, () => `git clone ${url}`)
     return
   }

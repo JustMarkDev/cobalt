@@ -1,4 +1,4 @@
-import type { GitRepo } from './index'
+import type { GitRepo } from './types'
 
 const FULL_SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i
 
@@ -71,50 +71,35 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
     wrap(id: string, repo: GitRepo): GitRepo {
       return {
         listFiles: (o) =>
-          o?.ephemeral
-            ? repo.listFiles(o)
-            : data(
-                id,
-                'listFiles',
-                { ref: o?.ref },
-                FULL_SHA.test(o?.ref ?? ''),
-                () => repo.listFiles(o),
-              ),
+          data(
+            id,
+            'listFiles',
+            { ref: o?.ref, recursive: o?.recursive, cursor: o?.cursor },
+            FULL_SHA.test(o?.ref ?? ''),
+            () => repo.listFiles(o),
+          ),
         listCommits: (o) =>
-          o?.ephemeral
-            ? repo.listCommits(o)
-            : data(
-                id,
-                'listCommits',
-                {
-                  branch: o?.branch,
-                  cursor: o?.cursor,
-                  limit: o?.limit,
-                  path: o?.path,
-                },
-                false,
-                () => repo.listCommits(o),
-              ),
+          data(
+            id,
+            'listCommits',
+            {
+              branch: o?.branch,
+              cursor: o?.cursor,
+              limit: o?.limit,
+              path: o?.path,
+            },
+            false,
+            () => repo.listCommits(o),
+          ),
         getCommit: (o) =>
           data(id, 'getCommit', { sha: o.sha }, FULL_SHA.test(o.sha), () =>
             repo.getCommit(o),
           ),
         getCommitDiff: (o) =>
-          data(
-            id,
-            'getCommitDiff',
-            {
-              sha: o.sha,
-              baseSha: o.baseSha,
-              gitApplyCompatible: o.gitApplyCompatible,
-              paths: o.paths,
-            },
-            FULL_SHA.test(o.sha) && (!o.baseSha || FULL_SHA.test(o.baseSha)),
-            () => repo.getCommitDiff(o),
+          data(id, 'getCommitDiff', { sha: o.sha }, FULL_SHA.test(o.sha), () =>
+            repo.getCommitDiff(o),
           ),
         async getFileStream(o) {
-          if (o.ephemeral || o.ephemeralBase || o.headers)
-            return repo.getFileStream(o)
           const key = keyOf(id, 'getFileStream', { path: o.path, ref: o.ref })
           const snap = await read<Snapshot>(
             key,
