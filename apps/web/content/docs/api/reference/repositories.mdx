@@ -33,8 +33,8 @@ Repositories you can change that came from another host, with how their mirror i
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/imports" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/imports" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -90,7 +90,7 @@ Makes the repository here, remembers where it came from, and pulls from it throu
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -109,15 +109,15 @@ Makes the repository here, remembers where it came from, and pulls from it throu
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/imports" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/imports" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"host":"github","slug":"dana-okafor/dotfiles"}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=38;t=60
 ```
 
@@ -152,8 +152,8 @@ ratelimit: "write";r=38;t=60
   "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
-  "url": "https://api.source.code/v1/repos/dana/dotfiles",
-  "html_url": "https://source.code/dana/dotfiles",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/dotfiles",
+  "html_url": "https://cobaltforge.dev/dana/dotfiles",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -191,13 +191,13 @@ ratelimit: "write";r=38;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos?limit=2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos?limit=2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"_-EfjJn-0TdotZ9K"
+etag: W/"6U4bUyNgm07Shdvs"
 ratelimit: "read";r=1197;t=60
 ```
 
@@ -232,8 +232,8 @@ ratelimit: "read";r=1197;t=60
       "denounced": [],
       "open_changes": 3,
       "open_issues": 0,
-      "url": "https://api.source.code/v1/repos/dana/stacky",
-      "html_url": "https://source.code/dana/stacky",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/stacky",
+      "html_url": "https://cobaltforge.dev/dana/stacky",
       "created_at": "2026-11-05T09:00:00.000Z",
       "updated_at": "2026-11-05T09:00:00.000Z",
       "version": 1
@@ -265,8 +265,8 @@ ratelimit: "read";r=1197;t=60
       "denounced": [],
       "open_changes": 0,
       "open_issues": 0,
-      "url": "https://api.source.code/v1/repos/dana/notes",
-      "html_url": "https://source.code/dana/notes",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/notes",
+      "html_url": "https://cobaltforge.dev/dana/notes",
       "created_at": "2026-10-18T09:00:00.000Z",
       "updated_at": "2026-10-18T09:00:00.000Z",
       "version": 1
@@ -283,7 +283,7 @@ ratelimit: "read";r=1197;t=60
 
 **Create a repository**
 
-A bare name goes in the account you act as; set `owner` to use another. Naturally idempotent: asking for one that exists returns it with `Sx-Outcome: unchanged`. Members of an organization cannot create repositories there.
+A bare name goes in the account you act as; set `owner` to use another. Naturally idempotent: asking for one that exists returns it with `Cb-Outcome: unchanged`. Members of an organization cannot create repositories there.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -298,7 +298,7 @@ A bare name goes in the account you act as; set `owner` to use another. Naturall
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -317,16 +317,16 @@ A bare name goes in the account you act as; set `owner` to use another. Naturall
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"notes2","description":"Scratch","visibility":"private"}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/repos/dana/notes2
-sx-outcome: created
+location: https://api.cobaltforge.dev/v1/repos/dana/notes2
+cb-outcome: created
 ratelimit: "write";r=79;t=60
 ```
 
@@ -358,8 +358,8 @@ ratelimit: "write";r=79;t=60
   "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
-  "url": "https://api.source.code/v1/repos/dana/notes2",
-  "html_url": "https://source.code/dana/notes2",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/notes2",
+  "html_url": "https://cobaltforge.dev/dana/notes2",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -395,7 +395,7 @@ Permanent. Owners of the account and admins of the organization only. You must r
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
 | `confirm` | string  | `owner/name`, to confirm                                                                                |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -404,8 +404,8 @@ Permanent. Owners of the account and admins of the organization only. You must r
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/northwind/scratch2?confirm=northwind/scratch2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/northwind/scratch2?confirm=northwind/scratch2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -450,8 +450,8 @@ ratelimit: "write";r=18;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -474,7 +474,7 @@ ratelimit: "read";r=1196;t=60
   "stars_today": 84,
   "forks": 118,
   "upstream": null,
-  "install": "curl -fsSL https://source.code/dana/gitfs/install | sh",
+  "install": "curl -fsSL https://cobaltforge.dev/dana/gitfs/install | sh",
   "category": "Developer tools",
   "language": "Rust",
   "languages": [
@@ -498,8 +498,8 @@ ratelimit: "read";r=1196;t=60
   "denounced": [],
   "open_changes": 5,
   "open_issues": 2,
-  "url": "https://api.source.code/v1/repos/dana/gitfs",
-  "html_url": "https://source.code/dana/gitfs",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs",
+  "html_url": "https://cobaltforge.dev/dana/gitfs",
   "created_at": "2026-09-28T09:00:00.000Z",
   "updated_at": "2026-09-28T09:00:00.000Z",
   "version": 1
@@ -534,7 +534,7 @@ Owners of the account and admins of the organization only. Send `If-Match` with 
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -561,8 +561,8 @@ Owners of the account and admins of the organization only. Send `If-Match` with 
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/notes2" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/notes2" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"scratch2","description":"Scratch space"}'
 ```
@@ -600,8 +600,8 @@ ratelimit: "write";r=20;t=60
   "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
-  "url": "https://api.source.code/v1/repos/dana/scratch2",
-  "html_url": "https://source.code/dana/scratch2",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/scratch2",
+  "html_url": "https://cobaltforge.dev/dana/scratch2",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -638,13 +638,13 @@ An administrator sees every rule; someone a rule names sees that rule; anyone el
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/access-rules" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"0encaVUDN3zQUVaM"
+etag: W/"o8XDDAdjxwzhyrYY"
 ratelimit: "read";r=1144;t=60
 ```
 
@@ -660,7 +660,7 @@ ratelimit: "read";r=1144;t=60
       "readers": ["hollis"],
       "created_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
-      "url": "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal"
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/deal"
     }
   ],
   "has_more": false,
@@ -697,7 +697,7 @@ What it hid is visible again to everyone who can read the repository. Only an ow
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -706,8 +706,8 @@ What it hid is visible again to everyone who can read the repository. Only an ow
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/deal" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -744,7 +744,7 @@ Creates the rule, or replaces it. `kind: branch` hides branches matching `patter
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -761,15 +761,15 @@ Creates the rule, or replaces it. `kind: branch` hides branches matching `patter
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/deal" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"kind":"branch","patterns":["deal/*"],"readers":["hollis"]}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=55;t=60
 ```
 
@@ -782,7 +782,7 @@ ratelimit: "write";r=55;t=60
   "readers": ["hollis"],
   "created_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/access-rules/deal"
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/deal"
 }
 ```
 
@@ -792,7 +792,7 @@ ratelimit: "write";r=55;t=60
 
 **Everything needed to start work, in one request**
 
-Open changes and what blocks each, open issues, a policy summary and the env schema (names and kinds only, never values). This is what `sx context` calls. The cursor is a position in the event log to continue from with /sync.
+Open changes and what blocks each, open issues, a policy summary and the env schema (names and kinds only, never values). This is what `cb context` calls. The cursor is a position in the event log to continue from with /sync.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |
@@ -825,8 +825,8 @@ Open changes and what blocks each, open issues, a policy summary and the env sch
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/context" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/context" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -851,7 +851,7 @@ ratelimit: "read";r=1195;t=60
     "stars_today": 84,
     "forks": 118,
     "upstream": null,
-    "install": "curl -fsSL https://source.code/dana/gitfs/install | sh",
+    "install": "curl -fsSL https://cobaltforge.dev/dana/gitfs/install | sh",
     "category": "Developer tools",
     "language": "Rust",
     "languages": [
@@ -875,8 +875,8 @@ ratelimit: "read";r=1195;t=60
     "denounced": [],
     "open_changes": 5,
     "open_issues": 2,
-    "url": "https://api.source.code/v1/repos/dana/gitfs",
-    "html_url": "https://source.code/dana/gitfs",
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs",
+    "html_url": "https://cobaltforge.dev/dana/gitfs",
     "created_at": "2026-09-28T09:00:00.000Z",
     "updated_at": "2026-09-28T09:00:00.000Z",
     "version": 1
@@ -973,13 +973,13 @@ Authors of the newest 1,000 commits on the default branch, by email, most commit
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/contributors" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/contributors" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"YD5gJfyTTo4mR31w"
+etag: W/"yybYoFOxXbEiTkmD"
 ratelimit: "read";r=1153;t=60
 ```
 
@@ -990,14 +990,14 @@ ratelimit: "read";r=1153;t=60
     {
       "object": "contributor",
       "name": "Dana Okafor",
-      "email": "dana@users.source.code",
+      "email": "dana@users.cobaltforge.dev",
       "commits": 19,
       "last_commit_at": "2026-10-20T16:45:00.000Z"
     },
     {
       "object": "contributor",
       "name": "Kofi Mensah",
-      "email": "kofi@users.source.code",
+      "email": "kofi@users.cobaltforge.dev",
       "commits": 10,
       "last_commit_at": "2026-08-08T15:34:06.245Z"
     },
@@ -1038,8 +1038,8 @@ Commits by week and by who wrote them (people, agents, bots), contributors, down
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/insights" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/insights" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1115,13 +1115,13 @@ Changes and issues share one counter per repository, so a number is never ambigu
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/numbers/216" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/numbers/216" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"g49oIoX3xlKNZsZ9"
+etag: W/"qEzMBkkR3McjL7T1"
 ratelimit: "read";r=1194;t=60
 ```
 
@@ -1130,7 +1130,7 @@ ratelimit: "read";r=1194;t=60
   "object": "number_ref",
   "number": 216,
   "type": "change",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216"
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216"
 }
 ```
 
@@ -1173,13 +1173,13 @@ Follows a line to the conversation that produced it: the commit that wrote it (b
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/provenance?path=src/refs.rs&line=3&change=216" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/provenance?path=src/refs.rs&line=3&change=216" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"cZT0HblWb3YD4kYf"
+etag: W/"f_nlctTORiHfwlKq"
 ratelimit: "read";r=1121;t=60
 ```
 
@@ -1194,7 +1194,7 @@ ratelimit: "read";r=1121;t=60
     "message": "Cache negative ref lookups",
     "author": {
       "name": "Dana Okafor",
-      "email": "dana@users.source.code"
+      "email": "dana@users.cobaltforge.dev"
     },
     "date": "2026-10-20T16:45:00.000Z"
   },
@@ -1242,8 +1242,8 @@ Newest first, withdrawn ones included so their pages can say why.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/releases?limit=1" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases?limit=1" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1260,8 +1260,8 @@ ratelimit: "read";r=1139;t=60
       "object": "release",
       "id": "rel_01m62f9n00s48sw02c",
       "tag": "v0.10.0-beta.2",
-      "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.10.0-beta.2",
-      "html_url": "https://source.code/dana/gitfs/releases",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.10.0-beta.2",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
       "channel": "beta",
       "title": "Read-only mounts",
       "notes": {
@@ -1319,7 +1319,7 @@ ratelimit: "read";r=1139;t=60
 
 **Publish a release**
 
-Naturally idempotent by tag: publishing one that exists returns it with `Sx-Outcome: unchanged`. A stable release tells the people who starred the repository.
+Naturally idempotent by tag: publishing one that exists returns it with `Cb-Outcome: unchanged`. A stable release tells the people who starred the repository.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1341,7 +1341,7 @@ Naturally idempotent by tag: publishing one that exists returns it with `Sx-Outc
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1362,15 +1362,15 @@ Naturally idempotent by tag: publishing one that exists returns it with `Sx-Outc
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"tag":"v0.9.1","channel":"stable","title":"A smaller cache","notes":{"fixed":["The negative cache is bounded."]},"signed":true,"assets":[{"name":"gitfs-v0.9.1-aarch64-apple-darwin.dmg","platform":"macos","arch":"arm64","size":14889779,"sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=46;t=60
 ```
 
@@ -1379,8 +1379,8 @@ ratelimit: "write";r=46;t=60
   "object": "release",
   "id": "rel_01m6tq6r8038hr519j",
   "tag": "v0.9.1",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
-  "html_url": "https://source.code/dana/gitfs/releases",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
   "channel": "stable",
   "title": "A smaller cache",
   "notes": {
@@ -1442,13 +1442,13 @@ ratelimit: "write";r=46;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.0" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"Xw_hF8guRecTZnyS"
+etag: W/"ujlqaOVotl6NoCQ9"
 ratelimit: "read";r=1138;t=60
 ```
 
@@ -1457,8 +1457,8 @@ ratelimit: "read";r=1138;t=60
   "object": "release",
   "id": "rel_01m5b9q600mqbpasr7",
   "tag": "v0.9.0",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0",
-  "html_url": "https://source.code/dana/gitfs/releases",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.0",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
   "channel": "stable",
   "title": "Faster ref lookups",
   "notes": {
@@ -1536,7 +1536,7 @@ A reason in `withdrawn` pulls it: it stays listed with the reason, and its files
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1553,8 +1553,8 @@ A reason in `withdrawn` pulls it: it stays listed with the reason, and its files
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"withdrawn":"Built from the wrong commit. Use v0.9.2."}'
 ```
@@ -1569,8 +1569,8 @@ ratelimit: "write";r=45;t=60
   "object": "release",
   "id": "rel_01m6tq6r8038hr519j",
   "tag": "v0.9.1",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.1",
-  "html_url": "https://source.code/dana/gitfs/releases",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
   "channel": "stable",
   "title": "A smaller cache",
   "notes": {
@@ -1638,8 +1638,8 @@ Counts the download and answers with where the file is and its checksum. A withd
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/releases/v0.9.0/assets/gitfs-v0.9.0-aarch64-apple-darwin.dmg/download" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.0/assets/gitfs-v0.9.0-aarch64-apple-darwin.dmg/download" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1653,7 +1653,7 @@ ratelimit: "write";r=44;t=60
   "release": "v0.9.0",
   "asset": "gitfs-v0.9.0-aarch64-apple-darwin.dmg",
   "sha256": "907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2",
-  "url": "https://source.code/dana/gitfs/releases/download/v0.9.0/gitfs-v0.9.0-aarch64-apple-darwin.dmg",
+  "url": "https://cobaltforge.dev/dana/gitfs/releases/download/v0.9.0/gitfs-v0.9.0-aarch64-apple-darwin.dmg",
   "downloads": 8474,
   "content_url": null
 }
@@ -1665,7 +1665,7 @@ ratelimit: "write";r=44;t=60
 
 **Remove your star**
 
-Removing a star you did not give changes nothing (`Sx-Outcome: unchanged`).
+Removing a star you did not give changes nothing (`Cb-Outcome: unchanged`).
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1687,7 +1687,7 @@ Removing a star you did not give changes nothing (`Sx-Outcome: unchanged`).
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1696,13 +1696,13 @@ Removing a star you did not give changes nothing (`Sx-Outcome: unchanged`).
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/star" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/star" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-sx-outcome: updated
+cb-outcome: updated
 ratelimit: "write";r=73;t=60
 ```
 
@@ -1745,8 +1745,8 @@ Also how many people did. Without a token `starred` is false.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/star" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/star" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1770,7 +1770,7 @@ ratelimit: "read";r=1154;t=60
 
 **Star a repository**
 
-Any repository you can read. Only people give stars: an agent or a bot answers `forbidden`. Starring twice changes nothing (`Sx-Outcome: unchanged`).
+Any repository you can read. Only people give stars: an agent or a bot answers `forbidden`. Starring twice changes nothing (`Cb-Outcome: unchanged`).
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1792,7 +1792,7 @@ Any repository you can read. Only people give stars: an agent or a bot answers `
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1801,13 +1801,13 @@ Any repository you can read. Only people give stars: an agent or a bot answers `
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/star" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/star" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-sx-outcome: updated
+cb-outcome: updated
 ratelimit: "write";r=74;t=60
 ```
 
@@ -1848,7 +1848,7 @@ Owners and admins of the repository, into an account where they are an owner or 
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1865,8 +1865,8 @@ Owners and admins of the repository, into an account where they are an owner or 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/scratch2/transfer" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/scratch2/transfer" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner":"northwind","confirm":"dana/scratch2"}'
 ```
@@ -1904,8 +1904,8 @@ ratelimit: "write";r=19;t=60
   "denounced": [],
   "open_changes": 0,
   "open_issues": 0,
-  "url": "https://api.source.code/v1/repos/northwind/scratch2",
-  "html_url": "https://source.code/northwind/scratch2",
+  "url": "https://api.cobaltforge.dev/v1/repos/northwind/scratch2",
+  "html_url": "https://cobaltforge.dev/northwind/scratch2",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 3

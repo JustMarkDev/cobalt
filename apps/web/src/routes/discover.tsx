@@ -24,7 +24,7 @@ type Search = {
 }
 
 export const Route = createFileRoute('/discover')({
-  head: () => ({ meta: [{ title: 'Discover · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Discover · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): Search => ({
     q: typeof s.q === 'string' && s.q ? s.q : undefined,
     category: categories.find((c) => c === s.category),

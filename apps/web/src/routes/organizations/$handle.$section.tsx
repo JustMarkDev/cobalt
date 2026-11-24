@@ -4,7 +4,7 @@ import { RequireAuth } from '~/components/forge/auth'
 import { OrgSettings, orgSections } from '~/components/forge/organization'
 
 export const Route = createFileRoute('/organizations/$handle/$section')({
-  head: () => ({ meta: [{ title: 'Organization settings · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Organization settings · cobalt' }] }),
   component: OrganizationSettings,
 })
 

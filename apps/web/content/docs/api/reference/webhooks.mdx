@@ -38,13 +38,13 @@ description: Create an endpoint, watch deliveries, send one again, replay what w
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/webhooks" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"CXJuEHRHEcOQP53l"
+etag: W/"aHQbvRum4ZNgT0Co"
 ratelimit: "read";r=1169;t=60
 ```
 
@@ -56,15 +56,15 @@ ratelimit: "read";r=1169;t=60
       "object": "webhook",
       "id": "whk_01m6tq6r806vsfd61n",
       "repo": "dana/gitfs",
-      "endpoint": "https://hooks.example.com/source-code",
+      "endpoint": "https://hooks.example.com/cobalt",
       "description": "Chat bridge",
       "events": ["change.*", "issue.created"],
       "active": true,
       "disabled_reason": null,
       "secret": null,
       "last_delivery": null,
-      "html_url": "https://source.code/dana/gitfs/settings",
-      "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/settings",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
       "created_at": "2026-11-07T10:00:00.000Z",
       "updated_at": "2026-11-07T10:00:00.000Z",
       "version": 1
@@ -103,7 +103,7 @@ The URL must be https and must not point at a private, loopback or link-local ad
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -120,15 +120,15 @@ The URL must be https and must not point at a private, loopback or link-local ad
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/webhooks" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"endpoint":"https://hooks.example.com/source-code","events":["change.*","issue.created"],"description":"Chat bridge"}'
+  -d '{"endpoint":"https://hooks.example.com/cobalt","events":["change.*","issue.created"],"description":"Chat bridge"}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n
 ratelimit: "write";r=91;t=60
 ```
 
@@ -137,15 +137,15 @@ ratelimit: "write";r=91;t=60
   "object": "webhook",
   "id": "whk_01m6tq6r806vsfd61n",
   "repo": "dana/gitfs",
-  "endpoint": "https://hooks.example.com/source-code",
+  "endpoint": "https://hooks.example.com/cobalt",
   "description": "Chat bridge",
   "events": ["change.*", "issue.created"],
   "active": true,
   "disabled_reason": null,
   "secret": "whsec_…",
   "last_delivery": null,
-  "html_url": "https://source.code/dana/gitfs/settings",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/settings",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -181,7 +181,7 @@ Pending deliveries are dropped.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -190,8 +190,8 @@ Pending deliveries are dropped.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -228,8 +228,8 @@ ratelimit: "write";r=84;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -243,15 +243,15 @@ ratelimit: "read";r=1168;t=60
   "object": "webhook",
   "id": "whk_01m6tq6r806vsfd61n",
   "repo": "dana/gitfs",
-  "endpoint": "https://hooks.example.com/source-code",
+  "endpoint": "https://hooks.example.com/cobalt",
   "description": "Chat bridge",
   "events": ["change.*", "issue.created"],
   "active": true,
   "disabled_reason": null,
   "secret": null,
   "last_delivery": null,
-  "html_url": "https://source.code/dana/gitfs/settings",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/settings",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -287,7 +287,7 @@ Set `active: true` to turn a disabled endpoint back on. That also clears the fai
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -305,8 +305,8 @@ Set `active: true` to turn a disabled endpoint back on. That also clears the fai
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"events":["change.*","issue.*"]}'
 ```
@@ -321,15 +321,15 @@ ratelimit: "write";r=90;t=60
   "object": "webhook",
   "id": "whk_01m6tq6r806vsfd61n",
   "repo": "dana/gitfs",
-  "endpoint": "https://hooks.example.com/source-code",
+  "endpoint": "https://hooks.example.com/cobalt",
   "description": "Chat bridge",
   "events": ["change.*", "issue.*"],
   "active": true,
   "disabled_reason": null,
   "secret": null,
   "last_delivery": null,
-  "html_url": "https://source.code/dana/gitfs/settings",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/settings",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -375,13 +375,13 @@ Kept up to 1,000 per webhook.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries?limit=2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries?limit=2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"LPTM4bJN-P-U87IX"
+etag: W/"h2xRH0S-R78-66D7"
 ratelimit: "read";r=1167;t=60
 ```
 
@@ -404,7 +404,7 @@ ratelimit: "read";r=1167;t=60
       "payload": null,
       "next_attempt_at": null,
       "redelivery_of": null,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk",
       "created_at": "2026-11-07T10:00:00.000Z"
     },
     {
@@ -422,7 +422,7 @@ ratelimit: "read";r=1167;t=60
       "payload": null,
       "next_attempt_at": null,
       "redelivery_of": null,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80cb8wdrft",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80cb8wdrft",
       "created_at": "2026-11-07T10:00:00.000Z"
     }
   ],
@@ -461,13 +461,13 @@ ratelimit: "read";r=1167;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"MXUzJ5-4eOXSuA3F"
+etag: W/"-PT3C03aZu4qB_gt"
 ratelimit: "read";r=1166;t=60
 ```
 
@@ -520,13 +520,13 @@ ratelimit: "read";r=1166;t=60
       "object": "issue",
       "id": "iss_01m6tq6r80z4gvmwk9",
       "number": 221,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/issues/221",
-      "html_url": "https://source.code/dana/gitfs/issues/221",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/221",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/issues/221",
       "repo": {
         "object": "repo",
         "id": "rep_01m3kkw4m0zvf3zfc9",
         "full_name": "dana/gitfs",
-        "url": "https://api.source.code/v1/repos/dana/gitfs"
+        "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
       },
       "title": "A webhook will carry this",
       "body": "",
@@ -547,7 +547,7 @@ ratelimit: "read";r=1166;t=60
   },
   "next_attempt_at": null,
   "redelivery_of": null,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk",
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -584,13 +584,13 @@ Creates a new delivery of the same event. `webhook-id` is unchanged, so a receiv
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk/redeliver" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r8087qsjpbk/redeliver" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 202
-location: https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80dnf32jk6
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80dnf32jk6
 ratelimit: "write";r=87;t=60
 ```
 
@@ -610,7 +610,7 @@ ratelimit: "write";r=87;t=60
   "payload": null,
   "next_attempt_at": "2026-11-07T10:00:00.000Z",
   "redelivery_of": "dlv_01m6tq6r8087qsjpbk",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80dnf32jk6",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80dnf32jk6",
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -646,13 +646,13 @@ Sends a `webhook.ping` event so you can check the endpoint and your signature ch
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/ping" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/ping" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 202
-location: https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80cb8wdrft
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80cb8wdrft
 ratelimit: "write";r=89;t=60
 ```
 
@@ -672,7 +672,7 @@ ratelimit: "write";r=89;t=60
   "payload": null,
   "next_attempt_at": "2026-11-07T10:00:00.000Z",
   "redelivery_of": null,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80cb8wdrft",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/deliveries/dlv_01m6tq6r80cb8wdrft",
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -715,8 +715,8 @@ Sends every event after `after_sequence` that this webhook subscribes to, oldest
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/replay" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/replay" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"after_sequence":0,"limit":50}'
 ```
@@ -765,8 +765,8 @@ Returns the new secret once. Deliveries are signed with both the new and the old
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/rotate-secret" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n/rotate-secret" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -779,7 +779,7 @@ ratelimit: "write";r=85;t=60
   "object": "webhook",
   "id": "whk_01m6tq6r806vsfd61n",
   "repo": "dana/gitfs",
-  "endpoint": "https://hooks.example.com/source-code",
+  "endpoint": "https://hooks.example.com/cobalt",
   "description": "Chat bridge",
   "events": ["change.*", "issue.*"],
   "active": true,
@@ -790,8 +790,8 @@ ratelimit: "write";r=85;t=60
     "state": "succeeded",
     "at": "2026-11-07T10:00:00.000Z"
   },
-  "html_url": "https://source.code/dana/gitfs/settings",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/settings",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/webhooks/whk_01m6tq6r806vsfd61n",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 3

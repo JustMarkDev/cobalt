@@ -14,7 +14,7 @@
  * production behind its confirmation, and run agents you do not trust where
  * outbound traffic is restricted.
  */
-import { SxError } from './output'
+import { CbError } from './output'
 import type { Ctx } from './output'
 import type { RepoRef } from './repo'
 
@@ -61,19 +61,19 @@ export type RunResult = {
 
 /** The CLI's own words for what the API says, so the next step is clear. */
 export function cliError(e: unknown, env: string): never {
-  if (e instanceof SxError && e.code === 'confirmation_required')
-    throw new SxError(
+  if (e instanceof CbError && e.code === 'confirmation_required')
+    throw new CbError(
       e.code,
       `${env} values need you to confirm this login first.`,
       e.hint ??
         'Confirm it in Settings, Secrets, where you are signed in, then retry.',
       e.status,
     )
-  if (e instanceof SxError && e.code === 'secrets_unavailable')
-    throw new SxError(
+  if (e instanceof CbError && e.code === 'secrets_unavailable')
+    throw new CbError(
       e.code,
       'This server keeps no secret values.',
-      'Ask its operator to set SX_SECRETS_KEY.',
+      'Ask its operator to set CB_SECRETS_KEY.',
       e.status,
     )
   throw e

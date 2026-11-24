@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Does a model use source.code's MCP tools the way their descriptions ask?
+ * Does a model use cobalt's MCP tools the way their descriptions ask?
  * Each case gives a model the server's real instructions and tool list, lets
  * it call the tools on the sample data in this process (nothing leaves the
  * machine but the model requests), and checks the calls it made

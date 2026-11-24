@@ -8,20 +8,20 @@ Networks fail halfway. Every write here is either naturally repeatable or made r
 
 ## Idempotency keys
 
-Send `Idempotency-Key` on any write except operations whose response contains a secret; those answer `400` rather than storing the key. The first request runs. A repeat with the same key and the same request returns the first answer, with `Sx-Replayed: true`, and does nothing.
+Send `Idempotency-Key` on any write except operations whose response contains a secret; those answer `400` rather than storing the key. The first request runs. A repeat with the same key and the same request returns the first answer, with `Cb-Replayed: true`, and does nothing.
 
 ```bash
-curl -X POST "$SX/repos/dana/gitfs/issues" \
-  -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type: application/json" \
+curl -X POST "$CB/repos/dana/gitfs/issues" \
+  -H "Authorization: Bearer $CB_TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: c1f0e7a2-5b1d-4f3a-9a7c-2d6e8b0f4a11" \
   -d '{"title":"Crash on empty repo"}'
 ```
 
 | Situation                                                              | Result                                                                            |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Same key, same request                                                 | The stored response, `Sx-Replayed: true`                                          |
+| Same key, same request                                                 | The stored response, `Cb-Replayed: true`                                          |
 | Same key, the same conditional update with `If-Match`                  | Re-checked against the current ETag; a stale one gets `412 version_mismatch`      |
-| Same key, the same update with `If-Match: *`                           | Replayed with `Sx-Replayed: true`; a wildcard is not a concrete precondition      |
+| Same key, the same update with `If-Match: *`                           | Replayed with `Cb-Replayed: true`; a wildcard is not a concrete precondition      |
 | Same key, a different request                                          | `422 idempotency_key_reused`                                                      |
 | Same key while the first is still running                              | `409 request_in_progress` with `Retry-After`. Send it again.                      |
 | The first request failed and changed nothing                           | The key is free again. A corrected retry runs.                                    |
@@ -34,7 +34,7 @@ In the preview the keys are held in memory, bounded to 100,000 keys or 24 MB of 
 
 ### Some writes are idempotent by nature
 
-These need no key. `Sx-Outcome` says what happened.
+These need no key. `Cb-Outcome` says what happened.
 
 | Write                              | Repeating it                                                                                              |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -48,7 +48,7 @@ These need no key. `Sx-Outcome` says what happened.
 Every editable object has a `version` and an `ETag` like `W/"17-…"`. Send it as `If-Match` on `PATCH`:
 
 ```bash
-curl -X PATCH "$SX/repos/dana/gitfs/issues/4" -H "If-Match: W/\"1-…\"" -d '{"title":"…"}' …
+curl -X PATCH "$CB/repos/dana/gitfs/issues/4" -H "If-Match: W/\"1-…\"" -d '{"title":"…"}' …
 ```
 
 If it changed since you read it, you get `412 version_mismatch` and the **current object** in `current`, so you can merge and send again. It is optional for low-risk fields and standard HTTP, so any client library already knows it.
@@ -73,11 +73,11 @@ Approvals and evidence follow a rewrite only when the code did not change. A pat
 
 Add `?dry_run=true` to a write that supports it (the reference marks them). The request runs through every check, validation, scopes, policy and conflicts, then stops before changing anything.
 
-- It succeeds with what the real call would return and `Sx-Dry-Run: true`, or
+- It succeeds with what the real call would return and `Cb-Dry-Run: true`, or
 - it fails with the exact error the real call would give.
 
 ```bash
-curl -X POST "$SX/repos/dana/gitfs/changes/216/land?dry_run=true" -d '{"expected_tree":"9c4d7e1"}' …
+curl -X POST "$CB/repos/dana/gitfs/changes/216/land?dry_run=true" -d '{"expected_tree":"9c4d7e1"}' …
 ```
 
 Because it is the same code path, a dry run that passes is a good reason to expect the real call to pass. It cannot promise it: something can change between the two. That is what `expected_tree` and `If-Match` are for.
@@ -95,7 +95,7 @@ Anything that can take more than a few seconds returns `202` with a `Location` a
   "progress": { "done": 1, "total": 3 },
   "result": null,
   "error": null,
-  "url": "https://api.source.code/v1/operations/op_01m6…"
+  "url": "https://api.cobaltforge.dev/v1/operations/op_01m6…"
 }
 ```
 
@@ -104,7 +104,7 @@ Anything that can take more than a few seconds returns `202` with a `Location` a
 Don't poll in a loop. Hold the request until it changes:
 
 ```bash
-curl -H "If-None-Match: <etag from the last read>" "$SX/operations/op_01m6…?wait=20" …
+curl -H "If-None-Match: <etag from the last read>" "$CB/operations/op_01m6…?wait=20" …
 ```
 
 A finished operation also produces an `operation.finished` [event](/docs/api/events-and-sync).

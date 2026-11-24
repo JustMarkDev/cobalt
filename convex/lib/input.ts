@@ -1,7 +1,7 @@
-import { checkBody } from '@source-code/api/bodies'
+import { checkBody } from '@cobaltforge/api/bodies'
 import { signedIn } from './actor'
 import { fail } from './errors'
-import type { BodyOf, bodies } from '@source-code/api/bodies'
+import type { BodyOf, bodies } from '@cobaltforge/api/bodies'
 import type { QueryCtx } from '../_generated/server'
 
 /**

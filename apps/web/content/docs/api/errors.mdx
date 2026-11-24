@@ -8,7 +8,7 @@ Every error is `application/problem+json` ([RFC 9457](https://www.rfc-editor.org
 
 ```json
 {
-  "type": "https://source.code/docs/api/errors#policy_blocked",
+  "type": "https://cobaltforge.dev/docs/api/errors#policy_blocked",
   "title": "Policy blocked this",
   "status": 409,
   "code": "policy_blocked",
@@ -32,10 +32,10 @@ Every error is `application/problem+json` ([RFC 9457](https://www.rfc-editor.org
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `code`       | Branch on it. It is stable and documented below. `detail` and `hint` wording can change, `code` will not.                                                  |
 | `detail`     | Show a person what happened, in this case.                                                                                                                 |
-| `hint`       | Know the next thing to try. It is the same string `sx` prints.                                                                                             |
+| `hint`       | Know the next thing to try. It is the same string `cb` prints.                                                                                             |
 | `retryable`  | Decide whether to send the same request again. See below.                                                                                                  |
 | `exit_code`  | Map to the CLI's exit codes: 2 usage, 3 not found, 4 not signed in, 5 blocked by policy or permission, 6 needs a person.                                   |
-| `request_id` | Quote it when you ask us about a failure. It matches the `Sx-Request-Id` header.                                                                           |
+| `request_id` | Quote it when you ask us about a failure. It matches the `Cb-Request-Id` header.                                                                           |
 | `errors`     | On a `400`: one entry per field with a JSON Pointer such as `/body/title`, a `code` and a `message`. Never the value you sent, since it might be a secret. |
 
 Some codes add members: `required_scopes`, `requirements`, `current`, `retry_after_seconds`. Each is described under its code.
@@ -74,7 +74,7 @@ Start again without a cursor. A cursor only works with the filter and sort that 
 
 **400.** That API version is not supported. Not retryable. CLI exit code 2.
 
-Omit `Sx-Version`, or use one listed in `GET /v1`.
+Omit `Cb-Version`, or use one listed in `GET /v1`.
 
 ### `method_not_allowed`
 
@@ -106,7 +106,7 @@ Send `Authorization: Bearer <token>`. Create a token in Settings, Agents and tok
 
 **401.** The token is not valid. Not retryable. CLI exit code 4.
 
-Check the token was copied whole. Tokens start with `sxp_` or `sxo_`.
+Check the token was copied whole. Tokens start with `cbp_` or `cbo_`.
 
 ### `token_expired`
 
@@ -130,7 +130,7 @@ Ask for a new upload link. They expire after an hour and work for one file.
 
 **403.** The token lacks a scope this needs. Not retryable. CLI exit code 5.
 
-Create a token with the scopes in `required_scopes`, or sign in again with them (sx auth login --scope).
+Create a token with the scopes in `required_scopes`, or sign in again with them (cb auth login --scope).
 
 ### `forbidden`
 
@@ -280,7 +280,7 @@ Retry after `Retry-After` seconds with backoff. Reads and keyed writes are safe 
 
 **503.** This server keeps no secret values. Not retryable. CLI exit code 1.
 
-The server has no SX_SECRETS_KEY, so it seals and opens nothing. Names and kinds still work.
+The server has no CB_SECRETS_KEY, so it seals and opens nothing. Names and kinds still work.
 
 ### `internal`
 

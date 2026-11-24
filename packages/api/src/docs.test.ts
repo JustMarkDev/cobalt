@@ -68,7 +68,7 @@ describe('the API documentation', () => {
     const files = await generateReference()
     for (const [file, text] of files) {
       expect(text, file).not.toMatch(
-        /(?:sxp|sxb|sxr|sxo|sxf)_[A-Za-z0-9_+/=-]{8,}|whsec_[A-Za-z0-9_+/=-]{8,}|[?&]sig=[A-Za-z0-9_+/=-]{8,}/,
+        /(?:cbp|cbb|cbr|cbo|cbf)_[A-Za-z0-9_+/=-]{8,}|whsec_[A-Za-z0-9_+/=-]{8,}|[?&]sig=[A-Za-z0-9_+/=-]{8,}/,
       )
       expect(text, file).not.toMatch(/whsec_…[A-Za-z0-9_+/=]/)
     }

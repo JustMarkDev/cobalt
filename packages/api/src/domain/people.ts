@@ -160,7 +160,7 @@ export abstract class DomainPeople extends DomainInsights {
     const own = p?.handle === handle
     const shown: Array<Contribution> = []
     let hidden = 0
-    const email = `${handle}@users.source.code`
+    const email = `${handle}@users.cobaltforge.dev`
     for (const r of this.repos.values()) {
       const readable = this.canRead(r, p)
       // A private repository's work counts, as a number only, if they allow it.

@@ -1,6 +1,6 @@
 export const version = '0.1.0'
 
-export const topHelp = `sx ${version}: the source.code command line
+export const topHelp = `cb ${version}: the cobalt command line
 
 It never asks a question. Anything it cannot work out, it tells you to pass.
 Output is JSON when piped or with --json.
@@ -20,12 +20,12 @@ Commands
   config    list, get, set, path
   account   list, current, switch (one login, any account)
   commands  every command as JSON (for agents)
-  skill     print or install the agent skill that teaches sx
+  skill     print or install the agent skill that teaches cb
   mcp       serve the MCP server over stdio
   auth      status, login
   completion  bash, zsh, fish
 
-Using an agent? Run: sx skill install   (then it knows sx), or: sx commands
+Using an agent? Run: cb skill install   (then it knows cb), or: cb commands
 
 Flags on every command
   -R, --repo owner/name   which repository (default: the git remote)
@@ -40,7 +40,7 @@ Exit codes
 `
 
 export const groupHelp: Record<string, string> = {
-  change: `sx change <command>
+  change: `cb change <command>
 
   list [--all]            open changes, or every change
   view [number]           one change and what blocks it (default: current branch)
@@ -56,7 +56,7 @@ export const groupHelp: Record<string, string> = {
   land [number]           land exactly the tree it just read, if policy allows
   checkout <number>       print the git command to switch to its branch
 `,
-  repo: `sx repo <command>
+  repo: `cb repo <command>
 
   list [--all]            repositories of the account you act as (--all: every account)
   view                    the current repository
@@ -64,7 +64,7 @@ export const groupHelp: Record<string, string> = {
                           or name the owner: create owner/name
   clone owner/name        print the clone command (uses clone.protocol)
 `,
-  issue: `sx issue <command>
+  issue: `cb issue <command>
 
   list [--state all]      open issues by default
   view <n>
@@ -73,7 +73,7 @@ export const groupHelp: Record<string, string> = {
   create <title>          --label bug,docs. Same title twice returns the open one.
   close <n>
 `,
-  env: `sx env <command>   (--env development|preview|production)
+  env: `cb env <command>   (--env development|preview|production)
 
   list                    names, kinds and whether each has a value. Never values.
   set <NAME> -            set a value from stdin; the server seals it. Team only.
@@ -82,32 +82,32 @@ export const groupHelp: Record<string, string> = {
   confirmations           your production confirmations, and where to confirm one
 
   Values follow your login: on the repository's team, any machine you sign in
-  on (sx auth login) reads them, and so does an agent you run there. Production
+  on (cb auth login) reads them, and so does an agent you run there. Production
   waits until you confirm the login on a signed-in page.
 `,
-  policy: `sx policy <command>
+  policy: `cb policy <command>
 
   check <change>          exits 5 when the change is blocked
   explain <change>        the same, listing each requirement
 `,
-  import: `sx import <host> <owner/name>   or   sx import <url>
+  import: `cb import <host> <owner/name>   or   cb import <url>
 
   Makes the repository here with its whole history and keeps pulling from the
-  original through a mirror, until you sx mirror remove it.
+  original through a mirror, until you cb mirror remove it.
 
   host                    github, gitlab, codeberg or gitea
   --as name|owner/name    where it goes (default: its name, in the account you act as)
   --private               private here (default: public)
   list                    what you imported and how each mirror is doing
 `,
-  mirror: `sx mirror <command>
+  mirror: `cb mirror <command>
 
   list
   add <host> <owner/name> --direction push|pull|two-way
   sync <id>
   remove <id>             stops mirroring. History here is untouched.
 `,
-  pipeline: `sx pipeline <command>
+  pipeline: `cb pipeline <command>
 
   wait <run> --job N --step N --reason "…" [--kind person|agent|approval]
        [--target handle] [--expires 2026-12-01T09:00:00Z]
@@ -116,7 +116,7 @@ export const groupHelp: Record<string, string> = {
   resume <run> --job N --step N --status success|failure [--note "…"]
                           end a waiting step; the runner carries on
 `,
-  runner: `sx runner <command>
+  runner: `cb runner <command>
 
   register <name> [--labels macos,arm64] [--repos owner/a,owner/b]
            [--concurrency N] [--provider blacksmith] [--account org]
@@ -124,16 +124,16 @@ export const groupHelp: Record<string, string> = {
   list [--account org]
   revoke <id>             disables it; its token stops working at once
   start [--workdir dir] [--once]
-                          with SX_RUNNER_TOKEN set: heartbeat, claim jobs its
+                          with CB_RUNNER_TOKEN set: heartbeat, claim jobs its
                           labels cover, run each step's run: and report it
 `,
-  handoff: `sx handoff <issue|change|run:N>   (--to t3|boat)
+  handoff: `cb handoff <issue|change|run:N>   (--to t3|boat)
 
   Builds the prompt from the issue or change and prints the command that hands
-  it to the orchestrator. source.code runs no agent: the orchestrator starts
+  it to the orchestrator. cobalt runs no agent: the orchestrator starts
   one under your login, and its writes come back with a receipt.
 `,
-  account: `sx account <command>
+  account: `cb account <command>
 
   list                    every account you can act as, and your role in each
   current                 who you act as now, and why (flag, env, repo, setting, default)
@@ -142,22 +142,22 @@ export const groupHelp: Record<string, string> = {
   One login covers yourself and every organization you belong to, so there is
   nothing to sign in to again. Which account a command acts as, in order:
     1. -A, --account handle
-    2. SX_ACCOUNT
+    2. CB_ACCOUNT
     3. the owner of the repository you are in, when you can act as it
-    4. the account saved by sx account switch
+    4. the account saved by cb account switch
     5. you
 `,
-  auth: `sx auth <command>
+  auth: `cb auth <command>
 
   status                  signed in? to what, as whom, with which scopes (exit 4: no)
   login [--scope "a b"]   sign in with a code you approve in a browser (saves a token that refreshes)
   logout                  revoke the saved sign-in and delete it
 
-  SX_TOKEN in the environment always wins over a saved sign-in. SX_API (or
-  \`sx config set api <url>\`) says which server; with neither, sx runs the
+  CB_TOKEN in the environment always wins over a saved sign-in. CB_API (or
+  \`cb config set api <url>\`) says which server; with neither, cb runs the
   preview's sample data in this process.
 `,
-  config: `sx config <command>
+  config: `cb config <command>
 
   list                    every setting, its value and where it came from
   get <key>
@@ -167,12 +167,13 @@ export const groupHelp: Record<string, string> = {
 }
 
 export const completions: Record<string, string> = {
-  bash: `_sx() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
-complete -F _sx sx
+  bash: `_cb() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
+complete -F _cb cb cobalt
 `,
-  zsh: `#compdef sx
+  zsh: `#compdef cb cobalt
 _arguments '1: :(repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion)'
 `,
-  fish: `complete -c sx -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
+  fish: `complete -c cb -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
+complete -c cobalt -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
 `,
 }

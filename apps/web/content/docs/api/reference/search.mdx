@@ -43,8 +43,8 @@ Words must all match; the last is a prefix. "Quoted phrases" match exactly. Qual
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/search?q=negative+cache&limit=2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/search?q=negative+cache&limit=2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -67,7 +67,7 @@ ratelimit: "search";r=59;t=60
       "state": "open",
       "snippet": null,
       "score": 3,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216",
       "updated_at": "2026-11-07T10:00:00.003Z"
     },
     {
@@ -80,7 +80,7 @@ ratelimit: "search";r=59;t=60
       "state": "draft",
       "snippet": null,
       "score": 3,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/changes/217",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/217",
       "updated_at": "2026-11-07T07:00:00.000Z"
     }
   ],

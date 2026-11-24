@@ -21,7 +21,7 @@ import { SETUP_PROMPT } from '~/lib/setup-prompt'
 
 export const Route = createFileRoute('/')({
   head: () => ({
-    meta: [{ title: 'source.code: Git hosting. Agent native.' }],
+    meta: [{ title: 'cobalt: Git hosting. Agent native.' }],
   }),
   component: Landing,
 })

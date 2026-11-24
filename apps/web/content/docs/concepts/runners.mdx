@@ -4,18 +4,18 @@ title: Runners
 description: Your own machines, or a provider's, taking pipeline jobs by label.
 ---
 
-source.code runs no job itself. A **runner** is a machine that does: a Mac mini under a desk, a Linux build server, or a hosted provider. You register it, and source.code routes jobs to it and keeps what it reports.
+cobalt runs no job itself. A **runner** is a machine that does: a Mac mini under a desk, a Linux build server, or a hosted provider. You register it, and cobalt routes jobs to it and keeps what it reports.
 
 ## Register one
 
 ```bash
-sx runner register mac-mini --labels macos,arm64,xcode-16
+cb runner register mac-mini --labels macos,arm64,xcode-16
 ```
 
-The answer shows the runner's token once (`sxr_…`). On the machine:
+The answer shows the runner's token once (`cbr_…`). On the machine:
 
 ```bash
-SX_RUNNER_TOKEN=sxr_… sx runner start
+CB_RUNNER_TOKEN=cbr_… cb runner start
 ```
 
 It sends a heartbeat every 30 seconds, claims jobs, fetches the repository at the job's commit through the API, runs each step's `run:` and reports it. It needs nothing but the API and a working directory. A person registers runners for themself; an organization's owner or admin for the organization (**Settings, Runners**). `repos` limits a runner to some of the account's repositories; without it, it serves all of them, now and later.
@@ -45,8 +45,8 @@ Labels are what the machine says it offers; nobody checks them. A runner that ta
 A step can pause for a person, an approval, or an outside agent, and resume with how it ended:
 
 ```bash
-sx pipeline wait 1839 --job 1 --step 3 --kind agent --reason "Update the docs"
-sx pipeline resume 1839 --job 1 --step 3 --status success --note "docs updated"
+cb pipeline wait 1839 --job 1 --step 3 --kind agent --reason "Update the docs"
+cb pipeline resume 1839 --job 1 --step 3 --status success --note "docs updated"
 ```
 
-A runner can pause the step it is running itself, with its own token (`POST /v1/runners/wait`), but only on a job it holds; answering the wait takes a login with `repo:write`, so a runner never approves its own step. A waiting job keeps its runner, has no lease to run out, and is never handed to another. A person it waits on is told in their inbox. A wait ends at `expires_at`, 7 days by default and 30 at most; if nobody resumes it by then, the step and the run fail. `sx handoff run:1839` hands a waiting run to an orchestrator with the exact resume command in its prompt. The agent resumes it under the login of the machine it runs on; no token travels in the prompt.
+A runner can pause the step it is running itself, with its own token (`POST /v1/runners/wait`), but only on a job it holds; answering the wait takes a login with `repo:write`, so a runner never approves its own step. A waiting job keeps its runner, has no lease to run out, and is never handed to another. A person it waits on is told in their inbox. A wait ends at `expires_at`, 7 days by default and 30 at most; if nobody resumes it by then, the step and the run fail. `cb handoff run:1839` hands a waiting run to an orchestrator with the exact resume command in its prompt. The agent resumes it under the login of the machine it runs on; no token travels in the prompt.

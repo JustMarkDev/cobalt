@@ -1,5 +1,5 @@
 /**
- * The CLI described as data. `sx commands` prints it so an agent can learn the
+ * The CLI described as data. `cb commands` prints it so an agent can learn the
  * whole surface in one call instead of guessing from help text.
  */
 
@@ -25,7 +25,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx context',
+    example: 'cb context',
   },
   {
     command: 'account list',
@@ -35,17 +35,17 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [],
-    example: 'sx account list',
+    example: 'cb account list',
   },
   {
     command: 'account current',
     summary:
-      'Who commands act as now and why: -A, SX_ACCOUNT, the repository you are in, a saved setting, or your own account.',
+      'Who commands act as now and why: -A, CB_ACCOUNT, the repository you are in, a saved setting, or your own account.',
     args: '[-A handle]',
     mutates: false,
     idempotent: true,
     exits: [3],
-    example: 'sx account current',
+    example: 'cb account current',
   },
   {
     command: 'account switch',
@@ -55,7 +55,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx account switch northwind',
+    example: 'cb account switch northwind',
   },
   {
     command: 'repo list',
@@ -65,7 +65,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [],
-    example: 'sx repo list',
+    example: 'cb repo list',
   },
   {
     command: 'repo view',
@@ -74,7 +74,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx repo view -R dana/gitfs',
+    example: 'cb repo view -R dana/gitfs',
   },
   {
     command: 'repo create',
@@ -84,7 +84,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2, 3, 5],
-    example: 'sx repo create notes -A northwind',
+    example: 'cb repo create notes -A northwind',
   },
   {
     command: 'import',
@@ -94,7 +94,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx import github dana/notes',
+    example: 'cb import github dana/notes',
   },
   {
     command: 'import list',
@@ -104,7 +104,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [],
-    example: 'sx import list',
+    example: 'cb import list',
   },
   {
     command: 'repo clone',
@@ -113,7 +113,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2],
-    example: 'sx repo clone dana/gitfs',
+    example: 'cb repo clone dana/gitfs',
   },
   {
     command: 'change list',
@@ -122,7 +122,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx change list',
+    example: 'cb change list',
   },
   {
     command: 'change view',
@@ -132,7 +132,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx change view 216',
+    example: 'cb change view 216',
   },
   {
     command: 'change create',
@@ -142,7 +142,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2],
-    example: 'sx change create --draft',
+    example: 'cb change create --draft',
   },
   {
     command: 'change land',
@@ -152,7 +152,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: false,
     exits: [3, 5],
-    example: 'sx change land 216',
+    example: 'cb change land 216',
   },
   {
     command: 'change checkout',
@@ -161,7 +161,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [3],
-    example: 'sx change checkout 216',
+    example: 'cb change checkout 216',
   },
   {
     command: 'issue list',
@@ -170,7 +170,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2],
-    example: 'sx issue list --state all',
+    example: 'cb issue list --state all',
   },
   {
     command: 'issue view',
@@ -179,7 +179,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [3],
-    example: 'sx issue view 4',
+    example: 'cb issue view 4',
   },
   {
     command: 'issue create',
@@ -188,7 +188,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2],
-    example: 'sx issue create "Crash on empty repo" --label bug',
+    example: 'cb issue create "Crash on empty repo" --label bug',
   },
   {
     command: 'issue close',
@@ -197,7 +197,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [3],
-    example: 'sx issue close 4',
+    example: 'cb issue close 4',
   },
   {
     command: 'env list',
@@ -207,7 +207,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2],
-    example: 'sx env list --env production',
+    example: 'cb env list --env production',
   },
   {
     command: 'env set',
@@ -217,7 +217,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2],
-    example: 'printf %s "$V" | sx env set STRIPE_KEY - --env production',
+    example: 'printf %s "$V" | cb env set STRIPE_KEY - --env production',
   },
   {
     command: 'env pull',
@@ -226,7 +226,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2],
-    example: 'sx env pull --env development',
+    example: 'cb env pull --env development',
   },
   {
     command: 'policy check',
@@ -235,7 +235,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 5],
-    example: 'sx policy check 216',
+    example: 'cb policy check 216',
   },
   {
     command: 'policy explain',
@@ -244,7 +244,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 5],
-    example: 'sx policy explain 216',
+    example: 'cb policy explain 216',
   },
   {
     command: 'mirror list',
@@ -253,7 +253,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2],
-    example: 'sx mirror list',
+    example: 'cb mirror list',
   },
   {
     command: 'mirror sync',
@@ -262,7 +262,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [3],
-    example: 'sx mirror sync m2',
+    example: 'cb mirror sync m2',
   },
   {
     command: 'pipeline resume',
@@ -273,7 +273,7 @@ export const schema: Array<CommandSpec> = [
     idempotent: false,
     exits: [2, 3, 5],
     example:
-      'sx pipeline resume 1839 --job 1 --step 3 --status success --note "docs updated"',
+      'cb pipeline resume 1839 --job 1 --step 3 --status success --note "docs updated"',
   },
   {
     command: 'pipeline wait',
@@ -284,7 +284,7 @@ export const schema: Array<CommandSpec> = [
     idempotent: true,
     exits: [2, 3, 5],
     example:
-      'sx pipeline wait 1839 --job 1 --step 3 --kind agent --reason "Update the docs"',
+      'cb pipeline wait 1839 --job 1 --step 3 --kind agent --reason "Update the docs"',
   },
   {
     command: 'runner register',
@@ -294,7 +294,7 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: false,
     exits: [2, 5],
-    example: 'sx runner register mac-mini --labels macos,arm64,xcode-16',
+    example: 'cb runner register mac-mini --labels macos,arm64,xcode-16',
   },
   {
     command: 'runner list',
@@ -304,7 +304,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [],
-    example: 'sx runner list',
+    example: 'cb runner list',
   },
   {
     command: 'runner revoke',
@@ -313,17 +313,17 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx runner revoke rnr_01k8r2m9x4q7ab12',
+    example: 'cb runner revoke rnr_01k8r2m9x4q7ab12',
   },
   {
     command: 'runner start',
     summary:
-      'With SX_RUNNER_TOKEN set: send heartbeats, claim jobs its labels cover, run each step and report it.',
+      'With CB_RUNNER_TOKEN set: send heartbeats, claim jobs its labels cover, run each step and report it.',
     args: '[--workdir dir] [--once]',
     mutates: true,
     idempotent: false,
     exits: [1, 4],
-    example: 'SX_RUNNER_TOKEN=sxr_... sx runner start',
+    example: 'CB_RUNNER_TOKEN=cbr_... cb runner start',
   },
   {
     command: 'agent start',
@@ -333,7 +333,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [2, 3],
-    example: 'sx agent start #4 --target t3',
+    example: 'cb agent start #4 --target t3',
   },
   {
     command: 'auth status',
@@ -343,17 +343,17 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [4],
-    example: 'sx auth status',
+    example: 'cb auth status',
   },
   {
     command: 'auth login',
     summary:
-      'Sign in with a code you approve in a browser (the device flow). Saves a token that refreshes itself, readable only by you. SX_TOKEN always wins.',
+      'Sign in with a code you approve in a browser (the device flow). Saves a token that refreshes itself, readable only by you. CB_TOKEN always wins.',
     args: '[--scope "a b c"]',
     mutates: true,
     idempotent: true,
     exits: [1, 2],
-    example: 'sx auth login',
+    example: 'cb auth login',
   },
   {
     command: 'auth logout',
@@ -362,17 +362,17 @@ export const schema: Array<CommandSpec> = [
     mutates: true,
     idempotent: true,
     exits: [],
-    example: 'sx auth logout',
+    example: 'cb auth logout',
   },
   {
     command: 'skill',
     summary:
-      'Print the agent skill that teaches sx. `skill install` writes it into the repository.',
+      'Print the agent skill that teaches cb. `skill install` writes it into the repository.',
     args: '[install [--target claude|agents]]',
     mutates: false,
     idempotent: true,
     exits: [],
-    example: 'sx skill install',
+    example: 'cb skill install',
   },
   {
     command: 'config list',
@@ -381,7 +381,7 @@ export const schema: Array<CommandSpec> = [
     mutates: false,
     idempotent: true,
     exits: [],
-    example: 'sx config list',
+    example: 'cb config list',
   },
 ]
 
@@ -390,7 +390,7 @@ export const exitMeaning: Record<number, string> = {
   1: 'unexpected error',
   2: 'usage: a flag or argument is missing or wrong; the hint says which',
   3: 'not found',
-  4: 'not signed in; set SX_TOKEN',
+  4: 'not signed in; set CB_TOKEN',
   5: 'policy blocked; stop and report the listed requirements, do not work around',
   6: 'needs a human',
 }

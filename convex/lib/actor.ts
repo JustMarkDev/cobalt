@@ -72,23 +72,23 @@ export const allScopes = [
 /** The claims the API puts in its JWT. Short names: they ride on every call. */
 export const claim = {
   /** Present only on the API's own JWT. */
-  api: 'sx_api',
-  token: 'sx_tok',
-  login: 'sx_login',
-  device: 'sx_dev',
-  tool: 'sx_tool',
-  model: 'sx_model',
-  session: 'sx_ses',
-  actingAs: 'sx_act',
-  scopes: 'sx_scp',
-  repos: 'sx_rep',
+  api: 'cb_api',
+  token: 'cb_tok',
+  login: 'cb_login',
+  device: 'cb_dev',
+  tool: 'cb_tool',
+  model: 'cb_model',
+  session: 'cb_ses',
+  actingAs: 'cb_act',
+  scopes: 'cb_scp',
+  repos: 'cb_rep',
   /** Paths a token may change, as JSON. */
-  paths: 'sx_pth',
+  paths: 'cb_pth',
   /** The runner a token belongs to. */
-  runner: 'sx_run',
-  system: 'sx_sys',
+  runner: 'cb_run',
+  system: 'cb_sys',
   /** `[scope, key]` of the request's Idempotency-Key, as JSON. */
-  idempotency: 'sx_idem',
+  idempotency: 'cb_idem',
 } as const
 
 type Ctx = Pick<QueryCtx, 'auth' | 'db'>
@@ -140,7 +140,7 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
   return {
     handle: account.handle,
     actingAs: account.handle,
-    via: { machine: 'browser', tool: 'source.code', model: null },
+    via: { machine: 'browser', tool: 'cobalt', model: null },
     session: true,
     scopes: new Set(allScopes),
     repos: null,

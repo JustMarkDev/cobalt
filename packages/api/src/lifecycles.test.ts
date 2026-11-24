@@ -292,7 +292,7 @@ describe('device sign-in', () => {
       ...form({ handle: 'dana', return_to: '/' }),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
-        origin: 'https://source.code',
+        origin: 'https://cobaltforge.dev',
       },
     })
     const cookie = signIn.headers.get('set-cookie')!.split(';')[0]

@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { Presence } from '@convex-dev/presence'
-import { PRESENCE_INTERVAL } from '@source-code/api/presence'
+import { PRESENCE_INTERVAL } from '@cobaltforge/api/presence'
 import { components } from '../_generated/api'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'

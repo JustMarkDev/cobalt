@@ -398,7 +398,7 @@ function AddMirror({
       open={open}
       onClose={onClose}
       title="Add a mirror"
-      description="source.code stays the primary. The mirror keeps a copy on another host."
+      description="cobalt stays the primary. The mirror keeps a copy on another host."
     >
       <div className="space-y-4">
         <Field label="Host">
@@ -496,8 +496,8 @@ function Mirrors({ repo }: { repo: Repo }) {
             </p>
             <p className="text-muted-foreground">
               Commits, branches, tags, issues, changes with their reviews, and
-              releases are stored on source.code. If a host goes down or you
-              stop using it, nothing here changes, and mirrors catch up when it
+              releases are stored on cobalt. If a host goes down or you stop
+              using it, nothing here changes, and mirrors catch up when it
               returns.
             </p>
           </div>
@@ -554,8 +554,8 @@ function Mirrors({ repo }: { repo: Repo }) {
         <h3 className="text-sm font-medium">Leaving a host</h3>
         <p className="max-w-[60ch] text-sm text-muted-foreground">
           When you are ready to stop using another host for this project, make
-          source.code the only place people push. Mirrors keep receiving a copy
-          until you remove them.
+          cobalt the only place people push. Mirrors keep receiving a copy until
+          you remove them.
         </p>
         <SwitchRow
           checked={primary}

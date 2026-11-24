@@ -9,10 +9,10 @@ type Viewer = {
 }
 
 /**
- * One session per process: an MCP server or a long `sx` loop is one viewer
- * however many calls it makes. `SX_SESSION` names it across processes.
+ * One session per process: an MCP server or a long `cb` loop is one viewer
+ * however many calls it makes. `CB_SESSION` names it across processes.
  */
-const session = process.env.SX_SESSION ?? `sx-${randomUUID().slice(0, 13)}`
+const session = process.env.CB_SESSION ?? `cb-${randomUUID().slice(0, 13)}`
 
 /**
  * Who is looking at a change or an issue. With `here`, `path` or `leave`,

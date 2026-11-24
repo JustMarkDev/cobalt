@@ -9,15 +9,15 @@ description: A typed, dependency-free client generated from the API's own defini
 ```ts
 import { createClient } from './packages/sdk'
 
-const sx = createClient({ token: process.env.SX_TOKEN })
+const cb = createClient({ token: process.env.CB_TOKEN })
 
-const change = await sx.changes.get({
+const change = await cb.changes.get({
   owner: 'dana',
   repo: 'gitfs',
   number: '216',
 })
 if (change.actions?.land.allowed) {
-  await sx.changes.land({
+  await cb.changes.land({
     owner: 'dana',
     repo: 'gitfs',
     number: '216',
@@ -25,7 +25,7 @@ if (change.actions?.land.allowed) {
   })
 }
 
-for await (const issue of sx.paginate('issues.list', {
+for await (const issue of cb.paginate('issues.list', {
   owner: 'dana',
   repo: 'gitfs',
 })) {
@@ -33,7 +33,7 @@ for await (const issue of sx.paginate('issues.list', {
 }
 ```
 
-Every operation is a method named like its id: `changes.land` is `sx.changes.land`, `webhooks.deliveries.list` is `sx.webhooks.deliveries.list`. Path and query parameters go flat in the first argument and the JSON body goes under `body`. The result is the object, already typed.
+Every operation is a method named like its id: `changes.land` is `cb.changes.land`, `webhooks.deliveries.list` is `cb.webhooks.deliveries.list`. Path and query parameters go flat in the first argument and the JSON body goes under `body`. The result is the object, already typed.
 
 ## It cannot drift
 
@@ -46,15 +46,15 @@ The types are generated from the same schemas the server validates responses aga
 | **Retries what is safe to repeat** | Reads, naturally idempotent writes, and any write it has given a key. It retries on network errors, `502`, `503`, `504` and anything the server marks `retryable`, up to 3 times, waiting `Retry-After` when there is one and otherwise backing off from 250 ms. Not on a `4xx` that cannot help. |
 | **Makes writes repeat-safe**       | A write that is not naturally idempotent gets an `Idempotency-Key`, and every retry sends the same one, so a lost response never creates two issues. Pass your own with `{ idempotencyKey }`.                                                                                                     |
 | **Caches by `ETag`**               | A repeat `GET` sends `If-None-Match`; a `304` returns the object it already holds, and costs no rate-limit units. 500 entries by default; `cacheSize: 0` turns it off.                                                                                                                            |
-| **Paginates**                      | `sx.paginate(id, input)` follows `next_cursor` until the list ends.                                                                                                                                                                                                                               |
-| **Throws one error type**          | `SxError` has `status`, `code`, `hint`, `retryable`, `exitCode`, `requestId` and the whole `problem`. Branch on `code`.                                                                                                                                                                           |
+| **Paginates**                      | `cb.paginate(id, input)` follows `next_cursor` until the list ends.                                                                                                                                                                                                                               |
+| **Throws one error type**          | `CbError` has `status`, `code`, `hint`, `retryable`, `exitCode`, `requestId` and the whole `problem`. Branch on `code`.                                                                                                                                                                           |
 
 ## Request options
 
 The second argument of every method:
 
 ```ts
-await sx.changes.update(input, {
+await cb.changes.update(input, {
   ifMatch: change.version.toString(), // fail with version_mismatch if it moved
   dryRun: true, // check everything, change nothing
   idempotencyKey: 'my-key',
@@ -63,8 +63,8 @@ await sx.changes.update(input, {
 })
 ```
 
-`sx.last` holds the headers of the latest response, for the rate limit and the request id. `account: 'northwind'` in `createClient` sends `Sx-Account` to act as an organization.
+`cb.last` holds the headers of the latest response, for the rate limit and the request id. `account: 'northwind'` in `createClient` sends `Cb-Account` to act as an organization.
 
 ## Other languages
 
-Any OpenAPI 3.1 generator can produce a client from [`/v1/openapi.json`](/docs/api/agents#learn-it-from-the-api). The `x-sx-*` members carry what a generator would otherwise guess: which operations are safe to retry, which accept `dry_run`, and which pool they spend.
+Any OpenAPI 3.1 generator can produce a client from [`/v1/openapi.json`](/docs/api/agents#learn-it-from-the-api). The `x-cb-*` members carry what a generator would otherwise guess: which operations are safe to retry, which accept `dry_run`, and which pool they spend.

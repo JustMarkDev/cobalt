@@ -1,5 +1,5 @@
 /**
- * The rules for an address (`source.code/<handle>`), shared by the server,
+ * The rules for an address (`cobaltforge.dev/<handle>`), shared by the server,
  * which enforces them (sign-in in `convex/auth.ts`, organizations in the
  * domain), and the app, which explains them before asking. Plain functions
  * that import nothing, so Convex can bundle this file on its own.

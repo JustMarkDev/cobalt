@@ -115,8 +115,8 @@ describe('shape', () => {
     const h = harness()
     const r = await h.call('GET', '/', { token: null })
     expect(r.status).toBe(200)
-    expect(r.headers.get('sx-request-id')).toMatch(/^req_/)
-    expect(r.headers.get('sx-version')).toBe('2026-11-07')
+    expect(r.headers.get('cb-request-id')).toMatch(/^req_/)
+    expect(r.headers.get('cb-version')).toBe('2026-11-07')
     expect(r.headers.get('server-timing')).toContain('total;dur=')
     expect(S.Root.safeParse(r.json).success).toBe(true)
   })
@@ -150,7 +150,7 @@ describe('shape', () => {
     await h.api.fetch(
       new Request(
         up.upload_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         {
@@ -270,7 +270,7 @@ describe('errors', () => {
     expect(S.Problem.safeParse(r.json).success).toBe(true)
     expect(r.json.code).toBe('not_found')
     expect(r.json.hint).toContain('openapi.json')
-    expect(r.json.request_id).toBe(r.headers.get('sx-request-id'))
+    expect(r.json.request_id).toBe(r.headers.get('cb-request-id'))
   })
 
   test('a malformed escape is a miss, not a crash', async () => {
@@ -295,7 +295,7 @@ describe('errors', () => {
     expect(
       (
         await h.call('GET', '/auth/principal', {
-          token: 'sxp_unknown_token_value',
+          token: 'cbp_unknown_token_value',
         })
       ).json.code,
     ).toBe('token_invalid')
@@ -386,7 +386,7 @@ describe('errors', () => {
   test('an unsupported version is refused', async () => {
     const h = harness()
     const r = await h.call('GET', '/', {
-      headers: { 'sx-version': '2020-01-01' },
+      headers: { 'cb-version': '2020-01-01' },
     })
     expect(r.status).toBe(400)
     expect(r.json.code).toBe('unsupported_version')
@@ -402,7 +402,7 @@ describe('errors', () => {
       'idempotency-key',
     )
     expect(res.headers.get('access-control-expose-headers')).toContain(
-      'sx-renamed-from',
+      'cb-renamed-from',
     )
     expect(res.headers.get('access-control-expose-headers')).toContain('allow')
   })
@@ -456,12 +456,12 @@ describe('who can see what', () => {
   test('acting as an organization needs to be a member of it', async () => {
     const h = harness()
     const ok = await h.call('GET', '/auth/principal', {
-      headers: { 'sx-account': 'northwind' },
+      headers: { 'cb-account': 'northwind' },
     })
     expect(ok.json.acting_as).toBe('northwind')
     const no = await h.call('GET', '/auth/principal', {
       token: T(h).stranger,
-      headers: { 'sx-account': 'northwind' },
+      headers: { 'cb-account': 'northwind' },
     })
     expect(no.status).toBe(403)
   })
@@ -475,7 +475,7 @@ describe('who can see what', () => {
     expect(r.headers.get('location')).toBe(
       'https://api.test/v1/repos/dana/gitfs/issues?dry_run=true',
     )
-    expect(r.headers.get('sx-renamed-from')).toBe('dana/git-fs')
+    expect(r.headers.get('cb-renamed-from')).toBe('dana/git-fs')
   })
 
   test('a repository answers at its id as well as its name', async () => {
@@ -622,7 +622,7 @@ describe('who can see what', () => {
     await h.api.fetch(
       new Request(
         up.upload_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         {
@@ -857,7 +857,7 @@ describe('generations and reuse', () => {
     await h.api.fetch(
       new Request(
         up.upload_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         {
@@ -901,7 +901,7 @@ describe('generations and reuse', () => {
     await h.api.fetch(
       new Request(
         up.upload_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         {
@@ -941,7 +941,7 @@ describe('generations and reuse', () => {
       })
     ).json
     const url = up.upload_url.replace(
-      'https://api.source.code/v1',
+      'https://api.cobaltforge.dev/v1',
       'https://api.test/v1',
     )
     const wrong = await h.api.fetch(
@@ -1001,7 +1001,7 @@ describe('generations and reuse', () => {
     await h.api.fetch(
       new Request(
         up.upload_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         {
@@ -1576,7 +1576,7 @@ describe('lists', () => {
     const h = harness({ seed: (d) => seedBulk(d, 'dana', 'big', 400, 0) })
     const r = await h.call('GET', '/repos/dana/big/changes?limit=5000')
     expect(r.json.data.length).toBe(200)
-    expect(r.headers.get('sx-limit-applied')).toBe('200')
+    expect(r.headers.get('cb-limit-applied')).toBe('200')
   })
 
   test('filters and sorting', async () => {
@@ -1861,7 +1861,7 @@ describe('writes', () => {
     })
     expect(again.status).toBe(204)
     expect(again.text).toBe('')
-    expect(again.headers.get('sx-replayed')).toBe('true')
+    expect(again.headers.get('cb-replayed')).toBe('true')
   })
 
   test('a store failure after a write keeps the response and the key in progress', async () => {
@@ -1917,7 +1917,7 @@ describe('writes', () => {
     expect(a.status).toBe(201)
     const b = await h.call('POST', `${REPO}/issues`, { body, headers })
     expect(b.status).toBe(201)
-    expect(b.headers.get('sx-replayed')).toBe('true')
+    expect(b.headers.get('cb-replayed')).toBe('true')
     expect(b.json.id).toBe(a.json.id)
     const list = await h.call('GET', `${REPO}/issues?limit=200`)
     expect(
@@ -2015,7 +2015,7 @@ describe('writes', () => {
       { headers: key },
     )
     expect(again.status).toBe(204)
-    expect(again.headers.get('sx-replayed')).toBe('true')
+    expect(again.headers.get('cb-replayed')).toBe('true')
 
     await h.call('POST', '/repos', {
       body: { owner: 'dana', name: 'slashid', visibility: 'public' },
@@ -2035,7 +2035,7 @@ describe('writes', () => {
       { headers: key2 },
     )
     expect(againId.status).toBe(204)
-    expect(againId.headers.get('sx-replayed')).toBe('true')
+    expect(againId.headers.get('cb-replayed')).toBe('true')
 
     const alias = await h.call('POST', '/repos/dana/git-fs/issues', {
       headers: { 'idempotency-key': 'alias-write' },
@@ -2060,7 +2060,7 @@ describe('writes', () => {
       body: { title: 'Alias write' },
     })
     expect(replay.status).toBe(201)
-    expect(replay.headers.get('sx-replayed')).toBe('true')
+    expect(replay.headers.get('cb-replayed')).toBe('true')
   })
 
   test('an extra slash cannot bypass the replay access stamp', async () => {
@@ -2131,7 +2131,7 @@ describe('writes', () => {
         headers,
       })
       expect(again.status).toBe(200)
-      expect(again.headers.get('sx-replayed')).toBe('true')
+      expect(again.headers.get('cb-replayed')).toBe('true')
       expect((await h.call('GET', `${REPO}/issues/${n}`)).json.title).toBe(
         'concurrent',
       )
@@ -2160,7 +2160,7 @@ describe('writes', () => {
       { token: h.tokens.limited, headers, body },
     )
     expect(again.status).toBe(201)
-    expect(again.headers.get('sx-replayed')).toBe('true')
+    expect(again.headers.get('cb-replayed')).toBe('true')
     expect(again.json.id).toBe(first.json.id)
   })
 
@@ -2223,7 +2223,7 @@ describe('writes', () => {
       headers,
     })
     expect(again.status).toBe(412)
-    expect(again.headers.get('sx-replayed')).toBeNull()
+    expect(again.headers.get('cb-replayed')).toBeNull()
     const hijack = await h.call('PATCH', `${REPO}/issues/${made.json.number}`, {
       body: { title: 'hijack' },
       headers,
@@ -2248,7 +2248,7 @@ describe('writes', () => {
       headers,
     })
     expect(again.status).toBe(202)
-    expect(again.headers.get('sx-replayed')).toBe('true')
+    expect(again.headers.get('cb-replayed')).toBe('true')
     expect(
       (await h.call('GET', `${REPO}/webhooks/${hook.id}/deliveries`)).json.data
         .length,
@@ -2275,7 +2275,7 @@ describe('writes', () => {
       { headers: key },
     )
     expect(again.status).toBe(204)
-    expect(again.headers.get('sx-replayed')).toBe('true')
+    expect(again.headers.get('cb-replayed')).toBe('true')
 
     await h.call('POST', '/repos', {
       body: { owner: 'northwind', name: 'vault2', visibility: 'private' },
@@ -2357,7 +2357,7 @@ describe('writes', () => {
       body: { expected_tree: '9c4d7e1' },
       headers,
     })
-    expect(again.headers.get('sx-replayed')).toBeNull()
+    expect(again.headers.get('cb-replayed')).toBeNull()
     expect(again.status).toBe(409)
   })
 
@@ -2393,7 +2393,7 @@ describe('writes', () => {
     release()
     expect((await first).status).toBe(200)
     const third = await h.call('POST', '/slow', { body: {}, headers })
-    expect(third.headers.get('sx-replayed')).toBe('true')
+    expect(third.headers.get('cb-replayed')).toBe('true')
   })
 
   test('creating the same thing twice is harmless by nature', async () => {
@@ -2405,24 +2405,24 @@ describe('writes', () => {
       body: { title: 'Natural' },
     })
     expect([a.status, b.status]).toEqual([201, 200])
-    expect(b.headers.get('sx-outcome')).toBe('unchanged')
+    expect(b.headers.get('cb-outcome')).toBe('unchanged')
     expect(b.json.id).toBe(a.json.id)
 
     const c1 = await h.call('POST', `${REPO}/changes`, {
       body: { branch: 'feature-x' },
     })
     expect(c1.status).toBe(201)
-    expect(c1.headers.get('sx-outcome')).toBe('created')
+    expect(c1.headers.get('cb-outcome')).toBe('created')
     const sha = c1.json.head.sha
     const c2 = await h.call('POST', `${REPO}/changes`, {
       body: { branch: 'feature-x', sha },
     })
     expect(c2.status).toBe(200)
-    expect(c2.headers.get('sx-outcome')).toBe('unchanged')
+    expect(c2.headers.get('cb-outcome')).toBe('unchanged')
     const c3 = await h.call('POST', `${REPO}/changes`, {
       body: { branch: 'feature-x', sha: 'abcdef1234' },
     })
-    expect(c3.headers.get('sx-outcome')).toBe('patch_set_added')
+    expect(c3.headers.get('cb-outcome')).toBe('patch_set_added')
     expect(c3.json.number).toBe(c1.json.number)
     expect(c3.json.patch_set_count).toBe(2)
   })
@@ -2435,7 +2435,7 @@ describe('writes', () => {
       body: { title: 'Dry' },
     })
     expect(r.status).toBe(200)
-    expect(r.headers.get('sx-dry-run')).toBe('true')
+    expect(r.headers.get('cb-dry-run')).toBe('true')
     expect(r.json.title).toBe('Dry')
     expect(
       (await h.call('GET', `${REPO}/issues?limit=200&state=all`)).json.data
@@ -2533,7 +2533,7 @@ describe('review, policy and landing', () => {
     const check = await h.call('POST', `${REPO}/changes/216/checks`, {
       body: { key: 'ci/test', state: 'pass', tree: '9c4d7e1' },
     })
-    expect(check.headers.get('sx-outcome')).toBe('updated')
+    expect(check.headers.get('cb-outcome')).toBe('updated')
     const agent = await h.call('POST', `${REPO}/changes/216/land`, {
       token: T(h).scoped,
       body: { expected_tree: '9c4d7e1' },
@@ -2575,7 +2575,7 @@ describe('review, policy and landing', () => {
     const same = await h.call('POST', `${REPO}/changes/216/checks`, {
       body: { key: 'ci/test', state: 'pass', tree: '5d02b8f' },
     })
-    expect(same.headers.get('sx-outcome')).toBe('unchanged')
+    expect(same.headers.get('cb-outcome')).toBe('unchanged')
   })
 
   test('nobody approves their own work', async () => {
@@ -2980,7 +2980,7 @@ describe('batch', () => {
   test('a sub-request keeps the account the caller acts as', async () => {
     const h = harness()
     const r = await h.call('POST', '/batch', {
-      headers: { 'sx-account': 'northwind' },
+      headers: { 'cb-account': 'northwind' },
       body: {
         requests: [{ id: 'who', method: 'GET', path: '/auth/principal' }],
       },
@@ -3038,14 +3038,14 @@ describe('OpenAPI', () => {
       for (const [method, op] of Object.entries<any>(item)) {
         const where = `${method} ${path}`
         expect(['read', 'write', 'destructive'], where).toContain(
-          op['x-sx-safety'],
+          op['x-cb-safety'],
         )
-        expect(typeof op['x-sx-idempotent'], where).toBe('boolean')
-        expect(op['x-sx-pool'], where).toBeDefined()
-        if (op['x-sx-pool'] !== 'none')
-          expect(op['x-sx-errors'], where).toContain('rate_limited')
-        else expect(op['x-sx-errors'], where).not.toContain('rate_limited')
-        for (const code of op['x-sx-errors'])
+        expect(typeof op['x-cb-idempotent'], where).toBe('boolean')
+        expect(op['x-cb-pool'], where).toBeDefined()
+        if (op['x-cb-pool'] !== 'none')
+          expect(op['x-cb-errors'], where).toContain('rate_limited')
+        else expect(op['x-cb-errors'], where).not.toContain('rate_limited')
+        for (const code of op['x-cb-errors'])
           expect(errorCatalog, `${where} ${code}`).toHaveProperty(code)
         expect(
           op.responses.default.content['application/problem+json'],
@@ -3062,17 +3062,17 @@ describe('OpenAPI', () => {
   test('destructive operations are marked, and reads never are', () => {
     expect(
       doc.paths['/repos/{owner}/{repo}/changes/{number}/land'].post[
-        'x-sx-safety'
+        'x-cb-safety'
       ],
     ).toBe('destructive')
     expect(
       doc.paths['/repos/{owner}/{repo}/stacks/{stack}/land'].post['x-async'] ??
         doc.paths['/repos/{owner}/{repo}/stacks/{stack}/land'].post[
-          'x-sx-async'
+          'x-cb-async'
         ],
     ).toBe(true)
     for (const item of Object.values<any>(doc.paths))
-      if (item.get) expect(item.get['x-sx-safety']).toBe('read')
+      if (item.get) expect(item.get['x-cb-safety']).toBe('read')
   })
 
   test('responses do not forbid members clients do not know yet', () => {

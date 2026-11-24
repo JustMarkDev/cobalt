@@ -1,12 +1,12 @@
-import { MemoryTokenStore, oauthScopes } from '@source-code/api/auth'
+import { MemoryTokenStore, oauthScopes } from '@cobaltforge/api/auth'
 import {
   ConvexIdempotencyStore,
   ConvexLimitStore,
   convexCaller,
-} from '@source-code/api/stores/convex'
-import { createSampleApi } from '@source-code/api'
-import { createConvexApi } from '@source-code/api/convex-api'
-import { exportWorld } from '@source-code/api/seed-export'
+} from '@cobaltforge/api/stores/convex'
+import { createSampleApi } from '@cobaltforge/api'
+import { createConvexApi } from '@cobaltforge/api/convex-api'
+import { exportWorld } from '@cobaltforge/api/seed-export'
 import { AppSessions } from './sessions'
 
 /**
@@ -14,7 +14,7 @@ import { AppSessions } from './sessions'
  * OAuth discovery documents so a token works on all of them.
  *
  * The sample tokens are documented, so they only work when you run the app
- * yourself (`bun run dev`) or set SX_API_SAMPLE_TOKENS=1. A deployed preview
+ * yourself (`bun run dev`) or set CB_API_SAMPLE_TOKENS=1. A deployed preview
  * answers anonymous reads of the public sample repositories and nothing else,
  * so nobody can write into its shared sample data. The OAuth pages ask the
  * app's own sign-in who the visitor is (`sessions.ts`).
@@ -56,7 +56,7 @@ function convexApi(origin: string, sessions: AppSessions, live: boolean) {
     htmlBase: origin,
     sessions,
     userScopes: () => oauthScopes,
-    blobFolder: process.env.SX_BLOB_DIR ?? `${process.cwd()}/.data/blobs`,
+    blobFolder: process.env.CB_BLOB_DIR ?? `${process.cwd()}/.data/blobs`,
     // A new development deployment starts from the sample.
     seedSample: live
       ? () => {
@@ -108,10 +108,10 @@ export function storeConfig(
 
 export function getApi(requestUrl: string) {
   if (current) return current
-  // Links in responses point at the public address. SX_PUBLIC_URL overrides the
+  // Links in responses point at the public address. CB_PUBLIC_URL overrides the
   // address the first request arrived on, for deployments behind a proxy.
-  const origin = process.env.SX_PUBLIC_URL ?? new URL(requestUrl).origin
-  const live = import.meta.env.DEV || process.env.SX_API_SAMPLE_TOKENS === '1'
+  const origin = process.env.CB_PUBLIC_URL ?? new URL(requestUrl).origin
+  const live = import.meta.env.DEV || process.env.CB_API_SAMPLE_TOKENS === '1'
   const secret = process.env.API_STORE_SECRET
   const url = storeConfig(
     process.env.CONVEX_URL,

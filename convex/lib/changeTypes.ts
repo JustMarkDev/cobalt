@@ -3,7 +3,7 @@
  * the API has always used (`packages/api/src/domain/records.ts`), kept here
  * so the Convex functions do not reach into the rest of the API.
  */
-import type { Addressed, Anchor, Placement } from '@source-code/api/anchors'
+import type { Addressed, Anchor, Placement } from '@cobaltforge/api/anchors'
 export type ActorRec = { id: string; handle: string }
 export type FileStat = { hash: string; add: number; del: number }
 /**
@@ -124,8 +124,8 @@ export type EvidenceRec = {
   by: ActorRec
   created: number
 }
-export type { ChangeState } from '@source-code/api/lifecycles'
-import type { ChangeState } from '@source-code/api/lifecycles'
+export type { ChangeState } from '@cobaltforge/api/lifecycles'
+import type { ChangeState } from '@cobaltforge/api/lifecycles'
 export type ChangeRec = {
   id: string
   number: number

@@ -4,12 +4,12 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
-import type { Status as StatusReport } from '@source-code/sdk'
+import type { Status as StatusReport } from '@cobaltforge/sdk'
 import { Badge } from '~/components/ui/badge'
 import { opQuery, useOp } from '~/lib/forge'
 
 export const Route = createFileRoute('/status')({
-  head: () => ({ meta: [{ title: 'Status · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Status · cobalt' }] }),
   loader: ({ context }) =>
     context.queryClient.ensureQueryData(opQuery('status.get', {})),
   component: Status,
@@ -116,8 +116,8 @@ function Status() {
             <h2 className="font-medium">{headline}</h2>
             <p className="text-sm text-muted-foreground">
               {s.state === 'up'
-                ? 'Your repositories, history and releases are safe on source.code whatever other hosts do.'
-                : 'Everything else is working. Your repositories, history and releases are safe on source.code whatever other hosts do.'}
+                ? 'Your repositories, history and releases are safe on cobalt whatever other hosts do.'
+                : 'Everything else is working. Your repositories, history and releases are safe on cobalt whatever other hosts do.'}
             </p>
             {open && (
               <p className="text-sm">

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'bun:test'
 import { sdkSource } from '../../../scripts/api-sdk'
-import { SxError, createClient } from '@source-code/sdk'
+import { CbError, createClient } from '@cobaltforge/sdk'
 import { sampleTokens } from './sample'
 import { harness } from './testing'
 
@@ -16,7 +16,7 @@ function clientFor(
     status: number
     headers: Headers
   }> = []
-  const sx = createClient({
+  const cb = createClient({
     baseUrl: 'https://api.test/v1',
     token,
     retries: 3,
@@ -31,7 +31,7 @@ function clientFor(
       return res
     }) as unknown as typeof fetch,
   })
-  return { sx, h, seen }
+  return { cb, h, seen }
 }
 
 describe('the TypeScript client', () => {
@@ -42,24 +42,24 @@ describe('the TypeScript client', () => {
   })
 
   test('reads, writes and nested groups work, with the types the server publishes', async () => {
-    const { sx } = clientFor()
-    const change = await sx.changes.get({
+    const { cb } = clientFor()
+    const change = await cb.changes.get({
       owner: 'dana',
       repo: 'gitfs',
       number: '216',
     })
     expect(change.object).toBe('change')
     expect(change.number).toBe(216)
-    const made = await sx.issues.create({
+    const made = await cb.issues.create({
       owner: 'dana',
       repo: 'gitfs',
       body: { title: 'From the SDK' },
     })
     expect(made.title).toBe('From the SDK')
-    const principal = await sx.auth.principal()
+    const principal = await cb.auth.principal()
     expect(principal.login).toBe('dana')
     // The same call by id.
-    const again = await sx.call('issues.get', {
+    const again = await cb.call('issues.get', {
       owner: 'dana',
       repo: 'gitfs',
       number: made.number,
@@ -68,8 +68,8 @@ describe('the TypeScript client', () => {
   })
 
   test('a secret-bearing write is not given an automatic idempotency key', async () => {
-    const { sx, seen } = clientFor()
-    await sx.tokens.create({
+    const { cb, seen } = clientFor()
+    await cb.tokens.create({
       body: { name: 'sdk-token', scopes: ['repo:read'] },
     })
     const call = seen.find(
@@ -79,9 +79,9 @@ describe('the TypeScript client', () => {
   })
 
   test('uploads.put sends the declared content type', async () => {
-    const { sx, seen } = clientFor()
+    const { cb, seen } = clientFor()
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3])
-    const made = await sx.uploads.create({
+    const made = await cb.uploads.create({
       body: {
         filename: 'sdk.png',
         content_type: 'image/png',
@@ -89,7 +89,7 @@ describe('the TypeScript client', () => {
       },
     })
     const url = new URL(made.upload_url!)
-    const done = await sx.uploads.put({
+    const done = await cb.uploads.put({
       id: made.id,
       exp: Number(url.searchParams.get('exp')),
       sig: url.searchParams.get('sig')!,
@@ -102,30 +102,30 @@ describe('the TypeScript client', () => {
   })
 
   test('a repeat read is a 304 that costs nothing, and the caller still gets the object', async () => {
-    const { sx, seen } = clientFor()
-    const a = await sx.changes.get({
+    const { cb, seen } = clientFor()
+    const a = await cb.changes.get({
       owner: 'dana',
       repo: 'gitfs',
       number: '216',
     })
-    const b = await sx.changes.get({
+    const b = await cb.changes.get({
       owner: 'dana',
       repo: 'gitfs',
       number: '216',
     })
     expect(b).toEqual(a)
     expect(seen.map((s) => s.status)).toEqual([200, 304])
-    expect(sx.last?.get('etag')).toBeTruthy()
+    expect(cb.last?.get('etag')).toBeTruthy()
   })
 
   test('pagination walks every page', async () => {
-    const { sx, h } = clientFor()
+    const { cb, h } = clientFor()
     for (let i = 0; i < 5; i++)
       await h.call('POST', '/repos/dana/gitfs/issues', {
         body: { title: `Page me ${i}` },
       })
     const all: Array<string> = []
-    for await (const issue of sx.paginate('issues.list', {
+    for await (const issue of cb.paginate('issues.list', {
       owner: 'dana',
       repo: 'gitfs',
       state: 'all',
@@ -133,7 +133,7 @@ describe('the TypeScript client', () => {
     }))
       all.push(issue.title)
     const direct = (
-      await sx.issues.list({
+      await cb.issues.list({
         owner: 'dana',
         repo: 'gitfs',
         state: 'all',
@@ -145,12 +145,12 @@ describe('the TypeScript client', () => {
   })
 
   test('an error carries everything the catalog says about it', async () => {
-    const { sx } = clientFor()
-    const err = await sx.changes
+    const { cb } = clientFor()
+    const err = await cb.changes
       .get({ owner: 'dana', repo: 'gitfs', number: '99999' })
       .catch((e: unknown) => e)
-    expect(err).toBeInstanceOf(SxError)
-    const e = err as SxError
+    expect(err).toBeInstanceOf(CbError)
+    const e = err as CbError
     expect(e).toMatchObject({
       status: 404,
       code: 'not_found',
@@ -160,7 +160,7 @@ describe('the TypeScript client', () => {
     expect(e.exitCode).toBeGreaterThan(0)
     expect(typeof e.hint).toBe('string')
     await expect(
-      sx.changes.get({ owner: 'dana', repo: 'gitfs' } as never),
+      cb.changes.get({ owner: 'dana', repo: 'gitfs' } as never),
     ).rejects.toThrow('needs number')
   })
 
@@ -168,7 +168,7 @@ describe('the TypeScript client', () => {
     const h = harness()
     let calls = 0
     const keys: Array<string | null> = []
-    const sx = createClient({
+    const cb = createClient({
       baseUrl: 'https://api.test/v1',
       token: sampleTokens.dana,
       fetch: (async (url: string, init?: RequestInit) => {
@@ -187,7 +187,7 @@ describe('the TypeScript client', () => {
       }) as unknown as typeof fetch,
     })
     // A write with an explicit key is retried with that same key.
-    const made = await sx.repos.create(
+    const made = await cb.repos.create(
       { body: { name: 'retried-once' } },
       { idempotencyKey: 'retry-key' },
     )
@@ -200,7 +200,7 @@ describe('the TypeScript client', () => {
 
   test('what cannot help is not retried, and the budget is respected', async () => {
     let calls = 0
-    const sx = createClient({
+    const cb = createClient({
       baseUrl: 'https://api.test/v1',
       retries: 2,
       fetch: (() => {
@@ -213,7 +213,7 @@ describe('the TypeScript client', () => {
         )
       }) as unknown as typeof fetch,
     })
-    await expect(sx.api.root()).rejects.toBeInstanceOf(SxError)
+    await expect(cb.api.root()).rejects.toBeInstanceOf(CbError)
     expect(calls).toBe(1)
     calls = 0
     const down = createClient({
@@ -226,26 +226,26 @@ describe('the TypeScript client', () => {
         )
       }) as unknown as typeof fetch,
     })
-    await expect(down.api.root()).rejects.toBeInstanceOf(SxError)
+    await expect(down.api.root()).rejects.toBeInstanceOf(CbError)
     expect(calls).toBe(3)
   })
 
   test('request options reach the server: dry run, If-Match and a key of your own', async () => {
-    const { sx, seen } = clientFor()
-    const dry = await sx.issues.create(
+    const { cb, seen } = clientFor()
+    const dry = await cb.issues.create(
       { owner: 'dana', repo: 'gitfs', body: { title: 'Not saved' } },
       { dryRun: true },
     )
     expect(dry.title).toBe('Not saved')
     expect(seen.at(-1)!.url).toContain('dry_run=true')
-    const list = await sx.issues.list({
+    const list = await cb.issues.list({
       owner: 'dana',
       repo: 'gitfs',
       state: 'all',
     })
     expect(list.data.some((i) => i.title === 'Not saved')).toBe(false)
     await expect(
-      sx.issues.update(
+      cb.issues.update(
         {
           owner: 'dana',
           repo: 'gitfs',
@@ -255,7 +255,7 @@ describe('the TypeScript client', () => {
         { ifMatch: '"0"' },
       ),
     ).rejects.toMatchObject({ status: 412, code: 'version_mismatch' })
-    await sx.issues.create(
+    await cb.issues.create(
       { owner: 'dana', repo: 'gitfs', body: { title: 'Keyed' } },
       { idempotencyKey: 'mine-1' },
     )

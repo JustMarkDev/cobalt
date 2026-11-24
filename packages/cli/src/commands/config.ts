@@ -1,4 +1,4 @@
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import {
   configPath,
   isKey,
@@ -28,7 +28,7 @@ export const config: Command = ({ rest }, ctx) => {
     return
   }
   if (key === undefined || !isKey(key))
-    throw new SxError(
+    throw new CbError(
       'unknown_key',
       `${key ?? '(none)'} is not a setting.`,
       `Settings: ${keys.join(', ')}.`,
@@ -41,20 +41,20 @@ export const config: Command = ({ rest }, ctx) => {
   }
   if (sub === 'set') {
     if (value === undefined)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'config set needs a key and a value.',
-        'Example: sx config set handoff.to boat',
+        'Example: cb config set handoff.to boat',
         exit.usage,
       )
     writeConfig({ ...readConfig(), [key]: value })
     print(ctx, { key, value }, () => `${key} = ${value}`)
     return
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `config ${sub} is not a command.`,
-    'sx config --help lists them.',
+    'cb config --help lists them.',
     exit.usage,
   )
 }

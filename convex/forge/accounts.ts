@@ -1,8 +1,8 @@
 import { v } from 'convex/values'
 import { tally, track } from '../lib/stats'
-import { newId, randomSource, seededId } from '@source-code/api/ids'
-import { RESERVED_HANDLES, isValidHandle } from '@source-code/api/handles'
-import { base64url, hashToken } from '@source-code/api/auth'
+import { newId, randomSource, seededId } from '@cobaltforge/api/ids'
+import { RESERVED_HANDLES, isValidHandle } from '@cobaltforge/api/handles'
+import { base64url, hashToken } from '@cobaltforge/api/auth'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
@@ -522,7 +522,7 @@ export const invite = mutation({
           hint: 'Revoke some, or wait for them to be accepted.',
         },
       )
-    const secret = `sxi_${base64url(randomSource.bytes(24))}`
+    const secret = `cbi_${base64url(randomSource.bytes(24))}`
     const fields = {
       email,
       role: args.role,
@@ -550,9 +550,9 @@ export const invite = mutation({
     const by = (await accountByHandle(ctx, p.handle))?.name ?? p.handle
     await queueMail(ctx, {
       to: email,
-      subject: `${by} invited you to ${a.name} on source.code`,
+      subject: `${by} invited you to ${a.name} on cobalt`,
       text: [
-        `${by} invited you to join ${a.name} (source.code/${a.handle}) as ${
+        `${by} invited you to join ${a.name} (cobaltforge.dev/${a.handle}) as ${
           args.role === 'member' ? 'a member' : `an ${args.role}`
         }.`,
         '',

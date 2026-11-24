@@ -10,7 +10,7 @@ export const sources: Record<
   Source,
   { label: string; dot: string; host: string }
 > = {
-  native: { label: 'source.code', dot: 'bg-emerald-400', host: 'source.code' },
+  native: { label: 'cobalt', dot: 'bg-emerald-400', host: 'cobaltforge.dev' },
   github: { label: 'GitHub', dot: 'bg-zinc-200', host: 'github.com' },
   gitlab: { label: 'GitLab', dot: 'bg-orange-400', host: 'gitlab.com' },
   codeberg: { label: 'Codeberg', dot: 'bg-sky-400', host: 'codeberg.org' },

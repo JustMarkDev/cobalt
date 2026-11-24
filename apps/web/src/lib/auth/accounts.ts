@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authClient } from './client'
-import type { Account as ApiAccount } from '@source-code/sdk'
+import type { Account as ApiAccount } from '@cobaltforge/sdk'
 import { useOpMaybe } from '~/lib/forge'
 
 export type Role = 'owner' | 'admin' | 'member'
@@ -51,7 +51,7 @@ export function useMe(): Person | null {
 // ---------------------------------------------------------------------------
 // The account in use. A handle in this browser's storage, per person.
 
-const KEY = 'sx-acting-as'
+const KEY = 'cb-acting-as'
 const listeners = new Set<() => void>()
 
 function readActing(): Record<string, string | undefined> {
@@ -177,7 +177,7 @@ export function SessionSync() {
     if (isPending) return
     // The first settled answer is who the page was rendered for.
     if (seen.current !== undefined && seen.current !== handle)
-      void queries.invalidateQueries({ queryKey: ['sx'] })
+      void queries.invalidateQueries({ queryKey: ['cb'] })
     seen.current = handle
   }, [handle, isPending, queries])
   return null

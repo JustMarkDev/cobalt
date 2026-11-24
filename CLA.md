@@ -3,9 +3,9 @@
 Version 1.0, effective 8 November 2026.
 
 This agreement is between you and Marco Procopio (the "Maintainer"), who owns
-and licenses source.code. It covers every contribution you submit to this
+and licenses cobalt. It covers every contribution you submit to this
 repository. A "contribution" is any code, documentation, data or other work you
-submit, by pull request or in any other way, to be included in source.code.
+submit, by pull request or in any other way, to be included in cobalt.
 
 ## 1. Who this applies to
 
@@ -23,7 +23,7 @@ it. You can keep using your own contribution however you like.
 You grant the Maintainer a perpetual, worldwide, non-exclusive, no-charge,
 royalty-free, irrevocable license to use, copy, modify, publish, distribute,
 sublicense and relicense your contribution, in source or any other form, as
-part of source.code or any work derived from it.
+part of cobalt or any work derived from it.
 
 This includes licensing it under:
 
@@ -31,14 +31,14 @@ This includes licensing it under:
   Apache License 2.0 that it converts to on its Change Date;
 - the Apache License 2.0 for the `packages/cli/` and `packages/sdk/` directories;
 - any other license, including a commercial license, that the Maintainer
-  offers for source.code.
+  offers for cobalt.
 
-You also grant the Maintainer, and everyone who receives source.code, a
+You also grant the Maintainer, and everyone who receives cobalt, a
 perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable
 patent license to make, use, sell, offer to sell, import and otherwise transfer
 your contribution, limited to the patent claims you own or can license that
-your contribution necessarily infringes by itself or combined with source.code.
-If someone sues over a patent claim that source.code infringes, the patent
+your contribution necessarily infringes by itself or combined with cobalt.
+If someone sues over a patent claim that cobalt infringes, the patent
 license you granted for that contribution ends for the person who sued.
 
 ## 4. What you promise
@@ -57,7 +57,7 @@ remove it later.
 
 ## 6. Hosting the service
 
-Only the Maintainer may offer source.code as a hosted commercial service. This
+Only the Maintainer may offer cobalt as a hosted commercial service. This
 agreement gives you and everyone else no right to do so beyond what the
 project's license already allows.
 

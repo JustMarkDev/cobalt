@@ -1,5 +1,5 @@
 /**
- * The source.code MCP server. Every tool runs the matching `sx` command with
+ * The cobalt MCP server. Every tool runs the matching `cb` command with
  * --json, so an agent gets exactly what the CLI and the web page give a person:
  * same data, same blockers, same error codes and hints.
  */
@@ -22,7 +22,7 @@ import {
 import type { ApiClient } from './client'
 import type { CallToolResult } from '@modelcontextprotocol/server'
 
-const instructions = `source.code hosts git repositories, reviews changes and lands them under policy.
+const instructions = `cobalt hosts git repositories, reviews changes and lands them under policy.
 Call get_context first: it lists open changes, what blocks each, open issues and the env schema.
 Every tool returns JSON. A failed call sets isError and returns {error:{code,message,hint}}: read the hint, do not retry blindly.
 land_change fails with code policy_blocked when requirements are missing. Stop and report them; you cannot approve your own change.
@@ -30,7 +30,7 @@ Secret values are never returned. Only names and kinds.
 Prefer dry_run before anything that changes state.
 The named tools cover the daily work. For anything else, search_operations finds the API operation and call_operation runs it.`
 
-async function sx(argv: Array<string>, client?: ApiClient) {
+async function cb(argv: Array<string>, client?: ApiClient) {
   let out = ''
   let err = ''
   const code = await run(
@@ -67,17 +67,14 @@ const cleanName = (raw: string | undefined) => {
 export function createSxMcpServer(
   options: { client?: ApiClient } = {},
 ): McpServer {
-  const server = new McpServer(
-    { name: 'source.code', version },
-    { instructions },
-  )
+  const server = new McpServer({ name: 'cobalt', version }, { instructions })
 
   // The connecting client names the tool on every receipt (an orchestrator's
-  // SX_TOOL wins). A hosted server labels only its own client; over stdio the
+  // CB_TOOL wins). A hosted server labels only its own client; over stdio the
   // process serves one client, so the label is the process's.
   server.server.oninitialized = () => {
     const name = cleanName(server.server.getClientVersion()?.name)
-    if (!name || process.env.SX_TOOL) return
+    if (!name || process.env.CB_TOOL) return
     if (options.client) options.client.tool = name
     else declared.tool = name
   }
@@ -103,7 +100,7 @@ export function createSxMcpServer(
     const key = `${where.join(' ')}#${id}`
     if (Date.now() - (lastBeat.get(key) ?? 0) < 15_000) return
     lastBeat.set(key, Date.now())
-    await sx(['change', 'presence', id, '--here', ...where], options.client)
+    await cb(['change', 'presence', id, '--here', ...where], options.client)
   }
 
   const tool = <TShape extends z.ZodRawShape>(
@@ -135,7 +132,7 @@ export function createSxMcpServer(
         const input = a as z.infer<z.ZodObject<TShape>>
         const args = argv(input)
         await lookingAt(args)
-        const r = await sx(args, options.client)
+        const r = await cb(args, options.client)
         if (
           r.code === 0 ||
           (hint.allowExit?.includes(r.code) && r.out.trim() !== '')
@@ -165,7 +162,7 @@ export function createSxMcpServer(
 
   tool(
     'list_accounts',
-    'Every account you can act as (a person and their organizations) with your role in each. Commands act as the owner of the repository you name; set SX_ACCOUNT for the server to act as another.',
+    'Every account you can act as (a person and their organizations) with your role in each. Commands act as the owner of the repository you name; set CB_ACCOUNT for the server to act as another.',
     {},
     () => ['account', 'list'],
     { readOnly: true },
@@ -358,7 +355,7 @@ export function createSxMcpServer(
   )
   tool(
     'list_env_confirmations',
-    'Your production confirmations on this repository: pending ones with the link where the person confirms, and live ones with their expiry. Development and preview values need none: on the repository team, run commands with `sx env run --env development -- <command>`; values reach that process, never you.',
+    'Your production confirmations on this repository: pending ones with the link where the person confirms, and live ones with their expiry. Development and preview values need none: on the repository team, run commands with `cb env run --env development -- <command>`; values reach that process, never you.',
     { repo: repoArg },
     (a) => ['env', 'confirmations', ...repo(a)],
     { readOnly: true },
@@ -404,7 +401,7 @@ export function createSxMcpServer(
   )
   tool(
     'hand_off',
-    'Build the prompt for an issue, a change or a failing pipeline run and the command that hands it to an orchestrator (T3 Code, or boat). source.code starts no agent itself.',
+    'Build the prompt for an issue, a change or a failing pipeline run and the command that hands it to an orchestrator (T3 Code, or boat). cobalt starts no agent itself.',
     {
       repo: repoArg,
       subject: z
@@ -541,9 +538,9 @@ export function createSxMcpServer(
 
   server.registerResource(
     'skill',
-    'sx://skill',
+    'cb://skill',
     {
-      title: 'How to use source.code and sx',
+      title: 'How to use cobalt and cb',
       description: 'The agent skill: rules, exit codes and the workflow.',
       mimeType: 'text/markdown',
     },
@@ -553,9 +550,9 @@ export function createSxMcpServer(
   )
   server.registerResource(
     'commands',
-    'sx://commands',
+    'cb://commands',
     {
-      title: 'Every sx command',
+      title: 'Every cb command',
       description: 'The CLI as JSON: arguments, examples and exit codes.',
       mimeType: 'application/json',
     },

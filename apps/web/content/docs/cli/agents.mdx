@@ -7,33 +7,33 @@ description: Hand work to an orchestrator, and let agents work under your login.
 ## Sign the machine in once
 
 ```bash
-sx auth login
+cb auth login
 ```
 
-Every agent on the machine uses this login. Set `SX_MODEL` (and `SX_TOOL`, if the orchestrator does not) in the environment the agent runs `sx` in, so each write keeps the model on its receipt.
+Every agent on the machine uses this login. Set `CB_MODEL` (and `CB_TOOL`, if the orchestrator does not) in the environment the agent runs `cb` in, so each write keeps the model on its receipt.
 
 ## Hand off
 
 ```bash
-sx handoff 216            # to T3 Code, on this machine
-sx handoff 4 --to boat    # to boat.dev, in the cloud
+cb handoff 216            # to T3 Code, on this machine
+cb handoff 4 --to boat    # to boat.dev, in the cloud
 ```
 
-It builds the prompt from the issue or change (names and structure, never a secret value) and prints the command that hands it to the orchestrator. source.code starts no agent itself. Set the default with `sx config set handoff.to boat`.
+It builds the prompt from the issue or change (names and structure, never a secret value) and prints the command that hands it to the orchestrator. cobalt starts no agent itself. Set the default with `cb config set handoff.to boat`.
 
 The MCP server has the same as `hand_off`.
 
-## Teach an agent sx
+## Teach an agent cb
 
 ```bash
-sx skill install                   # .claude/skills/sx/SKILL.md
-sx skill install --target agents   # a block in AGENTS.md
+cb skill install                   # .claude/skills/cb/SKILL.md
+cb skill install --target agents   # a block in AGENTS.md
 ```
 
 ## Values
 
 ```bash
-sx env run --env development -- bun test
+cb env run --env development -- bun test
 ```
 
 See [Secrets for agents](/docs/concepts/agent-secrets).

@@ -10,7 +10,7 @@ There is one system, and it is written down. A request is never refused for a re
 
 A request draws from one pool. Pools are separate so that a heavy loop cannot starve ordinary calls.
 
-The budget belongs to the **login**, not to the token. Your personal tokens, your OAuth sign-ins (the CLI, MCP clients) and the MCP bridge all draw from the same counters, and acting as an organization with `Sx-Account` does not give you another. Creating more tokens never buys more requests. Agent, bot and run tokens are the exception: each has a budget of its own, so a runaway loop cannot use up what its owner needs.
+The budget belongs to the **login**, not to the token. Your personal tokens, your OAuth sign-ins (the CLI, MCP clients) and the MCP bridge all draw from the same counters, and acting as an organization with `Cb-Account` does not give you another. Creating more tokens never buys more requests. Agent, bot and run tokens are the exception: each has a budget of its own, so a runaway loop cannot use up what its owner needs.
 
 | Pool        | Covers                                          | Starting limit, per login |
 | ----------- | ----------------------------------------------- | ------------------------- |
@@ -20,7 +20,7 @@ The budget belongs to the **login**, not to the token. Your personal tokens, you
 | `search`    | Search                                          | 60 per minute             |
 | `anonymous` | Any request without a token, per client address | 60 per minute             |
 
-These are **starting values**, to be tuned against real traffic. They are served by `GET /v1/limits`, so read them from there. Each operation names its pool and its cost in units (`x-sx-pool`, `x-sx-cost` in the OpenAPI document, and in the [reference](/docs/api/reference/changes)). Most cost one unit.
+These are **starting values**, to be tuned against real traffic. They are served by `GET /v1/limits`, so read them from there. Each operation names its pool and its cost in units (`x-cb-pool`, `x-cb-cost` in the OpenAPI document, and in the [reference](/docs/api/reference/changes)). Most cost one unit.
 
 The [OAuth](/docs/api/oauth#errors) endpoints have their own limits per client address, because they are open to anyone: 20 registrations an hour, 120 token requests a minute, 30 device codes a minute, 10 user-code guesses per 15 minutes. An upload to a signed address costs 2 units of `write`.
 

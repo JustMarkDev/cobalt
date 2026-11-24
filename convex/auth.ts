@@ -8,8 +8,8 @@ import { sendMail } from './lib/mail'
 import { tally, track } from './lib/stats'
 import { env, query } from './_generated/server'
 import authConfig from './auth.config'
-import { RESERVED_HANDLES, isValidHandle } from '@source-code/api/handles'
-import { seededId } from '@source-code/api/ids'
+import { RESERVED_HANDLES, isValidHandle } from '@cobaltforge/api/handles'
+import { seededId } from '@cobaltforge/api/ids'
 import type { GenericCtx } from '@convex-dev/better-auth'
 import type { AuthFunctions } from '@convex-dev/better-auth'
 import type { DataModel } from './_generated/dataModel'
@@ -190,8 +190,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         sendChangeEmailConfirmation: ({ user, newEmail, url }) =>
           sendMail(
             user.email,
-            'Confirm the change of your source.code email',
-            `Someone asked to change the email of your source.code account from ${user.email} to ${newEmail}.\n\nIf it was you, open this link to approve it:\n\n${url}\n\nIf it was not, ignore this email and change your password.`,
+            'Confirm the change of your cobalt email',
+            `Someone asked to change the email of your cobalt account from ${user.email} to ${newEmail}.\n\nIf it was you, open this link to approve it:\n\n${url}\n\nIf it was not, ignore this email and change your password.`,
           ),
       },
     },
@@ -227,7 +227,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       sendVerificationEmail: ({ user, url }) =>
         sendMail(
           user.email,
-          'Confirm your email for source.code',
+          'Confirm your email for cobalt',
           `Open this link to confirm ${user.email}:\n\n${url}\n\nIf you did not sign up, ignore this email.`,
         ),
     },
@@ -237,7 +237,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       sendResetPassword: ({ user, url }) =>
         sendMail(
           user.email,
-          'Reset your source.code password',
+          'Reset your cobalt password',
           `Open this link to choose a new password:\n\n${url}\n\nIf you did not ask for this, ignore this email; your password stays as it is.`,
         ),
     },

@@ -18,10 +18,10 @@ const app = defineApp({
     // Email (`auth.ts`): verification and password reset go through Resend
     // when both are set, and to the deployment's log when not.
     // `npx convex env set RESEND_API_KEY re_...` and
-    // `npx convex env set MAIL_FROM "source.code <hello@your.domain>"`.
+    // `npx convex env set MAIL_FROM "cobalt <hello@your.domain>"`.
     RESEND_API_KEY: v.optional(v.string()),
     // Where the forge's answers link to: the HTTP API's base
-    // (`https://source.code/api/v1`). Links to pages use SITE_URL.
+    // (`https://cobaltforge.dev/api/v1`). Links to pages use SITE_URL.
     API_URL: v.optional(v.string()),
     // The HTTP API's own JWTs (`auth.config.ts`): who signs them and the
     // public key, as a JWKS data URL. Both come from `bun scripts/api-keys.ts`.

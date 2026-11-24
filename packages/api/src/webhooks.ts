@@ -337,14 +337,14 @@ export function deliveryHeaders(
   const ts = Math.floor(at / 1000)
   return {
     'content-type': 'application/json',
-    'user-agent': 'source.code-webhooks/1',
+    'user-agent': 'cobalt-webhooks/1',
     'webhook-id': event.id,
     'webhook-timestamp': String(ts),
     'webhook-signature': secrets
       .map((s) => sign(s, event.id, ts, body))
       .join(' '),
-    'sx-delivery': delivery,
-    'sx-event': event.type,
+    'cb-delivery': delivery,
+    'cb-event': event.type,
   }
 }
 
@@ -655,14 +655,14 @@ export class WebhookService implements HookPort {
     )
     const headers = {
       'content-type': 'application/json',
-      'user-agent': 'source.code-webhooks/1',
+      'user-agent': 'cobalt-webhooks/1',
       'webhook-id': d.event.id,
       'webhook-timestamp': String(ts),
       'webhook-signature': live
         .map((s) => sign(s.value, d.event.id, ts, body))
         .join(' '),
-      'sx-delivery': d.id,
-      'sx-event': d.event.type,
+      'cb-delivery': d.id,
+      'cb-event': d.event.type,
     }
     await this.slot()
     // The delivery may have been evicted, or the endpoint deleted, while it

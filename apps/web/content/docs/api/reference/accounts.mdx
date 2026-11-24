@@ -16,7 +16,7 @@ description: Who you can act as, profiles, organizations, members, invitations a
 
 **Every account you can act as**
 
-Yourself and each organization you belong to, with your role in each. Send Sx-Account to act as one of them.
+Yourself and each organization you belong to, with your role in each. Send Cb-Account to act as one of them.
 
 | About      |                            |
 | ---------- | -------------------------- |
@@ -33,13 +33,13 @@ Yourself and each organization you belong to, with your role in each. Send Sx-Ac
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"l1i8XfUKXL8zx1HT"
+etag: W/"xoxGBz5Q45yKFiI9"
 ratelimit: "read";r=1199;t=60
 ```
 
@@ -55,8 +55,8 @@ ratelimit: "read";r=1199;t=60
       "kind": "person",
       "bio": "",
       "role": "owner",
-      "url": "https://api.source.code/v1/accounts/dana",
-      "html_url": "https://source.code/dana",
+      "url": "https://api.cobaltforge.dev/v1/accounts/dana",
+      "html_url": "https://cobaltforge.dev/dana",
       "created_at": "2026-09-08T09:00:00.000Z",
       "updated_at": "2026-09-08T09:00:00.000Z",
       "version": 1
@@ -69,8 +69,8 @@ ratelimit: "read";r=1199;t=60
       "kind": "organization",
       "bio": "",
       "role": "owner",
-      "url": "https://api.source.code/v1/accounts/northwind",
-      "html_url": "https://source.code/northwind",
+      "url": "https://api.cobaltforge.dev/v1/accounts/northwind",
+      "html_url": "https://cobaltforge.dev/northwind",
       "created_at": "2026-09-18T09:00:00.000Z",
       "updated_at": "2026-09-18T09:00:00.000Z",
       "version": 1
@@ -88,7 +88,7 @@ ratelimit: "read";r=1199;t=60
 
 **Create an organization**
 
-You become its first owner. People and organizations share one namespace, so the handle must be free: one that a person, another organization or a page of the site has answers `invalid_state`. Naturally idempotent on the handle: asking for an organization you already own returns it with `Sx-Outcome: unchanged`. Only a person can create one, not an agent or a bot. A person is not created here; a person signs up.
+You become its first owner. People and organizations share one namespace, so the handle must be free: one that a person, another organization or a page of the site has answers `invalid_state`. Naturally idempotent on the handle: asking for an organization you already own returns it with `Cb-Outcome: unchanged`. Only a person can create one, not an agent or a bot. A person is not created here; a person signs up.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -103,7 +103,7 @@ You become its first owner. People and organizations share one namespace, so the
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -120,16 +120,16 @@ You become its first owner. People and organizations share one namespace, so the
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/accounts" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/accounts" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"handle":"harbor-tools","name":"Harbor Tools","bio":"Build tooling for small teams"}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/accounts/harbor-tools
-sx-outcome: created
+location: https://api.cobaltforge.dev/v1/accounts/harbor-tools
+cb-outcome: created
 ratelimit: "write";r=34;t=60
 ```
 
@@ -142,8 +142,8 @@ ratelimit: "write";r=34;t=60
   "kind": "organization",
   "bio": "Build tooling for small teams",
   "role": "owner",
-  "url": "https://api.source.code/v1/accounts/harbor-tools",
-  "html_url": "https://source.code/harbor-tools",
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools",
+  "html_url": "https://cobaltforge.dev/harbor-tools",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -184,8 +184,8 @@ ratelimit: "write";r=34;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/dana" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/dana" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -203,8 +203,8 @@ ratelimit: "read";r=1198;t=60
   "kind": "person",
   "bio": "",
   "role": "owner",
-  "url": "https://api.source.code/v1/accounts/dana",
-  "html_url": "https://source.code/dana",
+  "url": "https://api.cobaltforge.dev/v1/accounts/dana",
+  "html_url": "https://cobaltforge.dev/dana",
   "created_at": "2026-09-08T09:00:00.000Z",
   "updated_at": "2026-09-08T09:00:00.000Z",
   "version": 1
@@ -238,7 +238,7 @@ Your own account, or an organization you own or administer. Send If-Match with t
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -254,8 +254,8 @@ Your own account, or an organization you own or administer. Send If-Match with t
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/accounts/harbor-tools" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/accounts/harbor-tools" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"bio":"Build tooling for small teams. Est. 2026."}'
 ```
@@ -274,8 +274,8 @@ ratelimit: "write";r=33;t=60
   "kind": "organization",
   "bio": "Build tooling for small teams. Est. 2026.",
   "role": "owner",
-  "url": "https://api.source.code/v1/accounts/harbor-tools",
-  "html_url": "https://source.code/harbor-tools",
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools",
+  "html_url": "https://cobaltforge.dev/harbor-tools",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -316,8 +316,8 @@ ratelimit: "write";r=33;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/dana/followers" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/dana/followers" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -335,14 +335,14 @@ ratelimit: "read";r=1151;t=60
       "handle": "hollis",
       "name": "Hollis Reyes",
       "kind": "person",
-      "html_url": "https://source.code/hollis"
+      "html_url": "https://cobaltforge.dev/hollis"
     },
     {
       "object": "account_ref",
       "handle": "ines",
       "name": "Inês Barbosa",
       "kind": "person",
-      "html_url": "https://source.code/ines"
+      "html_url": "https://cobaltforge.dev/ines"
     },
     "…and 1 more"
   ],
@@ -385,8 +385,8 @@ ratelimit: "read";r=1151;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/dana/following" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/dana/following" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -404,14 +404,14 @@ ratelimit: "read";r=1150;t=60
       "handle": "hollis",
       "name": "Hollis Reyes",
       "kind": "person",
-      "html_url": "https://source.code/hollis"
+      "html_url": "https://cobaltforge.dev/hollis"
     },
     {
       "object": "account_ref",
       "handle": "ines",
       "name": "Inês Barbosa",
       "kind": "person",
-      "html_url": "https://source.code/ines"
+      "html_url": "https://cobaltforge.dev/ines"
     }
   ],
   "has_more": false,
@@ -448,8 +448,8 @@ Yours, or an organization you own or administer.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/dana/integrations" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/dana/integrations" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -513,7 +513,7 @@ It is turned off in every repository of the account too.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -522,8 +522,8 @@ It is turned off in every repository of the account too.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/dana/integrations/boat" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/dana/integrations/boat" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -559,7 +559,7 @@ A service that takes a key needs `key`; it is kept as a hash and shown again onl
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -574,8 +574,8 @@ A service that takes a key needs `key`; it is kept as a hash and shown again onl
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/accounts/dana/integrations/boat" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/accounts/dana/integrations/boat" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"key":"boat_live_k2v8q4"}'
 ```
@@ -625,8 +625,8 @@ Owners and admins only. Newest first. An invitation that expired is not listed.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/harbor-tools/invitations" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -648,7 +648,7 @@ ratelimit: "read";r=1128;t=60
       "invited_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
       "expires_at": "2026-11-14T10:00:00.000Z",
-      "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
+      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
     }
   ],
   "has_more": false,
@@ -662,7 +662,7 @@ ratelimit: "read";r=1128;t=60
 
 **Invite someone to an organization by email**
 
-Owners and admins only; only an owner invites an owner. They get an email with a link that works for 7 days. Opening it signed in makes them a member; until then they have no access. Inviting the same email again sends a new link and ends the old one (`Sx-Outcome: updated`). To add someone who already has an account, `members.set` needs no email.
+Owners and admins only; only an owner invites an owner. They get an email with a link that works for 7 days. Opening it signed in makes them a member; until then they have no access. Inviting the same email again sends a new link and ends the old one (`Cb-Outcome: updated`). To add someone who already has an account, `members.set` needs no email.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -683,7 +683,7 @@ Owners and admins only; only an owner invites an owner. They get an email with a
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -699,15 +699,15 @@ Owners and admins only; only an owner invites an owner. They get an email with a
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/accounts/harbor-tools/invitations" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"email":"yuki@example.com","role":"member"}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=31;t=60
 ```
 
@@ -721,7 +721,7 @@ ratelimit: "write";r=31;t=60
   "invited_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
   "expires_at": "2026-11-14T10:00:00.000Z",
-  "url": "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb"
 }
 ```
 
@@ -753,7 +753,7 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -762,8 +762,8 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80afwa4sxb" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -798,8 +798,8 @@ ratelimit: "write";r=29;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/dana/links" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/dana/links" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -855,8 +855,8 @@ ratelimit: "read";r=1135;t=60
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/dana/links/gitlab" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/dana/links/gitlab" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -901,8 +901,8 @@ One per host; linking again replaces it. Recorded as given and unverified until 
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/accounts/dana/links/gitlab" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/accounts/dana/links/gitlab" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"login":"dana.okafor"}'
 ```
@@ -953,8 +953,8 @@ Who is in an organization, and as what, is public, like the organization itself.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/harbor-tools/members" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -973,7 +973,7 @@ ratelimit: "read";r=1129;t=60
       "handle": "dana",
       "name": "Dana Okafor",
       "role": "owner",
-      "url": "https://api.source.code/v1/accounts/harbor-tools/members/dana"
+      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/dana"
     },
     {
       "object": "member",
@@ -981,7 +981,7 @@ ratelimit: "read";r=1129;t=60
       "handle": "hollis",
       "name": "Hollis Reyes",
       "role": "admin",
-      "url": "https://api.source.code/v1/accounts/harbor-tools/members/hollis"
+      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hollis"
     }
   ],
   "has_more": false,
@@ -1017,7 +1017,7 @@ Owners and admins, or the person themself to leave. They also leave its teams. O
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1026,8 +1026,8 @@ Owners and admins, or the person themself to leave. They also leave its teams. O
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/harbor-tools/members/hollis" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hollis" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1041,7 +1041,7 @@ ratelimit: "write";r=28;t=60
 
 **Add a person to an organization, or change their role**
 
-Owners and admins only. Only an owner can make someone an owner or change an owner. An organization always keeps one owner: changing the last one answers `invalid_state`. Setting the role someone already has changes nothing (`Sx-Outcome: unchanged`).
+Owners and admins only. Only an owner can make someone an owner or change an owner. An organization always keeps one owner: changing the last one answers `invalid_state`. Setting the role someone already has changes nothing (`Cb-Outcome: unchanged`).
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1063,7 +1063,7 @@ Owners and admins only. Only an owner can make someone an owner or change an own
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1078,15 +1078,15 @@ Owners and admins only. Only an owner can make someone an owner or change an own
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/accounts/harbor-tools/members/hollis" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hollis" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"role":"admin"}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=32;t=60
 ```
 
@@ -1097,7 +1097,7 @@ ratelimit: "write";r=32;t=60
   "handle": "hollis",
   "name": "Hollis Reyes",
   "role": "admin",
-  "url": "https://api.source.code/v1/accounts/harbor-tools/members/hollis"
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hollis"
 }
 ```
 
@@ -1130,8 +1130,8 @@ Worked out from commits, reviews, changes, issues and releases in the past year,
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/dana/profile" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/dana/profile" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1253,13 +1253,13 @@ Members of the organization only. Everyone else gets 404. A token limited to rep
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/northwind/teams" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/northwind/teams" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"jojnYUYRJc_HCh7F"
+etag: W/"1B2Kj1h6Cg94soKb"
 ratelimit: "read";r=1127;t=60
 ```
 
@@ -1276,7 +1276,7 @@ ratelimit: "read";r=1127;t=60
       "description": "Reads private repositories to answer questions",
       "members": [],
       "repos": [],
-      "url": "https://api.source.code/v1/accounts/northwind/teams/support",
+      "url": "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support",
       "created_at": "2026-11-07T10:00:00.000Z",
       "updated_at": "2026-11-07T10:00:00.000Z",
       "version": 1
@@ -1293,7 +1293,7 @@ ratelimit: "read";r=1127;t=60
 
 **Create a team**
 
-Owners and admins only. A team is a named group of people. Give it repositories of the organization and its members can read or write them, whether or not they belong to the organization. Naturally idempotent on the slug: asking for one that exists returns it with `Sx-Outcome: unchanged`.
+Owners and admins only. A team is a named group of people. Give it repositories of the organization and its members can read or write them, whether or not they belong to the organization. Naturally idempotent on the slug: asking for one that exists returns it with `Cb-Outcome: unchanged`.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1314,7 +1314,7 @@ Owners and admins only. A team is a named group of people. Give it repositories 
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1331,16 +1331,16 @@ Owners and admins only. A team is a named group of people. Give it repositories 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/accounts/northwind/teams" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/accounts/northwind/teams" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"slug":"support","name":"Support","description":"Reads private repositories to answer questions"}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/accounts/northwind/teams/support
-sx-outcome: created
+location: https://api.cobaltforge.dev/v1/accounts/northwind/teams/support
+cb-outcome: created
 ratelimit: "write";r=27;t=60
 ```
 
@@ -1354,7 +1354,7 @@ ratelimit: "write";r=27;t=60
   "description": "Reads private repositories to answer questions",
   "members": [],
   "repos": [],
-  "url": "https://api.source.code/v1/accounts/northwind/teams/support",
+  "url": "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -1389,7 +1389,7 @@ Its members lose the access it gave them. Repositories are not touched.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1398,8 +1398,8 @@ Its members lose the access it gave them. Repositories are not touched.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1437,8 +1437,8 @@ Members of the organization only. Everyone else gets 404. A token limited to rep
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/accounts/northwind/teams/support" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1457,7 +1457,7 @@ ratelimit: "read";r=1126;t=60
   "description": "Reads private repositories to answer questions",
   "members": [],
   "repos": [],
-  "url": "https://api.source.code/v1/accounts/northwind/teams/support",
+  "url": "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 1
@@ -1492,7 +1492,7 @@ Send If-Match with the ETag you read.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1508,8 +1508,8 @@ Send If-Match with the ETag you read.
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/accounts/northwind/teams/support" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"description":"Reads private repositories to answer customers"}'
 ```
@@ -1529,7 +1529,7 @@ ratelimit: "write";r=26;t=60
   "description": "Reads private repositories to answer customers",
   "members": [],
   "repos": [],
-  "url": "https://api.source.code/v1/accounts/northwind/teams/support",
+  "url": "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
@@ -1563,7 +1563,7 @@ ratelimit: "write";r=26;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1572,8 +1572,8 @@ ratelimit: "write";r=26;t=60
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/members/stranger" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/members/stranger" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1610,7 +1610,7 @@ Adding someone who is already in the team changes nothing. A team has at most 50
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1619,8 +1619,8 @@ Adding someone who is already in the team changes nothing. A team has at most 50
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/members/stranger" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X PUT "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/members/stranger" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1638,7 +1638,7 @@ ratelimit: "write";r=25;t=60
   "description": "Reads private repositories to answer customers",
   "members": ["stranger"],
   "repos": [],
-  "url": "https://api.source.code/v1/accounts/northwind/teams/support",
+  "url": "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 3
@@ -1673,7 +1673,7 @@ ratelimit: "write";r=25;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1682,8 +1682,8 @@ ratelimit: "write";r=25;t=60
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/accounts/northwind/teams/support/repos/northwind/relay" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/repos/northwind/relay" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1721,7 +1721,7 @@ ratelimit: "write";r=23;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1736,8 +1736,8 @@ ratelimit: "write";r=23;t=60
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/accounts/northwind/teams/support/repos/northwind/relay" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support/repos/northwind/relay" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"permission":"read"}'
 ```
@@ -1762,7 +1762,7 @@ ratelimit: "write";r=24;t=60
       "permission": "read"
     }
   ],
-  "url": "https://api.source.code/v1/accounts/northwind/teams/support",
+  "url": "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support",
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 4
@@ -1798,8 +1798,8 @@ For the account you act as: what needs you, what is moving without you, recent a
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/dashboard" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/dashboard" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1961,8 +1961,8 @@ Stopped mirrors, failing builds, your blocked changes, reviews waiting on you, p
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/inbox?limit=3" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/inbox?limit=3" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2040,7 +2040,7 @@ Send the token from the link in the email. You join with the role the invitation
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -2055,10 +2055,10 @@ Send the token from the link in the email. You join with the role the invitation
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/invitations/accept" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/invitations/accept" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"token":"sxi_gNXQGIhXPeH003y_4biZFjqQZ8wXR-Ao"}'
+  -d '{"token":"cbi_gNXQGIhXPeH003y_4biZFjqQZ8wXR-Ao"}'
 ```
 
 ```http
@@ -2073,7 +2073,7 @@ ratelimit: "write";r=117;t=60
   "handle": "hollis",
   "name": "Hollis Reyes",
   "role": "admin",
-  "url": "https://api.source.code/v1/accounts/harbor-tools/members/hollis"
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/members/hollis"
 }
 ```
 
@@ -2109,8 +2109,8 @@ Newest first. What reaches it follows your preferences, and something about a re
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/notifications?limit=2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/notifications?limit=2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2129,7 +2129,7 @@ ratelimit: "read";r=1133;t=60
       "kind": "review",
       "title": "hollis raised a finding on #216 Cache negative ref lookups",
       "repo": "dana/gitfs",
-      "html_url": "https://source.code/dana/gitfs/changes?n=216",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/changes?n=216",
       "unread": true,
       "created_at": "2026-11-07T10:00:00.000Z"
     },
@@ -2139,7 +2139,7 @@ ratelimit: "read";r=1133;t=60
       "kind": "import",
       "title": "Finished linking your GitHub history: 2,410 contributions added to your profile",
       "repo": "Linked accounts",
-      "html_url": "https://source.code/settings/accounts",
+      "html_url": "https://cobaltforge.dev/settings/accounts",
       "unread": true,
       "created_at": "2026-11-07T08:48:00.000Z"
     }
@@ -2176,8 +2176,8 @@ ratelimit: "read";r=1133;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/notifications/ntf_01m6tq6r80bcjy602t/read" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/notifications/ntf_01m6tq6r80bcjy602t/read" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2208,8 +2208,8 @@ For a badge. Cheap, and answers `304` until it changes.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/notifications/count" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/notifications/count" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2246,8 +2246,8 @@ ratelimit: "read";r=1132;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/notifications/preferences" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/notifications/preferences" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2306,8 +2306,8 @@ Send only what changes. Turning a kind off stops new ones; what is already in th
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/notifications/preferences" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/notifications/preferences" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"release":false,"digest":true}'
 ```
@@ -2352,8 +2352,8 @@ ratelimit: "write";r=35;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/notifications/read" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/notifications/read" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2392,7 +2392,7 @@ People who chose to be listed, most followed first. `q` matches the handle, the 
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/people?limit=2"
+curl "https://api.cobaltforge.dev/v1/people?limit=2"
 ```
 
 ```http
@@ -2414,7 +2414,7 @@ ratelimit: "anonymous";r=55;t=60
       "repositories": 3,
       "stars": 2780,
       "languages": ["Rust", "TypeScript", "…and 1 more"],
-      "html_url": "https://source.code/dana",
+      "html_url": "https://cobaltforge.dev/dana",
       "viewer_follows": null
     },
     {
@@ -2426,7 +2426,7 @@ ratelimit: "anonymous";r=55;t=60
       "repositories": 2,
       "stars": 11790,
       "languages": ["Go", "Python", "…and 1 more"],
-      "html_url": "https://source.code/ines",
+      "html_url": "https://cobaltforge.dev/ines",
       "viewer_follows": null
     }
   ],
@@ -2465,8 +2465,8 @@ Every service connected to the repository's owner, on or off here.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/integrations" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/integrations" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2523,7 +2523,7 @@ ratelimit: "read";r=1136;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -2538,8 +2538,8 @@ ratelimit: "read";r=1136;t=60
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/integrations/boat" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/integrations/boat" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"enabled":true}'
 ```
@@ -2584,8 +2584,8 @@ ratelimit: "write";r=42;t=60
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/user/following/hollis" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/user/following/hollis" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2622,8 +2622,8 @@ People only. Following someone you already follow changes nothing.
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/user/following/hollis" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X PUT "https://api.cobaltforge.dev/v1/user/following/hollis" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2652,8 +2652,8 @@ ratelimit: "write";r=71;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/user/preferences" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/user/preferences" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2708,8 +2708,8 @@ Send only what changes. Hiding activity hides the daily graph and the list of wh
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/user/preferences" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/user/preferences" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"show_agents":false}'
 ```

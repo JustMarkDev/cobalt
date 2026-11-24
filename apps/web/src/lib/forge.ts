@@ -13,7 +13,7 @@
  * API package says which function, and a test holds the answers equal to the
  * API's). Those reads are live: when the data changes, the page changes.
  * The rest (git, files, the API server's search and health) run on the
- * server through the API, kept under `['sx', id, input]`; a write marks those
+ * server through the API, kept under `['cb', id, input]`; a write marks those
  * stale, and `live.tsx` refreshes them when what they are about moves.
  */
 import { createServerFn } from '@tanstack/react-start'
@@ -28,10 +28,10 @@ import { convexQuery } from '@convex-dev/react-query'
 import { useConvex, useConvexAuth } from 'convex/react'
 import { Effect } from 'effect'
 import * as React from 'react'
-import { screenRead, screenWrite } from '@source-code/api/screens'
+import { screenRead, screenWrite } from '@cobaltforge/api/screens'
 import type { QueryClient } from '@tanstack/react-query'
-import type { OperationId, Operations } from '@source-code/sdk'
-import type { Reader } from '@source-code/api/screens'
+import type { OperationId, Operations } from '@cobaltforge/sdk'
+import type { Reader } from '@cobaltforge/api/screens'
 import { InvalidInput } from '~/lib/effect/errors'
 import { authClient } from '~/lib/auth/client'
 
@@ -103,7 +103,7 @@ function sameOrigin(request: Request) {
   if (site) return site === 'same-origin'
   const origin = request.headers.get('origin')
   if (!origin) return false
-  const here = process.env.SX_PUBLIC_URL ?? new URL(request.url).origin
+  const here = process.env.CB_PUBLIC_URL ?? new URL(request.url).origin
   return origin === new URL(here).origin
 }
 
@@ -230,7 +230,7 @@ const apiQuery = <TId extends OperationId>(
   input: Operations[TId]['input'],
 ) =>
   queryOptions({
-    queryKey: ['sx', id, input] as const,
+    queryKey: ['cb', id, input] as const,
     queryFn: () => op(id, input),
     staleTime: STALE,
   })
@@ -249,7 +249,7 @@ const apiQueryOrNull = <TId extends OperationId>(
   input: Operations[TId]['input'],
 ) =>
   queryOptions({
-    queryKey: ['sx', id, input, 'or-null'] as const,
+    queryKey: ['cb', id, input, 'or-null'] as const,
     queryFn: () => opOrNull(id, input),
     staleTime: STALE,
   })
@@ -427,7 +427,7 @@ export function useWrite() {
         return { data: null, error: unavailable }
       } finally {
         if (!options?.dryRun)
-          await queries.invalidateQueries({ queryKey: ['sx'] })
+          await queries.invalidateQueries({ queryKey: ['cb'] })
       }
     },
     [queries, convex],

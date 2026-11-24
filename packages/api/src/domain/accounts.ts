@@ -373,7 +373,7 @@ export abstract class DomainAccounts extends DomainEvents {
         { hint: 'Revoke some, or wait for them to be accepted.' },
       )
     const at = this.now()
-    const secret = `sxi_${Buffer.from(randomSource.bytes(24)).toString('base64url')}`
+    const secret = `cbi_${Buffer.from(randomSource.bytes(24)).toString('base64url')}`
     const rec: InviteRec = {
       id: had?.id ?? newId('invitation', at),
       email,
@@ -389,9 +389,9 @@ export abstract class DomainAccounts extends DomainEvents {
       const by = this.accounts.get(p.handle)?.name ?? p.handle
       await this.svc.mail.send({
         to: email,
-        subject: `${by} invited you to ${a.name} on source.code`,
+        subject: `${by} invited you to ${a.name} on cobalt`,
         text: [
-          `${by} invited you to join ${a.name} (source.code/${a.handle}) as ${
+          `${by} invited you to join ${a.name} (cobaltforge.dev/${a.handle}) as ${
             input.role === 'member' ? 'a member' : `an ${input.role}`
           }.`,
           '',

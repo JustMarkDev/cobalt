@@ -2,14 +2,14 @@
  * Makes the key pair the HTTP API signs its Convex JWTs with, and prints
  * where each half goes. Run it once per deployment:
  *
- *   bun scripts/api-keys.ts https://source.code
+ *   bun scripts/api-keys.ts https://cobaltforge.dev
  *
  * The private key goes to the API servers (API_JWT_PRIVATE_KEY), the public
  * one to Convex (API_JWT_JWKS). The issuer is any stable URL you own.
  */
 import { exportJWK, generateKeyPair } from 'jose'
 
-const issuer = process.argv[2] ?? 'https://source.code'
+const issuer = process.argv[2] ?? 'https://cobaltforge.dev'
 const { publicKey, privateKey } = await generateKeyPair('ES256', {
   extractable: true,
 })

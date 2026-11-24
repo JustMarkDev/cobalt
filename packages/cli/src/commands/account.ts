@@ -1,4 +1,4 @@
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { readConfig, writeConfig } from '../config'
 import {
   accountNotFound,
@@ -60,10 +60,10 @@ export const account: Command = async (
   if (sub === 'switch') {
     const handle = rest.at(0)
     if (!handle)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'account switch needs a handle.',
-        'Example: sx account switch northwind. sx account list shows yours.',
+        'Example: cb account switch northwind. cb account list shows yours.',
         exit.usage,
       )
     const target = await findAccount(ctx, handle)
@@ -75,10 +75,10 @@ export const account: Command = async (
     const switched = previous !== target.handle
     if (switched && flags['dry-run'] !== true)
       writeConfig({ ...readConfig(), account: target.handle })
-    // SX_ACCOUNT beats the saved account, so say so rather than let it look broken.
+    // CB_ACCOUNT beats the saved account, so say so rather than let it look broken.
     const overriddenBy =
-      process.env.SX_ACCOUNT && process.env.SX_ACCOUNT !== target.handle
-        ? 'SX_ACCOUNT'
+      process.env.CB_ACCOUNT && process.env.CB_ACCOUNT !== target.handle
+        ? 'CB_ACCOUNT'
         : null
     const data = {
       handle: target.handle,
@@ -92,17 +92,17 @@ export const account: Command = async (
     }
     print(ctx, data, () =>
       overriddenBy
-        ? `${savedAccount === target.handle ? 'already saved' : !switched ? 'already acting' : dry ? 'would save' : 'saved'} ${target.handle}, but SX_ACCOUNT is set in this shell and wins`
+        ? `${savedAccount === target.handle ? 'already saved' : !switched ? 'already acting' : dry ? 'would save' : 'saved'} ${target.handle}, but CB_ACCOUNT is set in this shell and wins`
         : switched
           ? `${dry ? 'would act' : 'now acting'} as ${target.handle}`
           : `already acting as ${target.handle}`,
     )
     return
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `account ${sub} is not a command.`,
-    'sx account --help lists them.',
+    'cb account --help lists them.',
     exit.usage,
   )
 }

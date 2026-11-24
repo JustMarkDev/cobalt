@@ -7,9 +7,9 @@
  *   bun scripts/api-snapshot.ts --allow-breaking   (a new major version only)
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { allOperations } from '@source-code/api'
-import { buildOpenApi } from '@source-code/api/openapi'
-import { findBreaking } from '@source-code/api/openapi-diff'
+import { allOperations } from '@cobaltforge/api'
+import { buildOpenApi } from '@cobaltforge/api/openapi'
+import { findBreaking } from '@cobaltforge/api/openapi-diff'
 
 const file = new URL(
   '../packages/api/src/openapi.snapshot.json',

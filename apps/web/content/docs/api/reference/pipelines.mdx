@@ -49,8 +49,8 @@ Newest first. Each is a workflow run; a check on a change is the result of one.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/pipelines?limit=2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines?limit=2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -67,8 +67,8 @@ ratelimit: "read";r=1147;t=60
       "object": "pipeline_run",
       "id": "pip_01m6tcx5c09817nkc9",
       "number": 1840,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840",
-      "html_url": "https://source.code/dana/gitfs/pipelines?n=1840",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1840",
       "workflow": "build",
       "file": ".source/workflows/build.yml",
       "title": "Add a read-only mount mode",
@@ -96,8 +96,8 @@ ratelimit: "read";r=1147;t=60
       "object": "pipeline_run",
       "id": "pip_01m6r1c5m0ew850sm5",
       "number": 1838,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1838",
-      "html_url": "https://source.code/dana/gitfs/pipelines?n=1838",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1838",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1838",
       "workflow": "security",
       "file": ".source/workflows/security.yml",
       "title": "Nightly dependency audit",
@@ -161,7 +161,7 @@ Queues a run of a workflow that has run before, on the newest commit of `branch`
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -177,8 +177,8 @@ Queues a run of a workflow that has run before, on the newest commit of `branch`
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 6d2a9f4b-3c1e-4b7a-8e5d-0f9c2b4a6e13" \
   -H "Content-Type: application/json" \
   -d '{"workflow":"build","branch":"main"}'
@@ -194,8 +194,8 @@ ratelimit: "write";r=61;t=60
   "object": "pipeline_run",
   "id": "pip_01m6tq6r80tbap36zh",
   "number": 1844,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1844",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1844",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1844",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "build on main",
@@ -224,7 +224,7 @@ ratelimit: "write";r=61;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -232,7 +232,7 @@ ratelimit: "write";r=61;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1844/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -254,7 +254,7 @@ ratelimit: "write";r=61;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -262,7 +262,7 @@ ratelimit: "write";r=61;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1844/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -306,8 +306,8 @@ Each step links to its log.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -321,8 +321,8 @@ ratelimit: "read";r=1146;t=60
   "object": "pipeline_run",
   "id": "pip_01m6jwjqm01gg6cd8d",
   "number": 1839,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1839",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1839",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Windows ARM64 builds",
@@ -351,7 +351,7 @@ ratelimit: "read";r=1146;t=60
           "status": "success",
           "duration_ms": 2000,
           "lines": 5,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -359,7 +359,7 @@ ratelimit: "read";r=1146;t=60
           "status": "success",
           "duration_ms": 24000,
           "lines": 9,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -381,7 +381,7 @@ ratelimit: "read";r=1146;t=60
           "status": "success",
           "duration_ms": 2000,
           "lines": 5,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -389,7 +389,7 @@ ratelimit: "read";r=1146;t=60
           "status": "success",
           "duration_ms": 24000,
           "lines": 9,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -445,7 +445,7 @@ Only a queued or running one. Steps not yet finished are canceled.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -454,8 +454,8 @@ Only a queued or running one. Steps not yet finished are canceled.
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/cancel" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840/cancel" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -468,8 +468,8 @@ ratelimit: "write";r=62;t=60
   "object": "pipeline_run",
   "id": "pip_01m6tcx5c09817nkc9",
   "number": 1840,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1840",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1840",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Add a read-only mount mode",
@@ -498,7 +498,7 @@ ratelimit: "write";r=62;t=60
           "status": "success",
           "duration_ms": 2000,
           "lines": 5,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -506,7 +506,7 @@ ratelimit: "write";r=62;t=60
           "status": "success",
           "duration_ms": 24000,
           "lines": 9,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -528,7 +528,7 @@ ratelimit: "write";r=62;t=60
           "status": "canceled",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -536,7 +536,7 @@ ratelimit: "write";r=62;t=60
           "status": "canceled",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1840/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -597,8 +597,8 @@ Send `running` when it starts, then `success`, `failure` or `skipped`, with the 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"success","lines":[{"text":"cargo fmt --check","level":"cmd"}],"duration_ms":2140}'
 ```
@@ -613,8 +613,8 @@ ratelimit: "write";r=59;t=60
   "object": "pipeline_run",
   "id": "pip_01m6r1c5m0ftmrqqz5",
   "number": 1837,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1837",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Cache negative lookups",
@@ -643,7 +643,7 @@ ratelimit: "write";r=59;t=60
           "status": "success",
           "duration_ms": 2140,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -651,7 +651,7 @@ ratelimit: "write";r=59;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -673,7 +673,7 @@ ratelimit: "write";r=59;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -681,7 +681,7 @@ ratelimit: "write";r=59;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -727,8 +727,8 @@ Jobs and steps are numbered from 1, in the order the run lists them.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839/jobs/1/steps/2/log" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -789,7 +789,7 @@ In one write the step runs again and ends as `success` or `failure`, with the li
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -806,8 +806,8 @@ In one write the step runs again and ends as `success` or `failure`, with the li
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/resume" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/resume" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"success","summary":"Plan checked, go ahead."}'
 ```
@@ -822,8 +822,8 @@ ratelimit: "write";r=56;t=60
   "object": "pipeline_run",
   "id": "pip_01m6r1c5m0ftmrqqz5",
   "number": 1837,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1837",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Cache negative lookups",
@@ -852,7 +852,7 @@ ratelimit: "write";r=56;t=60
           "status": "success",
           "duration_ms": 2140,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -860,7 +860,7 @@ ratelimit: "write";r=56;t=60
           "status": "success",
           "duration_ms": 0,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -882,7 +882,7 @@ ratelimit: "write";r=56;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -890,7 +890,7 @@ ratelimit: "write";r=56;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -934,7 +934,7 @@ The step, its job and (when nothing else of it runs) the run wait. A waiting job
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -952,8 +952,8 @@ The step, its job and (when nothing else of it runs) the run wait. A waiting job
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/wait" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/wait" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"kind":"person","reason":"Check the migration plan before it runs","target":"hollis","expires_at":"2026-11-10T10:00:00.000Z"}'
 ```
@@ -968,8 +968,8 @@ ratelimit: "write";r=57;t=60
   "object": "pipeline_run",
   "id": "pip_01m6r1c5m0ftmrqqz5",
   "number": 1837,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1837",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Cache negative lookups",
@@ -1003,7 +1003,7 @@ ratelimit: "write";r=57;t=60
           "status": "success",
           "duration_ms": 2140,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -1011,7 +1011,7 @@ ratelimit: "write";r=57;t=60
           "status": "waiting",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
           "wait": {
             "kind": "person",
             "reason": "Check the migration plan before it runs",
@@ -1038,7 +1038,7 @@ ratelimit: "write";r=57;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -1046,7 +1046,7 @@ ratelimit: "write";r=57;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -1088,7 +1088,7 @@ A new run of the same workflow on the same commit, queued for a runner. Not idem
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1097,8 +1097,8 @@ A new run of the same workflow on the same commit, queued for a runner. Not idem
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/1839/rerun" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1839/rerun" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 0b7c2e4f-1a3d-4e6b-9c8a-5d2f7e1b3a90"
 ```
 
@@ -1112,8 +1112,8 @@ ratelimit: "write";r=63;t=60
   "object": "pipeline_run",
   "id": "pip_01m6tq6r80gpehqm81",
   "number": 1843,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1843",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1843",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1843",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Windows ARM64 builds",
@@ -1142,7 +1142,7 @@ ratelimit: "write";r=63;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -1150,7 +1150,7 @@ ratelimit: "write";r=63;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1843/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -1172,7 +1172,7 @@ ratelimit: "write";r=63;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -1180,7 +1180,7 @@ ratelimit: "write";r=63;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1843/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -1229,8 +1229,8 @@ The oldest queued job in the repository, now running on `runner`. Answers `204` 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/pipelines/claim" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/claim" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"runner":"mac-mini-1"}'
 ```
@@ -1261,7 +1261,7 @@ ratelimit: "write";r=60;t=60
     },
     "…and 2 more"
   ],
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1",
   "runs_on": [],
   "runner_id": null,
   "lease_expires_at": null
@@ -1298,8 +1298,8 @@ The triggers in `.source/triggers/*.yml` on the default branch, as they were rea
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/triggers" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/triggers" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1350,13 +1350,13 @@ Newest first, with their labels, status and the jobs they hold. Never includes a
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/runners" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/runners" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"PWsMs7A3cD2CT9dW"
+etag: W/"hMZteMdn3mkqIHMS"
 ratelimit: "read";r=1142;t=60
 ```
 
@@ -1380,8 +1380,8 @@ ratelimit: "read";r=1142;t=60
       "created_at": "2026-11-07T10:00:00.000Z",
       "created_by": "dana",
       "secret": null,
-      "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
-      "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+      "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
+      "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
     }
   ],
   "has_more": false,
@@ -1395,7 +1395,7 @@ ratelimit: "read";r=1142;t=60
 
 **Register a runner**
 
-The response is the only time the runner's token (`secret`) is shown: put it in `SX_RUNNER_TOKEN` on the machine. It reads the repositories the runner may serve, claims and reports their jobs, and nothing else. A person registers runners for themself; an organization's owner or admin for the organization.
+The response is the only time the runner's token (`secret`) is shown: put it in `CB_RUNNER_TOKEN` on the machine. It reads the repositories the runner may serve, claims and reports their jobs, and nothing else. A person registers runners for themself; an organization's owner or admin for the organization.
 
 | About      |                                     |
 | ---------- | ----------------------------------- |
@@ -1410,7 +1410,7 @@ The response is the only time the runner's token (`secret`) is shown: put it in 
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1431,15 +1431,15 @@ The response is the only time the runner's token (`secret`) is shown: put it in 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/runners" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/runners" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"mac-mini","labels":["macos","arm64","xcode-16"],"repos":["dana/gitfs"],"concurrency":2}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs
+location: https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs
 ratelimit: "write";r=53;t=60
 ```
 
@@ -1459,9 +1459,9 @@ ratelimit: "write";r=53;t=60
   "last_seen_at": null,
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
-  "secret": "sxr_…",
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "secret": "cbr_…",
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1492,7 +1492,7 @@ Disables it and revokes its token in the same write: its next request is refused
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1501,8 +1501,8 @@ Disables it and revokes its token in the same write: its next request is refused
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1527,8 +1527,8 @@ ratelimit: "write";r=47;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1559,13 +1559,13 @@ ratelimit: "write";r=47;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"bsJ9-IK9woKM_98D"
+etag: W/"O2jXgDuEl0kvKMtb"
 ratelimit: "read";r=1141;t=60
 ```
 
@@ -1586,8 +1586,8 @@ ratelimit: "read";r=1141;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1618,7 +1618,7 @@ Its name, labels, repositories or concurrency. Its token follows the repositorie
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1636,8 +1636,8 @@ Its name, labels, repositories or concurrency. Its token follows the repositorie
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"labels":["macos","arm64","xcode-16","xcode-15"]}'
 ```
@@ -1664,8 +1664,8 @@ ratelimit: "write";r=52;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1698,13 +1698,13 @@ Running or waiting. Readable by the runner itself and by members of its account.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs/jobs" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs/jobs" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"TBgAEjVEVBJ-nF9k"
+etag: W/"viFMjQOv7DXT_2B3"
 ratelimit: "read";r=1140;t=60
 ```
 
@@ -1720,7 +1720,7 @@ ratelimit: "read";r=1140;t=60
       "name": "build (macos)",
       "status": "waiting",
       "lease_expires_at": null,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2"
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2"
     }
   ],
   "has_more": false,
@@ -1751,8 +1751,8 @@ The oldest queued job in a repository the runner may serve whose `runs-on` label
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/runners/claim" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/runners/claim" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1781,7 +1781,7 @@ ratelimit: "write";r=50;t=60
     },
     "…and 2 more"
   ],
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2",
   "runs_on": [],
   "runner_id": "rnr_01m6tq6r80196dnvvs",
   "lease_expires_at": "2026-11-07T10:15:00.000Z"
@@ -1811,8 +1811,8 @@ Send one every 30 seconds with the runner token. It extends the lease on every j
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/runners/heartbeat" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/runners/heartbeat" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1837,8 +1837,8 @@ ratelimit: "write";r=51;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.source.code/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://source.code/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
 }
 ```
 
@@ -1877,8 +1877,8 @@ The same report as `pipelines.report`, made with the runner token for a job this
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/runners/report" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/runners/report" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"repo":"dana/gitfs","run":1837,"job":2,"step":1,"status":"running","lines":[{"text":"cargo build --release","level":"cmd"}]}'
 ```
@@ -1893,8 +1893,8 @@ ratelimit: "write";r=49;t=60
   "object": "pipeline_run",
   "id": "pip_01m6r1c5m0ftmrqqz5",
   "number": 1837,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1837",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Cache negative lookups",
@@ -1923,7 +1923,7 @@ ratelimit: "write";r=49;t=60
           "status": "success",
           "duration_ms": 2140,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -1931,7 +1931,7 @@ ratelimit: "write";r=49;t=60
           "status": "success",
           "duration_ms": 0,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -1953,7 +1953,7 @@ ratelimit: "write";r=49;t=60
           "status": "running",
           "duration_ms": 0,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
           "wait": null
         },
         {
@@ -1961,7 +1961,7 @@ ratelimit: "write";r=49;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -2010,8 +2010,8 @@ A step that waits on a person, an approval or an outside agent, paused by the ru
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/runners/wait" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/runners/wait" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"repo":"dana/gitfs","run":1837,"job":2,"step":1,"kind":"approval","reason":"Sign off the release build","target":"hollis"}'
 ```
@@ -2026,8 +2026,8 @@ ratelimit: "write";r=48;t=60
   "object": "pipeline_run",
   "id": "pip_01m6r1c5m0ftmrqqz5",
   "number": 1837,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837",
-  "html_url": "https://source.code/dana/gitfs/pipelines?n=1837",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1837",
   "workflow": "build",
   "file": ".source/workflows/build.yml",
   "title": "Cache negative lookups",
@@ -2056,7 +2056,7 @@ ratelimit: "write";r=48;t=60
           "status": "success",
           "duration_ms": 2140,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/1/log",
           "wait": null
         },
         {
@@ -2064,7 +2064,7 @@ ratelimit: "write";r=48;t=60
           "status": "success",
           "duration_ms": 0,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/1/steps/2/log",
           "wait": null
         },
         "…and 2 more"
@@ -2091,7 +2091,7 @@ ratelimit: "write";r=48;t=60
           "status": "waiting",
           "duration_ms": 0,
           "lines": 1,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/1/log",
           "wait": {
             "kind": "approval",
             "reason": "Sign off the release build",
@@ -2104,7 +2104,7 @@ ratelimit: "write";r=48;t=60
           "status": "queued",
           "duration_ms": 0,
           "lines": 0,
-          "log_url": "https://api.source.code/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
+          "log_url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2/steps/2/log",
           "wait": null
         },
         "…and 2 more"

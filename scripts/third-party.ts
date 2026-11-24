@@ -5,7 +5,7 @@
  *   bun install && bun scripts/third-party.ts
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { formatSource } from '@source-code/api/format'
+import { formatSource } from '@cobaltforge/api/format'
 
 const root = new URL('../', import.meta.url)
 const read = (path: string): unknown =>
@@ -45,7 +45,7 @@ const manifests = [
   'packages/sdk/',
 ].map((dir) => ({ dir, ...(read(`${dir}package.json`) as Manifest) }))
 const external = (deps: Record<string, string> | undefined) =>
-  Object.keys(deps ?? {}).filter((name) => !name.startsWith('@source-code/'))
+  Object.keys(deps ?? {}).filter((name) => !name.startsWith('@cobaltforge/'))
 const declaredIn = (name: string) =>
   manifests
     .filter(

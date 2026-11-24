@@ -131,7 +131,7 @@ export type Ctx<TParams, TQuery, TBody> = {
   readonly bytes: Uint8Array | null
   readonly signal: AbortSignal
   readonly header: (name: string) => string | null
-  /** `https://api.source.code/v1`, or wherever this API is mounted. */
+  /** `https://api.cobaltforge.dev/v1`, or wherever this API is mounted. */
   readonly base: string
   readonly htmlBase: string
   readonly now: () => number

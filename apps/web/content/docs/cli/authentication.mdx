@@ -4,38 +4,38 @@ title: Authentication
 description: Signing in for people, tokens for scripts and agents.
 ---
 
-## Where sx talks to
+## Where cb talks to
 
-`sx auth login` with nothing set signs in to the API of `host` (`https://source.code/api/v1`) and remembers it, so every later command talks to it. To use another server, point it there first:
+`cb auth login` with nothing set signs in to the API of `host` (`https://cobaltforge.dev/api/v1`) and remembers it, so every later command talks to it. To use another server, point it there first:
 
 ```bash
-export SX_API=https://forge.example.com/api/v1     # or: sx config set api <url>
+export CB_API=https://forge.example.com/api/v1     # or: cb config set api <url>
 ```
 
-Inside the source.code repository, before you sign in, `sx` runs the [API](/docs/api) in its own process on sample data. An installed `sx` has no sample data: until you sign in it says so and exits `4`.
+Inside the cobalt repository, before you sign in, `cb` runs the [API](/docs/api) in its own process on sample data. An installed `cb` has no sample data: until you sign in it says so and exits `4`.
 
 ## Signing in as a person
 
 ```bash
-sx auth login
+cb auth login
 ```
 
 ```
-Open https://source.code/api/v1/oauth/device?user_code=BCDF-GHJK
+Open https://cobaltforge.dev/api/v1/oauth/device?user_code=BCDF-GHJK
 and check the code is BCDF-GHJK
 ```
 
-Open the address in any browser, check the code matches, and approve. `sx` waits, then saves a token that **refreshes itself**. This is the OAuth device flow (RFC 8628), so it works over SSH and on machines with no browser. The code and the address go to stderr, so a script's stdout stays clean.
+Open the address in any browser, check the code matches, and approve. `cb` waits, then saves a token that **refreshes itself**. This is the OAuth device flow (RFC 8628), so it works over SSH and on machines with no browser. The code and the address go to stderr, so a script's stdout stays clean.
 
-The saved sign-in is in `credentials.json` next to your settings, readable only by you. `sx auth logout` revokes it on the server and deletes it. Ask for fewer powers with `--scope "repo:read pulls:read"`. The default includes `pulls:merge`, `secrets:write` and `secrets:decrypt`, so landing, `sx env run` and the other secret commands work. The approval page names the machine (`--device` to choose the name; the default is the system, such as `Mac`) and says it will read your team's values. A server can refuse that with `SX_DEVICE_DECRYPT=0`: machines then sign in without it. [How the flow works](/docs/api/oauth).
+The saved sign-in is in `credentials.json` next to your settings, readable only by you. `cb auth logout` revokes it on the server and deletes it. Ask for fewer powers with `--scope "repo:read pulls:read"`. The default includes `pulls:merge`, `secrets:write` and `secrets:decrypt`, so landing, `cb env run` and the other secret commands work. The approval page names the machine (`--device` to choose the name; the default is the system, such as `Mac`) and says it will read your team's values. A server can refuse that with `CB_DEVICE_DECRYPT=0`: machines then sign in without it. [How the flow works](/docs/api/oauth).
 
 ## Tokens for scripts and agents
 
 Scripts, CI and agents use a token in the environment. It always wins over a saved sign-in.
 
 ```bash
-export SX_TOKEN=sxp_...
-sx auth status
+export CB_TOKEN=cbp_...
+cb auth status
 ```
 
 Create tokens with `POST /v1/tokens` or in **Settings, Machines and tokens**. They always expire, show their secret once, and can be limited to repositories and to fewer scopes than you hold. A token belonging to a bot can lose scopes while installed but never gain them. A run started by an automation receives a token limited to one repository and one run. See [Authentication](/docs/api/authentication).
@@ -43,14 +43,14 @@ Create tokens with `POST /v1/tokens` or in **Settings, Machines and tokens**. Th
 ## Check where you stand
 
 ```bash
-sx auth status
+cb auth status
 ```
 
 ```json
 {
-  "host": "https://api.source.code/v1",
+  "host": "https://api.cobaltforge.dev/v1",
   "authenticated": true,
-  "via": "SX_TOKEN",
+  "via": "CB_TOKEN",
   "account": "dana",
   "login": "dana",
   "scopes": ["pulls:read", "repo:read"]
@@ -64,20 +64,20 @@ Over the network it asks the server who the token is, so `scopes` is what the se
 One login covers yourself and every organization you belong to, so there is nothing to sign in to again. See [Accounts and organizations](/docs/concepts/accounts).
 
 ```bash
-sx account list              # who you can act as, and your role in each
-sx account current           # who you act as now, and why
-sx account switch northwind  # act as it from now on
-sx repo create tools -A northwind   # as northwind, for this one command
+cb account list              # who you can act as, and your role in each
+cb account current           # who you act as now, and why
+cb account switch northwind  # act as it from now on
+cb repo create tools -A northwind   # as northwind, for this one command
 ```
 
 Which account a command acts as, in order:
 
 1. `-A, --account handle`
-2. `SX_ACCOUNT`
+2. `CB_ACCOUNT`
 3. The owner of the repository you are in, when you can act as it. Working in a clone needs no switching.
-4. The account saved by `sx account switch`
+4. The account saved by `cb account switch`
 5. You
 
-`sx account current` prints `from`: `flag`, `env`, `repo`, `config` or `default`, so a surprise is easy to trace. An account you cannot act as exits `3` with `account_not_found`. Your role limits what you can do there: members of an organization cannot create repositories in it, which exits `5` with `forbidden`.
+`cb account current` prints `from`: `flag`, `env`, `repo`, `config` or `default`, so a surprise is easy to trace. An account you cannot act as exits `3` with `account_not_found`. Your role limits what you can do there: members of an organization cannot create repositories in it, which exits `5` with `forbidden`.
 
-A token acts as the person it belongs to, with access to the same accounts. Agents should pass `-A` or set `SX_ACCOUNT` rather than switch, so a run never changes a saved setting.
+A token acts as the person it belongs to, with access to the same accounts. Agents should pass `-A` or set `CB_ACCOUNT` rather than switch, so a run never changes a saved setting.

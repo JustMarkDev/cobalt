@@ -1,5 +1,5 @@
 import { resolveRepo } from '../repo'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import type { Command } from './types'
 
@@ -33,17 +33,17 @@ export const mirror: Command = async (
   if (sub === 'add') {
     const [host, slug] = rest
     if (!host || !slug)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'mirror add needs a host and owner/name.',
-        'Example: sx mirror add codeberg dana/gitfs --direction push',
+        'Example: cb mirror add codeberg dana/gitfs --direction push',
         exit.usage,
       )
     const r = await api.post(`${repo.path}/mirrors`, {
       body: { host, slug, direction: str(flags, 'direction') ?? 'push' },
       dryRun: dry,
     })
-    const created = r.headers.get('sx-outcome') === 'created'
+    const created = r.headers.get('cb-outcome') === 'created'
     print(
       ctx,
       { ...r.json, created, dryRun: dry },
@@ -54,10 +54,10 @@ export const mirror: Command = async (
   }
   const id = rest.at(0)
   if (!id)
-    throw new SxError(
+    throw new CbError(
       'mirror_not_found',
       `mirror ${sub} needs an id.`,
-      'sx mirror list shows ids.',
+      'cb mirror list shows ids.',
       exit.notFound,
     )
   if (sub === 'sync') {
@@ -81,10 +81,10 @@ export const mirror: Command = async (
     )
     return
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `mirror ${sub} is not a command.`,
-    'sx mirror --help lists them.',
+    'cb mirror --help lists them.',
     exit.usage,
   )
 }

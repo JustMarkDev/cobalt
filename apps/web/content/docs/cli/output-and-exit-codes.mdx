@@ -1,7 +1,7 @@
 ---
 icon: DocumentTextIcon
 title: Output and exit codes
-description: What sx prints, and the numbers it exits with.
+description: What cb prints, and the numbers it exits with.
 ---
 
 ## When output is JSON
@@ -10,14 +10,14 @@ Output is JSON when `--json` is passed or stdout is not a terminal. Otherwise it
 
 ## Errors
 
-On failure `sx` prints one object to stderr in JSON mode, or two lines in text mode.
+On failure `cb` prints one object to stderr in JSON mode, or two lines in text mode.
 
 ```json
 {
   "error": {
     "code": "repo_unknown",
     "message": "Could not tell which repository you mean.",
-    "hint": "Run inside a clone, pass -R owner/name, or set SX_REPO."
+    "hint": "Run inside a clone, pass -R owner/name, or set CB_REPO."
   }
 }
 ```
@@ -26,7 +26,7 @@ On failure `sx` prints one object to stderr in JSON mode, or two lines in text m
 
 ## Exit codes
 
-The `code` in an error is the API's `code`, and the exit code is the API's `exit_code`, so a script, `curl` and `sx` agree. [Every code](/docs/api/errors).
+The `code` in an error is the API's `code`, and the exit code is the API's `exit_code`, so a script, `curl` and `cb` agree. [Every code](/docs/api/errors).
 
 | Code | Meaning              | Example                                                    |
 | ---- | -------------------- | ---------------------------------------------------------- |
@@ -44,4 +44,4 @@ The `code` in an error is the API's `code`, and the exit code is the API's `exit
 
 ## Debugging
 
-Set `SX_DEBUG=1` to print a stack trace for an unexpected error.
+Set `CB_DEBUG=1` to print a stack trace for an unexpected error.

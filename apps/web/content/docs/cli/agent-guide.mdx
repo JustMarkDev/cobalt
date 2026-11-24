@@ -1,24 +1,24 @@
 ---
 icon: SparklesIcon
-title: Teach an agent to use sx
-description: No model has seen sx. Give it a skill, a one-call context, a machine-readable command list and the docs as text.
+title: Teach an agent to use cb
+description: No model has seen cb. Give it a skill, a one-call context, a machine-readable command list and the docs as text.
 ---
 
-Models are not trained on `sx`, so an agent that guesses will get it wrong. `sx` gives an agent four ways to learn it, from the tool itself.
+Models are not trained on `cb`, so an agent that guesses will get it wrong. `cb` gives an agent four ways to learn it, from the tool itself.
 
 ## 1. Install the skill
 
 ```bash
-sx skill install                    # .claude/skills/sx/SKILL.md
-sx skill install --target agents    # a marked block in AGENTS.md
+cb skill install                    # .claude/skills/cb/SKILL.md
+cb skill install --target agents    # a marked block in AGENTS.md
 ```
 
-The skill is short on purpose, so it always loads. It tells the agent to run `sx context` first, never wait for input, parse JSON errors by `code`, use `--dry-run` before changes, treat exit code `5` as a stop, and never touch secret values. Running install twice changes nothing. `sx skill` prints the same text if you want to paste it elsewhere.
+The skill is short on purpose, so it always loads. It tells the agent to run `cb context` first, never wait for input, parse JSON errors by `code`, use `--dry-run` before changes, treat exit code `5` as a stop, and never touch secret values. Running install twice changes nothing. `cb skill` prints the same text if you want to paste it elsewhere.
 
 ## 2. Ask the CLI what it can do
 
 ```bash
-sx commands
+cb commands
 ```
 
 One JSON document listing every command with its arguments, an example, whether it changes anything, whether it is safe to repeat, and which exit codes it can return. An agent calls this once instead of reading help text for each command.
@@ -30,14 +30,14 @@ One JSON document listing every command with its arguments, an example, whether 
   "mutates": true,
   "idempotent": false,
   "exits": [3, 5],
-  "example": "sx change land 216"
+  "example": "cb change land 216"
 }
 ```
 
 ## 3. Start from context
 
 ```bash
-sx context
+cb context
 ```
 
 The repository, open changes and what blocks each, open issues, policy and the env schema, with no secret values. It is the first call in the skill.
@@ -51,7 +51,7 @@ Every error is JSON with a stable `code` and a `hint`. A mistyped command sugges
   "error": {
     "code": "unknown_command",
     "message": "chnge is not a command.",
-    "hint": "Did you mean: sx change? sx commands lists everything as JSON."
+    "hint": "Did you mean: cb change? cb commands lists everything as JSON."
   }
 }
 ```
@@ -65,7 +65,7 @@ Agents that browse can read these files instead of the rendered site:
 
 ## Handing off work
 
-`sx handoff` builds the prompt for an issue or change and tells the agent to read `sx skill` first if it has not used `sx`. See [Agents and the CLI](/docs/cli/agents).
+`cb handoff` builds the prompt for an issue or change and tells the agent to read `cb skill` first if it has not used `cb`. See [Agents and the CLI](/docs/cli/agents).
 
 ## MCP
 

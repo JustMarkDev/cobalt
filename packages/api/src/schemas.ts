@@ -31,12 +31,12 @@ export const Via = named(
     tool: z
       .string()
       .nullable()
-      .describe('The tool that sent it, as the tool declared (`Sx-Tool`)'),
+      .describe('The tool that sent it, as the tool declared (`Cb-Tool`)'),
     model: z
       .string()
       .nullable()
       .describe(
-        'The model the tool said it used (`Sx-Model`). Declared, not verified',
+        'The model the tool said it used (`Cb-Model`). Declared, not verified',
       ),
   }),
 )
@@ -862,7 +862,7 @@ export const Runner = named(
       .string()
       .nullable()
       .describe(
-        "The runner's token (`SX_RUNNER_TOKEN`). Only in the response that creates it, never again",
+        "The runner's token (`CB_RUNNER_TOKEN`). Only in the response that creates it, never again",
       ),
     url: z.string(),
     html_url: z.string(),
@@ -1755,7 +1755,7 @@ export const GitCommit = named(
     committer: Person,
     date: ts,
     actor: Actor.nullable().describe(
-      "The account behind the author, when the author's email is one of ours (`<handle>@users.source.code`)",
+      "The account behind the author, when the author's email is one of ours (`<handle>@users.cobaltforge.dev`)",
     ),
     change: z
       .number()
@@ -1963,7 +1963,7 @@ export const Token = named(
       .array(z.string())
       .nullable()
       .describe(
-        'Globs a change made with it may touch, in its one repository; null for any path. Covers the API, sx and MCP, not `git push`',
+        'Globs a change made with it may touch, in its one repository; null for any path. Covers the API, cb and MCP, not `git push`',
       ),
     prefix: z
       .string()
@@ -1991,7 +1991,7 @@ export const Authorization = named(
       .string()
       .nullable()
       .describe(
-        'The machine a device login (`sx auth login`) named; null for an application',
+        'The machine a device login (`cb auth login`) named; null for an application',
       ),
     scopes: z.array(z.string()),
     audience: z.array(z.enum(['api', 'mcp'])),

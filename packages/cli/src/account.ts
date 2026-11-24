@@ -1,4 +1,4 @@
-import { SxError, exit } from './output'
+import { CbError, exit } from './output'
 import { gitContext } from './repo'
 import { resolve } from './config'
 import { str } from './args'
@@ -12,7 +12,7 @@ export type Account = {
   role: 'owner' | 'admin' | 'member' | null
 }
 
-/** Where the account in use came from. `sx account` says so, so a surprise is easy to trace. */
+/** Where the account in use came from. `cb account` says so, so a surprise is easy to trace. */
 export type From = 'flag' | 'env' | 'repo' | 'config' | 'default'
 export type Active = Account & { from: From }
 
@@ -48,11 +48,11 @@ export async function personal(ctx: Ctx): Promise<Account> {
   return own
 }
 
-export function accountNotFound(handle: string): SxError {
-  return new SxError(
+export function accountNotFound(handle: string): CbError {
+  return new CbError(
     'account_not_found',
     `You cannot act as ${handle}.`,
-    'sx account list shows the accounts you can act as. Ask an owner to invite you to an organization.',
+    'cb account list shows the accounts you can act as. Ask an owner to invite you to an organization.',
     exit.notFound,
   )
 }
@@ -67,10 +67,10 @@ async function named(ctx: Ctx, handle: string, from: From): Promise<Active> {
  * The account a command acts as. In order:
  *
  *  1. `-A, --account handle`
- *  2. `SX_ACCOUNT`
- *  3. the owner of the repository you are in (or pass with -R, or SX_REPO),
+ *  2. `CB_ACCOUNT`
+ *  3. the owner of the repository you are in (or pass with -R, or CB_REPO),
  *     when you can act as it: working in a clone needs no switching
- *  4. the account saved by `sx account switch`
+ *  4. the account saved by `cb account switch`
  *  5. yourself
  *
  * One login covers every account, so there is nothing to sign in to again.
@@ -81,9 +81,9 @@ export async function activeAccount(
 ): Promise<Active> {
   const flag = str(flags, 'account')
   if (flag) return named(ctx, flag, 'flag')
-  const env = process.env.SX_ACCOUNT
+  const env = process.env.CB_ACCOUNT
   if (env) return named(ctx, env, 'env')
-  const slug = str(flags, 'repo') ?? process.env.SX_REPO ?? gitContext().slug
+  const slug = str(flags, 'repo') ?? process.env.CB_REPO ?? gitContext().slug
   const owner = slug?.split('/').at(0)
   if (owner && (await findAccount(ctx, owner))) return named(ctx, owner, 'repo')
   const saved = resolve('account').value

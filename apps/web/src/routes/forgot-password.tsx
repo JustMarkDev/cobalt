@@ -8,7 +8,7 @@ import { Input } from '~/components/ui/input'
 import { authClient } from '~/lib/auth/client'
 
 export const Route = createFileRoute('/forgot-password')({
-  head: () => ({ meta: [{ title: 'Reset your password · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Reset your password · cobalt' }] }),
   component: ForgotPassword,
 })
 

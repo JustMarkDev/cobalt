@@ -6,7 +6,7 @@ description: The rules every endpoint follows, so you learn them once.
 
 ## Base URL and format
 
-`https://api.source.code/v1`. JSON only, UTF-8, `snake_case` names. Send `Content-Type: application/json` on anything with a body. Bodies are limited to 1 MiB.
+`https://api.cobaltforge.dev/v1`. JSON only, UTF-8, `snake_case` names. Send `Content-Type: application/json` on anything with a body. Bodies are limited to 1 MiB.
 
 | Thing        | Format                                                                |
 | ------------ | --------------------------------------------------------------------- |
@@ -26,7 +26,7 @@ description: The rules every endpoint follows, so you learn them once.
   "object": "issue",
   "id": "iss_01m6…",
   "number": 4,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/issues/4",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4",
   "version": 1
 }
 ```
@@ -61,7 +61,7 @@ A human address works wherever an ID does:
 
 Changes and issues share one counter in a repository, so `#216` is never ambiguous. `GET /repos/dana/gitfs/numbers/216` says which it is.
 
-**Renames never break a caller.** A renamed repository answers at its old address with `308`, a `Location` header with the new one, and `Sx-Renamed-From`. `308` keeps the method and body, so a `POST` is not turned into a `GET`. Store the `id`, not the name.
+**Renames never break a caller.** A renamed repository answers at its old address with `308`, a `Location` header with the new one, and `Cb-Renamed-From`. `308` keeps the method and body, so a `POST` is not turned into a `GET`. Store the `id`, not the name.
 
 ## Shaping a response
 
@@ -80,15 +80,15 @@ Every response carries:
 
 | Header                          | Meaning                                                                                                                                    |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Sx-Request-Id`                 | Quote it when you report a problem. It is also `request_id` in an error body.                                                              |
-| `Sx-Version`                    | The API version that answered. See [Versioning](/docs/api/versioning).                                                                     |
+| `Cb-Request-Id`                 | Quote it when you report a problem. It is also `request_id` in an error body.                                                              |
+| `Cb-Version`                    | The API version that answered. See [Versioning](/docs/api/versioning).                                                                     |
 | `Server-Timing`                 | Where the time went: `handler`, `cache`, `total`. Use it to see whether slow is you or us.                                                 |
 | `ETag`                          | On cacheable reads; live streams and `git.raw` do not carry one. Upload content carries its SHA-256 ETag. Send it back as `If-None-Match`. |
 | `RateLimit`, `RateLimit-Policy` | What is left and the limit. See [Rate limits](/docs/api/rate-limits).                                                                      |
 
-Some responses add `Sx-Outcome` (what a repeat-safe create did: `created`, `unchanged`, `patch_set_added`, `updated`), `Sx-Replayed` (the answer came from an idempotency key), `Sx-Dry-Run`, and `Sx-Limit-Applied` (your `limit` was clamped).
+Some responses add `Cb-Outcome` (what a repeat-safe create did: `created`, `unchanged`, `patch_set_added`, `updated`), `Cb-Replayed` (the answer came from an idempotency key), `Cb-Dry-Run`, and `Cb-Limit-Applied` (your `limit` was clamped).
 
-Request headers: `Authorization`, `Content-Type`, `Idempotency-Key`, `If-Match`, `If-None-Match`, `Sx-Account`, `Sx-Agent`, `Sx-Version`.
+Request headers: `Authorization`, `Content-Type`, `Idempotency-Key`, `If-Match`, `If-None-Match`, `Cb-Account`, `Cb-Agent`, `Cb-Version`.
 
 ## Status codes
 

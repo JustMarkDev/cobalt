@@ -8,7 +8,7 @@ Flags that work on every command:
 
 | Flag                    | Meaning                                                                 |
 | ----------------------- | ----------------------------------------------------------------------- |
-| `-R, --repo owner/name` | Which repository. Default: your git remote, then `SX_REPO`.             |
+| `-R, --repo owner/name` | Which repository. Default: your git remote, then `CB_REPO`.             |
 | `-A, --account handle`  | Act as this account. See [Accounts](/docs/cli/authentication#accounts). |
 | `-j, --json`            | JSON output. This is the default when output is piped.                  |
 | `-n, --dry-run`         | Say what would happen and change nothing.                               |
@@ -18,11 +18,11 @@ Flags that work on every command:
 ## repo
 
 ```bash
-sx repo list [--all]
-sx repo view
-sx repo create notes --private --description "Scratch notes"
-sx repo create northwind/tools
-sx repo clone dana/gitfs
+cb repo list [--all]
+cb repo view
+cb repo create notes --private --description "Scratch notes"
+cb repo create northwind/tools
+cb repo clone dana/gitfs
 ```
 
 `repo list` shows the repositories of the account you act as. `--all` shows every account you can act as. `repo create` takes a bare name, which goes in the account you act as, or `owner/name`. It returns `created: false` when the repository already exists, and exits `5` if you are only a member of that organization.
@@ -32,19 +32,19 @@ sx repo clone dana/gitfs
 ## import
 
 ```bash
-sx import github dana/notes
-sx import https://gitlab.com/dana/zine --as northwind/zine --private
-sx import list
+cb import github dana/notes
+cb import https://gitlab.com/dana/zine --as northwind/zine --private
+cb import list
 ```
 
-`import` makes the repository here and keeps pulling from the original through a mirror, until you `sx mirror remove` it. It takes GitHub, GitLab, Codeberg and Gitea, as `host owner/name` or as the repository's address. The repository goes in the account you act as under its own name; `--as` picks another name or `owner/name`. Importing the same repository again returns `created: false`. `import list` shows what you imported and how each mirror is doing.
+`import` makes the repository here and keeps pulling from the original through a mirror, until you `cb mirror remove` it. It takes GitHub, GitLab, Codeberg and Gitea, as `host owner/name` or as the repository's address. The repository goes in the account you act as under its own name; `--as` picks another name or `owner/name`. Importing the same repository again returns `created: false`. `import list` shows what you imported and how each mirror is doing.
 
 ## account
 
 ```bash
-sx account list
-sx account current
-sx account switch <handle>
+cb account list
+cb account current
+cb account switch <handle>
 ```
 
 `list` shows every account you can act as with your role and which is in use. `switch` is saved in your settings and is safe to repeat: `switched: false` means you were already there. For one command, pass `-A handle`.
@@ -52,11 +52,11 @@ sx account switch <handle>
 ## change
 
 ```bash
-sx change list [--all]
-sx change view [id]
-sx change create [--draft] [--branch b] [--title t] [--base main]
-sx change land [id]
-sx change checkout <id>
+cb change list [--all]
+cb change view [id]
+cb change create [--draft] [--branch b] [--title t] [--base main]
+cb change land [id]
+cb change checkout <id>
 ```
 
 `change create` needs nothing from you. Title defaults to your last commit and base to `change.base`. Running it again for the same branch returns `action: "patch_set_added"` and the same change.
@@ -70,7 +70,7 @@ Changes are named by number, `216`, the same number the API and the web use. Wit
   "error": {
     "code": "policy_blocked",
     "message": "#216 cannot land: ci/test is running; 1 high finding unresolved.",
-    "hint": "sx change view shows each requirement. sx policy explain says which rule asked for it."
+    "hint": "cb change view shows each requirement. cb policy explain says which rule asked for it."
   }
 }
 ```
@@ -78,10 +78,10 @@ Changes are named by number, `216`, the same number the API and the web use. Wit
 ## issue
 
 ```bash
-sx issue list [--state open|closed|all]
-sx issue view 4
-sx issue create "Crash on empty repo" --label bug,docs
-sx issue close 4
+cb issue list [--state open|closed|all]
+cb issue view 4
+cb issue create "Crash on empty repo" --label bug,docs
+cb issue close 4
 ```
 
 Creating an issue with the same title as an open one returns the open one.
@@ -89,11 +89,11 @@ Creating an issue with the same title as an open one returns the open one.
 ## env
 
 ```bash
-sx env list --env production
-echo "$VALUE" | sx env set STRIPE_KEY - --env production
-sx env run --env development -- bun test
-sx env pull --env development --plaintext
-sx env confirmations
+cb env list --env production
+echo "$VALUE" | cb env set STRIPE_KEY - --env production
+cb env run --env development -- bun test
+cb env pull --env development --plaintext
+cb env confirmations
 ```
 
 `env list` shows names, kinds and whether each environment has a value. It never prints a value. `env run` puts values into one process and scrubs its output; `env pull` writes a plaintext file only with `--plaintext`. Production waits until you confirm the login on a signed-in page; `env confirmations` lists what is waiting. See [Secrets](/docs/concepts/secrets).
@@ -101,8 +101,8 @@ sx env confirmations
 ## policy
 
 ```bash
-sx policy check 216
-sx policy explain 216
+cb policy check 216
+cb policy explain 216
 ```
 
 Both exit `5` when blocked. `explain` lists each requirement.
@@ -110,17 +110,17 @@ Both exit `5` when blocked. `explain` lists each requirement.
 ## mirror
 
 ```bash
-sx mirror list
-sx mirror add codeberg dana/gitfs --direction push
-sx mirror sync mir_01m6dqs9m0g7q74420
-sx mirror remove mir_01m6dqs9m0g7q74420
+cb mirror list
+cb mirror add codeberg dana/gitfs --direction push
+cb mirror sync mir_01m6dqs9m0g7q74420
+cb mirror remove mir_01m6dqs9m0g7q74420
 ```
 
 ## handoff
 
 ```bash
-sx handoff 4
-sx handoff 216 --to boat
+cb handoff 4
+cb handoff 216 --to boat
 ```
 
 See [Agents and the CLI](/docs/cli/agents).
@@ -128,7 +128,7 @@ See [Agents and the CLI](/docs/cli/agents).
 ## context
 
 ```bash
-sx context
+cb context
 ```
 
 One JSON document for an agent: the repository, open changes with what blocks them, open issues, policy summary and the env schema. No secret values.
@@ -136,9 +136,9 @@ One JSON document for an agent: the repository, open changes with what blocks th
 ## auth
 
 ```bash
-sx auth status
-sx auth login [--scope "repo:read pulls:read"]
-sx auth logout
+cb auth status
+cb auth login [--scope "repo:read pulls:read"]
+cb auth logout
 ```
 
 See [Authentication](/docs/cli/authentication).
@@ -149,4 +149,4 @@ See [Settings](/docs/cli/config) and [Install](/docs/cli/install).
 
 ## Every command is an API call
 
-`sx` is a client of the [HTTP API](/docs/api). The JSON a command prints is what the API returned (plus a few fields `sx` adds, such as `action` and `blockers`), and an error is the API's error with its `code`, `hint` and exit code. Anything `sx` can do, a script can do with `curl`.
+`cb` is a client of the [HTTP API](/docs/api). The JSON a command prints is what the API returned (plus a few fields `cb` adds, such as `action` and `blockers`), and an error is the API's error with its `code`, `hint` and exit code. Anything `cb` can do, a script can do with `curl`.

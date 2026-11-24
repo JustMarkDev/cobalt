@@ -1,7 +1,7 @@
 import { showTimeline } from '../timeline'
 import { showPresence } from '../presence'
 import { gitContext, resolveRepo } from '../repo'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import { resolve } from '../config'
 import type { Ctx } from '../output'
@@ -22,7 +22,7 @@ export function blockers(
 }
 
 export const landHint =
-  'sx change view shows each requirement. sx policy explain says which rule asked for it.'
+  'cb change view shows each requirement. cb policy explain says which rule asked for it.'
 
 async function find(
   ctx: Ctx,
@@ -40,10 +40,10 @@ async function find(
     ).json.data[0]
     if (found) return found
   }
-  throw new SxError(
+  throw new CbError(
     'not_found',
     'No change for the current branch.',
-    'sx change list shows open changes. sx change create makes one.',
+    'cb change list shows open changes. cb change create makes one.',
     exit.notFound,
   )
 }
@@ -83,7 +83,7 @@ export const change: Command = async (
     const branch = str(flags, 'branch') ?? git.branch
     const title = str(flags, 'title') ?? git.subject
     if (!branch || !title)
-      throw new SxError(
+      throw new CbError(
         'missing_context',
         'Could not work out a branch and title.',
         'Run inside a clone, or pass --branch and --title.',
@@ -108,7 +108,7 @@ export const change: Command = async (
       },
       dryRun: dry,
     })
-    const action = r.headers.get('sx-outcome') ?? 'created'
+    const action = r.headers.get('cb-outcome') ?? 'created'
     print(
       ctx,
       {
@@ -137,7 +137,7 @@ export const change: Command = async (
       try {
         body = JSON.parse(set)
       } catch {
-        throw new SxError(
+        throw new CbError(
           'bad_json',
           '--set is not JSON.',
           'Send {"summary": "...", "order": [{"path": "...", "why": "...", "risk": "low"}]}.',
@@ -202,8 +202,8 @@ export const change: Command = async (
         dryRun: dry,
       })
     } catch (e) {
-      if (e instanceof SxError && e.code === 'policy_blocked')
-        throw new SxError(e.code, e.message, landHint, e.status)
+      if (e instanceof CbError && e.code === 'policy_blocked')
+        throw new CbError(e.code, e.message, landHint, e.status)
       throw e
     }
     print(
@@ -223,10 +223,10 @@ export const change: Command = async (
     return
   }
 
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `change ${sub} is not a command.`,
-    'sx change --help lists them.',
+    'cb change --help lists them.',
     exit.usage,
   )
 }

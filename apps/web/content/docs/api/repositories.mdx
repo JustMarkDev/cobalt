@@ -9,7 +9,7 @@ The [reference](/docs/api/reference/repositories) lists every operation. This pa
 ## Rename, hide, delete
 
 ```bash
-sxcurl -X PATCH $SX/repos/dana/gitfs -H "If-Match: $ETAG" \
+cbcurl -X PATCH $CB/repos/dana/gitfs -H "If-Match: $ETAG" \
   -d '{"name":"gitfs-core","description":"A filesystem over git","visibility":"private"}'
 ```
 
@@ -19,14 +19,14 @@ Only owners of the account and admins of the organization can do this. A token l
 
 **Changing maintainers is an access-control change.** Each name must be a person. Adding one also grants repository write access, and removing one revokes the write access that the maintainer list granted, unless the person has another grant. The same applies when a repository is created with `maintainers`.
 
-**A rename keeps the old address working.** `GET /repos/dana/gitfs` answers `308` with the new address in `Location` and `Sx-Renamed-From`, on every method, so a client that follows redirects never notices. The repository keeps its `rep_` id, and webhooks, mirrors, variables, team access and runs move with it. Taking a name that exists answers `invalid_state` (409).
+**A rename keeps the old address working.** `GET /repos/dana/gitfs` answers `308` with the new address in `Location` and `Cb-Renamed-From`, on every method, so a client that follows redirects never notices. The repository keeps its `rep_` id, and webhooks, mirrors, variables, team access and runs move with it. Taking a name that exists answers `invalid_state` (409).
 
 **Making a repository private hides it at once** from everyone who could only see it because it was public, in lists, in search and in events.
 
 **Deleting is permanent and asks twice.** You must repeat the full name:
 
 ```bash
-sxcurl -X DELETE "$SX/repos/dana/gitfs-core?confirm=dana/gitfs-core"   # 204
+cbcurl -X DELETE "$CB/repos/dana/gitfs-core?confirm=dana/gitfs-core"   # 204
 ```
 
 Without it you get `invalid_request` and a hint, so a mistyped path cannot delete the wrong thing. Webhooks, mirrors, variables and runs go with it; their tokens stop working. The events it wrote stay in the log, readable by the owners and admins of the account. The name can be used again.
@@ -38,9 +38,9 @@ Each of these writes an event (`repo.updated`, `repo.deleted`) and supports `?dr
 A team is a named group of people in an organization. Give it repositories of that organization and its members can read or write them, **whether or not they belong to the organization**. That is how you let a contractor into one private repository and nothing else.
 
 ```bash
-sxcurl -X POST $SX/accounts/northwind/teams -d '{"slug":"support","name":"Support"}'
-sxcurl -X PUT  $SX/accounts/northwind/teams/support/members/ines
-sxcurl -X PUT  $SX/accounts/northwind/teams/support/repos/northwind/relay -d '{"permission":"read"}'
+cbcurl -X POST $CB/accounts/northwind/teams -d '{"slug":"support","name":"Support"}'
+cbcurl -X PUT  $CB/accounts/northwind/teams/support/members/ines
+cbcurl -X PUT  $CB/accounts/northwind/teams/support/repos/northwind/relay -d '{"permission":"read"}'
 ```
 
 - `read` lets members read the repository, including a private one. `write` lets them change it. Setting it again changes the permission.
@@ -53,12 +53,12 @@ Team access is read from the team on every request, so there is nothing to refre
 ## Git data
 
 ```bash
-sxcurl "$SX/repos/dana/gitfs/git/tree?path=src"           # a directory
-sxcurl "$SX/repos/dana/gitfs/git/blob?path=README.md"     # a file, as text or base64
-sxcurl "$SX/repos/dana/gitfs/git/raw?path=logo.png" -o logo.png
-sxcurl "$SX/repos/dana/gitfs/git/commits?limit=20"        # history, newest first
-sxcurl "$SX/repos/dana/gitfs/git/commits/3c2646a"         # one commit
-sxcurl "$SX/repos/dana/gitfs/git/commits/3c2646a/diff"    # what it changed
+cbcurl "$CB/repos/dana/gitfs/git/tree?path=src"           # a directory
+cbcurl "$CB/repos/dana/gitfs/git/blob?path=README.md"     # a file, as text or base64
+cbcurl "$CB/repos/dana/gitfs/git/raw?path=logo.png" -o logo.png
+cbcurl "$CB/repos/dana/gitfs/git/commits?limit=20"        # history, newest first
+cbcurl "$CB/repos/dana/gitfs/git/commits/3c2646a"         # one commit
+cbcurl "$CB/repos/dana/gitfs/git/commits/3c2646a/diff"    # what it changed
 ```
 
 - `ref` takes a branch or a commit id. The tree answers with the full commit id it resolved to, so you can keep reading the same snapshot while the branch moves.

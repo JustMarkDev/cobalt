@@ -300,7 +300,7 @@ function generated(id: string, s: Sample, end: number): Array<FixtureCommit> {
 }
 
 const authorEmail = (name: string) =>
-  `${people.find(([n]) => n === name)?.[1] ?? name.split(' ')[0].toLowerCase()}@users.source.code`
+  `${people.find(([n]) => n === name)?.[1] ?? name.split(' ')[0].toLowerCase()}@users.cobaltforge.dev`
 
 /** Every commit of a repository, oldest first: the generated ones, then the written ones. */
 function history(id: string): Array<FixtureCommit> | undefined {

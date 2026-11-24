@@ -3,7 +3,7 @@ import { LegalPage, LegalSection } from '~/components/forge/legal'
 
 export const Route = createFileRoute('/privacy')({
   head: () => ({
-    meta: [{ title: 'Privacy policy · source.code' }],
+    meta: [{ title: 'Privacy policy · cobalt' }],
   }),
   component: Privacy,
 })
@@ -24,12 +24,12 @@ function Privacy() {
     <LegalPage
       title="Privacy policy"
       updated="Draft of November 21, 2026"
-      intro="What source.code collects, why, who can see it, and how to take it with you. It is written in plain words on purpose."
+      intro="What cobalt collects, why, who can see it, and how to take it with you. It is written in plain words on purpose."
       sections={sections}
     >
       <LegalSection id="who" title="Who we are">
         <p>
-          source.code is operated by Marco Procopio. It hosts git repositories,
+          cobalt is operated by Marco Procopio. It hosts git repositories,
           reviews changes and lands them under policies you set. There is no
           contact address for privacy questions yet; choosing one is the first
           item under &ldquo;Still to be decided&rdquo;.
@@ -114,8 +114,8 @@ function Privacy() {
 
       <LegalSection id="where" title="Where it lives and who handles it">
         <p>
-          source.code is hosted in the United States. These companies process
-          data for us, only to run the service:
+          cobalt is hosted in the United States. These companies process data
+          for us, only to run the service:
         </p>
         <ul>
           <li>

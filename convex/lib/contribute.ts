@@ -1,4 +1,4 @@
-import { contributionRefusal } from '@source-code/api/via'
+import { contributionRefusal } from '@cobaltforge/api/via'
 import { fail } from './errors'
 import type { Actor } from './actor'
 import type { Doc } from '../_generated/dataModel'

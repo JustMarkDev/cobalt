@@ -13,7 +13,7 @@ on a fix and a disclosure date with you, and credit you if you want that.
 ## What is covered
 
 The code in this repository: the web app and server, the HTTP API under
-`/api/v1`, the OAuth and MCP endpoints, the `sx` command line and the
+`/api/v1`, the OAuth and MCP endpoints, the `cb` command line and the
 TypeScript SDK.
 
 ## Supported versions
@@ -24,6 +24,6 @@ branches yet.
 ## What the sample data is
 
 The API and CLI run on sample data today. Sample tokens such as
-`sxp_dana_full_access_0001` are public on purpose and grant nothing real.
+`cbp_dana_full_access_0001` are public on purpose and grant nothing real.
 Reporting them is not necessary. A way to use a sample token against a real
 deployment is a vulnerability: please report that.

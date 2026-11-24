@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { SxError, exit } from './output'
+import { CbError, exit } from './output'
 
-/** Every key sx reads, with its default. Documented in docs/cli/config. */
+/** Every key cb reads, with its default. Documented in docs/cli/config. */
 export const defaults = {
-  host: 'https://source.code',
+  host: 'https://cobaltforge.dev',
   /** The API to talk to. Empty runs the preview's sample data in this process. */
   api: '',
   account: '',
@@ -25,8 +25,8 @@ export function isKey(k: string): k is Key {
 
 export function configPath(): string {
   const dir =
-    process.env.SX_CONFIG_DIR ??
-    join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'sx')
+    process.env.CB_CONFIG_DIR ??
+    join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'cb')
   return join(dir, 'config.json')
 }
 
@@ -36,10 +36,10 @@ export function readConfig(): Partial<Record<Key, string>> {
   try {
     return JSON.parse(readFileSync(p, 'utf8')) as Partial<Record<Key, string>>
   } catch {
-    throw new SxError(
+    throw new CbError(
       'config_invalid',
       `${p} is not valid JSON.`,
-      `Fix the file or delete it. sx config path prints its location.`,
+      `Fix the file or delete it. cb config path prints its location.`,
       exit.error,
     )
   }
@@ -51,9 +51,9 @@ export function writeConfig(next: Partial<Record<Key, string>>) {
   writeFileSync(p, JSON.stringify(next, null, 2) + '\n')
 }
 
-/** Environment beats the file, the file beats the default. `SX_HOST`, `SX_HANDOFF_TO`, … */
+/** Environment beats the file, the file beats the default. `CB_HOST`, `CB_HANDOFF_TO`, … */
 export function resolve(key: Key): { value: string; from: string } {
-  const env = process.env[`SX_${key.toUpperCase().replace('.', '_')}`]
+  const env = process.env[`CB_${key.toUpperCase().replace('.', '_')}`]
   if (env) return { value: env, from: 'env' }
   const file = readConfig()[key]
   if (file !== undefined) return { value: file, from: 'file' }

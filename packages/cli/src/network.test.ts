@@ -16,8 +16,8 @@ import {
   expect,
   test,
 } from 'bun:test'
-import { createSampleApi } from '@source-code/api'
-import { sampleTokens } from '@source-code/api/sample'
+import { createSampleApi } from '@cobaltforge/api'
+import { sampleTokens } from '@cobaltforge/api/sample'
 import { clientFor } from './client'
 import { signIn } from './commands/auth'
 import { readCredentials } from './credentials'
@@ -34,7 +34,7 @@ const api = createSampleApi({
   ephemeralSecrets: true,
 })
 
-async function sx(
+async function cb(
   env: Record<string, string | undefined>,
   ...argv: Array<string>
 ) {
@@ -71,23 +71,23 @@ afterAll(() => void server.stop(true))
 
 let dir = ''
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'sx-net-'))
+  dir = mkdtempSync(join(tmpdir(), 'cb-net-'))
 })
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
 describe('over the network', () => {
   const net = () => ({
-    SX_API: base,
-    SX_TOKEN: sampleTokens.dana,
-    SX_CONFIG_DIR: dir,
-    SX_ACCOUNT: undefined,
-    SX_REPO: undefined,
+    CB_API: base,
+    CB_TOKEN: sampleTokens.dana,
+    CB_CONFIG_DIR: dir,
+    CB_ACCOUNT: undefined,
+    CB_REPO: undefined,
   })
 
   test('the same command gives the same answer as in-process', async () => {
-    const over = await sx(net(), 'change', 'view', '216', '-R', 'dana/gitfs')
-    const local = await sx(
-      { SX_API: undefined, SX_CONFIG_DIR: dir },
+    const over = await cb(net(), 'change', 'view', '216', '-R', 'dana/gitfs')
+    const local = await cb(
+      { CB_API: undefined, CB_CONFIG_DIR: dir },
       'change',
       'view',
       '216',
@@ -100,7 +100,7 @@ describe('over the network', () => {
       return JSON.stringify(j)
         .replaceAll(base, 'H')
         .replaceAll('http://placeholder/v1', 'H')
-        .replaceAll('https://api.source.code/v1', 'H')
+        .replaceAll('https://api.cobaltforge.dev/v1', 'H')
     }
     expect(over.code).toBe(0)
     expect(JSON.parse(over.out).blockers.length).toBeGreaterThan(0)
@@ -108,23 +108,23 @@ describe('over the network', () => {
   })
 
   test('errors keep their code, hint and exit code over the wire', async () => {
-    const r = await sx(net(), 'change', 'land', '216', '-R', 'dana/gitfs')
+    const r = await cb(net(), 'change', 'land', '216', '-R', 'dana/gitfs')
     expect(r.code).toBe(5)
     expect(JSON.parse(r.err).error).toMatchObject({ code: 'policy_blocked' })
     expect(
-      (await sx(net(), 'change', 'view', '999', '-R', 'dana/gitfs')).code,
+      (await cb(net(), 'change', 'view', '999', '-R', 'dana/gitfs')).code,
     ).toBe(3)
   })
 
   test('without a token it says how to sign in, and exits 4', async () => {
-    const r = await sx({ ...net(), SX_TOKEN: undefined }, 'repo', 'list')
+    const r = await cb({ ...net(), CB_TOKEN: undefined }, 'repo', 'list')
     expect(r.code).toBe(4)
-    expect(JSON.parse(r.err).error.hint).toContain('sx auth login')
+    expect(JSON.parse(r.err).error.hint).toContain('cb auth login')
   })
 
   test('a wrong token is refused by the server', async () => {
-    const r = await sx(
-      { ...net(), SX_TOKEN: 'sxp_totally_wrong_token_value' },
+    const r = await cb(
+      { ...net(), CB_TOKEN: 'cbp_totally_wrong_token_value' },
       'repo',
       'list',
     )
@@ -133,7 +133,7 @@ describe('over the network', () => {
   })
 
   test('a renamed repository is followed, even for a write', async () => {
-    const r = await sx(
+    const r = await cb(
       net(),
       'issue',
       'create',
@@ -146,7 +146,7 @@ describe('over the network', () => {
   })
 
   test('auth status asks the server who the token is', async () => {
-    const r = JSON.parse((await sx(net(), 'auth', 'status')).out)
+    const r = JSON.parse((await cb(net(), 'auth', 'status')).out)
     expect(r).toMatchObject({
       authenticated: true,
       login: 'dana',
@@ -156,8 +156,8 @@ describe('over the network', () => {
   })
 
   test('an agent token is limited: a triage bot cannot land', async () => {
-    const r = await sx(
-      { ...net(), SX_TOKEN: sampleTokens.issuesOnly },
+    const r = await cb(
+      { ...net(), CB_TOKEN: sampleTokens.issuesOnly },
       'change',
       'land',
       '216',
@@ -187,7 +187,7 @@ describe('signing in with a code', () => {
         return Response.json({ client_id: 'cl_test' }, { status: 201 })
       if (url.endsWith('/oauth/device_authorization'))
         return Response.json({
-          device_code: 'sxd_x',
+          device_code: 'cbd_x',
           user_code: 'BCDF-GHJK',
           verification_uri: 'https://x/device',
           verification_uri_complete: 'https://x/device?user_code=BCDF-GHJK',
@@ -217,8 +217,8 @@ describe('signing in with a code', () => {
   }
 
   test('waits while pending, slows down when told, then saves the tokens readable by you only', async () => {
-    process.env.SX_CONFIG_DIR = dir
-    process.env.SX_API = 'https://api.example.com/v1'
+    process.env.CB_CONFIG_DIR = dir
+    process.env.CB_API = 'https://api.example.com/v1'
     try {
       const { f, calls } = stub([
         [400, { error: 'authorization_pending' }],
@@ -226,8 +226,8 @@ describe('signing in with a code', () => {
         [
           200,
           {
-            access_token: 'sxo_access_token_value',
-            refresh_token: 'sxf_refresh_token_value',
+            access_token: 'cbo_access_token_value',
+            refresh_token: 'cbf_refresh_token_value',
             expires_in: 3600,
             scope: 'repo:read',
           },
@@ -253,21 +253,21 @@ describe('signing in with a code', () => {
       const creds = readCredentials('https://api.example.com/v1')!
       expect(creds).toMatchObject({
         client_id: 'cl_test',
-        access_token: 'sxo_access_token_value',
-        refresh_token: 'sxf_refresh_token_value',
+        access_token: 'cbo_access_token_value',
+        refresh_token: 'cbf_refresh_token_value',
       })
       expect(statSync(join(dir, 'credentials.json')).mode & 0o777).toBe(0o600)
-      expect(calls.some((x) => x.body.includes('device_code=sxd_x'))).toBe(true)
+      expect(calls.some((x) => x.body.includes('device_code=cbd_x'))).toBe(true)
       expect(readCredentials('https://other.example.com/v1')).toBeNull()
     } finally {
-      delete process.env.SX_CONFIG_DIR
-      delete process.env.SX_API
+      delete process.env.CB_CONFIG_DIR
+      delete process.env.CB_API
     }
   })
 
   test('a denied or expired code is a clear failure', async () => {
-    process.env.SX_CONFIG_DIR = dir
-    process.env.SX_API = 'https://api.example.com/v1'
+    process.env.CB_CONFIG_DIR = dir
+    process.env.CB_API = 'https://api.example.com/v1'
     try {
       for (const [error, words] of [
         ['access_denied', 'denied'],
@@ -283,22 +283,22 @@ describe('signing in with a code', () => {
       }
       expect(existsSync(join(dir, 'credentials.json'))).toBe(false)
     } finally {
-      delete process.env.SX_CONFIG_DIR
-      delete process.env.SX_API
+      delete process.env.CB_CONFIG_DIR
+      delete process.env.CB_API
     }
   })
 
   test("with no API set it signs in to the host's and remembers it", async () => {
-    process.env.SX_CONFIG_DIR = dir
-    process.env.SX_HOST = 'https://forge.example.com'
-    delete process.env.SX_API
+    process.env.CB_CONFIG_DIR = dir
+    process.env.CB_HOST = 'https://forge.example.com'
+    delete process.env.CB_API
     try {
       const { f, calls } = stub([
         [
           200,
           {
-            access_token: 'sxo_access_token_value',
-            refresh_token: 'sxf_refresh_token_value',
+            access_token: 'cbo_access_token_value',
+            refresh_token: 'cbf_refresh_token_value',
             expires_in: 3600,
             scope: 'repo:read',
           },
@@ -310,14 +310,14 @@ describe('signing in with a code', () => {
       )
       const forge = 'https://forge.example.com/api/v1'
       expect(readCredentials(forge)?.access_token).toBe(
-        'sxo_access_token_value',
+        'cbo_access_token_value',
       )
       expect(
         JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).api,
       ).toBe(forge)
     } finally {
-      delete process.env.SX_CONFIG_DIR
-      delete process.env.SX_HOST
+      delete process.env.CB_CONFIG_DIR
+      delete process.env.CB_HOST
     }
   })
 
@@ -334,10 +334,10 @@ describe('signing in with a code', () => {
     })
     const url = `http://127.0.0.1:${srv.port}/v1`
     const env = {
-      SX_API: url,
-      SX_CONFIG_DIR: dir,
-      SX_TOKEN: undefined,
-      SX_ACCOUNT: undefined,
+      CB_API: url,
+      CB_CONFIG_DIR: dir,
+      CB_TOKEN: undefined,
+      CB_ACCOUNT: undefined,
     }
     try {
       // The "browser": sign in as dana and approve the code the CLI prints.
@@ -348,7 +348,7 @@ describe('signing in with a code', () => {
           redirect: 'manual',
           headers: {
             'content-type': 'application/x-www-form-urlencoded',
-            origin: 'https://source.code',
+            origin: 'https://cobaltforge.dev',
           },
           body: 'handle=dana&return_to=/',
         })
@@ -369,8 +369,8 @@ describe('signing in with a code', () => {
         await post({ user_code: userCode })
         await post({ user_code: userCode, decision: 'approve' })
       }
-      Object.assign(process.env, { SX_API: url, SX_CONFIG_DIR: dir })
-      delete process.env.SX_TOKEN
+      Object.assign(process.env, { CB_API: url, CB_CONFIG_DIR: dir })
+      delete process.env.CB_TOKEN
       const c = ctx()
       const loginDone = signIn(
         c.ctx,
@@ -390,33 +390,33 @@ describe('signing in with a code', () => {
       let approved = false
       await loginDone
       const creds = readCredentials(url)!
-      expect(creds.access_token).toMatch(/^sxo_/)
-      const who = await sx(env, 'auth', 'status')
+      expect(creds.access_token).toMatch(/^cbo_/)
+      const who = await cb(env, 'auth', 'status')
       expect(JSON.parse(who.out)).toMatchObject({
         authenticated: true,
         via: 'credentials',
       })
-      // With a stored token and no SX_TOKEN, calls work.
-      const list = await sx(env, 'repo', 'list')
+      // With a stored token and no CB_TOKEN, calls work.
+      const list = await cb(env, 'repo', 'list')
       expect(list.code, list.err).toBe(0)
       // An expired token is refreshed, and the new refresh token is saved.
       const file = join(dir, 'credentials.json')
       const stale = { ...creds, expires_at: Date.now() - 1000 }
       await Bun.write(file, JSON.stringify(stale))
-      expect((await sx(env, 'repo', 'list')).code).toBe(0)
+      expect((await cb(env, 'repo', 'list')).code).toBe(0)
       const after = JSON.parse(readFileSync(file, 'utf8'))
       expect(after.refresh_token).not.toBe(creds.refresh_token)
       expect(after.expires_at).toBeGreaterThan(Date.now())
       // Logging out revokes on the server.
-      expect((await sx(env, 'auth', 'logout')).code).toBe(0)
+      expect((await cb(env, 'auth', 'logout')).code).toBe(0)
       expect(existsSync(file)).toBe(false)
       const dead = await fetch(`${url}/auth/principal`, {
         headers: { authorization: `Bearer ${after.access_token}` },
       })
       expect(dead.status).toBe(401)
     } finally {
-      delete process.env.SX_API
-      delete process.env.SX_CONFIG_DIR
+      delete process.env.CB_API
+      delete process.env.CB_CONFIG_DIR
       void srv.stop(true)
     }
   }, 30_000)

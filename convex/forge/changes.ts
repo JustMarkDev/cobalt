@@ -1,15 +1,15 @@
 import { assertMayTouch, hiddenChangeNumbers } from '../lib/accessRules'
-import { pathRefusal, touchedFiles } from '@source-code/api/paths'
+import { pathRefusal, touchedFiles } from '@cobaltforge/api/paths'
 import { attachUpload, evidenceFits, evidenceUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
-import { changeTarget } from '@source-code/api/lifecycles'
+import { changeTarget } from '@cobaltforge/api/lifecycles'
 import { v } from 'convex/values'
 import { assertMayContribute } from '../lib/contribute'
-import { contributionRefusal } from '@source-code/api/via'
-import { rulesReadChangedFiles } from '@source-code/api/policy-builtins'
+import { contributionRefusal } from '@cobaltforge/api/via'
+import { rulesReadChangedFiles } from '@cobaltforge/api/policy-builtins'
 import { sha1 } from '@noble/hashes/legacy.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { newId } from '@source-code/api/ids'
+import { newId } from '@cobaltforge/api/ids'
 import { internal } from '../_generated/api'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
@@ -27,26 +27,26 @@ import {
 import { fail, finish, out } from '../lib/errors'
 import { actorFor, counters, emit, viaOf } from '../lib/events'
 import { keysetPage } from '../lib/paginate'
-import { changeBlame } from '@source-code/api/provenance'
-import { landingWaits } from '@source-code/api/policy-file'
+import { changeBlame } from '@cobaltforge/api/provenance'
+import { landingWaits } from '@cobaltforge/api/policy-file'
 import {
   hasAfterSteps,
   landingPlan,
   presentSteps,
-} from '@source-code/api/landing'
-import type { LandingStepRec } from '@source-code/api/landing'
+} from '@cobaltforge/api/landing'
+import type { LandingStepRec } from '@cobaltforge/api/landing'
 import { readLandedPolicy } from '../lib/policyFile'
 import { readLandedTriggers } from '../lib/triggerFile'
 import { dispatchTriggers } from './triggers'
-import { issueRefs } from '@source-code/api/references'
-import { fileKey, presentSeen } from '@source-code/api/seen'
-import { checkGuide, presentGuide } from '@source-code/api/guides'
+import { issueRefs } from '@cobaltforge/api/references'
+import { fileKey, presentSeen } from '@cobaltforge/api/seen'
+import { checkGuide, presentGuide } from '@cobaltforge/api/guides'
 import {
   addressThreads,
   anchorAt,
   placeThreads,
-} from '@source-code/api/anchors'
-import type { Anchor } from '@source-code/api/anchors'
+} from '@cobaltforge/api/anchors'
+import type { Anchor } from '@cobaltforge/api/anchors'
 import { iso, repoUrl, urls } from '../lib/present'
 import {
   branchOwner,
@@ -60,7 +60,7 @@ import {
   viewFor,
 } from '../lib/changes'
 import type { Actor, Via } from '../lib/actor'
-import { serverReceipt } from '@source-code/api/via'
+import { serverReceipt } from '@cobaltforge/api/via'
 import type { ActorRef } from '../lib/events'
 import type { ChangeView, Loaded } from '../lib/changes'
 import type {

@@ -3,7 +3,7 @@ import { v } from 'convex/values'
 
 /**
  * Repositories belong to an account. An account is a person or an
- * organization, and both live in one namespace (`source.code/<handle>`), so a
+ * organization, and both live in one namespace (`cobaltforge.dev/<handle>`), so a
  * name can never mean two things. A login is a person; a person can be a
  * member of any number of organizations and acts as one account at a time.
  */

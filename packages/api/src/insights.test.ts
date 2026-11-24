@@ -13,7 +13,7 @@ describe('repository insights', () => {
     expect(r.commits.by_model[0].model).toBeNull()
     await h.call('POST', '/repos/dana/gitfs/changes', {
       body: { branch: 'by-model' },
-      headers: { 'sx-model': 'Claude Opus 5.5' },
+      headers: { 'cb-model': 'Claude Opus 5.5' },
     })
     const after = (await h.call('GET', '/repos/dana/gitfs/insights')).json
     expect(after.commits.by_model).toContainEqual({

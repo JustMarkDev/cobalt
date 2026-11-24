@@ -1,4 +1,4 @@
-import { SxError, exit } from './output'
+import { CbError, exit } from './output'
 import { version } from './help'
 import { resolve } from './config'
 import {
@@ -8,11 +8,11 @@ import {
 } from './credentials'
 
 /**
- * How sx talks to source.code. Every command is a call to the HTTP API, so the
+ * How cb talks to cobalt. Every command is a call to the HTTP API, so the
  * CLI, the MCP server and your own scripts see the same data, the same rules
  * and the same error codes.
  *
- * With `SX_API` and `SX_TOKEN` set it goes over the network. Without them it
+ * With `CB_API` and `CB_TOKEN` set it goes over the network. Without them it
  * runs the API in this process on sample data, which is what the preview
  * offers until the hosted service is live.
  */
@@ -32,29 +32,29 @@ type Init = {
   dryRun?: boolean
 }
 
-/** An API error is already in the shape sx prints. */
-function toSxError(status: number, problem: Record<string, unknown>): SxError {
+/** An API error is already in the shape cb prints. */
+function toSxError(status: number, problem: Record<string, unknown>): CbError {
   const code = typeof problem.code === 'string' ? problem.code : 'api_error'
   const detail =
     typeof problem.detail === 'string' ? problem.detail : 'The request failed.'
   const hint = typeof problem.hint === 'string' ? problem.hint : undefined
   const exitCode =
     typeof problem.exit_code === 'number' ? problem.exit_code : exit.error
-  const e = new SxError(code, detail, hint, exitCode)
+  const e = new CbError(code, detail, hint, exitCode)
   Object.assign(e, { problem, httpStatus: status })
   return e
 }
 
 /**
- * What this process says it is, on every request: the tool (`Sx-Tool`) and
- * the model behind it (`Sx-Model`). They go on the receipt of every write.
- * An orchestrator sets them for the agents it starts (`SX_TOOL`, `SX_MODEL`);
+ * What this process says it is, on every request: the tool (`Cb-Tool`) and
+ * the model behind it (`Cb-Model`). They go on the receipt of every write.
+ * An orchestrator sets them for the agents it starts (`CB_TOOL`, `CB_MODEL`);
  * the MCP server fills the tool in from the client that connected. A
  * repository can decline changes declared with a given model.
  */
 export const declared: { tool: string; model: string | null } = {
-  tool: process.env.SX_TOOL || 'sx',
-  model: process.env.SX_MODEL || null,
+  tool: process.env.CB_TOOL || 'cb',
+  model: process.env.CB_MODEL || null,
 }
 
 export class ApiClient {
@@ -75,9 +75,9 @@ export class ApiClient {
     const qs = query.size ? `?${query}` : ''
     const headers: Record<string, string> = {
       accept: 'application/json',
-      'user-agent': `sx-cli/${version}`,
-      'sx-tool': this.tool ?? declared.tool,
-      ...(declared.model ? { 'sx-model': declared.model } : {}),
+      'user-agent': `cb-cli/${version}`,
+      'cb-tool': this.tool ?? declared.tool,
+      ...(declared.model ? { 'cb-model': declared.model } : {}),
       ...init.headers,
     }
     const token =
@@ -96,11 +96,11 @@ export class ApiClient {
           new Request(url, { method, headers, body, redirect: 'manual' }),
         )
       } catch (e) {
-        if (e instanceof SxError) throw e
-        throw new SxError(
+        if (e instanceof CbError) throw e
+        throw new CbError(
           'network',
           `Could not reach ${this.base}: ${e instanceof Error ? e.message : String(e)}`,
-          'Check SX_API and your connection.',
+          'Check CB_API and your connection.',
           exit.error,
         )
       }
@@ -110,10 +110,10 @@ export class ApiClient {
       if (to) {
         const next = new URL(to, url)
         if (next.origin !== new URL(url).origin)
-          throw new SxError(
+          throw new CbError(
             'redirect_refused',
-            `The server pointed to another host (${next.origin}); sx does not send your login there.`,
-            'Check SX_API.',
+            `The server pointed to another host (${next.origin}); cb does not send your login there.`,
+            'Check CB_API.',
             exit.error,
           )
         url = next.href
@@ -137,7 +137,7 @@ export class ApiClient {
         )
       return { status: res.status, headers: res.headers, json }
     }
-    throw new SxError(
+    throw new CbError(
       'too_many_redirects',
       'The address kept moving.',
       'Check the repository name.',
@@ -167,22 +167,22 @@ let sample: Promise<SampleApi> | undefined
 
 /** The preview's API, in this process. State lasts as long as the process. */
 function sampleApi(): Promise<SampleApi> {
-  // The sample lives in the source.code repository. An installed sx has no
+  // The sample lives in the cobalt repository. An installed cb has no
   // copy, so there the only way on is to sign in.
-  sample ??= import('@source-code/api').then(
+  sample ??= import('@cobaltforge/api').then(
     (m) =>
       m.createSampleApi({
         mount: '/v1',
-        base: 'https://api.source.code/v1',
+        base: 'https://api.cobaltforge.dev/v1',
         allowPrivateWebhooks: false,
         // Sample values, sealed for as long as this process runs.
         ephemeralSecrets: true,
       }) as SampleApi,
     () => {
-      throw new SxError(
+      throw new CbError(
         'unauthenticated',
         'You are not signed in.',
-        'Run sx auth login, or set SX_TOKEN to a token from Settings, Agents and tokens.',
+        'Run cb auth login, or set CB_TOKEN to a token from Settings, Agents and tokens.',
         exit.auth,
       )
     },
@@ -190,11 +190,11 @@ function sampleApi(): Promise<SampleApi> {
   return sample
 }
 
-export const SAMPLE_BASE = 'https://api.source.code/v1'
+export const SAMPLE_BASE = 'https://api.cobaltforge.dev/v1'
 
 // The sample's tokens are in the repository, so they only exist here.
-const SAMPLE_PERSON = 'sxp_dana_full_access_0001'
-const SAMPLE_SCOPED = 'sxp_dana_scoped_gitfs_03'
+const SAMPLE_PERSON = 'cbp_dana_full_access_0001'
+const SAMPLE_SCOPED = 'cbp_dana_scoped_gitfs_03'
 
 /**
  * A stored access token, refreshed shortly before it expires. Requests made
@@ -228,10 +228,10 @@ async function refresh(
   })
   if (!res.ok) {
     clearCredentials()
-    throw new SxError(
+    throw new CbError(
       'unauthenticated',
       'Your sign-in expired.',
-      'Run sx auth login.',
+      'Run cb auth login.',
       exit.auth,
     )
   }
@@ -254,21 +254,21 @@ async function refresh(
 
 export function makeClient(): ApiClient {
   const api = resolve('api').value
-  const token = process.env.SX_TOKEN
+  const token = process.env.CB_TOKEN
   if (api) {
     const base = api.replace(/\/$/, '')
     const provider = token ? token : storedToken(base)
     if (!provider)
-      throw new SxError(
+      throw new CbError(
         'unauthenticated',
         'You are not signed in.',
-        'Run sx auth login, or set SX_TOKEN to a token from Settings, Agents and tokens.',
+        'Run cb auth login, or set CB_TOKEN to a token from Settings, Agents and tokens.',
         exit.auth,
       )
     return new ApiClient(base, provider, (req) => fetch(req), 'network')
   }
-  // SX_SAMPLE_TOKEN=scoped tries the narrower token dana made for her agent.
-  const scoped = process.env.SX_SAMPLE_TOKEN === 'scoped'
+  // CB_SAMPLE_TOKEN=scoped tries the narrower token dana made for her agent.
+  const scoped = process.env.CB_SAMPLE_TOKEN === 'scoped'
   return new ApiClient(
     SAMPLE_BASE,
     scoped ? SAMPLE_SCOPED : SAMPLE_PERSON,
@@ -283,8 +283,8 @@ export function clientFor(base: string, token: string, transport: Transport) {
 }
 
 /**
- * A client for a runner's own token (`SX_RUNNER_TOKEN`): the network when
- * `SX_API` is set, else the sample in this process.
+ * A client for a runner's own token (`CB_RUNNER_TOKEN`): the network when
+ * `CB_API` is set, else the sample in this process.
  */
 export function runnerClient(token: string): ApiClient {
   const api = resolve('api').value

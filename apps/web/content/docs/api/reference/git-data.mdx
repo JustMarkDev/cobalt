@@ -47,8 +47,8 @@ The contents as text, or base64 when the file is not valid UTF-8. Files over 1 M
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/git/blob?path=README.md" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/blob?path=README.md" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -105,13 +105,13 @@ Follows a cursor through the newest 1,000 commits.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/git/commits?limit=1" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/commits?limit=1" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"XMVDsXd5DShJu4S8"
+etag: W/"1hsqoNdifieUopBB"
 ratelimit: "read";r=1122;t=60
 ```
 
@@ -122,16 +122,16 @@ ratelimit: "read";r=1122;t=60
     {
       "object": "commit",
       "sha": "1b7880d028f90a3eaac9e41bb3c28086691e29ba",
-      "url": "https://api.source.code/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba",
       "parents": ["bce63d66c1910577f78deb23221f6494c69b3015"],
       "message": "Cache negative ref lookups",
       "author": {
         "name": "Dana Okafor",
-        "email": "dana@users.source.code"
+        "email": "dana@users.cobaltforge.dev"
       },
       "committer": {
         "name": "Dana Okafor",
-        "email": "dana@users.source.code"
+        "email": "dana@users.cobaltforge.dev"
       },
       "date": "2026-10-20T16:45:00.000Z",
       "actor": {
@@ -177,13 +177,13 @@ ratelimit: "read";r=1122;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"_DRGRCiuIWu3YXlH"
+etag: W/"1F-VIV_ebQijzXUH"
 ratelimit: "read";r=1120;t=60
 ```
 
@@ -191,16 +191,16 @@ ratelimit: "read";r=1120;t=60
 {
   "object": "commit",
   "sha": "1b7880d028f90a3eaac9e41bb3c28086691e29ba",
-  "url": "https://api.source.code/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba",
   "parents": ["bce63d66c1910577f78deb23221f6494c69b3015"],
   "message": "Cache negative ref lookups",
   "author": {
     "name": "Dana Okafor",
-    "email": "dana@users.source.code"
+    "email": "dana@users.cobaltforge.dev"
   },
   "committer": {
     "name": "Dana Okafor",
-    "email": "dana@users.source.code"
+    "email": "dana@users.cobaltforge.dev"
   },
   "date": "2026-10-20T16:45:00.000Z",
   "actor": {
@@ -244,8 +244,8 @@ Per file: state, counts and the unified diff, each cut at 64 KB (`truncated` say
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba/diff" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/commits/1b7880d028f90a3eaac9e41bb3c28086691e29ba/diff" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -314,8 +314,8 @@ The bytes, with no JSON around them. Served as an attachment with `nosniff` and 
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/git/raw?path=README.md" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/raw?path=README.md" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -362,8 +362,8 @@ The files and directories directly under `path`, directories first. With `recurs
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/git/tree" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/tree" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http

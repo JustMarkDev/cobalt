@@ -94,7 +94,7 @@ describe('creating an organization', () => {
       body: { handle: 'harbor-tools', name: 'Harbor Tools' },
     })
     expect(made.status).toBe(201)
-    expect(made.headers.get('sx-outcome')).toBe('created')
+    expect(made.headers.get('cb-outcome')).toBe('created')
     expect(made.json).toMatchObject({
       kind: 'organization',
       handle: 'harbor-tools',
@@ -105,7 +105,7 @@ describe('creating an organization', () => {
       body: { handle: 'harbor-tools' },
     })
     expect(again.status).toBe(200)
-    expect(again.headers.get('sx-outcome')).toBe('unchanged')
+    expect(again.headers.get('cb-outcome')).toBe('unchanged')
     expect(again.json.id).toBe(made.json.id)
     // It is an account like any other: listed, and able to own repositories.
     const mine = await h.call('GET', '/accounts')
@@ -206,16 +206,16 @@ describe('members of an organization', () => {
       body: { role: 'member' },
     })
     expect(added.status).toBe(201)
-    expect(added.headers.get('sx-outcome')).toBe('created')
+    expect(added.headers.get('cb-outcome')).toBe('created')
     const raised = await h.call('PUT', `${MEMBERS}/stranger`, {
       body: { role: 'admin' },
     })
     expect(raised.status).toBe(200)
-    expect(raised.headers.get('sx-outcome')).toBe('updated')
+    expect(raised.headers.get('cb-outcome')).toBe('updated')
     const same = await h.call('PUT', `${MEMBERS}/stranger`, {
       body: { role: 'admin' },
     })
-    expect(same.headers.get('sx-outcome')).toBe('unchanged')
+    expect(same.headers.get('cb-outcome')).toBe('unchanged')
     // Membership is access: the new member now sees the organization.
     expect(
       (await h.call('GET', MEMBERS, { token: h.tokens.stranger })).status,
@@ -250,7 +250,7 @@ describe('members of an organization', () => {
       body: { role: 'admin' },
     })
     expect(byAdmin.status).toBe(200)
-    expect(byAdmin.headers.get('sx-outcome')).toBe('updated')
+    expect(byAdmin.headers.get('cb-outcome')).toBe('updated')
     for (const [login, role] of [
       ['hollis', 'owner'],
       ['stranger', 'owner'],
@@ -379,7 +379,7 @@ describe('invitations by email', () => {
     // The secret is in the email and nowhere in the API's answer.
     expect(mail.sent.length).toBe(1)
     expect(mail.sent[0].to).toBe('sam@example.com')
-    expect(mail.sent[0].text).toContain('/organizations/join?token=sxi_')
+    expect(mail.sent[0].text).toContain('/organizations/join?token=cbi_')
     expect(JSON.stringify(made.json)).not.toContain(tokenIn())
     expect((await h.call('GET', INV)).json.data.length).toBe(1)
 
@@ -412,7 +412,7 @@ describe('invitations by email', () => {
       body: { email: 'sam@example.com', role: 'admin' },
     })
     expect(second.status).toBe(200)
-    expect(second.headers.get('sx-outcome')).toBe('updated')
+    expect(second.headers.get('cb-outcome')).toBe('updated')
     expect(second.json.id).toBe(first.json.id)
     expect((await h.call('GET', INV)).json.data.length).toBe(1)
     const old = await h.call('POST', '/invitations/accept', {

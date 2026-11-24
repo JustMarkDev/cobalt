@@ -3,7 +3,7 @@
  * dashboard and the account's repositories into it.
  */
 import type { LinkProps } from '@tanstack/react-router'
-import type { Repo as ApiRepo, Dashboard } from '@source-code/sdk'
+import type { Repo as ApiRepo, Dashboard } from '@cobaltforge/sdk'
 import type { Activity, DashboardData, Health } from '~/lib/model/dashboard'
 import { timeAgo, toRepo } from '~/lib/repo'
 

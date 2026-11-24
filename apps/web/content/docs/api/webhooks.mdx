@@ -9,9 +9,9 @@ A webhook sends the events of one repository to a URL you choose. The body is th
 ## Create one
 
 ```bash
-curl -X POST "$SX/repos/dana/gitfs/webhooks" \
-  -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type: application/json" \
-  -d '{"endpoint":"https://hooks.example.com/source-code","events":["change.*","issue.created"]}'
+curl -X POST "$CB/repos/dana/gitfs/webhooks" \
+  -H "Authorization: Bearer $CB_TOKEN" -H "Content-Type: application/json" \
+  -d '{"endpoint":"https://hooks.example.com/cobalt","events":["change.*","issue.created"]}'
 ```
 
 The response is the only time the signing secret is shown (`whsec_…`). You need the `webhooks:write` scope and write access to the repository. A repository can have 10.
@@ -21,14 +21,14 @@ The response is the only time the signing secret is shown (`whsec_…`). You nee
 ## What arrives
 
 ```http
-POST /source-code HTTP/1.1
+POST /cobalt HTTP/1.1
 Content-Type: application/json
-User-Agent: source.code-webhooks/1
+User-Agent: cobalt-webhooks/1
 webhook-id: evt_01m6dqs9m0g7q74420
 webhook-timestamp: 1794128043
 webhook-signature: v1,K5oZfzN95Z9UVu1EsfQmfVNQhnkZ2QViiPMBQVWQMto=
-sx-event: change.landed
-sx-delivery: dlv_01m6dqs9m0g7q74421
+cb-event: change.landed
+cb-delivery: dlv_01m6dqs9m0g7q74421
 
 {"object":"event","id":"evt_01m6dqs9m0g7q74420","sequence":48211,"type":"change.landed", …}
 ```
@@ -95,8 +95,8 @@ Eight attempts over about 28 hours. Then the delivery is `failed`.
 ## Look at what happened
 
 ```bash
-curl "$SX/repos/dana/gitfs/webhooks/whk_…/deliveries?state=failed" -H "Authorization: Bearer $SX_TOKEN"
-curl "$SX/repos/dana/gitfs/webhooks/whk_…/deliveries/dlv_…"       # every attempt and the payload
+curl "$CB/repos/dana/gitfs/webhooks/whk_…/deliveries?state=failed" -H "Authorization: Bearer $CB_TOKEN"
+curl "$CB/repos/dana/gitfs/webhooks/whk_…/deliveries/dlv_…"       # every attempt and the payload
 ```
 
 Deliveries are kept up to 1,000 per webhook. Each attempt records the time, the status or the error, and how long it took.
@@ -105,10 +105,10 @@ Deliveries are kept up to 1,000 per webhook. Each attempt records the time, the 
 
 ```bash
 # One delivery again. A new delivery of the same event; webhook-id is unchanged.
-curl -X POST "$SX/repos/dana/gitfs/webhooks/whk_…/deliveries/dlv_…/redeliver" -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "$CB/repos/dana/gitfs/webhooks/whk_…/deliveries/dlv_…/redeliver" -H "Authorization: Bearer $CB_TOKEN"
 
 # Everything this endpoint subscribes to after sequence 48000, oldest first.
-curl -X POST "$SX/repos/dana/gitfs/webhooks/whk_…/replay" -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "$CB/repos/dana/gitfs/webhooks/whk_…/replay" -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" -d '{"after_sequence":48000,"limit":500}'
 ```
 
@@ -117,7 +117,7 @@ curl -X POST "$SX/repos/dana/gitfs/webhooks/whk_…/replay" -H "Authorization: B
 ## Rotate the secret without dropping anything
 
 ```bash
-curl -X POST "$SX/repos/dana/gitfs/webhooks/whk_…/rotate-secret" -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "$CB/repos/dana/gitfs/webhooks/whk_…/rotate-secret" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 The new secret is returned once. For 24 hours every delivery is signed with **both**, in one `webhook-signature` header separated by a space, so you can deploy the new secret and retire the old one with no gap.

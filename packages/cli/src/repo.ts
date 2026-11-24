@@ -1,4 +1,4 @@
-import { SxError, exit } from './output'
+import { CbError, exit } from './output'
 
 function git(args: Array<string>): string | undefined {
   try {
@@ -10,7 +10,7 @@ function git(args: Array<string>): string | undefined {
 }
 
 /**
- * What sx can work out from the folder you are in, so you never have to say
+ * What cb can work out from the folder you are in, so you never have to say
  * it. Each field runs its git command when it is first read: most commands
  * need only the repository, and every git process costs a few milliseconds.
  */
@@ -25,7 +25,7 @@ export function gitContext(): {
   }
   const slug = lazy(() =>
     git(['remote', 'get-url', 'origin'])
-      ?.match(/source\.code[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)
+      ?.match(/cobaltforge\.dev[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)
       ?.at(1),
   )
   const branch = lazy(() => git(['rev-parse', '--abbrev-ref', 'HEAD']))
@@ -50,19 +50,19 @@ export type RepoRef = {
   path: string
 }
 
-/** `-R owner/name`, then `SX_REPO`, then the git remote. Whether it exists is the API's to say. */
+/** `-R owner/name`, then `CB_REPO`, then the git remote. Whether it exists is the API's to say. */
 export function resolveRepo(flag: string | undefined): RepoRef {
-  const slug = flag ?? process.env.SX_REPO ?? gitContext().slug
+  const slug = flag ?? process.env.CB_REPO ?? gitContext().slug
   if (!slug)
-    throw new SxError(
+    throw new CbError(
       'repo_unknown',
       'Could not tell which repository you mean.',
-      'Run inside a clone, pass -R owner/name, or set SX_REPO.',
+      'Run inside a clone, pass -R owner/name, or set CB_REPO.',
       exit.usage,
     )
   const [owner, name, ...extra] = slug.split('/')
   if (!owner || !name || extra.length)
-    throw new SxError(
+    throw new CbError(
       'repo_unknown',
       `${slug} is not owner/name.`,
       'Pass -R owner/name.',

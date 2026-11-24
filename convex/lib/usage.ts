@@ -1,4 +1,4 @@
-import type { Usage } from '@source-code/api/plans'
+import type { Usage } from '@cobaltforge/api/plans'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 

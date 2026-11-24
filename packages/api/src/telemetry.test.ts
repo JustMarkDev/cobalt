@@ -114,7 +114,7 @@ test('without an endpoint nothing is sent', async () => {
 
 test('headers are read the way OpenTelemetry writes them', () => {
   expect(
-    headersOf('Authorization=Bearer%20a=b, X-Axiom-Dataset=source-code,bad'),
-  ).toEqual({ Authorization: 'Bearer a=b', 'X-Axiom-Dataset': 'source-code' })
+    headersOf('Authorization=Bearer%20a=b, X-Axiom-Dataset=cobalt,bad'),
+  ).toEqual({ Authorization: 'Bearer a=b', 'X-Axiom-Dataset': 'cobalt' })
   expect(headersOf(undefined)).toEqual({})
 })

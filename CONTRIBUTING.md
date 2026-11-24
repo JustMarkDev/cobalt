@@ -58,7 +58,7 @@ Read the README of the area you touch first.
 | HTTP API (`/api/v1`)   | `packages/api/README.md`             |
 | Server-side async code | `apps/web/src/lib/effect/README.md`  |
 | Convex (`convex/`)     | `convex/_generated/ai/guidelines.md` |
-| The `sx` CLI           | `packages/cli/`, with `bun test`     |
+| The `cb` CLI           | `packages/cli/`, with `bun test`     |
 
 ## Code
 

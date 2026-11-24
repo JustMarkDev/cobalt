@@ -609,7 +609,7 @@ const toolchainFor = (name: string): Toolchain =>
   name === 'tinyqueue' ? node : name === 'tern' || name === 'relay' ? go : rust
 
 const packaging: Array<LogLine> = [
-  { t: '$ sx release build --sign', level: 'cmd' },
+  { t: '$ cb release build --sign', level: 'cmd' },
   { t: 'Building 5 targets', level: 'info' },
   { t: 'macos arm64 ... ok', level: 'ok' },
   { t: 'macos x64 ... ok', level: 'ok' },

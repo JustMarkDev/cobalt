@@ -1,17 +1,17 @@
 ---
 icon: ArrowDownTrayIcon
 title: Install
-description: Get sx on your machine.
+description: Get cb on your machine.
 ---
 
-`sx` is a single TypeScript program that runs on [Bun](https://bun.sh).
+`cb` is a single TypeScript program that runs on [Bun](https://bun.sh).
 
 ```bash
-bun add -g @source-code/cli
-sx --version
+bun add -g @cobaltforge/cli
+cb --version
 ```
 
-From a checkout of the source.code repository you can run it directly:
+From a checkout of the cobalt repository you can run it directly:
 
 ```bash
 bun packages/cli/src/main.ts --help
@@ -20,11 +20,11 @@ bun packages/cli/src/main.ts --help
 ## Shell completion
 
 ```bash
-sx completion zsh  > "${fpath[1]}/_sx"
-sx completion bash > /etc/bash_completion.d/sx
-sx completion fish > ~/.config/fish/completions/sx.fish
+cb completion zsh  > "${fpath[1]}/_cb"
+cb completion bash > /etc/bash_completion.d/cb
+cb completion fish > ~/.config/fish/completions/cb.fish
 ```
 
 ## Updating
 
-Update it the way you installed it, for example `bun update -g @source-code/cli`. Settings in `~/.config/sx/config.json` are kept.
+Update it the way you installed it, for example `bun update -g @cobaltforge/cli`. Settings in `~/.config/cb/config.json` are kept.

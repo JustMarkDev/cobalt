@@ -38,26 +38,26 @@ export type ConvexCall = (
 /** The identity claims for a principal. The Convex side reads them in `convex/lib/actor.ts`. */
 export function claimsOf(who: Principal | 'system') {
   if (who === 'system')
-    return { subject: '~system', sx_api: 'true', sx_sys: 'true', sx_scp: '' }
+    return { subject: '~system', cb_api: 'true', cb_sys: 'true', cb_scp: '' }
   const via = receiptFor(who)
   const claims: Record<string, string> = {
     subject: who.handle,
-    sx_api: 'true',
-    sx_tok: who.tokenId,
-    sx_login: who.loginId,
-    sx_act: who.actingAs,
-    sx_scp: [...who.scopes].join(' '),
+    cb_api: 'true',
+    cb_tok: who.tokenId,
+    cb_login: who.loginId,
+    cb_act: who.actingAs,
+    cb_scp: [...who.scopes].join(' '),
   }
-  if (via.machine) claims.sx_dev = via.machine
-  if (via.tool) claims.sx_tool = via.tool
-  if (via.model) claims.sx_model = via.model
-  if (who.session) claims.sx_ses = 'true'
-  if (who.repos) claims.sx_rep = who.repos.join(',')
-  if (who.paths) claims.sx_pth = JSON.stringify(who.paths)
-  if (who.runnerId) claims.sx_run = who.runnerId
+  if (via.machine) claims.cb_dev = via.machine
+  if (via.tool) claims.cb_tool = via.tool
+  if (via.model) claims.cb_model = via.model
+  if (who.session) claims.cb_ses = 'true'
+  if (who.repos) claims.cb_rep = who.repos.join(',')
+  if (who.paths) claims.cb_pth = JSON.stringify(who.paths)
+  if (who.runnerId) claims.cb_run = who.runnerId
   // A write under an Idempotency-Key marks the key in its own transaction.
   const held = heldKey.getStore()
-  if (held) claims.sx_idem = JSON.stringify([held.scope, held.key, held.lease])
+  if (held) claims.cb_idem = JSON.stringify([held.scope, held.key, held.lease])
   return claims
 }
 
@@ -1414,7 +1414,7 @@ export class ConvexDomain implements DomainPort {
       { handle, since },
       p,
     )
-    const email = `${handle}@users.source.code`
+    const email = `${handle}@users.cobaltforge.dev`
     const pushes: Array<{ repo: string; at: number; title: string }> = []
     for (const full of repos) {
       let commits: Awaited<ReturnType<Attached['git']['commits']>> = []
@@ -1685,7 +1685,7 @@ export class ConvexDomain implements DomainPort {
     const commitTimes: Array<number> = []
     for (const r of f.owned)
       for (const c of await this.history(r.repo, 300))
-        if (c.author.email.toLowerCase() === `${me}@users.source.code`)
+        if (c.author.email.toLowerCase() === `${me}@users.cobaltforge.dev`)
           commitTimes.push(Date.parse(c.date))
     const bucket = (times: Array<number>) => {
       const days = Array.from({ length: 56 }, () => 0)

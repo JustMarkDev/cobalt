@@ -377,7 +377,7 @@ describe('values are sealed, and never leave any other way', () => {
     const h = harness()
     await h.call('GET', `${E}/development/values`, {
       token: sampleTokens.scoped,
-      headers: { 'sx-tool': 'T3 Code', 'sx-model': 'Claude Opus 5.5' },
+      headers: { 'cb-tool': 'T3 Code', 'cb-model': 'Claude Opus 5.5' },
     })
     const audit = (await h.call('GET', `${E}/audit`)).json.data
     expect(audit[0]).toMatchObject({
@@ -421,7 +421,7 @@ describe('a confirmation belongs to the login', () => {
     const mint = async () =>
       (
         await h.api.port.svc.auth.create({
-          name: 'sx command line',
+          name: 'cb command line',
           kind: 'oauth',
           handle: 'dana',
           device: 'Laptop',

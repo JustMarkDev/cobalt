@@ -1,6 +1,6 @@
 # Third-party notices
 
-source.code includes or depends on the components below. Each keeps its own license, which applies to that component and not to source.code's own code (see `LICENSE`). The dependency table is generated from `package.json` and the installed packages: run `bun scripts/third-party.ts` after dependencies change.
+cobalt includes or depends on the components below. Each keeps its own license, which applies to that component and not to cobalt's own code (see `LICENSE`). The dependency table is generated from `package.json` and the installed packages: run `bun scripts/third-party.ts` after dependencies change.
 
 ## Vendored code
 

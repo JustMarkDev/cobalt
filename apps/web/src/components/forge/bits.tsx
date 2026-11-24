@@ -234,7 +234,7 @@ export type Via = {
  */
 export function receiptText(via: Via | null | undefined): string {
   if (!via) return ''
-  const tool = via.tool === 'source.code' ? null : via.tool
+  const tool = via.tool === 'cobalt' ? null : via.tool
   const what =
     via.model && tool ? `${via.model} in ${tool}` : (via.model ?? tool ?? '')
   const where =

@@ -26,7 +26,7 @@ export const createRepo = defineOp({
   id: 'repos.create',
   summary: 'Create a repository',
   description:
-    'A bare name goes in the account you act as; set `owner` to use another. Naturally idempotent: asking for one that exists returns it with `Sx-Outcome: unchanged`. Members of an organization cannot create repositories there.',
+    'A bare name goes in the account you act as; set `owner` to use another. Naturally idempotent: asking for one that exists returns it with `Cb-Outcome: unchanged`. Members of an organization cannot create repositories there.',
   tags: ['repositories'],
   method: 'POST',
   path: '/repos',
@@ -69,7 +69,7 @@ export const createRepo = defineOp({
       return reply(r.repo, {
         status: r.created ? 201 : 200,
         headers: {
-          'sx-outcome': r.created ? 'created' : 'unchanged',
+          'cb-outcome': r.created ? 'created' : 'unchanged',
           ...(r.created ? { location: r.repo.url } : {}),
         },
       })
@@ -150,7 +150,7 @@ export const createMirror = defineOp({
   id: 'mirrors.create',
   summary: 'Add a mirror',
   description:
-    'Naturally idempotent: the same host and repository returns the existing mirror with `Sx-Outcome: unchanged`.',
+    'Naturally idempotent: the same host and repository returns the existing mirror with `Cb-Outcome: unchanged`.',
   tags: ['mirrors'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/mirrors',
@@ -204,7 +204,7 @@ export const createMirror = defineOp({
       })
       return reply(out.m, {
         status: out.created ? 201 : 200,
-        headers: { 'sx-outcome': out.created ? 'created' : 'unchanged' },
+        headers: { 'cb-outcome': out.created ? 'created' : 'unchanged' },
       })
     }),
 })
@@ -435,7 +435,7 @@ async function requireConfirmed(
     throw apiError(
       'confirmation_required',
       `Production values need you to confirm this login (${p.device}) first.`,
-      { hint: 'Run it for real to ask; sx prints where to confirm.' },
+      { hint: 'Run it for real to ask; cb prints where to confirm.' },
     )
   const { rec } = x.requestConfirmation({
     environment: env,
@@ -684,7 +684,7 @@ export const envValues = defineOp({
             'forbidden',
             'Values are never given to a page in a browser.',
             {
-              hint: 'Use sx env run or a token on the machine that needs them.',
+              hint: 'Use cb env run or a token on the machine that needs them.',
             },
           )
         const full = await d.repoAccessStrict(

@@ -540,18 +540,18 @@ export function GettingStarted({
       : {
           title: 'Install the CLI',
           body: 'It never asks a question and every command speaks JSON, so scripts and agents can use it.',
-          action: <CopyField value="bun add -g @source-code/cli" />,
+          action: <CopyField value="bun add -g @cobaltforge/cli" />,
         },
     org
       ? {
           title: 'Act as it from the CLI',
-          body: 'One login, any account. Switch once and every sx command works as the organization.',
-          action: <CopyField value={`sx account switch ${account.handle}`} />,
+          body: 'One login, any account. Switch once and every cb command works as the organization.',
+          action: <CopyField value={`cb account switch ${account.handle}`} />,
         }
       : {
           title: 'Teach your agents',
-          body: 'One command makes any coding agent fluent in sx, with scoped access and no secret values.',
-          action: <CopyField value="sx skill install" />,
+          body: 'One command makes any coding agent fluent in cb, with scoped access and no secret values.',
+          action: <CopyField value="cb skill install" />,
         },
   ]
   if (!org)

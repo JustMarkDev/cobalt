@@ -33,34 +33,34 @@ Links to every top-level collection, the OpenAPI document and the limits.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/"
+curl "https://api.cobaltforge.dev/v1/"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"nMlfKWgFZmSJEiVi"
+etag: W/"zv00HxHHWyrcCOqo"
 ```
 
 ```json
 {
   "object": "api",
-  "name": "source.code",
+  "name": "cobalt",
   "version": "2026-11-07",
   "versions": ["2026-11-07"],
   "links": {
-    "self": "https://api.source.code/v1",
-    "openapi": "https://api.source.code/v1/openapi.json",
-    "errors": "https://api.source.code/v1/errors",
-    "limits": "https://api.source.code/v1/limits",
-    "principal": "https://api.source.code/v1/auth/principal",
-    "accounts": "https://api.source.code/v1/accounts",
-    "repos": "https://api.source.code/v1/repos",
-    "events": "https://api.source.code/v1/events",
-    "sync": "https://api.source.code/v1/sync{?repo,cursor}",
-    "batch": "https://api.source.code/v1/batch",
-    "docs": "https://source.code/docs/api",
-    "mcp": "https://source.code/mcp",
-    "llms": "https://source.code/llms.txt"
+    "self": "https://api.cobaltforge.dev/v1",
+    "openapi": "https://api.cobaltforge.dev/v1/openapi.json",
+    "errors": "https://api.cobaltforge.dev/v1/errors",
+    "limits": "https://api.cobaltforge.dev/v1/limits",
+    "principal": "https://api.cobaltforge.dev/v1/auth/principal",
+    "accounts": "https://api.cobaltforge.dev/v1/accounts",
+    "repos": "https://api.cobaltforge.dev/v1/repos",
+    "events": "https://api.cobaltforge.dev/v1/events",
+    "sync": "https://api.cobaltforge.dev/v1/sync{?repo,cursor}",
+    "batch": "https://api.cobaltforge.dev/v1/batch",
+    "docs": "https://cobaltforge.dev/docs/api",
+    "mcp": "https://cobaltforge.dev/mcp",
+    "llms": "https://cobaltforge.dev/llms.txt"
   }
 }
 ```
@@ -88,8 +88,8 @@ The account, actor class, scopes, repositories and expiry of the token. Never ra
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/auth/principal" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/auth/principal" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -152,8 +152,8 @@ Up to 25 requests. They run in parallel, each is authorised, rate limited and me
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/batch" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/batch" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"requests":[{"id":"change","method":"GET","path":"/repos/dana/gitfs/changes/216?fields=number,title,policy"},{"id":"checks","method":"GET","path":"/repos/dana/gitfs/changes/216/checks"},{"id":"missing","method":"GET","path":"/repos/dana/gitfs/changes/999"}]}'
 ```
@@ -256,12 +256,12 @@ The whole table, so a client or an agent can read it once.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/errors"
+curl "https://api.cobaltforge.dev/v1/errors"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"ymnJKZE9hZBhOsek"
+etag: W/"aqoSP8StiQ5PT81S"
 ```
 
 ```json
@@ -314,7 +314,7 @@ Rate-limit pools, page sizes and request-body limits for this API. Object caps a
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/limits"
+curl "https://api.cobaltforge.dev/v1/limits"
 ```
 
 ```http
@@ -358,7 +358,7 @@ etag: W/"H_fzFMiwA-n9CJb-"
 
 **This API as OpenAPI 3.1**
 
-Generated from the same definitions the server runs. Every operation carries x-sx-\* metadata: safety, idempotency, scopes, rate-limit pool and cost, and error codes.
+Generated from the same definitions the server runs. Every operation carries x-cb-\* metadata: safety, idempotency, scopes, rate-limit pool and cost, and error codes.
 
 | About      |                        |
 | ---------- | ---------------------- |
@@ -375,19 +375,19 @@ Generated from the same definitions the server runs. Every operation carries x-s
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/openapi.json"
+curl "https://api.cobaltforge.dev/v1/openapi.json"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"YDAuYl4tIJqYVxHa"
+etag: W/"Fj3PGflH_LBLRxUi"
 ```
 
 ```json
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "source.code API",
+    "title": "cobalt API",
     "version": "2026-11-07"
   },
   "paths": {
@@ -422,7 +422,7 @@ Each area as this server measured its own answers: state, uptime over 90 days by
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/status"
+curl "https://api.cobaltforge.dev/v1/status"
 ```
 
 ```http

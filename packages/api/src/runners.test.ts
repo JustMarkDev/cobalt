@@ -147,7 +147,7 @@ describe('registered runners', () => {
       name: 'mac-mini',
       labels: ['macOS', 'arm64', 'xcode-16'],
     })
-    expect(made.secret).toMatch(/^sxr_/)
+    expect(made.secret).toMatch(/^cbr_/)
     expect(made.labels).toEqual(['macos', 'arm64', 'xcode-16'])
     expect(made.kind).toBe('self-hosted')
     expect(made.provider).toBeNull()
@@ -158,7 +158,7 @@ describe('registered runners', () => {
     expect((await h.call('GET', `/runners/${made.id}`)).json.secret).toBeNull()
     // Runner tokens are not personal tokens.
     const tokens = (await h.call('GET', '/tokens')).json.data
-    expect(tokens.some((t: any) => t.prefix.startsWith('sxr_'))).toBe(false)
+    expect(tokens.some((t: any) => t.prefix.startsWith('cbr_'))).toBe(false)
     // A heartbeat brings it online.
     const beat = await h.call('POST', '/runners/heartbeat', {
       token: made.secret,

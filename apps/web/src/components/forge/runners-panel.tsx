@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { ServerStackIcon } from '@heroicons/react/24/outline'
-import type { Runner } from '@source-code/sdk'
+import type { Runner } from '@cobaltforge/sdk'
 import { Chip, EmptyState, Panel, SectionLabel } from './bits'
 import { CopyField } from './repo-shell'
 import { Button } from '~/components/ui/button'
@@ -106,9 +106,9 @@ function AccountRunners({ account }: { account: string }) {
           <p className="font-medium">
             {made.name} is registered. Its token is shown this once:
           </p>
-          <CopyField value={`SX_RUNNER_TOKEN=${made.secret}`} prefix="" />
+          <CopyField value={`CB_RUNNER_TOKEN=${made.secret}`} prefix="" />
           <p className="text-muted-foreground">
-            On the machine, run <code>sx runner start</code> with it set. It
+            On the machine, run <code>cb runner start</code> with it set. It
             reads the repositories the runner serves, claims and reports jobs,
             and nothing else.
           </p>

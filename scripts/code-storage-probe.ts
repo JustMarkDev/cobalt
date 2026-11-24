@@ -48,7 +48,7 @@ try {
   run(dir, ['clone', '--quiet', remote, a])
   run(dir, ['clone', '--quiet', remote, b])
   for (const c of [a, b]) {
-    run(c, ['config', 'user.email', 'probe@source.code'])
+    run(c, ['config', 'user.email', 'probe@cobaltforge.dev'])
     run(c, ['config', 'user.name', 'probe'])
   }
   const commit = (c: string, text: string) => {
@@ -94,7 +94,7 @@ try {
   else {
     const g = join(dir, 'g')
     run(dir, ['clone', '--quiet', github, g])
-    run(g, ['config', 'user.email', 'probe@source.code'])
+    run(g, ['config', 'user.email', 'probe@cobaltforge.dev'])
     run(g, ['config', 'user.name', 'probe'])
     run(g, ['fetch', '--quiet', 'origin', branch])
     run(g, ['checkout', '--quiet', '-b', branch, `origin/${branch}`])

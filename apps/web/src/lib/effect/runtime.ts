@@ -1,6 +1,6 @@
 import { notFound } from '@tanstack/react-router'
 import { Effect, Layer, ManagedRuntime } from 'effect'
-import { TelemetryLive } from '@source-code/api/telemetry'
+import { TelemetryLive } from '@cobaltforge/api/telemetry'
 import { ForgeLive } from './services/forge'
 import type { Forge } from './services/forge'
 import type { AppError } from './errors'

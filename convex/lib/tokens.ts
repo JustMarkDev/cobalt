@@ -1,5 +1,5 @@
-import { newId } from '@source-code/api/ids'
-import { hashToken, secretFor } from '@source-code/api/auth'
+import { newId } from '@cobaltforge/api/ids'
+import { hashToken, secretFor } from '@cobaltforge/api/auth'
 import { repoByKey, repoByPublicId } from './access'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'

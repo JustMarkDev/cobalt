@@ -3,16 +3,16 @@ import {
   effectivePlan,
   overQuota,
   repoState,
-} from '@source-code/api/plans'
+} from '@cobaltforge/api/plans'
 import { fail } from './errors'
 import { usageOf } from './usage'
-import type { Effective, Quota } from '@source-code/api/plans'
+import type { Effective, Quota } from '@cobaltforge/api/plans'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
 /**
  * The plan of an account, and what it allows. Every check that depends on a
- * plan asks here, so the rules live in one place (`@source-code/api/plans`).
+ * plan asks here, so the rules live in one place (`@cobaltforge/api/plans`).
  */
 type Ctx = Pick<QueryCtx, 'db'>
 

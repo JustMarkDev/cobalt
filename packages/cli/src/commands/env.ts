@@ -1,6 +1,6 @@
 import { chmodSync, writeFileSync } from 'node:fs'
 import { resolveRepo } from '../repo'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import { cliError, runWithEnv } from '../secrets'
 import type { Command } from './types'
@@ -54,21 +54,21 @@ export const env: Command = async (
     const name = rest.at(0)
     let value: string | undefined = rest.at(1)
     if (!name)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'env set needs NAME and a value.',
-        'Example: sx env set STRIPE_KEY - --env production  (reads the value from stdin)',
+        'Example: cb env set STRIPE_KEY - --env production  (reads the value from stdin)',
         exit.usage,
       )
     // A value on the command line lands in shell history and the process
     // list. It comes from stdin, always.
     if (value !== '-')
-      throw new SxError(
+      throw new CbError(
         'value_on_command_line',
         value === undefined
           ? 'env set reads the value from stdin: pass - after the name.'
           : 'A secret on the command line ends up in your shell history. env set reads it from stdin.',
-        `Example: printf %s "$VALUE" | sx env set ${name} - --env ${environment}`,
+        `Example: printf %s "$VALUE" | cb env set ${name} - --env ${environment}`,
         exit.usage,
       )
     value = (await Bun.stdin.text()).replace(/\n$/, '')
@@ -94,12 +94,12 @@ export const env: Command = async (
 
   if (sub === 'pull') {
     // A plaintext file is what leaks: into a commit, a backup, an agent's
-    // context. `sx env run` is the way to use values; a file is opt-in.
+    // context. `cb env run` is the way to use values; a file is opt-in.
     if (!has(flags, 'plaintext'))
-      throw new SxError(
+      throw new CbError(
         'plaintext_refused',
         'env pull writes values to a plaintext file, so it needs --plaintext.',
-        `Prefer: sx env run --env ${environment} -- <command>. Values reach that process only.`,
+        `Prefer: cb env run --env ${environment} -- <command>. Values reach that process only.`,
         exit.usage,
       )
     try {
@@ -148,10 +148,10 @@ export const env: Command = async (
   if (sub === 'run') {
     const command = rest
     if (command.length === 0)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'env run needs a command after --.',
-        'Example: sx env run --env development -- bun test',
+        'Example: cb env run --env development -- bun test',
         exit.usage,
       )
     const result = await runWithEnv({
@@ -193,10 +193,10 @@ export const env: Command = async (
     return
   }
 
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `env ${sub} is not a command.`,
-    'sx env --help lists them.',
+    'cb env --help lists them.',
     exit.usage,
   )
 }

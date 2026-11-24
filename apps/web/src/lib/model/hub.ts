@@ -39,7 +39,7 @@ export const groups: Record<
   runners: {
     title: 'Runners',
     blurb:
-      'Where your workflows run. source.code does not host runners; bring the ones you like.',
+      'Where your workflows run. cobalt does not host runners; bring the ones you like.',
     repoHint: 'Runs this repository’s workflow jobs.',
   },
   environments: {

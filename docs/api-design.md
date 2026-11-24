@@ -8,7 +8,7 @@ it).
 Status: built and tested on sample data. 192 operations: OAuth 2.1, tokens,
 webhooks, search, uploads and evidence, repository rename/edit/delete, teams,
 agent runs, git data, labels and issue comments, `Accept: text/markdown`, a generated TypeScript client.
-`sx` and the MCP server are clients of the API. Rate limits and idempotency
+`cb` and the MCP server are clients of the API. Rate limits and idempotency
 keys also exist on Convex, tested against Convex's in-memory runtime. Types,
 lint (`--max-warnings 0`) and the whole test suite are green. Not built: the
 domain on Convex, a shared event log, and shared token and OAuth state. See `apps/web/content/docs/api/roadmap.mdx`.
@@ -89,7 +89,7 @@ webhooks already follow Standard Webhooks; GitLab sends `RateLimit-Remaining`.
   `retryable` on every error.** The API says what to do next. `retryable` on a
   policy block is true only when nothing has failed.
 - **`dry_run` on every write** through the same code path, and
-  `x-sx-safety`/`x-sx-idempotent`/`x-sx-errors` on every operation, so an agent
+  `x-cb-safety`/`x-cb-idempotent`/`x-cb-errors` on every operation, so an agent
   can decide what to confirm before calling.
 - **A build check that v1 only adds.** The committed OpenAPI snapshot is
   compared with the generated one; a removal, rename, type change or newly
@@ -213,4 +213,4 @@ above.
 - Bitbucket's REST pages and the rest of git.cafe's OpenAPI and MCP card were
   not fully read; SourceHut (GraphQL only) was not probed.
 - The sample tokens are live only in development or with
-  `SX_API_SAMPLE_TOKENS=1`, so a deployed preview cannot be written to.
+  `CB_API_SAMPLE_TOKENS=1`, so a deployed preview cannot be written to.

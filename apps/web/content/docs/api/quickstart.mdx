@@ -10,15 +10,15 @@ description: From a first call to a landed change, including the refusal you wil
 </Callout>
 
 ```bash
-export SX=http://localhost:3000/api/v1
-export SX_TOKEN=sxp_dana_full_access_0001
-alias sxcurl='curl -s -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type: application/json"'
+export CB=http://localhost:3000/api/v1
+export CB_TOKEN=cbp_dana_full_access_0001
+alias cbcurl='curl -s -H "Authorization: Bearer $CB_TOKEN" -H "Content-Type: application/json"'
 ```
 
 ## 1. Who am I
 
 ```bash
-sxcurl $SX/auth/principal
+cbcurl $CB/auth/principal
 ```
 
 ```json
@@ -53,7 +53,7 @@ sxcurl $SX/auth/principal
 ## 2. Start work with one request
 
 ```bash
-sxcurl $SX/repos/dana/gitfs/context
+cbcurl $CB/repos/dana/gitfs/context
 ```
 
 You get the repository, every open change with its `policy` and what `blocking` it, open issues, and the env schema (names and kinds, never values). The `cursor` at the end is a place in the event log to continue from, see [Events and sync](/docs/api/events-and-sync).
@@ -61,13 +61,13 @@ You get the repository, every open change with its `policy` and what `blocking` 
 ## 3. Read a change
 
 ```bash
-sxcurl -i $SX/repos/dana/gitfs/changes/216
+cbcurl -i $CB/repos/dana/gitfs/changes/216
 ```
 
 Note the `etag` header. Send it back and nothing is rebuilt:
 
 ```bash
-sxcurl -i -H 'If-None-Match: W/"…"' $SX/repos/dana/gitfs/changes/216   # 304
+cbcurl -i -H 'If-None-Match: W/"…"' $CB/repos/dana/gitfs/changes/216   # 304
 ```
 
 Add `?fields=number,title,policy` to get only those, or `?expand=findings` for the reviewers' findings.
@@ -77,7 +77,7 @@ Add `?fields=number,title,policy` to get only those, or `?expand=findings` for t
 `actions.land` already says no. Ask why:
 
 ```bash
-sxcurl $SX/repos/dana/gitfs/changes/216/policy
+cbcurl $CB/repos/dana/gitfs/changes/216/policy
 ```
 
 Each requirement has a `state` (`pass`, `fail`, `pending`, `na`) and `needs`, which says what would satisfy it. Here a high finding is open and CI has not reported on the tree.
@@ -87,7 +87,7 @@ Each requirement has a `state` (`pass`, `fail`, `pending`, `na`) and `needs`, wh
 Nothing is written by a simulation:
 
 ```bash
-sxcurl -X POST $SX/repos/dana/gitfs/changes/216/policy/simulate \
+cbcurl -X POST $CB/repos/dana/gitfs/changes/216/policy/simulate \
   -d '{"checks":{"ci/test":"pass"},"resolve":["F-2"]}'
 ```
 
@@ -96,7 +96,7 @@ sxcurl -X POST $SX/repos/dana/gitfs/changes/216/policy/simulate \
 ## 6. Try to land, and be refused
 
 ```bash
-sxcurl -X POST $SX/repos/dana/gitfs/changes/216/land -d '{"expected_tree":"9c4d7e1"}'
+cbcurl -X POST $CB/repos/dana/gitfs/changes/216/land -d '{"expected_tree":"9c4d7e1"}'
 ```
 
 ```json
@@ -116,12 +116,12 @@ Add `?dry_run=true` to any write to get this answer without risking the write.
 ## 7. Resolve, report CI, land
 
 ```bash
-sxcurl -X POST $SX/repos/dana/gitfs/changes/216/findings/F-2/resolve
+cbcurl -X POST $CB/repos/dana/gitfs/changes/216/findings/F-2/resolve
 
-sxcurl -X POST $SX/repos/dana/gitfs/changes/216/checks \
+cbcurl -X POST $CB/repos/dana/gitfs/changes/216/checks \
   -d '{"key":"ci/test","state":"pass","tree":"9c4d7e1"}'
 
-sxcurl -X POST $SX/repos/dana/gitfs/changes/216/land \
+cbcurl -X POST $CB/repos/dana/gitfs/changes/216/land \
   -H "Idempotency-Key: $(uuidgen)" -d '{"expected_tree":"9c4d7e1"}'
 ```
 
@@ -130,12 +130,12 @@ sxcurl -X POST $SX/repos/dana/gitfs/changes/216/land \
 ## 8. Watch it happen
 
 ```bash
-sxcurl "$SX/events?repo=dana/gitfs&type=change.*"
-curl -N -H "Authorization: Bearer $SX_TOKEN" $SX/events/stream      # live
+cbcurl "$CB/events?repo=dana/gitfs&type=change.*"
+curl -N -H "Authorization: Bearer $CB_TOKEN" $CB/events/stream      # live
 ```
 
 Or keep a local copy up to date with one call: [`GET /sync`](/docs/api/events-and-sync#sync).
 
 ## From the CLI
 
-`sx change land 216` follows the same rules: the same policy, the same error `code`s and the same exit codes (5 for a policy block). With `SX_API` and `SX_TOKEN` set (or after `sx auth login`) the CLI calls this API; without them it runs against the same sample data in-process.
+`cb change land 216` follows the same rules: the same policy, the same error `code`s and the same exit codes (5 for a policy block). With `CB_API` and `CB_TOKEN` set (or after `cb auth login`) the CLI calls this API; without them it runs against the same sample data in-process.

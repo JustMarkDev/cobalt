@@ -5,7 +5,7 @@
  * a new patch set arrives.
  *
  * Plain JavaScript with no dependencies, so the Convex functions use the
- * same code (`convex/` imports it as `@source-code/api/lines`).
+ * same code (`convex/` imports it as `@cobaltforge/api/lines`).
  */
 
 /** Past this many cells the middle of a diff is not aligned line by line. */

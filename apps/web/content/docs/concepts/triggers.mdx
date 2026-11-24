@@ -26,7 +26,7 @@ triggers:
 | `filter.paths`  | Globs, as policy writes them: `**` crosses folders, `*` does not. Any touched file matches |
 | `filter.labels` | Any of these labels on the change                                                          |
 | `filter.actor`  | Who caused the event (the person who landed the change)                                    |
-| `filter.model`  | The model the tool declared (`Sx-Model`), case ignored. Declared, not verified             |
+| `filter.model`  | The model the tool declared (`Cb-Model`), case ignored. Declared, not verified             |
 | `run`           | The workflow to start. Exactly one action                                                  |
 
 Every filter is optional; all the ones given must match. Unknown keys are an error, not ignored, so a typo never quietly turns a filter off.

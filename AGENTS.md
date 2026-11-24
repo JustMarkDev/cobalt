@@ -15,9 +15,9 @@ Convex agent skills for common tasks can be installed by running
 ## Workspace
 
 A Bun workspace: `apps/web` (the web app), `packages/api` (the HTTP API),
-`packages/git` (git access), `packages/cli` (`sx` and the MCP server) and
+`packages/git` (git access), `packages/cli` (`cb` and the MCP server) and
 `packages/sdk` (the generated client). `convex/` and `scripts/` are at the
-root. Import another package by name (`@source-code/api/auth`), never by a
+root. Import another package by name (`@cobaltforge/api/auth`), never by a
 relative path. Run `bun run check`, `bun run build` and `bun test` from the
 root.
 

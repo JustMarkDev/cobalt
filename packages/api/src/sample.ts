@@ -28,16 +28,16 @@ const hours = (h: number) => T0 - h * 3_600_000
 const days = (d: number) => T0 - d * 86_400_000
 
 export const sampleTokens = {
-  dana: 'sxp_dana_full_access_0001',
-  hollis: 'sxp_hollis_maintainer_02',
+  dana: 'cbp_dana_full_access_0001',
+  hollis: 'cbp_hollis_maintainer_02',
   /** A narrower token dana made for her agent: changes on gitfs, cannot land. */
-  scoped: 'sxp_dana_scoped_gitfs_03',
+  scoped: 'cbp_dana_scoped_gitfs_03',
   /** A token that only touches issues, on dana/gitfs. */
-  issuesOnly: 'sxp_dana_issues_only_04',
+  issuesOnly: 'cbp_dana_issues_only_04',
   /** A token limited to one repository. */
-  limited: 'sxp_dana_limited_repo_05',
-  expired: 'sxp_dana_expired_token_06',
-  stranger: 'sxp_stranger_no_access_07',
+  limited: 'cbp_dana_limited_repo_05',
+  expired: 'cbp_dana_expired_token_06',
+  stranger: 'cbp_stranger_no_access_07',
 } as const
 
 const all: Array<Scope> = [
@@ -212,7 +212,7 @@ export function seedSample(d: MemoryDomain) {
       'Git over object storage. Mount any bucket as a repository and clone it from anywhere.',
     stars: 2140,
     starsTodayBase: 84,
-    install: 'curl -fsSL https://source.code/dana/gitfs/install | sh',
+    install: 'curl -fsSL https://cobaltforge.dev/dana/gitfs/install | sh',
     sampleCommitFacts: sampleFacts(),
     forks: 118,
     category: 'Developer tools',

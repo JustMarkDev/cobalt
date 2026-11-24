@@ -105,7 +105,7 @@ function parameters(op: Op, defs: Json): Array<Json> {
       in: 'query',
       required: false,
       description:
-        'Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true.',
+        'Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true.',
       schema: { type: 'boolean' },
     })
   return out
@@ -141,7 +141,7 @@ function operationErrors(op: Op): Array<string> {
 
 export function buildOpenApi(
   ops: ReadonlyArray<Op>,
-  base = 'https://api.source.code/v1',
+  base = 'https://api.cobaltforge.dev/v1',
 ): Json {
   // Input and output schemas relax differently, so their definitions are
   // collected separately and only then combined.
@@ -189,7 +189,7 @@ export function buildOpenApi(
         [String(op.status ?? 200)]: {
           description: op.status === 204 ? 'No content' : 'Success',
           headers: {
-            'Sx-Request-Id': { schema: { type: 'string' } },
+            'Cb-Request-Id': { schema: { type: 'string' } },
             ...(op.method === 'GET' && op.conditional !== false
               ? { ETag: { schema: { type: 'string' } } }
               : {}),
@@ -216,7 +216,7 @@ export function buildOpenApi(
               '202': {
                 description: op.accepted.description,
                 headers: {
-                  'Sx-Request-Id': { schema: { type: 'string' } },
+                  'Cb-Request-Id': { schema: { type: 'string' } },
                   Location: { schema: { type: 'string' } },
                 },
                 content: {
@@ -249,16 +249,16 @@ export function buildOpenApi(
           : op.auth === 'optional'
             ? [{}, { bearer: op.scopes ?? [] }]
             : [],
-      'x-sx-safety': op.safety,
-      'x-sx-idempotent': op.idempotent,
-      'x-sx-dry-run': !!op.dryRun,
-      'x-sx-pool': op.pool,
-      'x-sx-cost': op.pool === 'none' ? 0 : (op.cost ?? 1),
-      'x-sx-scopes': op.scopes ?? [],
-      'x-sx-errors': operationErrors(op),
-      'x-sx-async': !!op.mayBeAsync,
-      'x-sx-secret-response': !!op.secretResponse,
-      'x-sx-secret-request': !!op.secretRequest,
+      'x-cb-safety': op.safety,
+      'x-cb-idempotent': op.idempotent,
+      'x-cb-dry-run': !!op.dryRun,
+      'x-cb-pool': op.pool,
+      'x-cb-cost': op.pool === 'none' ? 0 : (op.cost ?? 1),
+      'x-cb-scopes': op.scopes ?? [],
+      'x-cb-errors': operationErrors(op),
+      'x-cb-async': !!op.mayBeAsync,
+      'x-cb-secret-response': !!op.secretResponse,
+      'x-cb-secret-request': !!op.secretRequest,
     }
     let item = paths.get(op.path)
     if (!item) paths.set(op.path, (item = {}))
@@ -269,14 +269,14 @@ export function buildOpenApi(
   const doc = {
     openapi: '3.1.0',
     info: {
-      title: 'source.code API',
+      title: 'cobalt API',
       version: API_VERSION,
-      summary: 'The source.code API',
+      summary: 'The cobalt API',
       description:
         'Everything the web app does, over HTTP. Within v1 we only add fields and endpoints. Clients must ignore members they do not know. Errors are application/problem+json with a stable `code`.',
       license: {
         name: 'Business Source License 1.1',
-        url: 'https://source.code/legal/terms',
+        url: 'https://cobaltforge.dev/legal/terms',
       },
     },
     servers: [{ url: base }],
@@ -288,23 +288,23 @@ export function buildOpenApi(
           type: 'http',
           scheme: 'bearer',
           description:
-            'A token starting sxp_ (personal) or sxo_ (OAuth, such as `sx auth login`). Tokens always expire.',
+            'A token starting cbp_ (personal) or cbo_ (OAuth, such as `cb auth login`). Tokens always expire.',
         },
       },
     },
-    'x-sx-errors': Object.fromEntries(
+    'x-cb-errors': Object.fromEntries(
       Object.entries(errorCatalog).map(([code, e]) => [
         code,
         { status: e.status, retryable: e.retryable, exit_code: e.exit },
       ]),
     ),
-    'x-sx-pools': Object.fromEntries(
+    'x-cb-pools': Object.fromEntries(
       Object.entries(pools).map(([n, p]) => [
         n,
         { limit: p.limit, window_seconds: p.windowMs / 1000 },
       ]),
     ),
-    'x-sx-page': PAGE,
+    'x-cb-page': PAGE,
   }
   return rewriteRefs(doc) as Json
 }

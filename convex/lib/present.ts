@@ -8,7 +8,7 @@ import type { QueryCtx } from '../_generated/server'
 
 /** Where answers link to. */
 export function urls() {
-  const html = (env.SITE_URL ?? 'https://source.code').replace(/\/$/, '')
+  const html = (env.SITE_URL ?? 'https://cobaltforge.dev').replace(/\/$/, '')
   return {
     html,
     api: (env.API_URL ?? `${html}/api/v1`).replace(/\/$/, ''),

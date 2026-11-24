@@ -260,7 +260,7 @@ describe('rate limits across many nodes', () => {
       body: { title: 'Once' },
       headers,
     })
-    expect(second.headers.get('sx-replayed')).toBe('true')
+    expect(second.headers.get('cb-replayed')).toBe('true')
     expect(second.json.id).toBe(first.json.id)
     // Each node alone would admit 4 reads; together they admit 4.
     let admitted = 0
@@ -586,7 +586,7 @@ describe('what keeps it fast must not make it wrong', () => {
         await h.call('POST', '/repos/dana/big/issues', {
           body: { title: 'Fresh 7' },
         })
-      ).headers.get('sx-outcome'),
+      ).headers.get('cb-outcome'),
     ).toBe('unchanged')
     // Closing frees the title; renaming moves it.
     expect(
@@ -594,7 +594,7 @@ describe('what keeps it fast must not make it wrong', () => {
         await h.call('POST', '/repos/dana/big/issues', {
           body: { title: 'Issue 1' },
         })
-      ).headers.get('sx-outcome'),
+      ).headers.get('cb-outcome'),
     ).toBe('unchanged')
     await h.call('PATCH', '/repos/dana/big/issues/20002', {
       body: { state: 'closed' },
@@ -602,7 +602,7 @@ describe('what keeps it fast must not make it wrong', () => {
     const again = await h.call('POST', '/repos/dana/big/issues', {
       body: { title: 'Issue 1' },
     })
-    expect([again.status, again.headers.get('sx-outcome')]).toEqual([
+    expect([again.status, again.headers.get('cb-outcome')]).toEqual([
       201,
       'created',
     ])
@@ -614,14 +614,14 @@ describe('what keeps it fast must not make it wrong', () => {
         await h.call('POST', '/repos/dana/big/issues', {
           body: { title: 'Issue 1' },
         })
-      ).headers.get('sx-outcome'),
+      ).headers.get('cb-outcome'),
     ).toBe('created')
     expect(
       (
         await h.call('POST', '/repos/dana/big/issues', {
           body: { title: 'Renamed' },
         })
-      ).headers.get('sx-outcome'),
+      ).headers.get('cb-outcome'),
     ).toBe('unchanged')
   })
 

@@ -18,7 +18,7 @@ import type { Op } from './registry'
  */
 type Json = Record<string, any>
 
-const BASE = 'https://api.source.code/v1'
+const BASE = 'https://api.cobaltforge.dev/v1'
 
 type Recorded = {
   method: string
@@ -57,7 +57,7 @@ async function authorizeAnApp(api: {
 }) {
   const f = (path: string, init: RequestInit = {}) =>
     api.fetch(
-      new Request(`https://api.source.code/v1${path}`, {
+      new Request(`https://api.cobaltforge.dev/v1${path}`, {
         redirect: 'manual',
         ...init,
       }),
@@ -84,7 +84,7 @@ async function authorizeAnApp(api: {
       ...form({ handle: 'dana', return_to: '/' }),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
-        origin: 'https://source.code',
+        origin: 'https://cobaltforge.dev',
       },
     })
   ).headers
@@ -168,7 +168,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     const headers: Record<string, string> = { ...init.headers }
     if (token) headers.authorization = `Bearer ${token}`
     if (init.body !== undefined) headers['content-type'] = 'application/json'
-    const req = new Request(`https://api.source.code/v1${path}`, {
+    const req = new Request(`https://api.cobaltforge.dev/v1${path}`, {
       method,
       headers,
       body: init.bytes
@@ -434,7 +434,7 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     // ----- webhooks
     await call('webhooks.create', 'POST', `${R}/webhooks`, {
       body: {
-        endpoint: 'https://hooks.example.com/source-code',
+        endpoint: 'https://hooks.example.com/cobalt',
         events: ['change.*', 'issue.created'],
         description: 'Chat bridge',
       },
@@ -1091,7 +1091,7 @@ function trim(value: unknown, depth = 0): unknown {
     )
   if (typeof value === 'string') {
     const redacted = value
-      .replace(/\b((?:sxp|sxb|sxr|sxo|sxf)_)[A-Za-z0-9_-]{6,}/g, '$1…')
+      .replace(/\b((?:cbp|cbb|cbr|cbo|cbf)_)[A-Za-z0-9_-]{6,}/g, '$1…')
       .replace(/\b(whsec_)[A-Za-z0-9_+/=-]{6,}/g, '$1…')
       .replace(/([?&]sig=)[^&]+/g, '$1…')
     return redacted.length > 160 ? `${redacted.slice(0, 157)}…` : redacted
@@ -1105,7 +1105,7 @@ function curl(rec: Recorded) {
   const lines = [
     `curl ${rec.method === 'GET' ? '' : `-X ${rec.method} `}"${BASE}${path}"`,
   ]
-  if (rec.token) lines.push('  -H "Authorization: Bearer $SX_TOKEN"')
+  if (rec.token) lines.push('  -H "Authorization: Bearer $CB_TOKEN"')
   for (const [k, v] of Object.entries(rec.headers))
     lines.push(`  -H "${escaped(k)}: ${escaped(v)}"`)
   if (rec.raw) lines.push('  --data-binary @after.png')
@@ -1120,9 +1120,9 @@ function example(rec: Recorded, opId: string) {
   const shown = [
     'etag',
     'location',
-    'sx-outcome',
-    'sx-replayed',
-    'sx-dry-run',
+    'cb-outcome',
+    'cb-replayed',
+    'cb-dry-run',
     'retry-after',
     'ratelimit',
   ]
@@ -1133,7 +1133,7 @@ function example(rec: Recorded, opId: string) {
     body = JSON.stringify(
       {
         openapi: '3.1.0',
-        info: { title: 'source.code API', version: '2026-11-07' },
+        info: { title: 'cobalt API', version: '2026-11-07' },
         paths: { '…': '…' },
         components: { '…': '…' },
       },
@@ -1414,7 +1414,7 @@ function section(op: Op, doc: Json, examples: Map<string, Recorded>) {
     )
   }
 
-  const errors = (item['x-sx-errors'] as Array<string>).filter(
+  const errors = (item['x-cb-errors'] as Array<string>).filter(
     (c) => !['rate_limited', 'internal'].includes(c),
   )
   out.push(
@@ -1430,7 +1430,7 @@ function section(op: Op, doc: Json, examples: Map<string, Recorded>) {
 }
 
 const ERRORS_HEAD =
-  '---\nicon: ShieldCheckIcon\ntitle: Errors\ndescription: One error shape with a stable code, a hint for what to do next, and whether a retry can help.\n---\n\nEvery error is `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)) with a few members of ours. The CLI prints the same object on stderr and the MCP server returns it as an `isError` result, so one parser handles all three.\n\n```json\n{\n  "type": "https://source.code/docs/api/errors#policy_blocked",\n  "title": "Policy blocked this",\n  "status": 409,\n  "code": "policy_blocked",\n  "detail": "#216 cannot land: ci/test is running on tree 9c4d7e1; 1 open: F-2 from greptile.",\n  "hint": "Stop and report the failed requirements. Do not work around the policy.",\n  "retryable": false,\n  "exit_code": 5,\n  "request_id": "req_01m6v2nqt5fs5m8zb0",\n  "requirements": [\n    { "id": "ci-evidence", "state": "pending", "needs": { "check": "ci/test", "bound_to": "tree" } },\n    { "id": "findings", "state": "fail", "needs": { "resolve": ["F-2"] } }\n  ]\n}\n```\n\n| Member       | Use it to                                                                                       |\n| ------------ | ----------------------------------------------------------------------------------------------- |\n| `code`       | Branch on it. It is stable and documented below. `detail` and `hint` wording can change, `code` will not.    |\n| `detail`     | Show a person what happened, in this case.                                                      |\n| `hint`       | Know the next thing to try. It is the same string `sx` prints.                                  |\n| `retryable`  | Decide whether to send the same request again. See below.                                       |\n| `exit_code`  | Map to the CLI\'s exit codes: 2 usage, 3 not found, 4 not signed in, 5 blocked by policy or permission, 6 needs a person. |\n| `request_id` | Quote it when you ask us about a failure. It matches the `Sx-Request-Id` header.                |\n| `errors`     | On a `400`: one entry per field with a JSON Pointer such as `/body/title`, a `code` and a `message`. Never the value you sent, since it might be a secret. |\n\nSome codes add members: `required_scopes`, `requirements`, `current`, `retry_after_seconds`. Each is described under its code.\n\n## Retrying\n\n`retryable: true` means the same request, unchanged, may succeed later. It is the only thing a generic retry loop needs to read.\n\n- **`429` and `503`** are retryable. Wait `Retry-After` seconds, then back off if it fails again.\n- **`request_in_progress`** is retryable with the same `Idempotency-Key`.\n- **`request_outcome_unknown`** is not: the first request with that key made its change, then stopped before it answered, and it will not run again. Read the object to see where it stands.\n- **`policy_blocked`** is retryable only when nothing has failed and every unmet requirement is `pending`, meaning something automatic, like CI, will clear it. If any requirement has `fail`, it is a stop. Report it. Do not look for a way round.\n- Everything else is not. Fix the request, or ask a person.\n\nReads and writes sent with an `Idempotency-Key` are safe to repeat. See [Writes](/docs/api/writes).\n\n## Every code\n\n`GET /v1/errors` returns this table as JSON, so a client or an agent can read it once.\n\n'
+  '---\nicon: ShieldCheckIcon\ntitle: Errors\ndescription: One error shape with a stable code, a hint for what to do next, and whether a retry can help.\n---\n\nEvery error is `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)) with a few members of ours. The CLI prints the same object on stderr and the MCP server returns it as an `isError` result, so one parser handles all three.\n\n```json\n{\n  "type": "https://cobaltforge.dev/docs/api/errors#policy_blocked",\n  "title": "Policy blocked this",\n  "status": 409,\n  "code": "policy_blocked",\n  "detail": "#216 cannot land: ci/test is running on tree 9c4d7e1; 1 open: F-2 from greptile.",\n  "hint": "Stop and report the failed requirements. Do not work around the policy.",\n  "retryable": false,\n  "exit_code": 5,\n  "request_id": "req_01m6v2nqt5fs5m8zb0",\n  "requirements": [\n    { "id": "ci-evidence", "state": "pending", "needs": { "check": "ci/test", "bound_to": "tree" } },\n    { "id": "findings", "state": "fail", "needs": { "resolve": ["F-2"] } }\n  ]\n}\n```\n\n| Member       | Use it to                                                                                       |\n| ------------ | ----------------------------------------------------------------------------------------------- |\n| `code`       | Branch on it. It is stable and documented below. `detail` and `hint` wording can change, `code` will not.    |\n| `detail`     | Show a person what happened, in this case.                                                      |\n| `hint`       | Know the next thing to try. It is the same string `cb` prints.                                  |\n| `retryable`  | Decide whether to send the same request again. See below.                                       |\n| `exit_code`  | Map to the CLI\'s exit codes: 2 usage, 3 not found, 4 not signed in, 5 blocked by policy or permission, 6 needs a person. |\n| `request_id` | Quote it when you ask us about a failure. It matches the `Cb-Request-Id` header.                |\n| `errors`     | On a `400`: one entry per field with a JSON Pointer such as `/body/title`, a `code` and a `message`. Never the value you sent, since it might be a secret. |\n\nSome codes add members: `required_scopes`, `requirements`, `current`, `retry_after_seconds`. Each is described under its code.\n\n## Retrying\n\n`retryable: true` means the same request, unchanged, may succeed later. It is the only thing a generic retry loop needs to read.\n\n- **`429` and `503`** are retryable. Wait `Retry-After` seconds, then back off if it fails again.\n- **`request_in_progress`** is retryable with the same `Idempotency-Key`.\n- **`request_outcome_unknown`** is not: the first request with that key made its change, then stopped before it answered, and it will not run again. Read the object to see where it stands.\n- **`policy_blocked`** is retryable only when nothing has failed and every unmet requirement is `pending`, meaning something automatic, like CI, will clear it. If any requirement has `fail`, it is a stop. Report it. Do not look for a way round.\n- Everything else is not. Fix the request, or ask a person.\n\nReads and writes sent with an `Idempotency-Key` are safe to repeat. See [Writes](/docs/api/writes).\n\n## Every code\n\n`GET /v1/errors` returns this table as JSON, so a client or an agent can read it once.\n\n'
 
 const ERROR_GROUPS: Array<[string, Array<string>]> = [
   [
@@ -1496,7 +1496,7 @@ function mdxSafe(text: string) {
     'Authorization: Bearer <token>',
     'Content-Type: application/json',
     'errors[]',
-    'Sx-Version',
+    'Cb-Version',
     'Retry-After',
     'Idempotency-Key',
     'If-Match',
@@ -1515,8 +1515,8 @@ function mdxSafe(text: string) {
       `\`${tok}\``,
     )
   return out
-    .replace('`sxp_ or sxo_`', '`sxp_` or `sxo_`')
-    .replace('sxp_ or sxo_', '`sxp_` or `sxo_`')
+    .replace('`cbp_ or cbo_`', '`cbp_` or `cbo_`')
+    .replace('cbp_ or cbo_', '`cbp_` or `cbo_`')
 }
 
 function errorsPage() {

@@ -3,7 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { PlusIcon, UserPlusIcon } from '@heroicons/react/24/outline'
 import { CopyAddress, EmptyState, Tile } from './bits'
 import { RepoRow } from './repo-card'
-import { randomHandle } from '@source-code/api/handles'
+import { randomHandle } from '@cobaltforge/api/handles'
 import type { Account, Invite, Person, Role } from '~/lib/auth/accounts'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -346,7 +346,7 @@ function General({ me, org, role, owners }: Context) {
           hint="Every link to the organization and its repositories starts with it. It cannot be changed yet."
         >
           <Input
-            value={`source.code/${org.handle}`}
+            value={`cobaltforge.dev/${org.handle}`}
             readOnly
             disabled
             className="font-mono"
@@ -447,7 +447,7 @@ function Members({ me, org, role, members, invites, owners }: Context) {
       }
     } else {
       const login = value
-        .replace(/^(https?:\/\/)?source\.code\//, '')
+        .replace(/^(https?:\/\/)?cobaltforge\.dev\//, '')
         .replace(/^@/, '')
         .toLowerCase()
       const r = await write('members.set', {

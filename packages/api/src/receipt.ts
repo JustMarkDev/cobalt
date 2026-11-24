@@ -8,16 +8,16 @@ import type { Receipt } from './via'
  * that sent the request and the model it says it used. The account stays the
  * one responsible; the receipt says how the write got here.
  *
- * Tool and model are what the client declares in the `Sx-Tool` and `Sx-Model`
- * headers. source.code hosts no model and cannot check either, so they are
+ * Tool and model are what the client declares in the `Cb-Tool` and `Cb-Model`
+ * headers. cobalt hosts no model and cannot check either, so they are
  * labels: they grant nothing. A repository may still decline changes declared
  * with a given model, which stops tools that report honestly.
  */
 export type { Receipt } from './via'
 export { cleanLabel, modelKey, serverReceipt } from './via'
 
-export const TOOL_HEADER = 'sx-tool'
-export const MODEL_HEADER = 'sx-model'
+export const TOOL_HEADER = 'cb-tool'
+export const MODEL_HEADER = 'cb-model'
 
 /**
  * What the client declared for this request, and the machine of the login
@@ -58,7 +58,7 @@ export function receiptFor(p?: Principal | null): Receipt {
   const session = p ? p.session : (d?.session ?? false)
   return {
     machine: p ? p.device : (d?.machine ?? null),
-    tool: d?.tool ?? (session ? 'source.code' : null),
+    tool: d?.tool ?? (session ? 'cobalt' : null),
     model: d?.model ?? null,
   }
 }

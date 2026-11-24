@@ -41,7 +41,7 @@ export function Logo({ className }: { className?: string }) {
       )}
     >
       <BrandMark className="h-6 w-5" />
-      <span>source.code</span>
+      <span>cobalt</span>
     </Link>
   )
 }
@@ -1024,7 +1024,7 @@ export function SiteFooter() {
         aria-hidden="true"
         className="pointer-events-none bg-linear-to-b from-foreground/[0.1] to-foreground/[0.035] bg-clip-text pt-[0.25em] pb-[0.2em] text-center text-[clamp(56px,17.5vw,250px)] leading-[0.8] font-extrabold tracking-[-0.045em] text-transparent select-none"
       >
-        source.code
+        cobalt
       </div>
     </footer>
   )

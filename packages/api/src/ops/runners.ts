@@ -52,7 +52,7 @@ export const createRunner = defineOp({
   secretResponse: true,
   summary: 'Register a runner',
   description:
-    "The response is the only time the runner's token (`secret`) is shown: put it in `SX_RUNNER_TOKEN` on the machine. It reads the repositories the runner may serve, claims and reports their jobs, and nothing else. A person registers runners for themself; an organization's owner or admin for the organization.",
+    "The response is the only time the runner's token (`secret`) is shown: put it in `CB_RUNNER_TOKEN` on the machine. It reads the repositories the runner may serve, claims and reports their jobs, and nothing else. A person registers runners for themself; an organization's owner or admin for the organization.",
   method: 'POST',
   path: '/runners',
   pool: 'write',

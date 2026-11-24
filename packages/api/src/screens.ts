@@ -1,6 +1,6 @@
 import { api } from '../../../convex/_generated/api'
 import type { FunctionReference } from 'convex/server'
-import type { OperationId, Operations } from '@source-code/sdk'
+import type { OperationId, Operations } from '@cobaltforge/sdk'
 
 /**
  * What a screen calls in Convex for an API operation. A page reads and

@@ -58,7 +58,7 @@ export class MemorySessions implements SessionResolver {
   ) {}
 
   private sid(req: Request) {
-    return /(?:^|;\s*)sx_session=([A-Za-z0-9_-]+)/.exec(
+    return /(?:^|;\s*)cb_session=([A-Za-z0-9_-]+)/.exec(
       req.headers.get('cookie') ?? '',
     )?.[1]
   }
@@ -100,7 +100,7 @@ export class MemorySessions implements SessionResolver {
     const csrf = randomBytes(18).toString('base64url')
     this.sessions.set(sid, { user, csrf, expires: this.now() + SESSION_TTL })
     return {
-      cookie: `sx_session=${sid}; Path=/; HttpOnly; SameSite=Lax${this.secure ? '; Secure' : ''}; Max-Age=${SESSION_TTL / 1000}`,
+      cookie: `cb_session=${sid}; Path=/; HttpOnly; SameSite=Lax${this.secure ? '; Secure' : ''}; Max-Age=${SESSION_TTL / 1000}`,
       csrf,
     }
   }
@@ -169,14 +169,14 @@ export type OAuthOptions = {
   auth: TokenService
   /** Where clients, codes and refresh tokens are kept. Default: this process. */
   state?: OAuthState
-  /** `https://source.code`: scheme and host, no path. */
+  /** `https://cobaltforge.dev`: scheme and host, no path. */
   issuer: string
-  /** The API's full base URL, such as `https://source.code/api/v1`. Endpoints live under it. */
+  /** The API's full base URL, such as `https://cobaltforge.dev/api/v1`. Endpoints live under it. */
   apiBase: string
   resources: { api: string; mcp: string }
   sessions: SessionResolver
   /**
-   * Whether a device login (`sx auth login`) may also be given
+   * Whether a device login (`cb auth login`) may also be given
    * `secrets:decrypt`, beyond `userScopes`. Default: yes. Set it to refuse,
    * or make it refuse for some people, and their machines read no values.
    */
@@ -592,7 +592,7 @@ export class OAuthServer {
       )
     return page(
       'Sign in',
-      `<h1>Sign in to source.code</h1><p class="muted">Preview: pick a sample account. No password is asked.</p>${logins
+      `<h1>Sign in to cobalt</h1><p class="muted">Preview: pick a sample account. No password is asked.</p>${logins
         .map(
           (u) =>
             `<form method="post" action="${esc(this.url('/session'))}" style="display:inline"><input type="hidden" name="handle" value="${esc(u.handle)}"><input type="hidden" name="return_to" value="${esc(returnTo)}"><button>Continue as ${esc(u.handle)}</button></form>`,
@@ -1010,7 +1010,7 @@ export class OAuthServer {
     let userCode = ''
     for (let i = 0; i < 8; i++)
       userCode += USER_CODE_CHARS[randomBytes(1)[0] % USER_CODE_CHARS.length]
-    const deviceCode = `sxd_${randomBytes(32).toString('base64url')}`
+    const deviceCode = `cbd_${randomBytes(32).toString('base64url')}`
     const device: Device = {
       userCode,
       client,

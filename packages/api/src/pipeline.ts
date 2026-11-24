@@ -80,10 +80,10 @@ export type ApiOptions = {
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers':
-    'authorization, content-type, idempotency-key, if-match, if-none-match, sx-version, sx-account, sx-tool, sx-model',
+    'authorization, content-type, idempotency-key, if-match, if-none-match, cb-version, cb-account, cb-tool, cb-model',
   'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   'access-control-expose-headers':
-    'etag, location, link, retry-after, ratelimit, ratelimit-policy, allow, sx-request-id, sx-version, sx-outcome, sx-replayed, sx-limit-applied, sx-dry-run, sx-renamed-from, www-authenticate, server-timing',
+    'etag, location, link, retry-after, ratelimit, ratelimit-policy, allow, cb-request-id, cb-version, cb-outcome, cb-replayed, cb-limit-applied, cb-dry-run, cb-renamed-from, www-authenticate, server-timing',
   'access-control-max-age': '86400',
 }
 
@@ -217,8 +217,8 @@ function project(value: unknown, paths: ReadonlyArray<string>): unknown {
 
 export function createApi(options: ApiOptions) {
   const mount = options.mount ?? '/v1'
-  const base = options.base ?? 'https://api.source.code/v1'
-  const htmlBase = options.htmlBase ?? 'https://source.code'
+  const base = options.base ?? 'https://api.cobaltforge.dev/v1'
+  const htmlBase = options.htmlBase ?? 'https://cobaltforge.dev'
   const now = options.now ?? Date.now
   const pools: Record<string, Policy | undefined> =
     options.pools ?? defaultPools
@@ -321,7 +321,7 @@ export function createApi(options: ApiOptions) {
   }
 
   const authChallenge = (extra = '') =>
-    `Bearer realm="source.code"${options.resourceMetadataUrl ? `, resource_metadata="${options.resourceMetadataUrl}"` : ''}${extra}`
+    `Bearer realm="cobalt"${options.resourceMetadataUrl ? `, resource_metadata="${options.resourceMetadataUrl}"` : ''}${extra}`
 
   /** Checks a bearer token for an audience. Used by the API itself and by the MCP endpoint. */
   async function verifyToken(token: string, audience: Audience) {
@@ -377,7 +377,7 @@ export function createApi(options: ApiOptions) {
             ? refuse('token_invalid', 'This token is not valid for the API.')
             : refuse('token_invalid', 'No such token.')
     let principal = principalOf(found.record)
-    const as = req.headers.get('sx-account')
+    const as = req.headers.get('cb-account')
     if (as && as !== principal.actingAs) {
       if (!(await domain.canActAs(principal.handle, as)))
         return {
@@ -404,8 +404,8 @@ export function createApi(options: ApiOptions) {
     const url = new URL(req.url)
     // CORS headers are for browsers. Scripts and agents send no Origin and do not need them.
     const common: Record<string, string> = req.headers.has('origin')
-      ? { 'sx-request-id': requestId, 'sx-version': API_VERSION, ...CORS }
-      : { 'sx-request-id': requestId, 'sx-version': API_VERSION }
+      ? { 'cb-request-id': requestId, 'cb-version': API_VERSION, ...CORS }
+      : { 'cb-request-id': requestId, 'cb-version': API_VERSION }
     const finish = (
       res: Response,
       timing: Record<string, string | number> = {},
@@ -428,7 +428,7 @@ export function createApi(options: ApiOptions) {
     if (req.method === 'OPTIONS')
       return new Response(null, {
         status: 204,
-        headers: { ...CORS, 'sx-request-id': requestId },
+        headers: { ...CORS, 'cb-request-id': requestId },
       })
 
     // The path under the mount. `/v1/repos/rep_x/changes` is the id form of a
@@ -444,7 +444,7 @@ export function createApi(options: ApiOptions) {
       '/repos/$1/~',
     )
 
-    const version = req.headers.get('sx-version')
+    const version = req.headers.get('cb-version')
     if (version && !SUPPORTED_VERSIONS.includes(version))
       return fail(
         apiError(
@@ -722,7 +722,7 @@ export function createApi(options: ApiOptions) {
     const extraHeaders: Record<string, string> = {}
     if (raw.limit !== undefined && Number(raw.limit) > PAGE.max) {
       raw.limit = String(PAGE.max)
-      extraHeaders['sx-limit-applied'] = String(PAGE.max)
+      extraHeaders['cb-limit-applied'] = String(PAGE.max)
     }
     let query: unknown = {}
     if (op.query) {
@@ -870,9 +870,9 @@ export function createApi(options: ApiOptions) {
             apiError('invalid_request', 'Batches cannot nest.'),
           )
         // A sub-request runs with the same identity, including the account the
-        // caller acts as. Dropping Sx-Account would silently change its view.
+        // caller acts as. Dropping Cb-Account would silently change its view.
         const inherited: Record<string, string> = {}
-        for (const name of ['authorization', 'sx-account', 'sx-version']) {
+        for (const name of ['authorization', 'cb-account', 'cb-version']) {
           const value = req.headers.get(name)
           if (value) inherited[name] = value
         }
@@ -1043,7 +1043,7 @@ export function createApi(options: ApiOptions) {
             : begun.response.body
         return new Response(replayBody, {
           status: begun.response.status,
-          headers: { ...begun.response.headers, 'sx-replayed': 'true' },
+          headers: { ...begun.response.headers, 'cb-replayed': 'true' },
         })
       }
     }
@@ -1265,7 +1265,7 @@ export function createApi(options: ApiOptions) {
         headers['cache-control'] = 'no-store'
       if (isRead) headers.vary = 'accept, authorization'
       if (dryRun) {
-        headers['sx-dry-run'] = 'true'
+        headers['cb-dry-run'] = 'true'
         delete headers.location
         if (status === 201 || status === 202) {
           if (status === 202) delete headers['retry-after']
@@ -1344,7 +1344,7 @@ export function createApi(options: ApiOptions) {
         const location = `${configured}${target}${queryString}`
         return problemResponse(e, requestId, {
           location,
-          'sx-renamed-from': from,
+          'cb-renamed-from': from,
         })
       }
       throw e

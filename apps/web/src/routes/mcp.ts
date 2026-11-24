@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { createMcpHandler } from '@modelcontextprotocol/server'
-import { createSxMcpServer } from '@source-code/cli/mcp'
-import { clientFor } from '@source-code/cli/client'
+import { createSxMcpServer } from '@cobaltforge/cli/mcp'
+import { clientFor } from '@cobaltforge/cli/client'
 import { API_MOUNT, getApi } from '~/lib/api/instance'
 
 const unauthorized = (metadata: string, message: string) =>
@@ -16,7 +16,7 @@ const unauthorized = (metadata: string, message: string) =>
       headers: {
         'content-type': 'application/json',
         // RFC 9728: tell the client where to learn how to sign in.
-        'www-authenticate': `Bearer realm="source.code", resource_metadata="${metadata}"`,
+        'www-authenticate': `Bearer realm="cobalt", resource_metadata="${metadata}"`,
       },
     },
   )
@@ -30,7 +30,7 @@ const unauthorized = (metadata: string, message: string) =>
 async function handle({ request }: { request: Request }) {
   const api = getApi(request.url)
   const origin = new URL(request.url).origin
-  const metadata = `${process.env.SX_PUBLIC_URL ?? origin}/.well-known/oauth-protected-resource/mcp`
+  const metadata = `${process.env.CB_PUBLIC_URL ?? origin}/.well-known/oauth-protected-resource/mcp`
   const token = /^Bearer (\S+)$/i.exec(
     request.headers.get('authorization') ?? '',
   )?.[1]

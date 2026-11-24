@@ -6,7 +6,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { generateReference } from '@source-code/api/docs'
+import { generateReference } from '@cobaltforge/api/docs'
 
 const root = new URL('../apps/web/content/docs/api/', import.meta.url).pathname
 for (const [file, text] of await generateReference()) {

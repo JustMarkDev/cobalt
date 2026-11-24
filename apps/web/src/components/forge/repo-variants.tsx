@@ -98,7 +98,7 @@ function EmptyRepo({ repo }: { repo: Repo }) {
         </p>
       </div>
       <CopyField
-        value={`git remote add origin https://source.code/${path}.git`}
+        value={`git remote add origin https://cobaltforge.dev/${path}.git`}
       />
       <CopyField value="git push -u origin main" />
     </div>
@@ -119,8 +119,8 @@ function ClonePopover({ repo }: { repo: Repo }) {
           <Popover.Popup className="overlay-popup w-96 space-y-3 rounded-xl border bg-popover p-3 floating outline-none">
             {(
               [
-                ['HTTPS', `https://source.code/${path}.git`],
-                ['SSH', `git@source.code:${path}.git`],
+                ['HTTPS', `https://cobaltforge.dev/${path}.git`],
+                ['SSH', `git@cobaltforge.dev:${path}.git`],
                 ['CLI', `src clone ${path}`],
               ] as const
             ).map(([label, value]) => (

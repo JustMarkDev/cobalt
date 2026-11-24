@@ -42,7 +42,7 @@ export const createAccount = defineOp({
   id: 'accounts.create',
   summary: 'Create an organization',
   description:
-    'You become its first owner. People and organizations share one namespace, so the handle must be free: one that a person, another organization or a page of the site has answers `invalid_state`. Naturally idempotent on the handle: asking for an organization you already own returns it with `Sx-Outcome: unchanged`. Only a person can create one, not an agent or a bot. A person is not created here; a person signs up.',
+    'You become its first owner. People and organizations share one namespace, so the handle must be free: one that a person, another organization or a page of the site has answers `invalid_state`. Naturally idempotent on the handle: asking for an organization you already own returns it with `Cb-Outcome: unchanged`. Only a person can create one, not an agent or a bot. A person is not created here; a person signs up.',
   method: 'POST',
   path: '/accounts',
   body: z.strictObject({
@@ -62,7 +62,7 @@ export const createAccount = defineOp({
       return reply(r.account, {
         status: r.created ? 201 : 200,
         headers: {
-          'sx-outcome': r.created ? 'created' : 'unchanged',
+          'cb-outcome': r.created ? 'created' : 'unchanged',
           ...(r.created ? { location: r.account.url } : {}),
         },
       })
@@ -138,7 +138,7 @@ export const setMember = defineOp({
   id: 'members.set',
   summary: 'Add a person to an organization, or change their role',
   description:
-    'Owners and admins only. Only an owner can make someone an owner or change an owner. An organization always keeps one owner: changing the last one answers `invalid_state`. Setting the role someone already has changes nothing (`Sx-Outcome: unchanged`).',
+    'Owners and admins only. Only an owner can make someone an owner or change an owner. An organization always keeps one owner: changing the last one answers `invalid_state`. Setting the role someone already has changes nothing (`Cb-Outcome: unchanged`).',
   method: 'PUT',
   path: '/accounts/{handle}/members/{login}',
   params: member,
@@ -159,7 +159,7 @@ export const setMember = defineOp({
       )
       return reply(r.member, {
         status: r.outcome === 'created' ? 201 : 200,
-        headers: { 'sx-outcome': r.outcome },
+        headers: { 'cb-outcome': r.outcome },
       })
     }),
 })
@@ -233,7 +233,7 @@ export const createInvitation = defineOp({
   id: 'invitations.create',
   summary: 'Invite someone to an organization by email',
   description:
-    'Owners and admins only; only an owner invites an owner. They get an email with a link that works for 7 days. Opening it signed in makes them a member; until then they have no access. Inviting the same email again sends a new link and ends the old one (`Sx-Outcome: updated`). To add someone who already has an account, `members.set` needs no email.',
+    'Owners and admins only; only an owner invites an owner. They get an email with a link that works for 7 days. Opening it signed in makes them a member; until then they have no access. Inviting the same email again sends a new link and ends the old one (`Cb-Outcome: updated`). To add someone who already has an account, `members.set` needs no email.',
   method: 'POST',
   path: '/accounts/{handle}/invitations',
   params: org,
@@ -249,7 +249,7 @@ export const createInvitation = defineOp({
       )
       return reply(r.invitation, {
         status: r.outcome === 'created' ? 201 : 200,
-        headers: { 'sx-outcome': r.outcome },
+        headers: { 'cb-outcome': r.outcome },
       })
     }),
 })

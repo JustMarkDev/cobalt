@@ -1,5 +1,5 @@
-import { SxError, createClient } from '@source-code/sdk'
-import { personPrincipal } from '@source-code/api/auth'
+import { CbError, createClient } from '@cobaltforge/sdk'
+import { personPrincipal } from '@cobaltforge/api/auth'
 import { Context, Effect, Layer } from 'effect'
 import { BackendUnavailable, NotFound, Refused } from '../errors'
 import type {
@@ -7,7 +7,7 @@ import type {
   OperationId,
   Operations,
   RequestOptions,
-} from '@source-code/sdk'
+} from '@cobaltforge/sdk'
 import type { getApi } from '~/lib/api/instance'
 import type { CurrentUser } from '~/lib/auth/server'
 
@@ -111,7 +111,7 @@ export class Callers {
 
 /** An API answer that was not a success, as one of the app's expected failures. */
 export const failureOf = (id: string, cause: unknown) => {
-  if (!(cause instanceof SxError))
+  if (!(cause instanceof CbError))
     return new BackendUnavailable({ service: 'api', cause })
   // The API answers 404 for what the caller may not see, so this is all a
   // screen needs to show "not found" for both.
@@ -163,7 +163,7 @@ export const ForgeLive = Layer.succeed(Forge)(
     const api = getApi(request.url)
     callers ??= new Callers(
       api,
-      `${process.env.SX_PUBLIC_URL ?? new URL(request.url).origin}${API_MOUNT}`,
+      `${process.env.CB_PUBLIC_URL ?? new URL(request.url).origin}${API_MOUNT}`,
     )
     // A visitor is rate limited by address, so pass on the one the proxy saw.
     const forwarded = request.headers.get('x-forwarded-for')
@@ -187,7 +187,7 @@ export async function rawAsCaller(
   const api = getApi(request.url)
   callers ??= new Callers(
     api,
-    `${process.env.SX_PUBLIC_URL ?? new URL(request.url).origin}${API_MOUNT}`,
+    `${process.env.CB_PUBLIC_URL ?? new URL(request.url).origin}${API_MOUNT}`,
   )
   return callers.raw(await currentUser(), path, init)
 }

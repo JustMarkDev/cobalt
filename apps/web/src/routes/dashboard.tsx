@@ -25,7 +25,7 @@ import { toDashboardData } from '~/lib/dashboard'
 type Search = { view?: 'profile'; tab?: ProfileTab }
 
 export const Route = createFileRoute('/dashboard')({
-  head: () => ({ meta: [{ title: 'Dashboard · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Dashboard · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): Search => ({
     view: s.view === 'profile' ? 'profile' : undefined,
     tab: profileTabs.find(([id]) => id === s.tab)?.[0],

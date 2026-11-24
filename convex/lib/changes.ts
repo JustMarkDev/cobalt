@@ -1,14 +1,14 @@
 import { seesChange } from './accessRules'
-import { globMatcher } from '@source-code/api/glob'
+import { globMatcher } from '@cobaltforge/api/glob'
 import {
   allowedPathsRequirement,
   approvalsOf,
   policyRules,
   reviewedRequirement,
-} from '@source-code/api/policy-builtins'
-import { currentPosition, presentAnchor } from '@source-code/api/anchors'
-import { DEFAULT_LANDING, policyFileCheck } from '@source-code/api/policy-file'
-import type { FileError, Landing } from '@source-code/api/policy-file'
+} from '@cobaltforge/api/policy-builtins'
+import { currentPosition, presentAnchor } from '@cobaltforge/api/anchors'
+import { DEFAULT_LANDING, policyFileCheck } from '@cobaltforge/api/policy-file'
+import type { FileError, Landing } from '@cobaltforge/api/policy-file'
 import { fail } from './errors'
 import { canWrite } from './access'
 import { counters } from './events'
@@ -42,7 +42,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 /** Over this many lines added and removed, a change is large. */
 export const BIG_CHANGE = 400
 
-export { policyRules } from '@source-code/api/policy-builtins'
+export { policyRules } from '@cobaltforge/api/policy-builtins'
 
 // ---- the repository as change logic needs it ---------------------------------
 

@@ -36,10 +36,10 @@ A change to the API is therefore a change to that file in the same pull request,
 `v1` in the path changes rarely. Behaviour that could surprise a client is named by date and chosen with a header:
 
 ```http
-Sx-Version: 2026-11-07
+Cb-Version: 2026-11-07
 ```
 
-- Every response carries `Sx-Version`, so you can see what answered.
+- Every response carries `Cb-Version`, so you can see what answered.
 - Omit the header and you get the current version. When there is a second one, a token will be pinned to the version current on the day it was created, so it does not change under you, and the header will override that.
 - Send a version we do not support and you get `400 unsupported_version`, with the list in the body and in `GET /v1`.
 - A new version means a behaviour change, not a removal. Fields and endpoints are not versioned, they are added.
@@ -58,4 +58,4 @@ We name the replacement every time. These rules are our commitment from the host
 
 ## Outside the promise
 
-Experimental things are marked `x-sx-experimental` in the OpenAPI document and may change without notice. There are none today. Sample data, the contents of `hint` and `detail` text, and the order of members in an object are not part of the contract. The error `code`, the `status`, the shape of `requirements` and everything in [the reference](/docs/api/reference/changes) are.
+Experimental things are marked `x-cb-experimental` in the OpenAPI document and may change without notice. There are none today. Sample data, the contents of `hint` and `detail` text, and the order of members in an object are not part of the contract. The error `code`, the `status`, the shape of `requirements` and everything in [the reference](/docs/api/reference/changes) are.

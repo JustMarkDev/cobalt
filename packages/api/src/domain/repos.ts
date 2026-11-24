@@ -644,7 +644,7 @@ export abstract class DomainRepos extends DomainAccounts {
           if (head) landed.set(head.sha, c)
         }
     return commits.map((c) => {
-      const login = /^([a-z0-9-]+)@users\.source\.code$/.exec(
+      const login = /^([a-z0-9-]+)@users\.cobaltforge\.dev$/.exec(
         c.author.email.toLowerCase(),
       )?.[1]
       const who = login ? this.actors.get(login) : undefined

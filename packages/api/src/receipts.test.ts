@@ -5,7 +5,7 @@ import { DEFAULT_LANDING } from './policy-file'
 import { isSensitivePath } from './sensitive'
 
 const R = '/repos/dana/gitfs'
-const AGENT = { 'sx-tool': 'T3 Code', 'sx-model': 'Claude Opus 5.5' }
+const AGENT = { 'cb-tool': 'T3 Code', 'cb-model': 'Claude Opus 5.5' }
 
 describe('every write keeps a receipt', () => {
   test('the machine of the login, and the tool and model it declared', async () => {
@@ -32,8 +32,8 @@ describe('every write keeps a receipt', () => {
     const c = await h.call('POST', `${R}/changes`, {
       body: { branch: 'receipt-2' },
       headers: {
-        'sx-tool': '<img src=x onerror=alert(1)>',
-        'sx-model': 'x'.repeat(81),
+        'cb-tool': '<img src=x onerror=alert(1)>',
+        'cb-model': 'x'.repeat(81),
       },
     })
     expect(c.json.head.via.tool).toBeNull()
@@ -58,7 +58,7 @@ describe('what a repository takes', () => {
     expect(set.json.declined_models).toEqual(['Claude Haiku 5.5'])
     const weak = await h.call('POST', `${R}/changes`, {
       body: { branch: 'weak' },
-      headers: { 'sx-model': 'claude haiku 5.5' },
+      headers: { 'cb-model': 'claude haiku 5.5' },
     })
     expect(weak.status).toBe(403)
     expect(weak.json.code).toBe('model_declined')

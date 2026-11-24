@@ -17,7 +17,7 @@ type Subject = {
 }
 
 /**
- * Hand an issue, a change or a failing run to an orchestrator. source.code
+ * Hand an issue, a change or a failing run to an orchestrator. cobalt
  * starts no agent and hosts no model: T3 Code (and boat.dev beneath it) runs
  * the agent under your login, and what it writes comes back with a receipt.
  */
@@ -48,7 +48,7 @@ export function HandOff({
   const [open, setOpen] = React.useState(false)
   const [target, setTarget] =
     React.useState<(typeof targets)[number]['id']>('t3')
-  const command = `sx handoff ${subject.ref.replace(/^#/, '')} -R ${repo} --to ${target}`
+  const command = `cb handoff ${subject.ref.replace(/^#/, '')} -R ${repo} --to ${target}`
 
   return (
     <>

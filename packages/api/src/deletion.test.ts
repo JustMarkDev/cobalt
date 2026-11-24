@@ -262,8 +262,8 @@ describe('asking to be deleted', () => {
     const viaToken = t.withIdentity({
       issuer: 'https://convex.test',
       subject: 'alice',
-      sx_api: 'true',
-      sx_scp: 'repo:read repo:write',
+      cb_api: 'true',
+      cb_scp: 'repo:read repo:write',
     })
     expect(
       await codeOf(

@@ -14,7 +14,7 @@ import type { LocalChange } from './change-sync'
 
 const change: LocalChange = {
   number: 216,
-  branch: 'sx/216-cache-negative-ref-lookups',
+  branch: 'cb/216-cache-negative-ref-lookups',
   title: 'Cache negative ref lookups',
   body: 'Remembers lookups for refs that do not exist.',
   state: 'open',
@@ -26,7 +26,7 @@ describe('change to request', () => {
   test('carries the change id in a hidden footer', () => {
     const out = toRemote(change, 'github', 3)
     expect(readMarker(out.body)).toEqual({ number: 216, patchSet: 3 })
-    expect(out.headRef).toBe('sx/216-cache-negative-ref-lookups')
+    expect(out.headRef).toBe('cb/216-cache-negative-ref-lookups')
   })
 
   test('a draft is a flag on GitHub and a prefix elsewhere', () => {
@@ -40,7 +40,7 @@ describe('change to request', () => {
     const child = {
       ...change,
       number: 217,
-      branch: 'sx/217-bound-the-cache',
+      branch: 'cb/217-bound-the-cache',
       parent: { number: 216, branch: change.branch },
     }
     expect(toRemote(child, 'github', 1).baseRef).toBe(change.branch)
@@ -113,12 +113,12 @@ describe('request to change', () => {
 describe('branch names', () => {
   test('the number first, then the title as it was', () => {
     expect(branchFor(216, 'Cache negative ref lookups')).toBe(
-      'sx/216-cache-negative-ref-lookups',
+      'cb/216-cache-negative-ref-lookups',
     )
     expect(branchFor(7, 'Show cache stats in `gitfs doctor`!')).toBe(
-      'sx/7-show-cache-stats-in-gitfs-doctor',
+      'cb/7-show-cache-stats-in-gitfs-doctor',
     )
-    expect(branchFor(9, '???')).toBe('sx/9')
+    expect(branchFor(9, '???')).toBe('cb/9')
   })
 })
 
@@ -198,7 +198,7 @@ describe('what travels', () => {
     expect(remoteVerdict('gitlab', 'changes').kind).toBe('unresolved-thread')
   })
 
-  test('comparing patch sets never leaves source.code', () => {
+  test('comparing patch sets never leaves cobalt', () => {
     for (const host of ['github', 'gitlab', 'codeberg', 'gitea'] as const) {
       const ids = compatibility(host).native.map((f) => f.id)
       expect(ids).toContain('interdiff')

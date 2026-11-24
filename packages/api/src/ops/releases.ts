@@ -91,7 +91,7 @@ export const createRelease = defineOp({
   id: 'releases.create',
   summary: 'Publish a release',
   description:
-    'Naturally idempotent by tag: publishing one that exists returns it with `Sx-Outcome: unchanged`. A stable release tells the people who starred the repository.',
+    'Naturally idempotent by tag: publishing one that exists returns it with `Cb-Outcome: unchanged`. A stable release tells the people who starred the repository.',
   method: 'POST',
   path: '/repos/{owner}/{repo}/releases',
   idempotent: true,
@@ -158,7 +158,7 @@ export const createRelease = defineOp({
       )
       return reply(r.release, {
         status: r.outcome === 'created' ? 201 : 200,
-        headers: { 'sx-outcome': r.outcome },
+        headers: { 'cb-outcome': r.outcome },
       })
     }),
 })

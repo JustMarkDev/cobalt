@@ -35,7 +35,7 @@ export const rootOp = defineOp({
   handler: (ctx) =>
     Effect.succeed({
       object: 'api' as const,
-      name: 'source.code',
+      name: 'cobalt',
       version: API_VERSION,
       versions: SUPPORTED_VERSIONS,
       links: {
@@ -146,7 +146,7 @@ export function openapiOp(spec: () => unknown): Op {
     id: 'api.openapi',
     summary: 'This API as OpenAPI 3.1',
     description:
-      'Generated from the same definitions the server runs. Every operation carries x-sx-* metadata: safety, idempotency, scopes, rate-limit pool and cost, and error codes.',
+      'Generated from the same definitions the server runs. Every operation carries x-cb-* metadata: safety, idempotency, scopes, rate-limit pool and cost, and error codes.',
     tags: ['meta'],
     method: 'GET',
     path: '/openapi.json',
@@ -238,7 +238,7 @@ export const batchOp = defineOp({
               for (const k of [
                 'etag',
                 'location',
-                'sx-outcome',
+                'cb-outcome',
                 'ratelimit',
                 'retry-after',
               ])

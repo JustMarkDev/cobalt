@@ -9,7 +9,7 @@ There is no separate kind of account for agents. An agent works under the login 
 ## Log in once per machine
 
 ```bash
-sx auth login
+cb auth login
 ```
 
 The approval page names the machine and says that it will be able to read your team's secret values. Approve it only if you started it yourself. From then on every agent on that machine (Claude Code, Codex, whatever T3 Code runs) uses the same login. There are no keys to paste and nothing that expires in the middle of a task. **Settings, Machines and tokens** lists every machine and token that can act as you, with a button to sign each out.
@@ -23,12 +23,12 @@ Every write records, next to the account responsible:
 | Part    | From                                                     |
 | ------- | -------------------------------------------------------- |
 | Machine | The login: the name the machine gave when it signed in   |
-| Tool    | What the client declares: `sx`, `T3 Code`, an MCP client |
+| Tool    | What the client declares: `cb`, `T3 Code`, an MCP client |
 | Model   | What the client declares, such as `Claude Opus 5.5`      |
 
-Orchestrators set `SX_TOOL` and `SX_MODEL` for the agents they start; `sx` and the MCP server send them on every request. A `git push` reads the model from the commit: `Assisted-by: <tool>:<model>`, or a `Co-Authored-By` with a model vendor's no-reply address.
+Orchestrators set `CB_TOOL` and `CB_MODEL` for the agents they start; `cb` and the MCP server send them on every request. A `git push` reads the model from the commit: `Assisted-by: <tool>:<model>`, or a `Co-Authored-By` with a model vendor's no-reply address.
 
-The receipt shows on the change, in the timeline, in the audit log and behind any line of code. source.code hosts no model and cannot check what a tool declares, so tool and model are labels: they grant nothing.
+The receipt shows on the change, in the timeline, in the audit log and behind any line of code. cobalt hosts no model and cannot check what a tool declares, so tool and model are labels: they grant nothing.
 
 ## What a repository takes
 
@@ -45,4 +45,4 @@ Checks are evidence, and the AI reviewer's findings are the independent review. 
 
 ## Handing work off
 
-source.code starts no agent. **Hand off** on an issue, a change or a failing pipeline gives you the command that passes it to an orchestrator (T3 Code on your machine, or boat.dev in the cloud). The agent works under your login, opens a draft change, and its writes come back with receipts. See [Agents and the CLI](/docs/cli/agents).
+cobalt starts no agent. **Hand off** on an issue, a change or a failing pipeline gives you the command that passes it to an orchestrator (T3 Code on your machine, or boat.dev in the cloud). The agent works under your login, opens a draft change, and its writes come back with receipts. See [Agents and the CLI](/docs/cli/agents).

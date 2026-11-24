@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve as resolvePath } from 'node:path'
 import { tmpdir } from 'node:os'
 import { parse as parseYaml } from 'yaml'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import { runnerClient } from '../client'
 import type { ApiClient } from '../client'
@@ -12,10 +12,10 @@ import type { Command } from './types'
 /**
  * Runners: a machine that takes pipeline jobs.
  *
- *   sx runner register mac-mini --labels macos,arm64,xcode-16
- *   sx runner list
- *   sx runner revoke rnr_...
- *   SX_RUNNER_TOKEN=sxr_... sx runner start
+ *   cb runner register mac-mini --labels macos,arm64,xcode-16
+ *   cb runner list
+ *   cb runner revoke rnr_...
+ *   CB_RUNNER_TOKEN=cbr_... cb runner start
  *
  * `register` shows the runner's token once. `start` needs nothing but that
  * token, the API and a working directory: it sends a heartbeat every 30
@@ -86,10 +86,10 @@ export const runner: Command = async (
   if (sub === 'register') {
     const name = rest.at(0)
     if (!name)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'runner register needs a name.',
-        'Example: sx runner register mac-mini --labels macos,arm64,xcode-16',
+        'Example: cb runner register mac-mini --labels macos,arm64,xcode-16',
         exit.usage,
       )
     const provider = str(flags, 'provider')
@@ -114,17 +114,17 @@ export const runner: Command = async (
     print(ctx, { ...r, dryRun: dry }, () =>
       dry
         ? `would register ${r.name} with ${r.labels.join(', ') || 'no labels'}`
-        : `registered ${r.name} (${r.id}). Its token, shown this once:\n\n  SX_RUNNER_TOKEN=${r.secret}\n\nRun "sx runner start" with it on the machine.`,
+        : `registered ${r.name} (${r.id}). Its token, shown this once:\n\n  CB_RUNNER_TOKEN=${r.secret}\n\nRun "cb runner start" with it on the machine.`,
     )
     return
   }
   if (sub === 'revoke') {
     const id = rest.at(0)
     if (!id)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'runner revoke needs an id.',
-        'sx runner list shows ids.',
+        'cb runner list shows ids.',
         exit.usage,
       )
     const r = (await ctx.api().del(`/runners/${id}`, { dryRun: dry }))
@@ -138,23 +138,23 @@ export const runner: Command = async (
     return
   }
   if (sub === 'start') {
-    const token = process.env.SX_RUNNER_TOKEN
+    const token = process.env.CB_RUNNER_TOKEN
     if (!token)
-      throw new SxError(
+      throw new CbError(
         'unauthenticated',
-        'sx runner start needs SX_RUNNER_TOKEN.',
-        'sx runner register prints it, once.',
+        'cb runner start needs CB_RUNNER_TOKEN.',
+        'cb runner register prints it, once.',
         exit.auth,
       )
     const workdir = resolvePath(
-      str(flags, 'workdir') ?? join(tmpdir(), 'sx-runner'),
+      str(flags, 'workdir') ?? join(tmpdir(), 'cb-runner'),
     )
     return await start(runnerClient(token), ctx, {
       workdir,
       once: has(flags, 'once'),
     })
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_subcommand',
     `runner ${sub} is not a command.`,
     'Use register, list, revoke or start.',
@@ -294,7 +294,7 @@ async function runJob(
       cwd: dir,
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, SX_RUNNER_TOKEN: '' },
+      env: { ...process.env, CB_RUNNER_TOKEN: '' },
     })
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(),

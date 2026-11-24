@@ -1,9 +1,9 @@
 {
-  "name": "@source-code/api",
+  "name": "@cobaltforge/api",
   "version": "0.0.0",
   "private": true,
   "license": "BUSL-1.1",
-  "description": "The source.code HTTP API: operations, pipeline, domain. Read README.md first.",
+  "description": "The cobalt HTTP API: operations, pipeline, domain. Read README.md first.",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
-    "@source-code/git": "workspace:*",
+    "@cobaltforge/git": "workspace:*",
     "convex": "^1.51.0",
     "effect": "^4.1.5",
     "jose": "^6.2.18",
@@ -21,7 +21,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@source-code/sdk": "workspace:*",
+    "@cobaltforge/sdk": "workspace:*",
     "convex-test": "^0.0.73",
     "oxfmt": "0.79.0"
   }

@@ -199,7 +199,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
   const installs = [
     [
       'curl',
-      `curl -fsSL https://source.code/${repo.owner}/${repo.name}/install | sh${pinned ? ` -s -- --version ${release.version}` : ''}`,
+      `curl -fsSL https://cobaltforge.dev/${repo.owner}/${repo.name}/install | sh${pinned ? ` -s -- --version ${release.version}` : ''}`,
     ],
     [
       'brew',

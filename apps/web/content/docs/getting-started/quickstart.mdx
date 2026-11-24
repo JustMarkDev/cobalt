@@ -5,15 +5,15 @@ description: From nothing to a landed change in five minutes.
 ---
 
 <Callout type="warn" title="Preview">
-  `sx` answers from sample data today, so the commands below work but do not
+  `cb` answers from sample data today, so the commands below work but do not
   touch a real repository.
 </Callout>
 
-## 1. Install sx
+## 1. Install cb
 
 ```bash
-bun add -g @source-code/cli
-sx --version
+bun add -g @cobaltforge/cli
+cb --version
 ```
 
 See [Install](/docs/cli/install) for other ways.
@@ -21,12 +21,12 @@ See [Install](/docs/cli/install) for other ways.
 ## 2. Create a repository
 
 ```bash
-sx repo create dana/notes --public
-git clone git@source.code:dana/notes.git
+cb repo create dana/notes --public
+git clone git@cobaltforge.dev:dana/notes.git
 cd notes
 ```
 
-Running `sx repo create` twice is safe. The second call returns the repository that exists.
+Running `cb repo create` twice is safe. The second call returns the repository that exists.
 
 ## 3. Push a branch and open a change
 
@@ -34,15 +34,15 @@ Running `sx repo create` twice is safe. The second call returns the repository t
 git switch -c fix-typos
 git commit -am "Fix typos in the readme"
 git push -u origin fix-typos
-sx change create
+cb change create
 ```
 
-`sx change create` asks nothing. The title is your last commit, the base is your default branch, and the branch is the one you are on. Run it again after another push and it adds a **patch set** to the same change.
+`cb change create` asks nothing. The title is your last commit, the base is your default branch, and the branch is the one you are on. Run it again after another push and it adds a **patch set** to the same change.
 
 ## 4. See what stops it landing
 
 ```bash
-sx change view
+cb change view
 ```
 
 ```text
@@ -55,10 +55,10 @@ patch sets 1, 0 approval, ci pending
 ## 5. Land it
 
 ```bash
-sx change land
+cb change land
 ```
 
-If a policy blocks it, `sx` exits with code `5` and says which requirement is missing. See [Policies](/docs/concepts/policies).
+If a policy blocks it, `cb` exits with code `5` and says which requirement is missing. See [Policies](/docs/concepts/policies).
 
 ## Next
 
