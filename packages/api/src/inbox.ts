@@ -1,3 +1,8 @@
+import { WAIT_DEFAULT_MS } from './lifecycles'
+import { waitingForLabels } from './runners'
+import type { RunnerLike } from './runners'
+import type { PipelineRunRec } from './domain/records'
+
 export const inboxSeverities = [
   'stopped',
   'failing',
@@ -312,4 +317,59 @@ export function dashboardNeeds(items: Array<Need>) {
       action: x.label,
       path: x.path,
     }))
+}
+
+/** The steps of `run` paused until `me` resumes them. */
+export function stepsWaitingOn(
+  repo: string,
+  run: PipelineRunRec,
+  me: string,
+): NonNullable<NeedsFacts['waiting']> {
+  const out: NonNullable<NeedsFacts['waiting']> = []
+  for (const [ji, j] of run.jobs.entries())
+    for (const [si, s] of j.steps.entries())
+      if (
+        s.status === 'waiting' &&
+        s.wait &&
+        s.wait.kind !== 'agent' &&
+        (s.wait.target ?? run.actor) === me
+      )
+        out.push({
+          repo,
+          run: run.number,
+          job: ji + 1,
+          step: si + 1,
+          workflow: run.workflow,
+          stepName: s.name,
+          reason: s.wait.reason,
+          expires: s.wait.expires,
+          since: s.wait.expires - WAIT_DEFAULT_MS,
+        })
+  return out
+}
+
+/** The first queued job of `run` that none of `runners` can take. */
+export function queuedWithoutRunner(
+  repo: { owner: string; name: string },
+  run: PipelineRunRec,
+  runners: Array<RunnerLike>,
+): NonNullable<NeedsFacts['noRunner']>[number] | null {
+  for (const j of run.jobs) {
+    if (j.status !== 'queued') continue
+    const labels = waitingForLabels(
+      j.runsOn ?? [],
+      runners,
+      repo.owner,
+      repo.name,
+    )
+    if (labels)
+      return {
+        repo: `${repo.owner}/${repo.name}`,
+        run: run.number,
+        workflow: run.workflow,
+        labels,
+        started: run.started,
+      }
+  }
+  return null
 }

@@ -3,6 +3,11 @@ import { query } from '../_generated/server'
 import { system } from '../lib/actor'
 import { out } from '../lib/errors'
 import { repoUrl } from '../lib/present'
+import {
+  changeSearchDoc,
+  issueSearchDoc,
+  repoSearchDoc,
+} from '@cobaltforge/api/search'
 
 export const docs = query({
   args: { after: v.union(v.null(), v.string()), repos: v.number() },
@@ -19,54 +24,15 @@ export const docs = query({
     for (const r of page) {
       const full = `${r.owner}/${r.name}`
       const url = repoUrl(r)
-      found.push({
-        key: `repo:${r.publicId}`,
-        type: 'repo',
-        id: r.publicId,
-        repo: full,
-        number: null,
-        title: full,
-        text: r.description,
-        state: r.visibility,
-        author: r.owner,
-        labels: [],
-        updated: r.updated,
-        url,
-      })
+      found.push(repoSearchDoc({ ...r, id: r.publicId }, url))
       for await (const c of ctx.db
         .query('changes')
         .withIndex('by_repoId_and_number', (q) => q.eq('repoId', r._id)))
-        found.push({
-          key: `change:${c.publicId}`,
-          type: 'change',
-          id: c.publicId,
-          repo: full,
-          number: c.number,
-          title: c.title,
-          text: c.description,
-          state: c.state,
-          author: c.author.handle,
-          labels: c.labels,
-          updated: c.updated,
-          url: `${url}/changes/${c.number}`,
-        })
+        found.push(changeSearchDoc(full, url, { ...c, id: c.publicId }))
       for await (const i of ctx.db
         .query('issues')
         .withIndex('by_repoId_and_number', (q) => q.eq('repoId', r._id)))
-        found.push({
-          key: `issue:${i.publicId}`,
-          type: 'issue',
-          id: i.publicId,
-          repo: full,
-          number: i.number,
-          title: i.title,
-          text: i.body,
-          state: i.state,
-          author: i.author.handle,
-          labels: i.labels,
-          updated: i.updated,
-          url: `${url}/issues/${i.number}`,
-        })
+        found.push(issueSearchDoc(full, url, { ...i, id: i.publicId }))
     }
     return out({
       docs: found,

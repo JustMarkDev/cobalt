@@ -1,6 +1,5 @@
 import { v } from 'convex/values'
-import { WAIT_DEFAULT_MS } from '@cobaltforge/api/lifecycles'
-import { waitingForLabels } from '@cobaltforge/api/runners'
+import { queuedWithoutRunner, stepsWaitingOn } from '@cobaltforge/api/inbox'
 import { query } from '../_generated/server'
 import { signedIn } from '../lib/actor'
 import { canRead } from '../lib/access'
@@ -90,50 +89,15 @@ export const facts = query({
           )
           .take(200)) {
           const run = await load(ctx, d)
-          for (const [ji, j] of run.jobs.entries())
-            for (const [si, s] of j.steps.entries())
-              if (
-                s.status === 'waiting' &&
-                s.wait &&
-                s.wait.kind !== 'agent' &&
-                (s.wait.target ?? run.actor) === me
-              )
-                waiting.push({
-                  repo: full(r),
-                  run: run.number,
-                  job: ji + 1,
-                  step: si + 1,
-                  workflow: run.workflow,
-                  stepName: s.name,
-                  reason: s.wait.reason,
-                  expires: s.wait.expires,
-                  since: s.wait.expires - WAIT_DEFAULT_MS,
-                })
+          waiting.push(...stepsWaitingOn(full(r), run, me))
           if (status === 'waiting' || run.actor !== me) continue
           let runners = runnersByOwner.get(r.owner)
           if (!runners) {
             runners = await runnersOf(ctx, r.owner)
             runnersByOwner.set(r.owner, runners)
           }
-          for (const j of run.jobs) {
-            if (j.status !== 'queued') continue
-            const labels = waitingForLabels(
-              j.runsOn ?? [],
-              runners,
-              r.owner,
-              r.name,
-            )
-            if (labels) {
-              noRunner.push({
-                repo: full(r),
-                run: run.number,
-                workflow: run.workflow,
-                labels,
-                started: run.started,
-              })
-              break
-            }
-          }
+          const stuck = queuedWithoutRunner(r, run, runners)
+          if (stuck) noRunner.push(stuck)
         }
     }
 

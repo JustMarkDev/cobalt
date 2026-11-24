@@ -17,6 +17,75 @@ export type SearchDoc = {
   url: string
 }
 
+type Item = {
+  id: string
+  number: number
+  title: string
+  state: string
+  author: { handle: string }
+  labels: Array<string>
+  updated: number
+}
+
+/** What search indexes about a repository, its changes and its issues. */
+export const repoSearchDoc = (
+  r: {
+    id: string
+    owner: string
+    name: string
+    description: string
+    visibility: string
+    updated: number
+  },
+  url: string,
+): SearchDoc => ({
+  key: `repo:${r.id}`,
+  type: 'repo',
+  id: r.id,
+  repo: `${r.owner}/${r.name}`,
+  number: null,
+  title: `${r.owner}/${r.name}`,
+  text: r.description,
+  state: r.visibility,
+  author: r.owner,
+  labels: [],
+  updated: r.updated,
+  url,
+})
+
+const itemDoc = (
+  type: 'change' | 'issue',
+  repo: string,
+  x: Item,
+  text: string,
+  url: string,
+): SearchDoc => ({
+  key: `${type}:${x.id}`,
+  type,
+  id: x.id,
+  repo,
+  number: x.number,
+  title: x.title,
+  text,
+  state: x.state,
+  author: x.author.handle,
+  labels: x.labels,
+  updated: x.updated,
+  url,
+})
+
+export const changeSearchDoc = (
+  repo: string,
+  repoUrl: string,
+  c: Item & { description: string },
+) => itemDoc('change', repo, c, c.description, `${repoUrl}/changes/${c.number}`)
+
+export const issueSearchDoc = (
+  repo: string,
+  repoUrl: string,
+  i: Item & { body: string },
+) => itemDoc('issue', repo, i, i.body, `${repoUrl}/issues/${i.number}`)
+
 export type SearchHit = {
   doc: SearchDoc
   score: number

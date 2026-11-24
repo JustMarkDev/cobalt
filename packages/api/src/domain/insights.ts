@@ -1,8 +1,13 @@
 import { apiError } from '../problem'
-import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
+import {
+  INBOX_MAX,
+  dashboardNeeds,
+  needsFrom,
+  presentInbox,
+  queuedWithoutRunner,
+  stepsWaitingOn,
+} from '../inbox'
 import type { NeedsFacts } from '../inbox'
-import { WAIT_DEFAULT_MS } from '../lifecycles'
-import { waitingForLabels } from '../runners'
 import type { Principal } from '../auth'
 import type { EventRecord } from '../events'
 import type { GitCommit } from '../git'
@@ -243,48 +248,14 @@ export abstract class DomainInsights extends DomainImports {
       const runners = [...this.runners.values()]
       for (const run of r.pipelines ?? []) {
         if (run.status === 'waiting' || run.status === 'running')
-          for (const [ji, j] of run.jobs.entries())
-            for (const [si, s] of j.steps.entries())
-              if (
-                s.status === 'waiting' &&
-                s.wait &&
-                s.wait.kind !== 'agent' &&
-                (s.wait.target ?? run.actor) === me
-              )
-                f.waiting.push({
-                  repo: full(r),
-                  run: run.number,
-                  job: ji + 1,
-                  step: si + 1,
-                  workflow: run.workflow,
-                  stepName: s.name,
-                  reason: s.wait.reason,
-                  expires: s.wait.expires,
-                  since: s.wait.expires - WAIT_DEFAULT_MS,
-                })
+          f.waiting.push(...stepsWaitingOn(full(r), run, me))
         if (
           (run.status === 'queued' || run.status === 'running') &&
           run.actor === me
-        )
-          for (const j of run.jobs) {
-            if (j.status !== 'queued') continue
-            const labels = waitingForLabels(
-              j.runsOn ?? [],
-              runners,
-              r.owner,
-              r.name,
-            )
-            if (labels) {
-              f.noRunner.push({
-                repo: full(r),
-                run: run.number,
-                workflow: run.workflow,
-                labels,
-                started: run.started,
-              })
-              break
-            }
-          }
+        ) {
+          const stuck = queuedWithoutRunner(r, run, runners)
+          if (stuck) f.noRunner.push(stuck)
+        }
       }
     }
     f.mentions = (this.inboxes.get(me) ?? [])
