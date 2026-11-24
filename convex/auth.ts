@@ -5,6 +5,8 @@ import { betterAuth } from 'better-auth/minimal'
 import { username } from 'better-auth/plugins/username'
 import { components, internal } from './_generated/api'
 import { sendMail } from './lib/mail'
+import { renderMail } from './lib/mailTemplate'
+import type { MailContent } from './lib/mailTemplate'
 import { tally, track } from './lib/stats'
 import { env, query } from './_generated/server'
 import authConfig from './auth.config'
@@ -72,6 +74,11 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
 })
 
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi()
+
+function mail(to: string, subject: string, content: MailContent) {
+  const { text, html } = renderMail(content)
+  return sendMail(to, subject, text, { html })
+}
 
 const taken = () =>
   new APIError('UNPROCESSABLE_ENTITY', {
@@ -149,11 +156,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         enabled: true,
         updateEmailWithoutVerification: false,
         sendChangeEmailConfirmation: ({ user, newEmail, url }) =>
-          sendMail(
-            user.email,
-            'Confirm the change of your cobalt email',
-            `Someone asked to change the email of your cobalt account from ${user.email} to ${newEmail}.\n\nIf it was you, open this link to approve it:\n\n${url}\n\nIf it was not, ignore this email and change your password.`,
-          ),
+          mail(user.email, 'Confirm the change of your cobalt email', {
+            heading: 'Approve your new email',
+            intro: `Someone asked to change the email of your cobalt account from ${user.email} to ${newEmail}. If it was you, approve it below.`,
+            action: { label: 'Approve the change', url },
+            outro:
+              'If it was not you, ignore this email and change your password.',
+          }),
       },
     },
     databaseHooks: {
@@ -183,21 +192,24 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: ({ user, url }) =>
-        sendMail(
-          user.email,
-          'Confirm your email for cobalt',
-          `Open this link to confirm ${user.email}:\n\n${url}\n\nIf you did not sign up, ignore this email.`,
-        ),
+        mail(user.email, 'Confirm your email for cobalt', {
+          heading: 'Confirm your email',
+          intro: `Welcome to cobalt. Confirm that ${user.email} is yours to finish setting up your account.`,
+          action: { label: 'Confirm email', url },
+          outro: 'If you did not sign up for cobalt, ignore this email.',
+        }),
     },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
       sendResetPassword: ({ user, url }) =>
-        sendMail(
-          user.email,
-          'Reset your cobalt password',
-          `Open this link to choose a new password:\n\n${url}\n\nIf you did not ask for this, ignore this email; your password stays as it is.`,
-        ),
+        mail(user.email, 'Reset your cobalt password', {
+          heading: 'Reset your password',
+          intro: 'Someone asked to reset the password of your cobalt account.',
+          action: { label: 'Choose a new password', url },
+          outro:
+            'If you did not ask for this, ignore this email. Your password stays as it is.',
+        }),
     },
     plugins: [
       username({

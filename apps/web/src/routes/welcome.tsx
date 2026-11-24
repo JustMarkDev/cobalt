@@ -66,7 +66,7 @@ function Welcome() {
 
   return (
     <AuthShell
-      step="Step 2 of 2"
+      step="Step 3 of 3"
       title="Bring your history with you"
       subtitle="Optional. Copy your projects and activity from where they live now. You can do this any time in Settings."
       footer={

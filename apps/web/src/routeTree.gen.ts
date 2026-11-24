@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CheckEmailRouteImport } from './routes/check-email'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DesignRouteImport } from './routes/design'
@@ -49,6 +50,11 @@ import { Route as HandleRepoReleasesDownloadTagAssetRouteImport } from './routes
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckEmailRoute = CheckEmailRouteImport.update({
+  id: '/check-email',
+  path: '/check-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompareRoute = CompareRouteImport.update({
@@ -235,6 +241,7 @@ const HandleRepoReleasesDownloadTagAssetRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/check-email': typeof CheckEmailRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/design': typeof DesignRoute
@@ -273,6 +280,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/check-email': typeof CheckEmailRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/design': typeof DesignRoute
@@ -312,6 +320,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/check-email': typeof CheckEmailRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/design': typeof DesignRoute
@@ -352,6 +361,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/check-email'
     | '/compare'
     | '/dashboard'
     | '/design'
@@ -390,6 +400,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/check-email'
     | '/compare'
     | '/dashboard'
     | '/design'
@@ -428,6 +439,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/check-email'
     | '/compare'
     | '/dashboard'
     | '/design'
@@ -467,6 +479,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CheckEmailRoute: typeof CheckEmailRoute
   CompareRoute: typeof CompareRoute
   DashboardRoute: typeof DashboardRoute
   DesignRoute: typeof DesignRoute
@@ -511,6 +524,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/check-email': {
+      id: '/check-email'
+      path: '/check-email'
+      fullPath: '/check-email'
+      preLoaderRoute: typeof CheckEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compare': {
@@ -763,6 +783,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CheckEmailRoute: CheckEmailRoute,
   CompareRoute: CompareRoute,
   DashboardRoute: DashboardRoute,
   DesignRoute: DesignRoute,

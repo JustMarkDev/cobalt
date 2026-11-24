@@ -12,6 +12,7 @@ import * as React from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
 import { SiteFooter, SiteHeader } from '~/components/forge/chrome'
+import { VerifyEmailBanner } from '~/components/forge/verify-email-banner'
 import { NotFoundPage } from '~/components/forge/not-found'
 import {
   MotionProvider,
@@ -96,6 +97,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         '/forgot-password',
         '/reset-password',
         '/welcome',
+        '/check-email',
       ].includes(s.location.pathname),
   })
   const home = useRouterState({ select: (s) => s.location.pathname === '/' })
@@ -138,6 +140,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             ) : (
               <>
                 <SiteHeader />
+                <VerifyEmailBanner />
                 <main
                   id="main"
                   tabIndex={-1}

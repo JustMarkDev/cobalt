@@ -15,7 +15,7 @@ export async function sendMail(
   to: string,
   subject: string,
   text: string,
-  opts: { idempotencyKey?: string } = {},
+  opts: { idempotencyKey?: string; html?: string } = {},
 ) {
   const sink = (globalThis as { __cbMailSink?: MailSink }).__cbMailSink
   if (sink) {
@@ -43,7 +43,13 @@ export async function sendMail(
           ? { 'idempotency-key': opts.idempotencyKey }
           : {}),
       },
-      body: JSON.stringify({ from, to: [to], subject, text }),
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        text,
+        ...(opts.html ? { html: opts.html } : {}),
+      }),
     })
   } catch (e) {
     throw new MailError(`Resend did not answer: ${String(e)}`, true)

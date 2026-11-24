@@ -64,6 +64,7 @@ import type * as lib_idempotency from "../lib/idempotency.js";
 import type * as lib_input from "../lib/input.js";
 import type * as lib_issues from "../lib/issues.js";
 import type * as lib_mail from "../lib/mail.js";
+import type * as lib_mailTemplate from "../lib/mailTemplate.js";
 import type * as lib_paginate from "../lib/paginate.js";
 import type * as lib_pierre from "../lib/pierre.js";
 import type * as lib_plan from "../lib/plan.js";
@@ -145,6 +146,7 @@ declare const fullApi: ApiFromModules<{
   "lib/input": typeof lib_input;
   "lib/issues": typeof lib_issues;
   "lib/mail": typeof lib_mail;
+  "lib/mailTemplate": typeof lib_mailTemplate;
   "lib/paginate": typeof lib_paginate;
   "lib/pierre": typeof lib_pierre;
   "lib/plan": typeof lib_plan;

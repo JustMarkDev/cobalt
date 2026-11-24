@@ -73,10 +73,10 @@ function RepoSettings({ group }: { group: IntegrationGroup }) {
           label="Runs jobs labelled"
           hint="Workflows that ask for this label run here."
         >
-          <Input defaultValue="ubuntu-latest" className="font-mono text-xs" />
+          <Input className="font-mono text-xs" />
         </Field>
         <Field label="Concurrent jobs">
-          <Input type="number" defaultValue={8} />
+          <Input type="number" min={1} />
         </Field>
       </div>
     )
@@ -93,7 +93,7 @@ function RepoSettings({ group }: { group: IntegrationGroup }) {
           </Select>
         </Field>
         <Field label="Spending limit per task">
-          <Input defaultValue="$2.00" />
+          <Input inputMode="decimal" />
         </Field>
       </div>
     )
@@ -101,7 +101,7 @@ function RepoSettings({ group }: { group: IntegrationGroup }) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Schema file">
-          <Input defaultValue=".env.schema" className="font-mono text-xs" />
+          <Input className="font-mono text-xs" />
         </Field>
         <Field label="Check on">
           <Select defaultValue="push">

@@ -68,12 +68,12 @@ function SignUp() {
       setError(err.message)
       return
     }
-    void navigate({ to: '/welcome', search: { redirect } })
+    void navigate({ to: '/check-email', search: { redirect } })
   }
 
   return (
     <AuthShell
-      step="Step 1 of 2"
+      step="Step 1 of 3"
       title="Create your account"
       subtitle="Keep your code, and everything you have done elsewhere, in one place."
       footer={

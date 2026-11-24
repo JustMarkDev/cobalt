@@ -90,6 +90,7 @@ async function signUp(input: {
       email: input.email.trim().toLowerCase(),
       password: input.password,
       username: input.handle ?? randomHandle(),
+      callbackURL: '/dashboard',
     })
     if (!error) return current()
     if (error.code !== 'USERNAME_IS_ALREADY_TAKEN' || input.handle)
@@ -204,10 +205,13 @@ export const authClient = {
     return { error: error ? toError(error) : null }
   },
 
-  async sendVerification(email: string): Promise<{ error: AuthError | null }> {
+  async sendVerification(
+    email: string,
+    callbackURL = '/settings/accounts',
+  ): Promise<{ error: AuthError | null }> {
     const { error } = await client.sendVerificationEmail({
       email,
-      callbackURL: '/settings/accounts',
+      callbackURL,
     })
     return { error: error ? toError(error) : null }
   },
