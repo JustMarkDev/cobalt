@@ -1,27 +1,16 @@
-import type { Via } from '../lib/actor'
 import { v } from 'convex/values'
 import { query } from '../_generated/server'
 import { actorOf } from '../lib/actor'
 import { resolve } from '../lib/access'
 import { out } from '../lib/errors'
-import { actorOut, iso, urls } from '../lib/present'
+import { repoUrl, urls } from '../lib/present'
 import { issueOf } from '../lib/issues'
-import { hydrate, loadChange, viewFor } from '../lib/changes'
-import { presentGuide } from '@cobaltforge/api/guides'
+import { hydrate, loadChange } from '../lib/changes'
+import { changeEntries, timelineEntry } from '@cobaltforge/api/timeline'
+import type { TimelineEntry } from '@cobaltforge/api/timeline'
 import { presentComment, presentIssueEvidence } from './issues'
 import type { ActorRef } from '../lib/events'
 import type { QueryCtx } from '../_generated/server'
-
-type Entry = {
-  object: 'timeline_entry'
-  id: string
-  kind: string
-  created_at: string
-  actor: ReturnType<typeof actorOut> | null
-  via: Via | null
-  summary: string
-  item: unknown
-}
 
 export const get = query({
   args: {
@@ -35,26 +24,9 @@ export const get = query({
   handler: async (ctx, a) => {
     const p = await actorOf(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p)
-    const entries: Array<Entry> = []
-    const entry = (
-      kind: string,
-      id: string,
-      at: number,
-      actor: ActorRef | null,
-      via: Via | null,
-      summary: string,
-      item: unknown,
-    ) =>
-      entries.push({
-        object: 'timeline_entry',
-        id: `${kind}:${id}`,
-        kind,
-        created_at: iso(at),
-        actor: actor ? actorOut(actor) : null,
-        via,
-        summary,
-        item,
-      })
+    const entries: Array<TimelineEntry> = []
+    const entry = (...e: Parameters<typeof timelineEntry>) =>
+      entries.push(timelineEntry(...e))
     const states = async (subject: string) => {
       let from: string | null = null
       for (const s of await ctx.db
@@ -79,83 +51,23 @@ export const get = query({
     }
     if (a.kind === 'change') {
       const { rec: c } = await loadChange(ctx, repo, a.ref, p)
-      const view = await viewFor(ctx, repo, p, a.at, [c])
-      for (const ps of c.patchSets)
-        entry(
-          'patch_set',
-          String(ps.n),
-          ps.created,
-          ps.author,
-          ps.via ?? null,
-          `Patch set ${ps.n}: ${ps.note}`,
-          view.presentPatchSet(c, ps),
-        )
-      for (const x of c.comments ?? [])
-        entry(
-          'comment',
-          x.id,
-          x.created,
-          x.author,
-          x.via ?? null,
-          `${x.file ? `${x.file}${x.line ? `:${x.line}` : ''}: ` : ''}${x.body.split('\n')[0]}`,
-          view.presentReviewComment(c, x),
-        )
-      for (const r of c.reviews)
-        entry(
-          'review',
-          r.id,
-          r.created,
-          r.actor,
-          r.via ?? null,
-          `${r.state === 'changes' ? 'asked for changes' : r.state} on patch set ${r.patchSet}${r.carries ? '' : ' (stale)'}`,
-          view.presentReview(r),
-        )
+      const agents = new Map<string, ActorRef>()
       for (const f of c.findings)
-        entry(
-          'finding',
-          f.id,
-          f.created,
-          await agentOf(ctx, f.by),
-          f.via ?? null,
-          `${f.label} (${f.severity}): ${f.title}`,
-          view.presentFinding(c, f),
-        )
-      for (const k of c.checks)
-        entry(
-          'check',
-          k.id,
-          k.updated,
-          null,
-          null,
-          `${k.name}: ${k.state}`,
-          view.presentCheck(k),
-        )
-      if (c.guide)
-        entry(
-          'guide',
-          `${c.id}:${c.guide.created}`,
-          c.guide.created,
-          c.guide.by,
-          c.guide.via ?? null,
-          `Guide for patch set ${c.guide.patchSet}: ${c.guide.summary.split('\n')[0]}`,
-          presentGuide(
-            c.number,
-            c.patchSets[c.patchSets.length - 1].n,
-            c.guide,
-            (x) => view.actor(x),
-            iso,
-          ),
-        )
-      for (const e of c.evidence ?? [])
-        entry(
-          'evidence',
-          e.id,
-          e.created,
-          e.by,
-          null,
-          `${e.kind}: ${e.caption}`,
-          view.presentEvidence(c, e),
-        )
+        if (!agents.has(f.by)) agents.set(f.by, await agentOf(ctx, f.by))
+      entries.push(
+        ...changeEntries(c, {
+          repoUrl: repoUrl(repo),
+          apiUrl: urls().api,
+          findingActor: (by) => agents.get(by) ?? null,
+          upload: (e) =>
+            e.upload ?? {
+              id: e.uploadId,
+              contentType: 'application/octet-stream',
+              size: 0,
+              sha256: '',
+            },
+        }),
+      )
       if ((await states(`change:${c.number}`)) === null)
         entry(
           'state_change',

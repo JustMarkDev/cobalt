@@ -42,6 +42,7 @@ import type {
 import { DomainIssues } from './issues'
 import { changeBlame } from '../provenance'
 import { lineCounts } from '../lines'
+import { changeEntries, timelineEntry } from '../timeline'
 import {
   presentPatchSet,
   presentReview,
@@ -2047,25 +2048,8 @@ export abstract class DomainChanges extends DomainIssues {
         ? this.getChangeRec(repo, subject.ref, p).number
         : Number(subject.ref)
     const out: Array<Entry> = []
-    const entry = (
-      kind: Entry['kind'],
-      id: string,
-      at: number,
-      actor: ActorRec | null,
-      via: ViaRec | null,
-      summary: string,
-      item: Entry['item'],
-    ) =>
-      out.push({
-        object: 'timeline_entry',
-        id: `${kind}:${id}`,
-        kind,
-        created_at: iso(at),
-        actor: actor ? this.actor(actor) : null,
-        via,
-        summary,
-        item,
-      })
+    const entry = (...a: Parameters<typeof timelineEntry>) =>
+      out.push(timelineEntry(...a))
     const states = (object: 'change' | 'issue', first: string) => {
       let from: string | null = null
       const moves =
@@ -2092,79 +2076,14 @@ export abstract class DomainChanges extends DomainIssues {
     }
     if (subject.kind === 'change') {
       const c = this.getChangeRec(repo, subject.ref, p)
-      for (const ps of c.patchSets)
-        entry(
-          'patch_set',
-          String(ps.n),
-          ps.created,
-          ps.author,
-          ps.via ?? null,
-          `Patch set ${ps.n}: ${ps.note}`,
-          this.presentPatchSet(repo, c, ps),
-        )
-      for (const x of c.comments ?? [])
-        entry(
-          'comment',
-          x.id,
-          x.created,
-          x.author,
-          x.via ?? null,
-          `${x.file ? `${x.file}${x.line ? `:${x.line}` : ''}: ` : ''}${x.body.split('\n')[0]}`,
-          this.presentReviewComment(c, x),
-        )
-      for (const r of c.reviews)
-        entry(
-          'review',
-          r.id,
-          r.created,
-          r.actor,
-          r.via ?? null,
-          `${r.state === 'changes' ? 'asked for changes' : r.state} on patch set ${r.patchSet}${r.carries ? '' : ' (stale)'}`,
-          this.presentReview(r),
-        )
-      for (const f of c.findings)
-        entry(
-          'finding',
-          f.id,
-          f.created,
-          this.actorFor(f.by),
-          f.via ?? null,
-          `${f.label} (${f.severity}): ${f.title}`,
-          this.presentFinding(repo, c, f),
-        )
-      for (const k of c.checks)
-        entry(
-          'check',
-          k.id,
-          k.updated,
-          null,
-          null,
-          `${k.name}: ${k.state}`,
-          this.presentCheck(k),
-        )
-      if (c.guide)
-        entry(
-          'guide',
-          `${c.id}:${c.guide.created}`,
-          c.guide.created,
-          c.guide.by,
-          c.guide.via ?? null,
-          `Guide for patch set ${c.guide.patchSet}: ${c.guide.summary.split('\n')[0]}`,
-          this.presentGuide(c, c.guide),
-        )
-      for (const e of c.evidence ?? []) {
-        const u = this.memUploads.get(e.uploadId)
-        if (u)
-          entry(
-            'evidence',
-            e.id,
-            e.created,
-            e.by,
-            null,
-            `${e.kind}: ${e.caption}`,
-            this.presentEvidence(c, e, u),
-          )
-      }
+      out.push(
+        ...changeEntries(c, {
+          repoUrl: this.repoUrl(repo),
+          apiUrl: this.urls.api,
+          findingActor: (by) => this.actorFor(by),
+          upload: (e) => this.memUploads.get(e.uploadId) ?? null,
+        }),
+      )
       if (
         states('change', c.state) === c.state &&
         !out.some((e) => e.kind === 'state_change')
