@@ -4,7 +4,6 @@ import {
   canMove,
   cancelPipeline,
   expireWait,
-  jobWait,
   pipelineLifecycle,
   reportStep,
   requeueJob,
@@ -12,12 +11,17 @@ import {
   settlePipeline,
   waitStep,
 } from '@cobaltforge/api/lifecycles'
-import type { PipelineStatus, PipelineWait } from '@cobaltforge/api/lifecycles'
-import { LEASE_MS, waitingForLabels } from '@cobaltforge/api/runners'
+import type { PipelineWait } from '@cobaltforge/api/lifecycles'
+import { LEASE_MS } from '@cobaltforge/api/runners'
 import type { RunnerLike } from '@cobaltforge/api/runners'
+import type { PipelineRunRec } from '@cobaltforge/api/domain/records'
 import { v } from 'convex/values'
-import { newId } from '@cobaltforge/api/ids'
 import { applyRunsOn } from '@cobaltforge/api/runs-on'
+import {
+  presentClaimedJob,
+  presentPipelineRun,
+  queuedCopy,
+} from '@cobaltforge/api/pipeline-view'
 import { internal } from '../_generated/api'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
@@ -25,54 +29,14 @@ import { actorOf, signedIn, system } from '../lib/actor'
 import { accessStamp, repoByPublicId, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { counters } from '../lib/events'
-import { iso, repoUrl, urls } from '../lib/present'
+import { repoUrl, urls } from '../lib/present'
 import { notify } from './notifications'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
-type Status = PipelineStatus
-type Line = { t: string; level: string | null }
-type Step = {
-  name: string
-  status: string
-  duration: number
-  lines: Array<Line>
-  wait?: PipelineWait | null
-}
-type Job = {
-  name: string
-  runner: string
-  status: string
-  duration: number
-  runsOn?: Array<string>
-  runnerId?: string | null
-  lease?: number | null
-  steps: Array<Step>
-}
-export type PipelineRun = {
-  id: string
-  number: number
-  workflow: string
-  title: string
-  branch: string
-  sha: string
-  status: Status
-  trigger: string
-  runsOnPending?: boolean
-  runsOnFrom?: number
-  actor: string
-  started: number
-  finished: number | null
-  file: string
-  annotations: Array<{
-    level: 'error' | 'warn'
-    text: string
-    job: string
-    step: string
-  }>
-  jobs: Array<Job>
-  version: number
-}
+export type PipelineRun = PipelineRunRec
+type Job = PipelineRun['jobs'][number]
+type Line = Job['steps'][number]['lines'][number]
 
 export async function load(
   ctx: QueryCtx,
@@ -216,16 +180,6 @@ export async function runnersOf(
   return found
 }
 
-const presentWait = (w: PipelineWait | null | undefined) =>
-  w
-    ? {
-        kind: w.kind,
-        reason: w.reason,
-        target: w.target,
-        expires_at: iso(w.expires),
-      }
-    : null
-
 export function present(
   repo: Doc<'repos'>,
   r: PipelineRun,
@@ -233,52 +187,15 @@ export function present(
   counts?: Map<string, number>,
   runners: Array<RunnerLike> = [],
 ) {
-  const base = `${repoUrl(repo)}/pipelines/${r.number}`
-  return {
-    object: 'pipeline_run' as const,
-    id: r.id,
-    number: r.number,
-    url: base,
-    html_url: `${urls().html}/${repo.owner}/${repo.name}/pipelines?n=${r.number}`,
-    workflow: r.workflow,
-    file: r.file,
-    title: r.title,
-    branch: r.branch,
-    sha: r.sha,
-    status: r.status,
-    trigger: r.trigger,
-    actor: r.actor,
-    started_at: iso(r.started),
-    finished_at: r.finished === null ? null : iso(r.finished),
-    duration_ms: r.finished === null ? null : r.finished - r.started,
-    jobs: detail
-      ? r.jobs.map((j, ji) => ({
-          name: j.name,
-          runner: j.runner,
-          status: j.status,
-          duration_ms: j.duration,
-          runs_on: [...(j.runsOn ?? [])],
-          runner_id: j.runnerId ?? null,
-          lease_expires_at: j.lease ? iso(j.lease) : null,
-          waiting_for_labels:
-            j.status === 'queued'
-              ? waitingForLabels(j.runsOn ?? [], runners, repo.owner, repo.name)
-              : null,
-          wait: presentWait(jobWait(j)),
-          steps: j.steps.map((s, si) => ({
-            name: s.name,
-            status: s.status,
-            duration_ms: s.duration,
-            lines: counts?.get(`${ji + 1}/${si + 1}`) ?? s.lines.length,
-            log_url: `${base}/jobs/${ji + 1}/steps/${si + 1}/log`,
-            wait: presentWait(s.wait),
-          })),
-        }))
-      : null,
-    runs_on_pending: !!r.runsOnPending,
-    annotations: r.annotations,
-    version: r.version,
-  }
+  return presentPipelineRun({
+    run: r,
+    repo,
+    repoUrl: repoUrl(repo),
+    htmlUrl: urls().html,
+    detail,
+    runners,
+    lineCount: (job, step) => counts?.get(`${job}/${step}`),
+  })
 }
 
 export async function runOf(ctx: QueryCtx, repo: Doc<'repos'>, n: number) {
@@ -307,24 +224,8 @@ export const shown = async (
     await runnersOf(ctx, repo.owner),
   )
 
-export function claimedJob(repo: Doc<'repos'>, r: PipelineRun, ji: number) {
-  const j = r.jobs[ji]
-  return {
-    object: 'pipeline_job' as const,
-    run: r.number,
-    job: ji + 1,
-    name: j.name,
-    workflow: r.workflow,
-    file: r.file,
-    branch: r.branch,
-    sha: r.sha,
-    steps: j.steps.map((s, si) => ({ number: si + 1, name: s.name })),
-    url: `${repoUrl(repo)}/pipelines/${r.number}/jobs/${ji + 1}`,
-    runs_on: [...(j.runsOn ?? [])],
-    runner_id: j.runnerId ?? null,
-    lease_expires_at: j.lease ? iso(j.lease) : null,
-  }
-}
+export const claimedJob = (repo: Doc<'repos'>, r: PipelineRun, ji: number) =>
+  presentClaimedJob(repoUrl(repo), r, ji)
 
 const statusArg = v.optional(v.string())
 
@@ -461,36 +362,12 @@ async function queuedFrom(
   from: PipelineRun,
   actor: string,
 ): Promise<PipelineRun> {
-  const at = Date.now()
   const c = await counters(ctx, repo)
-  return {
-    ...from,
-    id: newId('pipeline', at),
+  return queuedCopy(from, {
     number: (c.pipelineNumber ?? 0) + 1,
-    status: 'queued',
-    trigger: 'manual',
     actor,
-    started: at,
-    finished: null,
-    annotations: [],
-    jobs: from.jobs.map((j) => ({
-      ...j,
-      status: 'queued',
-      runner: '',
-      runnerId: null,
-      lease: null,
-      runsOn: [...(j.runsOn ?? [])],
-      duration: 0,
-      steps: j.steps.map((s) => ({
-        ...s,
-        status: 'queued',
-        duration: 0,
-        lines: [],
-        wait: null,
-      })),
-    })),
-    version: 1,
-  }
+    at: Date.now(),
+  })
 }
 
 export const rerun = mutation({
@@ -660,7 +537,7 @@ export async function applyReport(
   if (moved.repeated) return r
   if (a.duration_ms !== undefined) s.duration = a.duration_ms
   for (const l of a.lines ?? [])
-    s.lines.push({ t: l.text, level: l.level ?? null })
+    s.lines.push({ t: l.text, level: (l.level ?? null) as Line['level'] })
   if (a.lines?.length) await writeLog(ctx, doc._id, a.job, a.step, s.lines)
   if (a.status === 'failure') {
     const last = [...(a.lines ?? [])].reverse().find((l) => l.level === 'error')
@@ -851,7 +728,7 @@ export const resume = mutation({
     const j = r.jobs[a.job - 1]
     const s = j.steps[a.step - 1]
     for (const l of a.lines ?? [])
-      s.lines.push({ t: l.text, level: l.level ?? null })
+      s.lines.push({ t: l.text, level: (l.level ?? null) as Line['level'] })
     if (a.summary)
       s.lines.push({
         t: `Resumed by ${p.handle}: ${a.summary}`,

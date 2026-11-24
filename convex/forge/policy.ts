@@ -29,7 +29,11 @@ import {
   policyYaml,
   unifiedDiff,
 } from '@cobaltforge/api/policy-file'
-import { proposalEdits, proposalTitle } from '@cobaltforge/api/policy-proposals'
+import {
+  proposalChange,
+  proposalEdits,
+  proposalTitle,
+} from '@cobaltforge/api/policy-proposals'
 import { commit, hex, patchSetEvent, pushPatchSet } from './changes'
 import type { ChangeRec, CustomRuleRec, RuleMode } from '../lib/changeTypes'
 import type { Doc } from '../_generated/dataModel'
@@ -290,42 +294,22 @@ async function proposeIn(
   const c = await counters(ctx, repo)
   await ctx.db.patch('repoCounters', c._id, { nextNumber: c.nextNumber + 1 })
   const rec: ChangeRec = {
-    id: newId('change', at),
-    number: c.nextNumber,
-    title: note,
-    description: pol.file
-      ? 'Proposed from the policy settings. The rules change when this lands.'
-      : 'Moves the rules from the repository settings into the policy file. The settings stay in force until this lands; after it, the file is the rules.',
-    state: 'open',
-    author: by,
-    base: repo.defaultBranch,
-    branch,
-    patchSets: [
-      {
-        n: 1,
-        sha,
-        tree: sha.slice(0, 7),
-        note,
-        author: by,
-        created: at,
-        files,
-        kind: 'initial',
-        contents: { [POLICY_FILE]: next },
-      },
-    ],
-    reviews: [],
-    findings: [],
-    checks: [],
-    stackId: null,
-    labels: [],
-    mirrors: [],
+    ...proposalChange({
+      id: newId('change', at),
+      number: c.nextNumber,
+      note,
+      hasFile: !!pol.file,
+      author: by,
+      base: repo.defaultBranch,
+      branch,
+      sha,
+      files,
+      next,
+      at,
+    }),
     evidence: [],
     comments: [],
     commentRev: 0,
-    created: at,
-    updated: at,
-    landed: null,
-    version: 1,
   }
   const l = { rec, parts: new Map() } as unknown as Loaded
   await commit(ctx, repo, l, null, {
