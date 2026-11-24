@@ -17,7 +17,7 @@ import type { AuthUser } from '~/lib/auth/client'
 import { RequireAuth } from '~/components/forge/auth'
 import { useOp, useOpMaybe, useWrite } from '~/lib/forge'
 import { useMe } from '~/lib/auth/accounts'
-import { Input, field } from '~/components/ui/input'
+import { Input, field, fieldShell } from '~/components/ui/input'
 import { Chip, SectionLabel, SourceBadge } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
 import { TargetPicker } from '~/components/forge/download-button'
@@ -28,7 +28,6 @@ import { IntegrationsPanel } from '~/components/forge/integrations-panel'
 import { Toggle } from '~/components/forge/repo-pages'
 import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth/client'
-import { toRepo } from '~/lib/repo'
 
 const sections = [
   ['profile', 'Profile', UserIcon],
@@ -199,11 +198,15 @@ const input = cn(field, 'h-9 disabled:opacity-60')
 
 function ProfileSettings() {
   const { data: session } = authClient.useSession()
-  if (!session) return null
-  return <ProfileForm user={session.user} />
+  const handle = session?.user.handle ?? ''
+  const account = useOpMaybe('accounts.get', { handle }, !!handle)
+  if (!session || account === undefined) return null
+  return (
+    <ProfileForm key={handle} user={session.user} bio={account?.bio ?? ''} />
+  )
 }
 
-type Problem = { field: 'name' | 'email' | 'handle'; message: string }
+type Problem = { field: 'name' | 'email' | 'handle' | 'bio'; message: string }
 const problemField: Record<string, Problem['field']> = {
   INVALID_NAME: 'name',
   INVALID_EMAIL: 'email',
@@ -211,45 +214,47 @@ const problemField: Record<string, Problem['field']> = {
   ADDRESS_TAKEN: 'handle',
 }
 
-function ProfileForm({ user }: { user: AuthUser }) {
+function ProfileForm({ user, bio: savedBio }: { user: AuthUser; bio: string }) {
+  const write = useWrite()
   const [saved, setSaved] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [name, setName] = React.useState(user.name)
   const [email, setEmail] = React.useState(user.email)
   const [address, setAddress] = React.useState(user.handle)
+  const [bio, setBio] = React.useState(savedBio)
   const [problem, setProblem] = React.useState<Problem | null>(null)
   const emailChanged = email.trim().toLowerCase() !== user.email
 
   const save = async () => {
     setSaving(true)
     setProblem(null)
-    const { error } = await authClient.updateUser({
+    const { data, error } = await authClient.updateUser({
       name,
       email,
       handle: address,
     })
-    setSaving(false)
     if (error) {
+      setSaving(false)
       setProblem({
         field: problemField[error.code] ?? 'name',
         message: error.message,
       })
       return
     }
+    if (bio.trim() !== savedBio) {
+      const r = await write('accounts.update', {
+        handle: data?.user.handle ?? address,
+        body: { bio: bio.trim() },
+      })
+      if (r.error) {
+        setSaving(false)
+        setProblem({ field: 'bio', message: r.error.message })
+        return
+      }
+    }
+    setSaving(false)
     setSaved(true)
   }
-  const owned = useOpMaybe(
-    'repos.list',
-    { owner: user.handle, limit: 100 },
-    !!user.handle,
-  )
-  const mine = (owned?.data ?? []).map((r) => toRepo(r))
-  const [unpinned, setUnpinned] = React.useState<Set<string>>(new Set())
-  const pinned = new Set(
-    mine.map((r) => r.name).filter((n) => !unpinned.has(n)),
-  )
-  const setPinned = (next: Set<string>) =>
-    setUnpinned(new Set(mine.map((r) => r.name).filter((n) => !next.has(n))))
   const touch = () => setSaved(false)
   const errorOf = (f: Problem['field']) =>
     problem?.field === f ? problem.message : null
@@ -260,11 +265,7 @@ function ProfileForm({ user }: { user: AuthUser }) {
       </Header>
       <div className="space-y-6">
         <Card>
-          <Field
-            label="Full name"
-            hint="What people see on your page. Companies get their own page, so this is always a person's name."
-            error={errorOf('name')}
-          >
+          <Field label="Full name" error={errorOf('name')}>
             <input
               value={name}
               onChange={(e) => {
@@ -280,7 +281,7 @@ function ProfileForm({ user }: { user: AuthUser }) {
             hint={
               emailChanged
                 ? 'We will send a link to the new address. It changes once you open it.'
-                : 'Where we send sign-in and security messages. Never shown on your page.'
+                : undefined
             }
             error={errorOf('email')}
           >
@@ -295,15 +296,17 @@ function ProfileForm({ user }: { user: AuthUser }) {
               className={input}
             />
           </Field>
-          <Field
-            label="Address"
-            hint="Your page and every project link start with it. If you change it, old links keep working and redirect to the new one."
-            error={errorOf('handle')}
-          >
-            <span className="relative block">
+          <Field label="Address" error={errorOf('handle')}>
+            <span
+              className={cn(
+                fieldShell,
+                'flex h-9 items-center overflow-hidden font-mono text-sm focus-within:border-foreground/40',
+                errorOf('handle') && 'border-danger',
+              )}
+            >
               <span
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm text-muted-foreground"
+                className="shrink-0 border-r bg-muted/50 px-3 self-stretch flex items-center text-muted-foreground select-none"
               >
                 cobaltforge.dev/
               </span>
@@ -317,60 +320,22 @@ function ProfileForm({ user }: { user: AuthUser }) {
                 }}
                 autoCapitalize="none"
                 spellCheck={false}
-                className={cn(input, 'pl-[calc(12ch+1rem)] font-mono')}
+                className="h-full min-w-0 flex-1 bg-transparent px-3 text-foreground outline-none"
               />
             </span>
           </Field>
-          <Field label="Bio" hint="One line. Shown under your name.">
+          <Field label="Bio" error={errorOf('bio')}>
             <textarea
-              defaultValue="Building small, fast dev tools. Rust and TypeScript."
+              value={bio}
+              maxLength={300}
               rows={2}
-              onChange={touch}
-              className={cn(field, 'py-2')}
+              onChange={(e) => {
+                setBio(e.target.value)
+                touch()
+              }}
+              className={cn(field, 'block resize-none py-2')}
             />
           </Field>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Location">
-              <input defaultValue="Lagos" onChange={touch} className={input} />
-            </Field>
-            <Field label="Website">
-              <input
-                defaultValue="https://dana.dev"
-                onChange={touch}
-                className={input}
-              />
-            </Field>
-          </div>
-        </Card>
-        <Card>
-          <SectionLabel>Pinned projects</SectionLabel>
-          <p className="text-sm text-muted-foreground">
-            Shown first on your profile. Pick up to six.
-          </p>
-          <ul className="divide-y overflow-hidden rounded-xl border">
-            {mine.map((r) => (
-              <li key={r.name}>
-                <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/40">
-                  <input
-                    type="checkbox"
-                    checked={pinned.has(r.name)}
-                    onChange={(e) => {
-                      const next = new Set(pinned)
-                      if (e.target.checked) next.add(r.name)
-                      else next.delete(r.name)
-                      setPinned(next)
-                      touch()
-                    }}
-                    className="size-4"
-                  />
-                  <span className="font-mono">{r.name}</span>
-                  <span className="truncate text-muted-foreground">
-                    {r.description}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
         </Card>
         <div className="flex items-center justify-end gap-3">
           {saved && <span className="text-sm text-success">Saved</span>}
