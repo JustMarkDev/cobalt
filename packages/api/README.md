@@ -33,8 +33,17 @@ sample*.ts      sample data and tokens; also what the tests run on
 screens.ts      the Convex function behind each operation a page calls
                 itself (`screens.test.ts` holds the answers equal)
 bodies.ts       write bodies checked the same way here and in Convex
+change-view.ts  a change's policy, actions and public objects
+pipeline-view.ts  a pipeline run and claimed job as shown, and reruns
+timeline.ts     a change's timeline entries
+profile.ts      a person's profile page
 testing.ts      harness: an API, a call helper, a movable clock
 ```
+
+The memory domain and `convex/` are two stores behind one API. Anything that
+does not touch storage (judging a record, shaping a public object) belongs in
+a shared module like the four above, so the stores give the same answers. Each
+store loads the records and calls it.
 
 `apps/web/src/routes/api/v1/$.ts` mounts it at `/api/v1`, and
 `apps/web/src/lib/api/instance.ts` builds the one API the app serves. `scripts/api-bench.ts` is the

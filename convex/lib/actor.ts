@@ -1,3 +1,4 @@
+import { personScopes } from '@cobaltforge/api/auth'
 import { fail } from './errors'
 import { env } from '../_generated/server'
 import type { QueryCtx } from '../_generated/server'
@@ -21,25 +22,6 @@ export type Actor = {
   loginId?: string | null
   system: boolean
 }
-
-export const allScopes = [
-  'repo:read',
-  'repo:write',
-  'issues:read',
-  'issues:comment',
-  'issues:write',
-  'pulls:read',
-  'pulls:comment',
-  'pulls:write',
-  'pulls:merge',
-  'secrets:schema',
-  'secrets:write',
-  'secrets:decrypt',
-  'webhooks:read',
-  'webhooks:write',
-  'tokens:manage',
-  'runners:manage',
-] as const
 
 export const claim = {
   api: 'cb_api',
@@ -108,7 +90,7 @@ export async function actorOf(ctx: Ctx): Promise<Actor | null> {
     actingAs: account.handle,
     via: { machine: 'browser', tool: 'cobalt', model: null },
     session: true,
-    scopes: new Set(allScopes),
+    scopes: new Set(personScopes),
     repos: null,
     tokenId: null,
     system: false,
