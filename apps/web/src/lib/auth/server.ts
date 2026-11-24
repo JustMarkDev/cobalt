@@ -16,7 +16,28 @@ const auth = () =>
     },
   }))
 
-export const handler = (request: Request) => auth().handler(request)
+export const handler = (request: Request) =>
+  auth().handler(withoutCloudflareHeaders(request))
+
+// The site is served through Cloudflare, and so is convex.site. A request
+// that reaches Cloudflare still carrying the `cf-*` headers it added on the way
+// in (cf-connecting-ip above all) is refused with "error code: 1000", so the
+// auth proxy must not pass them on.
+export function withoutCloudflareHeaders(request: Request): Request {
+  const headers = new Headers(request.headers)
+  const names = [...headers.keys()].filter(
+    (name) => name.startsWith('cf-') || name === 'cdn-loop',
+  )
+  if (!names.length) return request
+  for (const name of names) headers.delete(name)
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body: request.body,
+    // @ts-expect-error duplex is needed to stream a request body
+    duplex: 'half',
+  })
+}
 
 export type CurrentUser = {
   id: string
