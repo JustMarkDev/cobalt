@@ -14,7 +14,9 @@ export function urls() {
   }
 }
 
-export const iso = (ms: number) => new Date(ms).toISOString()
+import { iso } from './time'
+
+export { iso }
 
 export const actorOut = (a: ActorRef) => ({
   object: 'actor' as const,

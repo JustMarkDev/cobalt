@@ -1,4 +1,5 @@
 import { apiError } from '../problem'
+import { changeSearchDoc, issueSearchDoc, repoSearchDoc } from '../search'
 import type { SearchDoc } from '../search'
 import type { Principal } from '../auth'
 import { Moved } from './records'
@@ -195,50 +196,10 @@ export abstract class DomainAccess extends DomainState {
   *searchDocs(): Iterable<SearchDoc> {
     for (const r of this.repos.values()) {
       const full = `${r.owner}/${r.name}`
-      yield {
-        key: `repo:${r.id}`,
-        type: 'repo',
-        id: r.id,
-        repo: full,
-        number: null,
-        title: full,
-        text: r.description,
-        state: r.visibility,
-        author: r.owner,
-        labels: [],
-        updated: r.updated,
-        url: this.repoUrl(r),
-      }
-      for (const c of r.changes.values())
-        yield {
-          key: `change:${c.id}`,
-          type: 'change',
-          id: c.id,
-          repo: full,
-          number: c.number,
-          title: c.title,
-          text: c.description,
-          state: c.state,
-          author: c.author.handle,
-          labels: c.labels,
-          updated: c.updated,
-          url: `${this.repoUrl(r)}/changes/${c.number}`,
-        }
-      for (const i of r.issues.values())
-        yield {
-          key: `issue:${i.id}`,
-          type: 'issue',
-          id: i.id,
-          repo: full,
-          number: i.number,
-          title: i.title,
-          text: i.body,
-          state: i.state,
-          author: i.author.handle,
-          labels: i.labels,
-          updated: i.updated,
-          url: `${this.repoUrl(r)}/issues/${i.number}`,
-        }
+      const url = this.repoUrl(r)
+      yield repoSearchDoc(r, url)
+      for (const c of r.changes.values()) yield changeSearchDoc(full, url, c)
+      for (const i of r.issues.values()) yield issueSearchDoc(full, url, i)
     }
   }
 

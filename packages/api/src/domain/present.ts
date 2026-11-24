@@ -1,16 +1,23 @@
-import { globMatcher } from '../glob'
 import {
-  allowedPathsRequirement,
-  approvalsOf,
-  policyRules,
-  reviewedRequirement,
-} from '../policy-builtins'
+  changeActions,
+  checksSummary,
+  evaluatePolicy,
+  evaluateRules,
+  headOf,
+  policyState,
+  presentChange,
+  presentCheck,
+  presentEvidence,
+  presentFinding,
+  ruleMode,
+  unmetCount,
+} from '../change-view'
+import type { PolicyConfig } from '../change-view'
 import { Pre } from '../registry'
 import type { UploadRec } from '../uploads'
 import type { z } from 'zod'
 import type * as S from '../schemas'
 import { iso } from './records'
-import { DEFAULT_LANDING, policyFileCheck } from '../policy-file'
 import { presentSteps } from '../landing'
 import type {
   AccountRec,
@@ -18,7 +25,6 @@ import type {
   Assume,
   ChangeRec,
   CheckRec,
-  CustomRuleRec,
   EvidenceRec,
   FindingRec,
   IssueRec,
@@ -30,35 +36,6 @@ import type {
   Viewer,
 } from './records'
 import { DomainAccess } from './access'
-
-export const BIG_CHANGE = 400
-
-export { policyRules } from '../policy-builtins'
-
-export function describeCustomRule(r: CustomRuleRec) {
-  if (r.kind === 'required_check')
-    return {
-      when: 'any change',
-      requires: [`${r.check} passed, bound to the landing tree`],
-    }
-  if (r.kind === 'max_lines')
-    return {
-      when: 'any change',
-      requires: [`at most ${r.maxLines} lines added and removed`],
-    }
-  if (r.kind === 'allowed_paths')
-    return {
-      when: 'any change',
-      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
-    }
-  const n = r.approvals ?? 1
-  return {
-    when: `paths ${(r.paths ?? []).join(', ')}`,
-    requires: [
-      `${n} approval${n === 1 ? '' : 's'}, human${r.from?.length ? `, from ${r.from.join(', ')}` : ''}`,
-    ],
-  }
-}
 
 export abstract class DomainPresent extends DomainAccess {
   protected actor(a: ActorRec): z.infer<typeof S.Actor> {
@@ -126,28 +103,11 @@ export abstract class DomainPresent extends DomainAccess {
   }
 
   protected head(c: ChangeRec) {
-    return c.patchSets[c.patchSets.length - 1]
+    return headOf(c)
   }
 
-  protected checksFor(c: ChangeRec): z.infer<typeof S.Change>['checks'] {
-    const tree = this.head(c).tree
-    const own = c.checks.filter((k) => k.tree === tree)
-    const passed = own.filter((k) => k.state === 'pass').length
-    const failed = own.filter((k) => k.state === 'fail').length
-    const pending = own.filter((k) => k.state === 'pending').length
-    return {
-      state:
-        own.length === 0
-          ? 'none'
-          : failed
-            ? 'fail'
-            : pending
-              ? 'pending'
-              : 'pass',
-      passed,
-      failed,
-      pending,
-    }
+  protected checksFor(c: ChangeRec) {
+    return checksSummary(c)
   }
 
   protected latestReviews(c: ChangeRec) {
@@ -175,19 +135,19 @@ export abstract class DomainPresent extends DomainAccess {
     return reqs
   }
 
-  protected modeOf(repo: RepoRec, id: string): RuleMode {
-    return (
-      repo.ruleModes?.get(id) ??
-      policyRules.find((r) => r.id === id)?.mode ??
-      'enforce'
-    )
+  protected policyConfig(repo: RepoRec): PolicyConfig {
+    return {
+      modes: repo.ruleModes,
+      exceptions: repo.policyExceptions,
+      customRules: repo.customRules,
+      landing: repo.landing,
+      isMaintainer: (h) => repo.maintainers.has(h),
+      now: this.now(),
+    }
   }
 
-  protected exceptionFor(repo: RepoRec, rule: string, who: string) {
-    const now = this.now()
-    return repo.policyExceptions?.find(
-      (e) => e.rule === rule && e.who === who && e.expires > now,
-    )
+  protected modeOf(repo: RepoRec, id: string): RuleMode {
+    return ruleMode(this.policyConfig(repo), id)
   }
 
   protected evaluateFresh(
@@ -195,21 +155,12 @@ export abstract class DomainPresent extends DomainAccess {
     c: ChangeRec,
     assume: Assume,
   ): Array<Requirement> {
-    const out: Array<Requirement> = []
-    for (const r of this.evaluateRules(repo, c, assume)) {
-      const mode = this.modeOf(repo, r.id)
-      if (mode === 'off') continue
-      if (mode === 'dry-run' && (r.state === 'fail' || r.state === 'pending'))
-        out.push({
-          ...r,
-          state: 'na',
-          detail: `Dry run, would block: ${r.detail}`,
-          needs: null,
-          blocking: [],
-        })
-      else out.push(r)
-    }
-    return out
+    return evaluatePolicy(
+      this.policyConfig(repo),
+      c,
+      this.latestReviews(c),
+      assume,
+    )
   }
 
   protected evaluateRules(
@@ -217,219 +168,31 @@ export abstract class DomainPresent extends DomainAccess {
     c: ChangeRec,
     assume: Assume,
   ): Array<Requirement> {
-    const head = this.head(c)
-    const out: Array<Requirement> = []
-
-    const fresh = (repo.landing ?? DEFAULT_LANDING).fresh_approvals
-    const reviews = this.latestReviews(c).map((r) =>
-      fresh && r.patchSet !== head.n ? { ...r, carries: false } : r,
+    return evaluateRules(
+      this.policyConfig(repo),
+      c,
+      this.latestReviews(c),
+      assume,
     )
-    const approvals = approvalsOf(reviews, c.author.handle, assume.approve)
-    const objections = reviews.filter(
-      (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
-    )
-
-    const runs = c.checks.filter(
-      (k) => k.name === 'ci/test' && k.tree === head.tree,
-    )
-    const run = runs.sort((a, b) => b.updated - a.updated)[0] as
-      | (typeof runs)[number]
-      | undefined
-    const ciState = assume.checks?.['ci/test'] ?? run?.state ?? 'pending'
-    out.push({
-      id: 'ci-evidence',
-      rule: 'Tests pass on the tree that will land',
-      state: ciState,
-      detail:
-        ciState === 'pass'
-          ? `ci/test passed on tree ${head.tree}, the tree that lands.`
-          : ciState === 'fail'
-            ? `ci/test failed on tree ${head.tree}.`
-            : run
-              ? `ci/test is running on tree ${head.tree}.`
-              : `No ci/test result for tree ${head.tree} yet.`,
-      needs: { check: 'ci/test', bound_to: 'tree', tree: head.tree },
-      blocking: ciState === 'fail' && run ? [run.id] : [],
-    })
-
-    const lines = Object.values(head.files).reduce(
-      (n, f) => n + f.add + f.del,
-      0,
-    )
-
-    const open = c.findings.filter(
-      (f) =>
-        f.severity === 'high' &&
-        f.state === 'open' &&
-        !(assume.resolve ?? []).includes(f.label),
-    )
-    out.push({
-      id: 'findings',
-      rule: 'No open high-severity findings',
-      state: open.length ? 'fail' : 'pass',
-      detail: open.length
-        ? `${open.length} open: ${open.map((f) => `${f.label} from ${f.by}`).join(', ')}.`
-        : 'No open high-severity findings.',
-      needs: open.length ? { resolve: open.map((f) => f.label) } : null,
-      blocking: open.map((f) => f.id),
-    })
-
-    out.push(reviewedRequirement(approvals, objections))
-
-    for (const r of repo.customRules ?? [])
-      out.push(this.evaluateCustomRule(r, c, assume, approvals, lines))
-
-    const policy = policyFileCheck(
-      head,
-      policyRules,
-      (h) => repo.maintainers.has(h),
-      [...approvals],
-    )
-    if (policy) out.push(policy)
-
-    return out.map((r) => {
-      if (r.state === 'pass' || r.state === 'na') return r
-      const e = this.exceptionFor(repo, r.id, c.author.handle)
-      return e
-        ? {
-            ...r,
-            state: 'pass' as const,
-            detail: `Exception for ${e.who} until ${new Date(e.expires).toISOString().slice(0, 10)}: ${e.reason}`,
-            needs: null,
-            blocking: [],
-          }
-        : r
-    })
-  }
-
-  protected evaluateCustomRule(
-    r: CustomRuleRec,
-    c: ChangeRec,
-    assume: Assume,
-    approvals: Set<string>,
-    lines: number,
-  ): Requirement {
-    const head = this.head(c)
-    const base = { id: r.id, rule: r.name }
-    if (r.kind === 'required_check') {
-      const key = r.check!
-      const run = c.checks
-        .filter(
-          (k) => (k.key === key || k.name === key) && k.tree === head.tree,
-        )
-        .sort((a, b) => b.updated - a.updated)[0] as
-        | (typeof c.checks)[number]
-        | undefined
-      const state = assume.checks?.[key] ?? run?.state ?? 'pending'
-      return {
-        ...base,
-        state,
-        detail:
-          state === 'pass'
-            ? `${key} passed on tree ${head.tree}.`
-            : state === 'fail'
-              ? `${key} failed on tree ${head.tree}.`
-              : `No ${key} result for tree ${head.tree} yet.`,
-        needs: { check: key, bound_to: 'tree', tree: head.tree },
-        blocking: state === 'fail' && run ? [run.id] : [],
-      }
-    }
-    if (r.kind === 'max_lines') {
-      const over = lines > r.maxLines!
-      return {
-        ...base,
-        state: over ? 'fail' : 'pass',
-        detail: over
-          ? `${lines} lines changed, over the ${r.maxLines} this repository allows. Split it into a stack.`
-          : `${lines} lines changed, within ${r.maxLines}.`,
-        needs: over ? { max_lines: r.maxLines } : null,
-        blocking: [],
-      }
-    }
-    if (r.kind === 'allowed_paths') return allowedPathsRequirement(r, head)
-    const globs = (r.paths ?? []).map((g) => globMatcher(g))
-    const touched = Object.keys(head.files).filter((f) =>
-      globs.some((g) => g.test(f)),
-    )
-    if (!touched.length)
-      return {
-        ...base,
-        state: 'na',
-        detail: `Touches nothing in ${(r.paths ?? []).join(', ')}.`,
-        needs: null,
-        blocking: [],
-      }
-    const need = r.approvals ?? 1
-    const from = r.from?.length ? new Set(r.from) : null
-    const got = [...approvals].filter((h) => !from || from.has(h))
-    return {
-      ...base,
-      state: got.length >= need ? 'pass' : 'pending',
-      detail:
-        got.length >= need
-          ? `${got.join(', ')} approved ${touched.length} file${touched.length === 1 ? '' : 's'} in ${(r.paths ?? []).join(', ')}.`
-          : `${touched[0]}${touched.length > 1 ? ` and ${touched.length - 1} more` : ''} need ${need} approval${need === 1 ? '' : 's'}${from ? ` from ${[...from].join(', ')}` : ''}, ${got.length} so far.`,
-      needs: {
-        approval: {
-          min: need,
-          ...(from ? { from: [...from] } : {}),
-        },
-        paths: touched,
-      },
-      blocking: [],
-    }
   }
 
   protected policyState(reqs: ReadonlyArray<Requirement>): PolicyState {
-    if (reqs.some((r) => r.state === 'fail')) return 'blocked'
-    if (reqs.some((r) => r.state === 'pending')) return 'pending'
-    return 'met'
+    return policyState(reqs)
   }
 
   protected unmet(reqs: ReadonlyArray<Requirement>) {
-    return reqs.filter((r) => r.state === 'fail' || r.state === 'pending')
-      .length
+    return unmetCount(reqs)
   }
 
   protected actionsFor(repo: RepoRec, c: ChangeRec, p: Viewer) {
-    const no = (why: string) => ({ allowed: false, reasons: [why] })
-    if (!p) {
-      const s = no('sign_in')
-      return { land: s, abandon: s, restore: s, mark_ready: s }
-    }
-    const canWrite = this.canWrite(repo, p)
-    const canPull = canWrite && p.scopes.has('pulls:write')
-    const canMerge = canWrite && p.scopes.has('pulls:merge')
-    const reqs = this.evaluate(repo, c)
-    const reasons: Array<string> = []
-    if (c.state !== 'open') reasons.push(`state:${c.state}`)
-    if (!canMerge) reasons.push('scope:pulls:merge')
-    for (const r of reqs)
-      if (r.state === 'fail' || r.state === 'pending')
-        reasons.push(
-          `policy:${r.id} ${r.state === 'fail' ? 'fail' : 'pending'}`,
-        )
-    const parent = this.parentOf(repo, c)
-    if (parent && parent.state !== 'landed')
-      reasons.push(`parent:#${parent.number} not landed`)
-    const branchOwner = repo.openChangeByBranch.get(c.branch)
-    return {
-      land: { allowed: reasons.length === 0, reasons },
-      abandon:
-        canPull && (c.state === 'open' || c.state === 'draft')
-          ? { allowed: true, reasons: [] }
-          : no(canPull ? `state:${c.state}` : 'scope:pulls:write'),
-      restore:
-        canPull && c.state === 'abandoned'
-          ? branchOwner
-            ? { allowed: false, reasons: [`branch:#${branchOwner.number}`] }
-            : { allowed: true, reasons: [] }
-          : no(canPull ? `state:${c.state}` : 'scope:pulls:write'),
-      mark_ready:
-        canPull && c.state === 'draft'
-          ? { allowed: true, reasons: [] }
-          : no(canPull ? `state:${c.state}` : 'scope:pulls:write'),
-    }
+    return changeActions({
+      change: c,
+      viewer: p,
+      canWrite: !!p && this.canWrite(repo, p),
+      reqs: p ? this.evaluate(repo, c) : [],
+      parent: this.parentOf(repo, c),
+      branchOwner: repo.openChangeByBranch.get(c.branch),
+    })
   }
 
   protected parentOf(repo: RepoRec, c: ChangeRec) {
@@ -439,45 +202,12 @@ export abstract class DomainPresent extends DomainAccess {
     return i > 0 ? (repo.changes.get(members[i - 1]) ?? null) : null
   }
 
-  protected presentFinding(
-    repo: RepoRec,
-    c: ChangeRec,
-    f: FindingRec,
-  ): z.infer<typeof S.Finding> {
-    return {
-      object: 'finding',
-      id: f.id,
-      label: f.label,
-      by: f.by,
-      severity: f.severity,
-      state: f.state,
-      reason: f.reason,
-      file: f.file,
-      line: f.line,
-      title: f.title,
-      body: f.body,
-      patch_set: f.patchSet,
-      url: `${this.repoUrl(repo)}/changes/${c.number}/findings/${f.id}`,
-      suggestion: f.suggestion ?? null,
-      prompt: f.prompt ?? null,
-      via: f.via ?? null,
-      created_at: iso(f.created),
-    }
+  protected presentFinding(repo: RepoRec, c: ChangeRec, f: FindingRec) {
+    return presentFinding(this.repoUrl(repo), c, f)
   }
 
-  protected presentCheck(k: CheckRec): z.infer<typeof S.CheckRun> {
-    return {
-      object: 'check_run',
-      id: k.id,
-      key: k.key,
-      name: k.name,
-      state: k.state,
-      tree: k.tree,
-      details_url: k.detailsUrl,
-      cases: k.cases ?? null,
-      created_at: iso(k.created),
-      updated_at: iso(k.updated),
-    }
+  protected presentCheck(k: CheckRec) {
+    return presentCheck(k)
   }
 
   protected readonly shown = new Map<string, Pre>()
@@ -522,80 +252,20 @@ export abstract class DomainPresent extends DomainAccess {
     viewer: Viewer | 'event',
     expand: ReadonlyArray<string> = [],
   ): z.infer<typeof S.Change> {
-    const head = this.head(c)
-    const reqs = this.evaluate(repo, c)
-    const members = c.stackId ? (repo.stacks.get(c.stackId) ?? []) : []
-    const parent = this.parentOf(repo, c)
-    let additions = 0
-    let deletions = 0
-    for (const f of Object.values(head.files)) {
-      additions += f.add
-      deletions += f.del
-    }
-    const reviewers = new Map<
-      string,
-      z.infer<typeof S.Change>['reviewers'][number]
-    >()
-    for (const r of this.latestReviews(c))
-      reviewers.set(r.actor.id, {
-        actor: this.actor(r.actor),
-        state: r.state,
-        patch_set: r.patchSet,
-        carries_to_head: r.carries,
-      })
-    return {
-      object: 'change',
-      id: c.id,
-      number: c.number,
-      url: `${this.repoUrl(repo)}/changes/${c.number}`,
-      html_url: `${this.urls.html}/${repo.owner}/${repo.name}/changes/${c.number}`,
+    return presentChange({
+      change: c,
+      repoUrl: this.repoUrl(repo),
+      htmlUrl: `${this.urls.html}/${repo.owner}/${repo.name}`,
       repo: expand.includes('repo')
         ? this.presentRepo(repo)
         : this.repoRef(repo),
-      title: c.title,
-      description: c.description,
-      state: c.state,
-      author: this.actor(c.author),
-      base: c.base,
-      branch: c.branch,
-      patch_set_count: c.patchSets.length,
-      head: {
-        patch_set: head.n,
-        sha: head.sha,
-        tree: head.tree,
-        via: head.via ?? null,
-      },
-      stack: c.stackId
-        ? {
-            id: c.stackId,
-            position: members.indexOf(c.number) + 1,
-            size: members.length,
-            parent: parent?.number ?? null,
-          }
-        : null,
-      stats: {
-        files: Object.keys(head.files).length,
-        additions,
-        deletions,
-      },
-      checks: this.checksFor(c),
-      policy: { state: this.policyState(reqs), blocking: this.unmet(reqs) },
-      reviewers: [...reviewers.values()],
-      mirrors: c.mirrors,
-      labels: c.labels,
-      evidence_count: c.evidence?.length ?? 0,
-      findings: expand.includes('findings')
-        ? c.findings.map((f) => this.presentFinding(repo, c, f))
-        : null,
-      check_runs: expand.includes('check_runs')
-        ? c.checks.map((k) => this.presentCheck(k))
-        : null,
+      reqs: this.evaluate(repo, c),
+      reviews: this.latestReviews(c),
+      members: c.stackId ? (repo.stacks.get(c.stackId) ?? []) : [],
+      parent: this.parentOf(repo, c),
       actions: viewer === 'event' ? null : this.actionsFor(repo, c, viewer),
-      landed_at: c.landed ? iso(c.landed) : null,
-      created_at: iso(c.created),
-      updated_at: iso(c.updated),
-      version: c.version,
-    }
+      expand,
+    }) as z.infer<typeof S.Change>
   }
 
   protected readonly shownIssues = new Map<string, Pre>()
@@ -664,27 +334,8 @@ export abstract class DomainPresent extends DomainAccess {
     }
   }
 
-  protected presentEvidence(
-    c: ChangeRec,
-    e: EvidenceRec,
-    u: UploadRec,
-  ): z.infer<typeof S.Evidence> {
-    return {
-      object: 'evidence',
-      id: e.id,
-      change: c.number,
-      kind: e.kind,
-      caption: e.caption,
-      upload: {
-        id: u.id,
-        content_type: u.contentType,
-        size: u.size,
-        sha256: u.sha256 ?? '',
-        content_url: `${this.urls.api}/uploads/${u.id}/content`,
-      },
-      created_by: this.actor(e.by),
-      created_at: iso(e.created),
-    }
+  protected presentEvidence(c: ChangeRec, e: EvidenceRec, u: UploadRec) {
+    return presentEvidence(this.urls.api, c, e, u)
   }
 
   protected presentAccount(

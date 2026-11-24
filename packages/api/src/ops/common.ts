@@ -65,3 +65,18 @@ export const expandSchema = (allowed: ReadonlyArray<string>) =>
           .every((s) => allowed.includes(s)),
       { message: `Use a comma list of: ${allowed.join(', ')}.` },
     )
+
+/** The event topic of a repository: by id when known, so it survives renames. */
+export const repoTopic = async (
+  p: { owner: string; repo: string },
+  d?: {
+    repoIdForHistory?: (full: string) => string | null | Promise<string | null>
+  },
+) => {
+  const id = await d?.repoIdForHistory?.(`${p.owner}/${p.repo}`)
+  if (id) return `repo-id:${id}`
+  const owner = p.owner.toLowerCase()
+  return owner.startsWith('rep_')
+    ? `repo-id:${owner}`
+    : `repo:${owner}/${p.repo.toLowerCase()}`
+}

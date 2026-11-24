@@ -1,4 +1,6 @@
+import { POLICY_FILE } from './policy-file'
 import type { Landing, PolicyEdit, RuleMode } from './policy-file'
+import type { ActorRec, FileStat } from './domain/records'
 
 export type ProposalEditBody =
   | { op: 'set_mode'; rule: string; mode: RuleMode }
@@ -137,4 +139,55 @@ export function proposalTitle(
       ? `Move the rules into the policy file, with ${what}`
       : 'Move the rules into the policy file'
   return `Policy: ${what}`
+}
+
+/** The change that proposes a new policy file: one patch set, open. */
+export function proposalChange(a: {
+  id: string
+  number: number
+  note: string
+  hasFile: boolean
+  author: ActorRec
+  base: string
+  branch: string
+  sha: string
+  files: Record<string, FileStat>
+  next: string
+  at: number
+}) {
+  return {
+    id: a.id,
+    number: a.number,
+    title: a.note,
+    description: a.hasFile
+      ? 'Proposed from the policy settings. The rules change when this lands.'
+      : 'Moves the rules from the repository settings into the policy file. The settings stay in force until this lands; after it, the file is the rules.',
+    state: 'open' as const,
+    author: a.author,
+    base: a.base,
+    branch: a.branch,
+    patchSets: [
+      {
+        n: 1,
+        sha: a.sha,
+        tree: a.sha.slice(0, 7),
+        note: a.note,
+        author: a.author,
+        created: a.at,
+        files: a.files,
+        kind: 'initial' as const,
+        contents: { [POLICY_FILE]: a.next },
+      },
+    ],
+    reviews: [],
+    findings: [],
+    checks: [],
+    stackId: null,
+    labels: [],
+    mirrors: [],
+    created: a.at,
+    updated: a.at,
+    landed: null,
+    version: 1,
+  }
 }

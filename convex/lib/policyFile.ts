@@ -1,6 +1,7 @@
 import { POLICY_FILE, parsePolicy } from '@cobaltforge/api/policy-file'
 import { counters, emit } from './events'
-import { loadPolicy, policyRules, savePolicy } from './changes'
+import { loadPolicy, savePolicy } from './changes'
+import { policyRules } from '@cobaltforge/api/policy-builtins'
 import type { ActorRef } from './events'
 import type { ChangeRec } from './changeTypes'
 import type { Doc } from '../_generated/dataModel'

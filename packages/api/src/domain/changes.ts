@@ -41,6 +41,13 @@ import type {
 } from './records'
 import { DomainIssues } from './issues'
 import { changeBlame } from '../provenance'
+import { lineCounts } from '../lines'
+import { changeEntries, timelineEntry } from '../timeline'
+import {
+  presentPatchSet,
+  presentReview,
+  presentReviewComment,
+} from '../change-view'
 import { issueRefs } from '../references'
 import { fileKey, presentSeen } from '../seen'
 import { checkGuide, presentGuide } from '../guides'
@@ -52,13 +59,7 @@ import { DEFAULT_LANDING, landingWaits } from '../policy-file'
 import type { Landing } from '../policy-file'
 import { hasAfterSteps, landingPlan, skipRest } from '../landing'
 import type { LandingStepRec } from '../landing'
-import {
-  addressThreads,
-  anchorAt,
-  currentPosition,
-  placeThreads,
-  presentAnchor,
-} from '../anchors'
+import { addressThreads, anchorAt, placeThreads } from '../anchors'
 import type { Anchor } from '../anchors'
 import type { ProvenanceFacts } from './port'
 
@@ -584,24 +585,8 @@ export abstract class DomainChanges extends DomainIssues {
     return c.patchSets.map((ps) => this.presentPatchSet(repo, c, ps))
   }
 
-  protected presentPatchSet(
-    repo: RepoRec,
-    c: ChangeRec,
-    ps: PatchSetRec,
-  ): z.infer<typeof S.PatchSet> {
-    return {
-      object: 'patch_set',
-      number: ps.n,
-      change: c.number,
-      sha: ps.sha,
-      tree: ps.tree,
-      note: ps.note,
-      author: this.actor(ps.author),
-      files: Object.keys(ps.files).length,
-      url: `${this.repoUrl(repo)}/changes/${c.number}/patch-sets/${ps.n}`,
-      via: ps.via ?? null,
-      created_at: iso(ps.created),
-    }
+  protected presentPatchSet(repo: RepoRec, c: ChangeRec, ps: PatchSetRec) {
+    return presentPatchSet(this.repoUrl(repo), c, ps)
   }
 
   async getPatchSet(
@@ -903,18 +888,8 @@ export abstract class DomainChanges extends DomainIssues {
     return this.presentReview(review)
   }
 
-  protected presentReview(r: ReviewRec): z.infer<typeof S.Review> {
-    return {
-      object: 'review',
-      id: r.id,
-      actor: this.actor(r.actor),
-      state: r.state,
-      patch_set: r.patchSet,
-      carries_to_head: r.carries,
-      body: r.body,
-      via: r.via ?? null,
-      created_at: iso(r.created),
-    }
+  protected presentReview(r: ReviewRec) {
+    return presentReview(r)
   }
 
   async listFindings(
@@ -1549,36 +1524,7 @@ export abstract class DomainChanges extends DomainIssues {
   }
 
   protected presentReviewComment(c: ChangeRec, x: ReviewCommentRec) {
-    const root = x.replyTo
-      ? (c.comments ?? []).find((y) => y.id === x.replyTo)
-      : undefined
-    const start = root ?? x
-    return {
-      object: 'change_comment' as const,
-      id: x.id,
-      change: c.number,
-      author: this.actor(x.author),
-      body: x.body,
-      file: x.file,
-      line: x.line,
-      patch_set: x.patchSet,
-      reply_to: x.replyTo,
-      resolved: x.resolved,
-      anchor: start.anchor ? presentAnchor(start.anchor) : null,
-      ...currentPosition(x, root, this.head(c).n),
-      addressed: x.addressed
-        ? {
-            patch_set: x.addressed.patchSet,
-            by: this.actor(x.addressed.by),
-            note: x.addressed.note,
-            at: iso(x.addressed.at),
-          }
-        : null,
-      via: x.via ?? null,
-      created_at: iso(x.created),
-      updated_at: iso(x.updated),
-      version: x.version,
-    }
+    return presentReviewComment(c, x)
   }
 
   async listReviewComments(
@@ -2102,25 +2048,8 @@ export abstract class DomainChanges extends DomainIssues {
         ? this.getChangeRec(repo, subject.ref, p).number
         : Number(subject.ref)
     const out: Array<Entry> = []
-    const entry = (
-      kind: Entry['kind'],
-      id: string,
-      at: number,
-      actor: ActorRec | null,
-      via: ViaRec | null,
-      summary: string,
-      item: Entry['item'],
-    ) =>
-      out.push({
-        object: 'timeline_entry',
-        id: `${kind}:${id}`,
-        kind,
-        created_at: iso(at),
-        actor: actor ? this.actor(actor) : null,
-        via,
-        summary,
-        item,
-      })
+    const entry = (...a: Parameters<typeof timelineEntry>) =>
+      out.push(timelineEntry(...a))
     const states = (object: 'change' | 'issue', first: string) => {
       let from: string | null = null
       const moves =
@@ -2147,79 +2076,14 @@ export abstract class DomainChanges extends DomainIssues {
     }
     if (subject.kind === 'change') {
       const c = this.getChangeRec(repo, subject.ref, p)
-      for (const ps of c.patchSets)
-        entry(
-          'patch_set',
-          String(ps.n),
-          ps.created,
-          ps.author,
-          ps.via ?? null,
-          `Patch set ${ps.n}: ${ps.note}`,
-          this.presentPatchSet(repo, c, ps),
-        )
-      for (const x of c.comments ?? [])
-        entry(
-          'comment',
-          x.id,
-          x.created,
-          x.author,
-          x.via ?? null,
-          `${x.file ? `${x.file}${x.line ? `:${x.line}` : ''}: ` : ''}${x.body.split('\n')[0]}`,
-          this.presentReviewComment(c, x),
-        )
-      for (const r of c.reviews)
-        entry(
-          'review',
-          r.id,
-          r.created,
-          r.actor,
-          r.via ?? null,
-          `${r.state === 'changes' ? 'asked for changes' : r.state} on patch set ${r.patchSet}${r.carries ? '' : ' (stale)'}`,
-          this.presentReview(r),
-        )
-      for (const f of c.findings)
-        entry(
-          'finding',
-          f.id,
-          f.created,
-          this.actorFor(f.by),
-          f.via ?? null,
-          `${f.label} (${f.severity}): ${f.title}`,
-          this.presentFinding(repo, c, f),
-        )
-      for (const k of c.checks)
-        entry(
-          'check',
-          k.id,
-          k.updated,
-          null,
-          null,
-          `${k.name}: ${k.state}`,
-          this.presentCheck(k),
-        )
-      if (c.guide)
-        entry(
-          'guide',
-          `${c.id}:${c.guide.created}`,
-          c.guide.created,
-          c.guide.by,
-          c.guide.via ?? null,
-          `Guide for patch set ${c.guide.patchSet}: ${c.guide.summary.split('\n')[0]}`,
-          this.presentGuide(c, c.guide),
-        )
-      for (const e of c.evidence ?? []) {
-        const u = this.memUploads.get(e.uploadId)
-        if (u)
-          entry(
-            'evidence',
-            e.id,
-            e.created,
-            e.by,
-            null,
-            `${e.kind}: ${e.caption}`,
-            this.presentEvidence(c, e, u),
-          )
-      }
+      out.push(
+        ...changeEntries(c, {
+          repoUrl: this.repoUrl(repo),
+          apiUrl: this.urls.api,
+          findingActor: (by) => this.actorFor(by),
+          upload: (e) => this.memUploads.get(e.uploadId) ?? null,
+        }),
+      )
       if (
         states('change', c.state) === c.state &&
         !out.some((e) => e.kind === 'state_change')
@@ -2308,20 +2172,4 @@ export abstract class DomainChanges extends DomainIssues {
       (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at),
     )
   }
-}
-
-function lineCounts(before: string | null, after: string | null) {
-  const a = before === null ? [] : before.split('\n')
-  const b = after === null ? [] : after.split('\n')
-  const dp = Array.from({ length: a.length + 1 }, () =>
-    Array.from({ length: b.length + 1 }, () => 0),
-  )
-  for (let i = a.length - 1; i >= 0; i--)
-    for (let j = b.length - 1; j >= 0; j--)
-      dp[i][j] =
-        a[i] === b[j]
-          ? dp[i + 1][j + 1] + 1
-          : Math.max(dp[i + 1][j], dp[i][j + 1])
-  const same = dp[0][0]
-  return { add: b.length - same, del: a.length - same }
 }

@@ -3,9 +3,6 @@ import { Link } from '@tanstack/react-router'
 import {
   CheckIcon,
   ClipboardDocumentIcon,
-  ClockIcon,
-  ExclamationCircleIcon,
-  RocketLaunchIcon,
   StarIcon,
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
@@ -13,7 +10,7 @@ import * as m from 'motion/react-m'
 import { useSignInGate } from './auth'
 import { Avatar } from './bits'
 import type { Repo } from '~/lib/model/data'
-import { GitCommitIcon, GitForkIcon, GitMergeIcon } from '~/components/icons'
+import { GitForkIcon } from '~/components/icons'
 import { PageTransition } from '~/components/motion'
 import { LinkTabs } from '~/components/ui/tabs'
 import { Button } from '~/components/ui/button'
@@ -451,87 +448,5 @@ export function ContributionGraph({
         )}
       </dl>
     </div>
-  )
-}
-
-type TimelineEvent = {
-  kind: 'commit' | 'release' | 'pr' | 'issue'
-  title: string
-  when: string
-  ref: string
-}
-
-const kindIcon = {
-  commit: GitCommitIcon,
-  release: RocketLaunchIcon,
-  pr: GitMergeIcon,
-  issue: ExclamationCircleIcon,
-} as const
-
-export function Timeline({ repo }: { repo: Repo }) {
-  const latest = repo.releases.at(0)
-  const events: Array<TimelineEvent> = [
-    ...(latest
-      ? [
-          {
-            kind: 'release',
-            title: `Released ${latest.version}: ${latest.title}`,
-            when: latest.date,
-            ref: latest.version,
-          } as const,
-        ]
-      : []),
-    {
-      kind: 'commit',
-      title: 'Cache negative ref lookups',
-      when: '2 days ago',
-      ref: 'a41c9e2',
-    },
-    {
-      kind: 'pr',
-      title: 'Merged #214: Add a read-only mount mode',
-      when: '4 days ago',
-      ref: '#214',
-    },
-    {
-      kind: 'commit',
-      title: 'Memory-map pack index reads',
-      when: '6 days ago',
-      ref: '7be03d1',
-    },
-    {
-      kind: 'issue',
-      title: 'Closed #198: Panic on trailing-dot ref names',
-      when: '9 days ago',
-      ref: '#198',
-    },
-    {
-      kind: 'commit',
-      title: 'Document S3 retry behaviour',
-      when: '12 days ago',
-      ref: 'f02a8c6',
-    },
-  ]
-  return (
-    <ol className="rail space-y-5">
-      {events.map((e, i) => {
-        const Icon = kindIcon[e.kind]
-        return (
-          <li key={i} className="relative pl-9">
-            <span className="absolute top-0 left-0 flex size-6 items-center justify-center rounded-full border bg-card">
-              <Icon className="size-3.5 text-muted-foreground" />
-            </span>
-            <div className="text-sm">{e.title}</div>
-            <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <ClockIcon className="size-3" />
-                {e.when}
-              </span>
-              <span className="font-mono">{e.ref}</span>
-            </div>
-          </li>
-        )
-      })}
-    </ol>
   )
 }

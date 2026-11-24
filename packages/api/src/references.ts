@@ -12,3 +12,11 @@ export function issueRefs(
   }
   return [...out].map(([issue, closes]) => ({ issue, closes }))
 }
+
+/** The handles `@mentioned` in a text, lowercased, first ten, no repeats. */
+export function mentions(text: string): Array<string> {
+  const out: Array<string> = []
+  for (const m of text.matchAll(/(?:^|[^\w@/])@([a-z0-9][a-z0-9-]{0,38})/gi))
+    if (!out.includes(m[1].toLowerCase())) out.push(m[1].toLowerCase())
+  return out.slice(0, 10)
+}

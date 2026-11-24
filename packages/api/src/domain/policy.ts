@@ -11,7 +11,11 @@ import {
   policyYaml,
   unifiedDiff,
 } from '../policy-file'
-import { proposalEdits, proposalTitle } from '../policy-proposals'
+import {
+  proposalChange,
+  proposalEdits,
+  proposalTitle,
+} from '../policy-proposals'
 import {
   MAX_RUNS_PER_EVENT,
   isTriggerFile,
@@ -27,7 +31,7 @@ import type { Principal } from '../auth'
 import type { PolicyContent } from '../policy-file'
 import type { LandingStepRec } from '../landing'
 import type { ProposalEditBody } from '../policy-proposals'
-import { BIG_CHANGE, describeCustomRule, policyRules } from './present'
+import { BIG_CHANGE, describeCustomRule, policyRules } from '../policy-builtins'
 import type {
   ActorRec,
   ChangeRec,
@@ -464,41 +468,19 @@ export abstract class DomainPolicy extends DomainPipelines {
       return shown(mine)
     }
     const at = this.now()
-    const c: ChangeRec = {
+    const c: ChangeRec = proposalChange({
       id: newId('change', at),
       number: repo.nextNumber,
-      title: note,
-      description: repo.policyFile
-        ? 'Proposed from the policy settings. The rules change when this lands.'
-        : 'Moves the rules from the repository settings into the policy file. The settings stay in force until this lands; after it, the file is the rules.',
-      state: 'open',
+      note,
+      hasFile: !!repo.policyFile,
       author: by,
       base: repo.defaultBranch,
       branch,
-      patchSets: [
-        {
-          n: 1,
-          sha,
-          tree: sha.slice(0, 7),
-          note,
-          author: by,
-          created: at,
-          files,
-          kind: 'initial',
-          contents: { [POLICY_FILE]: next },
-        },
-      ],
-      reviews: [],
-      findings: [],
-      checks: [],
-      stackId: null,
-      labels: [],
-      mirrors: [],
-      created: at,
-      updated: at,
-      landed: null,
-      version: 1,
-    }
+      sha,
+      files,
+      next,
+      at,
+    })
     repo.nextNumber++
     this.seedChange(repo, c)
     this.changeEvent(repo, c, 'change.opened', by, ['state'])

@@ -1,18 +1,30 @@
 import { seesChange } from './accessRules'
-import { globMatcher } from '@cobaltforge/api/glob'
 import {
-  allowedPathsRequirement,
-  approvalsOf,
-  policyRules,
-  reviewedRequirement,
-} from '@cobaltforge/api/policy-builtins'
-import { currentPosition, presentAnchor } from '@cobaltforge/api/anchors'
-import { DEFAULT_LANDING, policyFileCheck } from '@cobaltforge/api/policy-file'
+  changeActions,
+  checksSummary,
+  evaluatePolicy,
+  evaluateRules,
+  headOf,
+  latestReviews,
+  policyState,
+  presentActor,
+  presentChange,
+  presentCheck,
+  presentEvidence,
+  presentFinding,
+  presentPatchSet,
+  presentReview,
+  presentReviewComment,
+  ruleMode,
+  unmetCount,
+} from '@cobaltforge/api/change-view'
+import type { PolicyConfig } from '@cobaltforge/api/change-view'
+import { DEFAULT_LANDING } from '@cobaltforge/api/policy-file'
 import type { FileError, Landing } from '@cobaltforge/api/policy-file'
 import { fail } from './errors'
 import { canWrite } from './access'
 import { counters } from './events'
-import { iso, presentRepo, repoRef, repoUrl, urls } from './present'
+import { presentRepo, repoRef, repoUrl, urls } from './present'
 import type { Actor } from './actor'
 import type {
   ActorRec,
@@ -32,10 +44,6 @@ import type {
 } from './changeTypes'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
-
-export const BIG_CHANGE = 400
-
-export { policyRules } from '@cobaltforge/api/policy-builtins'
 
 export type RepoPolicy = {
   ruleModes: Map<string, RuleMode>
@@ -367,241 +375,50 @@ export class ChangeView {
     readonly repoShown: unknown,
   ) {}
 
+  private cfg?: PolicyConfig
+
+  private get config(): PolicyConfig {
+    const maintainers = new Set(this.repo.maintainers)
+    return (this.cfg ??= {
+      modes: this.policy.ruleModes,
+      exceptions: this.policy.exceptions,
+      customRules: this.policy.customRules,
+      landing: this.policy.landing,
+      isMaintainer: (h) => maintainers.has(h),
+      now: this.now,
+    })
+  }
+
   actor(a: ActorRec) {
-    return {
-      object: 'actor' as const,
-      id: a.id,
-      handle: a.handle,
-    }
+    return presentActor(a)
   }
 
   head(c: ChangeRec) {
-    return c.patchSets[c.patchSets.length - 1]
+    return headOf(c)
   }
 
   checksFor(c: ChangeRec) {
-    const tree = this.head(c).tree
-    const own = c.checks.filter((k) => k.tree === tree)
-    const passed = own.filter((k) => k.state === 'pass').length
-    const failed = own.filter((k) => k.state === 'fail').length
-    const pending = own.filter((k) => k.state === 'pending').length
-    return {
-      state:
-        own.length === 0
-          ? 'none'
-          : failed
-            ? 'fail'
-            : pending
-              ? 'pending'
-              : 'pass',
-      passed,
-      failed,
-      pending,
-    }
-  }
-
-  latestReviews(c: ChangeRec) {
-    const map = new Map<string, ReviewRec>()
-    for (const r of c.reviews) map.set(r.actor.id, r)
-    return [...map.values()]
+    return checksSummary(c)
   }
 
   modeOf(id: string): RuleMode {
-    return (
-      this.policy.ruleModes.get(id) ??
-      policyRules.find((r) => r.id === id)?.mode ??
-      'enforce'
-    )
-  }
-
-  exceptionFor(rule: string, who: string) {
-    return this.policy.exceptions.find(
-      (e) => e.rule === rule && e.who === who && e.expires > this.now,
-    )
+    return ruleMode(this.config, id)
   }
 
   evaluate(c: ChangeRec, assume: Assume = {}): Array<Requirement> {
-    const out: Array<Requirement> = []
-    for (const r of this.evaluateRules(c, assume)) {
-      const mode = this.modeOf(r.id)
-      if (mode === 'off') continue
-      if (mode === 'dry-run' && (r.state === 'fail' || r.state === 'pending'))
-        out.push({
-          ...r,
-          state: 'na',
-          detail: `Dry run, would block: ${r.detail}`,
-          needs: null,
-          blocking: [],
-        })
-      else out.push(r)
-    }
-    return out
+    return evaluatePolicy(this.config, c, latestReviews(c.reviews), assume)
   }
 
   evaluateRules(c: ChangeRec, assume: Assume): Array<Requirement> {
-    const head = this.head(c)
-    const out: Array<Requirement> = []
-    const fresh = this.policy.landing.fresh_approvals
-    const reviews = this.latestReviews(c).map((r) =>
-      fresh && r.patchSet !== head.n ? { ...r, carries: false } : r,
-    )
-    const maintainers = new Set(this.repo.maintainers)
-    const approvals = approvalsOf(reviews, c.author.handle, assume.approve)
-    const objections = reviews.filter(
-      (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
-    )
-    const runs = c.checks.filter(
-      (k) => k.name === 'ci/test' && k.tree === head.tree,
-    )
-    const run = runs.sort((a, b) => b.updated - a.updated)[0] as
-      | CheckRec
-      | undefined
-    const ciState = assume.checks?.['ci/test'] ?? run?.state ?? 'pending'
-    out.push({
-      id: 'ci-evidence',
-      rule: 'Tests pass on the tree that will land',
-      state: ciState,
-      detail:
-        ciState === 'pass'
-          ? `ci/test passed on tree ${head.tree}, the tree that lands.`
-          : ciState === 'fail'
-            ? `ci/test failed on tree ${head.tree}.`
-            : run
-              ? `ci/test is running on tree ${head.tree}.`
-              : `No ci/test result for tree ${head.tree} yet.`,
-      needs: { check: 'ci/test', bound_to: 'tree', tree: head.tree },
-      blocking: ciState === 'fail' && run ? [run.id] : [],
-    })
-    const lines = Object.values(head.files).reduce(
-      (n, f) => n + f.add + f.del,
-      0,
-    )
-    const open = c.findings.filter(
-      (f) =>
-        f.severity === 'high' &&
-        f.state === 'open' &&
-        !(assume.resolve ?? []).includes(f.label),
-    )
-    out.push({
-      id: 'findings',
-      rule: 'No open high-severity findings',
-      state: open.length ? 'fail' : 'pass',
-      detail: open.length
-        ? `${open.length} open: ${open.map((f) => `${f.label} from ${f.by}`).join(', ')}.`
-        : 'No open high-severity findings.',
-      needs: open.length ? { resolve: open.map((f) => f.label) } : null,
-      blocking: open.map((f) => f.id),
-    })
-    out.push(reviewedRequirement(approvals, objections))
-    for (const r of this.policy.customRules)
-      out.push(this.evaluateCustomRule(r, c, assume, approvals, lines))
-    const policy = policyFileCheck(
-      head,
-      policyRules,
-      (h) => maintainers.has(h),
-      [...approvals],
-    )
-    if (policy) out.push(policy)
-    return out.map((r) => {
-      if (r.state === 'pass' || r.state === 'na') return r
-      const e = this.exceptionFor(r.id, c.author.handle)
-      return e
-        ? {
-            ...r,
-            state: 'pass' as const,
-            detail: `Exception for ${e.who} until ${new Date(e.expires).toISOString().slice(0, 10)}: ${e.reason}`,
-            needs: null,
-            blocking: [],
-          }
-        : r
-    })
-  }
-
-  evaluateCustomRule(
-    r: CustomRuleRec,
-    c: ChangeRec,
-    assume: Assume,
-    approvals: Set<string>,
-    lines: number,
-  ): Requirement {
-    const head = this.head(c)
-    const base = { id: r.id, rule: r.name }
-    if (r.kind === 'required_check') {
-      const key = r.check!
-      const run = c.checks
-        .filter(
-          (k) => (k.key === key || k.name === key) && k.tree === head.tree,
-        )
-        .sort((a, b) => b.updated - a.updated)[0] as CheckRec | undefined
-      const state = assume.checks?.[key] ?? run?.state ?? 'pending'
-      return {
-        ...base,
-        state,
-        detail:
-          state === 'pass'
-            ? `${key} passed on tree ${head.tree}.`
-            : state === 'fail'
-              ? `${key} failed on tree ${head.tree}.`
-              : `No ${key} result for tree ${head.tree} yet.`,
-        needs: { check: key, bound_to: 'tree', tree: head.tree },
-        blocking: state === 'fail' && run ? [run.id] : [],
-      }
-    }
-    if (r.kind === 'max_lines') {
-      const over = lines > r.maxLines!
-      return {
-        ...base,
-        state: over ? 'fail' : 'pass',
-        detail: over
-          ? `${lines} lines changed, over the ${r.maxLines} this repository allows. Split it into a stack.`
-          : `${lines} lines changed, within ${r.maxLines}.`,
-        needs: over ? { max_lines: r.maxLines } : null,
-        blocking: [],
-      }
-    }
-    if (r.kind === 'allowed_paths') return allowedPathsRequirement(r, head)
-    const globs = (r.paths ?? []).map((g) => globMatcher(g))
-    const touched = Object.keys(head.files).filter((f) =>
-      globs.some((g) => g.test(f)),
-    )
-    if (!touched.length)
-      return {
-        ...base,
-        state: 'na',
-        detail: `Touches nothing in ${(r.paths ?? []).join(', ')}.`,
-        needs: null,
-        blocking: [],
-      }
-    const need = r.approvals ?? 1
-    const from = r.from?.length ? new Set(r.from) : null
-    const got = [...approvals].filter((h) => !from || from.has(h))
-    return {
-      ...base,
-      state: got.length >= need ? 'pass' : 'pending',
-      detail:
-        got.length >= need
-          ? `${got.join(', ')} approved ${touched.length} file${touched.length === 1 ? '' : 's'} in ${(r.paths ?? []).join(', ')}.`
-          : `${touched[0]}${touched.length > 1 ? ` and ${touched.length - 1} more` : ''} need ${need} approval${need === 1 ? '' : 's'}${from ? ` from ${[...from].join(', ')}` : ''}, ${got.length} so far.`,
-      needs: {
-        approval: {
-          min: need,
-          ...(from ? { from: [...from] } : {}),
-        },
-        paths: touched,
-      },
-      blocking: [],
-    }
+    return evaluateRules(this.config, c, latestReviews(c.reviews), assume)
   }
 
   policyState(reqs: ReadonlyArray<Requirement>) {
-    if (reqs.some((r) => r.state === 'fail')) return 'blocked' as const
-    if (reqs.some((r) => r.state === 'pending')) return 'pending' as const
-    return 'met' as const
+    return policyState(reqs)
   }
 
   unmet(reqs: ReadonlyArray<Requirement>) {
-    return reqs.filter((r) => r.state === 'fail' || r.state === 'pending')
-      .length
+    return unmetCount(reqs)
   }
 
   orderOf(stackId: string | null) {
@@ -616,143 +433,34 @@ export class ChangeView {
   }
 
   actionsFor(c: ChangeRec, p: Actor | null) {
-    const no = (why: string) => ({ allowed: false, reasons: [why] })
-    if (!p) {
-      const s = no('sign_in')
-      return { land: s, abandon: s, restore: s, mark_ready: s }
-    }
-    const canPull = this.viewerCanWrite && p.scopes.has('pulls:write')
-    const canMerge = this.viewerCanWrite && p.scopes.has('pulls:merge')
-    const reqs = this.evaluate(c)
-    const reasons: Array<string> = []
-    if (c.state !== 'open') reasons.push(`state:${c.state}`)
-    if (!canMerge) reasons.push('scope:pulls:merge')
-    for (const r of reqs)
-      if (r.state === 'fail' || r.state === 'pending')
-        reasons.push(
-          `policy:${r.id} ${r.state === 'fail' ? 'fail' : 'pending'}`,
-        )
-    const parent = this.parentOf(c)
-    if (parent && parent.state !== 'landed')
-      reasons.push(`parent:#${parent.number} not landed`)
-    const owner = this.branchOwnerOf(c.branch)
-    return {
-      land: { allowed: reasons.length === 0, reasons },
-      abandon:
-        canPull && (c.state === 'open' || c.state === 'draft')
-          ? { allowed: true, reasons: [] }
-          : no(canPull ? `state:${c.state}` : 'scope:pulls:write'),
-      restore:
-        canPull && c.state === 'abandoned'
-          ? owner
-            ? { allowed: false, reasons: [`branch:#${owner.number}`] }
-            : { allowed: true, reasons: [] }
-          : no(canPull ? `state:${c.state}` : 'scope:pulls:write'),
-      mark_ready:
-        canPull && c.state === 'draft'
-          ? { allowed: true, reasons: [] }
-          : no(canPull ? `state:${c.state}` : 'scope:pulls:write'),
-    }
+    return changeActions({
+      change: c,
+      viewer: p,
+      canWrite: this.viewerCanWrite,
+      reqs: p ? this.evaluate(c) : [],
+      parent: this.parentOf(c),
+      branchOwner: this.branchOwnerOf(c.branch),
+    })
   }
 
   presentFinding(c: ChangeRec, f: FindingRec) {
-    return {
-      object: 'finding' as const,
-      id: f.id,
-      label: f.label,
-      by: f.by,
-      severity: f.severity,
-      state: f.state,
-      reason: f.reason,
-      file: f.file,
-      line: f.line,
-      title: f.title,
-      body: f.body,
-      patch_set: f.patchSet,
-      url: `${repoUrl(this.repo)}/changes/${c.number}/findings/${f.id}`,
-      suggestion: f.suggestion ?? null,
-      prompt: f.prompt ?? null,
-      via: f.via ?? null,
-      created_at: iso(f.created),
-    }
+    return presentFinding(repoUrl(this.repo), c, f)
   }
 
   presentCheck(k: CheckRec) {
-    return {
-      object: 'check_run' as const,
-      id: k.id,
-      key: k.key,
-      name: k.name,
-      state: k.state,
-      tree: k.tree,
-      details_url: k.detailsUrl,
-      cases: k.cases ?? null,
-      created_at: iso(k.created),
-      updated_at: iso(k.updated),
-    }
+    return presentCheck(k)
   }
 
   presentPatchSet(c: ChangeRec, ps: PatchSetRec) {
-    return {
-      object: 'patch_set' as const,
-      number: ps.n,
-      change: c.number,
-      sha: ps.sha,
-      tree: ps.tree,
-      note: ps.note,
-      author: this.actor(ps.author),
-      files: Object.keys(ps.files).length,
-      url: `${repoUrl(this.repo)}/changes/${c.number}/patch-sets/${ps.n}`,
-      via: ps.via ?? null,
-      created_at: iso(ps.created),
-    }
+    return presentPatchSet(repoUrl(this.repo), c, ps)
   }
 
   presentReview(r: ReviewRec) {
-    return {
-      object: 'review' as const,
-      id: r.id,
-      actor: this.actor(r.actor),
-      state: r.state,
-      patch_set: r.patchSet,
-      carries_to_head: r.carries,
-      body: r.body,
-      via: r.via ?? null,
-      created_at: iso(r.created),
-    }
+    return presentReview(r)
   }
 
   presentReviewComment(c: ChangeRec, x: ReviewCommentRec) {
-    const root = x.replyTo
-      ? (c.comments ?? []).find((y) => y.id === x.replyTo)
-      : undefined
-    const start = root ?? x
-    return {
-      object: 'change_comment' as const,
-      id: x.id,
-      change: c.number,
-      author: this.actor(x.author),
-      body: x.body,
-      file: x.file,
-      line: x.line,
-      patch_set: x.patchSet,
-      reply_to: x.replyTo,
-      resolved: x.resolved,
-      anchor: start.anchor ? presentAnchor(start.anchor) : null,
-      ...currentPosition(x, root, this.head(c).n),
-      addressed: x.addressed
-        ? {
-            patch_set: x.addressed.patchSet,
-            by: this.actor(x.addressed.by),
-            note: x.addressed.note,
-            at: iso(x.addressed.at),
-          }
-        : null,
-      via: x.via ?? null,
-      created_at: iso(x.created),
-      updated_at: iso(x.updated),
-      version: x.version,
-    }
+    return presentReviewComment(c, x)
   }
 
   presentEvidence(c: ChangeRec, e: EvidenceRec) {
@@ -762,22 +470,7 @@ export class ChangeView {
       size: 0,
       sha256: '',
     }
-    return {
-      object: 'evidence' as const,
-      id: e.id,
-      change: c.number,
-      kind: e.kind,
-      caption: e.caption,
-      upload: {
-        id: u.id,
-        content_type: u.contentType,
-        size: u.size,
-        sha256: u.sha256,
-        content_url: `${urls().api}/uploads/${u.id}/content`,
-      },
-      created_by: this.actor(e.by),
-      created_at: iso(e.created),
-    }
+    return presentEvidence(urls().api, c, e, u)
   }
 
   presentChange(
@@ -785,71 +478,18 @@ export class ChangeView {
     viewer: Actor | null | 'event',
     expand: ReadonlyArray<string> = [],
   ) {
-    const head = this.head(c)
-    const reqs = this.evaluate(c)
-    const members = this.orderOf(c.stackId)
-    const parent = this.parentOf(c)
-    let additions = 0
-    let deletions = 0
-    for (const f of Object.values(head.files)) {
-      additions += f.add
-      deletions += f.del
-    }
-    const reviewers = new Map<string, unknown>()
-    for (const r of this.latestReviews(c))
-      reviewers.set(r.actor.id, {
-        actor: this.actor(r.actor),
-        state: r.state,
-        patch_set: r.patchSet,
-        carries_to_head: r.carries,
-      })
-    return {
-      object: 'change' as const,
-      id: c.id,
-      number: c.number,
-      url: `${repoUrl(this.repo)}/changes/${c.number}`,
-      html_url: `${urls().html}/${this.repo.owner}/${this.repo.name}/changes/${c.number}`,
+    return presentChange({
+      change: c,
+      repoUrl: repoUrl(this.repo),
+      htmlUrl: `${urls().html}/${this.repo.owner}/${this.repo.name}`,
       repo: expand.includes('repo') ? this.repoShown : repoRef(this.repo),
-      title: c.title,
-      description: c.description,
-      state: c.state,
-      author: this.actor(c.author),
-      base: c.base,
-      branch: c.branch,
-      patch_set_count: c.patchSets.length,
-      head: {
-        patch_set: head.n,
-        sha: head.sha,
-        tree: head.tree,
-        via: head.via ?? null,
-      },
-      stack: c.stackId
-        ? {
-            id: c.stackId,
-            position: members.indexOf(c.number) + 1,
-            size: members.length,
-            parent: parent?.number ?? null,
-          }
-        : null,
-      stats: { files: Object.keys(head.files).length, additions, deletions },
-      checks: this.checksFor(c),
-      policy: { state: this.policyState(reqs), blocking: this.unmet(reqs) },
-      reviewers: [...reviewers.values()],
-      mirrors: c.mirrors,
-      labels: c.labels,
-      evidence_count: c.evidence?.length ?? 0,
-      findings: expand.includes('findings')
-        ? c.findings.map((f) => this.presentFinding(c, f))
-        : null,
-      check_runs: expand.includes('check_runs')
-        ? c.checks.map((k) => this.presentCheck(k))
-        : null,
+      reqs: this.evaluate(c),
+      reviews: latestReviews(c.reviews),
+      members: this.orderOf(c.stackId),
+      parent: this.parentOf(c),
       actions: viewer === 'event' ? null : this.actionsFor(c, viewer),
-      landed_at: c.landed ? iso(c.landed) : null,
-      created_at: iso(c.created),
-      updated_at: iso(c.updated),
-      version: c.version,
-    }
+      expand,
+    })
   }
 }
 

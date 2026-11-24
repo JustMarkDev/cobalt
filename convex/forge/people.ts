@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { DAY, presentProfile } from '@cobaltforge/api/profile'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { actorOf, signedIn } from '../lib/actor'
@@ -13,9 +14,6 @@ import { urls } from '../lib/present'
 import type { Actor } from '../lib/actor'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
-
-const DAY = 86_400_000
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
 export const defaultAccountPrefs = {
   combined_total: true,
@@ -388,70 +386,12 @@ export const profile = query({
           agent: c.agent,
         })
     }
-    const all = shown.length + hidden
-    const end = new Date(now)
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(
-        Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 11 + i, 1),
-      )
-      return { month: d.toISOString().slice(0, 7), count: 0 }
-    })
-    const days = Array.from({ length: 26 * 7 }, () => 0)
-    const today = Math.floor(now / DAY)
-    const weekday = WEEKDAYS.map((day) => ({ day, commits: 0, reviews: 0 }))
-    const kinds: Record<string, number> = {
-      push: 0,
-      review: 0,
-      change: 0,
-      issue: 0,
-      release: 0,
-    }
-    for (const c of shown) {
-      const m = months.find(
-        (x) => x.month === new Date(c.at).toISOString().slice(0, 7),
-      )
-      if (m) m.count++
-      const k = days.length - 1 - (today - Math.floor(c.at / DAY))
-      if (k >= 0 && k < days.length) days[k]++
-      const w = (new Date(c.at).getUTCDay() + 6) % 7
-      if (c.kind === 'push') weekday[w].commits++
-      if (c.kind === 'review') weekday[w].reviews++
-      kinds[c.kind]++
-    }
-    const work = (
-      [
-        ['Commits', kinds.push],
-        ['Reviews', kinds.review],
-        ['Changes', kinds.change],
-        ['Issues', kinds.issue],
-        ['Releases', kinds.release],
-      ] as const
-    ).map(([axis, n]) => ({
-      axis,
-      value: shown.length ? Math.round((n / shown.length) * 100) : 0,
-    }))
     const owned: Array<Doc<'repos'>> = []
     for (const r of await ctx.db
       .query('repos')
       .withIndex('by_ownerId_and_name', (q) => q.eq('ownerId', target._id))
       .take(1000))
       if (await canRead(ctx, r, p)) owned.push(r)
-    const weight = new Map<string, { r: Doc<'repos'>; w: number }>()
-    for (const c of shown) {
-      const x = weight.get(c.repo._id) ?? { r: c.repo, w: 0 }
-      x.w++
-      weight.set(c.repo._id, x)
-    }
-    for (const r of owned)
-      if (!weight.has(r._id)) weight.set(r._id, { r, w: 1 })
-    const langs = new Map<string, number>()
-    for (const { r, w } of weight.values())
-      for (const [name, pct] of r.languages)
-        langs.set(
-          name as string,
-          (langs.get(name as string) ?? 0) + (pct as number) * w,
-        )
-    const langTotal = [...langs.values()].reduce((x, y) => x + y, 0) || 1
     let releases = 0
     let downloads = 0
     for (const r of owned)
@@ -472,9 +412,6 @@ export const profile = query({
           .take(500))
           downloads += s.n
       }
-    const reviewed = shown.filter((c) => c.kind === 'review')
-    const showAgents = own || prefs.show_agents
-    const showActivity = own || prefs.show_activity
     const st = await stats(ctx, target.handle)
     const viewerFollows =
       p && p.handle !== target.handle
@@ -485,52 +422,23 @@ export const profile = query({
             )
             .unique())
         : null
-    return out({
-      object: 'profile',
-      handle: target.handle,
-      name: target.name,
-      kind: target.kind,
-      bio: target.bio,
-      followers: st?.followers ?? 0,
-      following: st?.following ?? 0,
-      viewer_follows: viewerFollows,
-      contributions: {
-        total: own || prefs.private_totals ? all : shown.length,
-        private: own || prefs.private_totals ? hidden : 0,
-        by_month: months,
-        by_day: showActivity ? days : [],
-        by_weekday: weekday,
-      },
-      work,
-      languages: [...langs.entries()]
-        .sort((x, y) => y[1] - x[1])
-        .slice(0, 5)
-        .map(([name, x]) => ({
-          name,
-          percent: Math.round((x / langTotal) * 100),
-        })),
-      repositories: owned.length,
-      releases,
-      downloads,
-      agent_share:
-        showAgents && reviewed.length
-          ? Math.round(
-              (reviewed.filter((c) => c.agent).length / reviewed.length) * 100,
-            )
-          : null,
-      activity: showActivity
-        ? shown
-            .sort((x, y) => y.at - x.at)
-            .slice(0, 30)
-            .map((c) => ({
-              kind: c.kind,
-              title: c.title,
-              repo: `${c.repo.owner}/${c.repo.name}`,
-              at: new Date(c.at).toISOString(),
-            }))
-        : [],
-      activity_hidden: !showActivity,
-    })
+    return out(
+      presentProfile({
+        person: target,
+        now,
+        own,
+        prefs,
+        shown,
+        hidden,
+        owned,
+        keyOf: (r) => r._id,
+        releases,
+        downloads,
+        followers: st?.followers ?? 0,
+        following: st?.following ?? 0,
+        viewerFollows,
+      }),
+    )
   },
 })
 

@@ -15,6 +15,7 @@ import {
   listOf,
   pageShape,
   repoParams,
+  repoTopic,
 } from './common'
 
 const write = {
@@ -34,20 +35,6 @@ const read = {
 
 const expandChange = ['repo', 'findings', 'check_runs']
 const states = ['draft', 'open', 'landed', 'abandoned', 'all']
-const topic = async (
-  p: { owner: string; repo: string },
-  d?: {
-    repoIdForHistory?: (full: string) => string | null | Promise<string | null>
-  },
-) => {
-  const id = await d?.repoIdForHistory?.(`${p.owner}/${p.repo}`)
-  if (id) return `repo-id:${id}`
-  const owner = p.owner.toLowerCase()
-  return owner.startsWith('rep_')
-    ? `repo-id:${owner}`
-    : `repo:${owner}/${p.repo.toLowerCase()}`
-}
-
 const list = <T extends z.ZodType>(item: T) => S.listOf(item)
 
 export const listChanges = defineOp({
@@ -83,7 +70,7 @@ export const listChanges = defineOp({
   response: list(S.Change),
   errors: ['not_found', 'moved', 'cursor_mismatch'],
   shapeable: true,
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.changeListVersion(ctx.params.owner, ctx.params.repo, ctx.principal),
   handler: (ctx) =>
@@ -138,7 +125,7 @@ export const getChange = defineOp({
   errors: ['not_found', 'moved'],
   shapeable: true,
   markdown: changeMarkdown,
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.changeVersion(
       ctx.params.owner,
@@ -783,7 +770,7 @@ export const getPolicy = defineOp({
   params: changeParams,
   response: S.PolicyEvaluation,
   errors: ['not_found', 'moved'],
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.changeVersion(
       ctx.params.owner,
@@ -1023,7 +1010,7 @@ export const listReviewComments = defineOp({
   }),
   response: S.listOf(S.ChangeComment),
   errors: ['not_found', 'moved'],
-  waitOn: (p, _q, d) => topic(p, d),
+  waitOn: (p, _q, d) => repoTopic(p, d),
   probe: (ctx, d) =>
     d.reviewCommentsVersion(
       ctx.params.owner,

@@ -6,7 +6,6 @@ import {
   canMove,
   cancelPipeline,
   expireWait,
-  jobWait,
   pipelineLifecycle,
   reportStep,
   requeueJob,
@@ -26,10 +25,14 @@ import {
   mayServe,
   normalizeLabels,
   runnerStatus,
-  waitingForLabels,
 } from '../runners'
 import { runsOnOf } from '../workflow'
 import { applyRunsOn } from '../runs-on'
+import {
+  presentClaimedJob,
+  presentPipelineRun,
+  queuedCopy,
+} from '../pipeline-view'
 import type { PipelineWait } from '../lifecycles'
 import type { CursorPosition } from '../cursor'
 import type {
@@ -88,67 +91,14 @@ export abstract class DomainPipelines extends DomainReleases {
     r: PipelineRunRec,
     detail: boolean,
   ) {
-    const base = `${this.repoUrl(repo)}/pipelines/${r.number}`
-    const runners = detail ? this.runnersOf(repo.owner) : []
-    const presentWait = (w: PipelineWait | null | undefined) =>
-      w
-        ? {
-            kind: w.kind,
-            reason: w.reason,
-            target: w.target,
-            expires_at: iso(w.expires),
-          }
-        : null
-    return {
-      object: 'pipeline_run' as const,
-      id: r.id,
-      number: r.number,
-      url: base,
-      html_url: `${this.urls.html}/${repo.owner}/${repo.name}/pipelines?n=${r.number}`,
-      workflow: r.workflow,
-      file: r.file,
-      title: r.title,
-      branch: r.branch,
-      sha: r.sha,
-      status: r.status,
-      trigger: r.trigger,
-      actor: r.actor,
-      started_at: iso(r.started),
-      finished_at: r.finished === null ? null : iso(r.finished),
-      duration_ms: r.finished === null ? null : r.finished - r.started,
-      jobs: detail
-        ? r.jobs.map((j, ji) => ({
-            name: j.name,
-            runner: j.runner,
-            status: j.status,
-            duration_ms: j.duration,
-            runs_on: [...(j.runsOn ?? [])],
-            runner_id: j.runnerId ?? null,
-            lease_expires_at: j.lease ? iso(j.lease) : null,
-            waiting_for_labels:
-              j.status === 'queued'
-                ? waitingForLabels(
-                    j.runsOn ?? [],
-                    runners,
-                    repo.owner,
-                    repo.name,
-                  )
-                : null,
-            wait: presentWait(jobWait(j)),
-            steps: j.steps.map((s, si) => ({
-              name: s.name,
-              status: s.status,
-              duration_ms: s.duration,
-              lines: s.lines.length,
-              log_url: `${base}/jobs/${ji + 1}/steps/${si + 1}/log`,
-              wait: presentWait(s.wait),
-            })),
-          }))
-        : null,
-      runs_on_pending: !!r.runsOnPending,
-      annotations: r.annotations,
-      version: r.version,
-    }
+    return presentPipelineRun({
+      run: r,
+      repo,
+      repoUrl: this.repoUrl(repo),
+      htmlUrl: this.urls.html,
+      detail,
+      runners: detail ? this.runnersOf(repo.owner) : [],
+    })
   }
 
   async pendingRunsOn() {
@@ -392,57 +342,13 @@ export abstract class DomainPipelines extends DomainReleases {
   }
 
   private queuedFrom(repo: RepoRec, from: PipelineRunRec, actor: string) {
-    const at = this.now()
     const number =
       Math.max(0, ...(repo.pipelines ?? []).map((r) => r.number)) + 1
-    const r: PipelineRunRec = {
-      ...from,
-      id: newId('pipeline', at),
-      number,
-      status: 'queued',
-      trigger: 'manual',
-      actor,
-      started: at,
-      finished: null,
-      annotations: [],
-      jobs: from.jobs.map((j) => ({
-        ...j,
-        status: 'queued',
-        runner: '',
-        runnerId: null,
-        lease: null,
-        runsOn: [...(j.runsOn ?? [])],
-        duration: 0,
-        steps: j.steps.map((s) => ({
-          ...s,
-          status: 'queued',
-          duration: 0,
-          lines: [],
-          wait: null,
-        })),
-      })),
-      version: 1,
-    }
-    return r
+    return queuedCopy(from, { number, actor, at: this.now() })
   }
 
   private claimed(repo: RepoRec, r: PipelineRunRec, ji: number) {
-    const j = r.jobs[ji]
-    return {
-      object: 'pipeline_job' as const,
-      run: r.number,
-      job: ji + 1,
-      name: j.name,
-      workflow: r.workflow,
-      file: r.file,
-      branch: r.branch,
-      sha: r.sha,
-      steps: j.steps.map((s, si) => ({ number: si + 1, name: s.name })),
-      url: `${this.repoUrl(repo)}/pipelines/${r.number}/jobs/${ji + 1}`,
-      runs_on: [...(j.runsOn ?? [])],
-      runner_id: j.runnerId ?? null,
-      lease_expires_at: j.lease ? iso(j.lease) : null,
-    }
+    return presentClaimedJob(this.repoUrl(repo), r, ji)
   }
 
   async claimPipelineJob(

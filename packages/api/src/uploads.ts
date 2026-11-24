@@ -1,7 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
-import { newId, randomSource } from './ids'
-
-const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
+import { newId, randomBuffer } from './ids'
 
 export type Purpose = 'evidence' | 'release'
 
@@ -181,7 +179,7 @@ export function checkFile(
 }
 
 export class UploadSigner {
-  constructor(private readonly secret: Buffer = randomBytes(32)) {}
+  constructor(private readonly secret: Buffer = randomBuffer(32)) {}
 
   private mac(id: string, exp: number, type: string, size: number) {
     return createHmac('sha256', this.secret)
@@ -222,7 +220,7 @@ export class UploadService implements UploadPort {
     private readonly now: () => number = Date.now,
     secret?: Buffer,
   ) {
-    this.secret = secret ?? randomBytes(32)
+    this.secret = secret ?? randomBuffer(32)
   }
 
   private mac(id: string, exp: number, type: string, size: number) {

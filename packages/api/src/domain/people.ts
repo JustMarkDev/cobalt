@@ -3,8 +3,7 @@ import type { CursorPosition } from '../cursor'
 import type { RepoRec, Viewer } from './records'
 import { DomainInsights } from './insights'
 
-const DAY = 86_400_000
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+import { DAY, presentProfile } from '../profile'
 
 export type AccountPrefs = {
   combined_total: boolean
@@ -215,123 +214,35 @@ export abstract class DomainPeople extends DomainInsights {
       a.kind === 'person'
         ? await this.contributions(a.handle, p, yearAgo)
         : { shown: [], hidden: 0 }
-    const all = shown.length + hidden
-
-    const end = new Date(now)
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(
-        Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 11 + i, 1),
-      )
-      return { month: d.toISOString().slice(0, 7), count: 0 }
-    })
-    const days = Array.from({ length: 26 * 7 }, () => 0)
-    const today = Math.floor(now / DAY)
-    const weekday = WEEKDAYS.map((day) => ({ day, commits: 0, reviews: 0 }))
-    const kinds = { push: 0, review: 0, change: 0, issue: 0, release: 0 }
-    for (const c of shown) {
-      const m = months.find(
-        (x) => x.month === new Date(c.at).toISOString().slice(0, 7),
-      )
-      if (m) m.count++
-      const k = days.length - 1 - (today - Math.floor(c.at / DAY))
-      if (k >= 0 && k < days.length) days[k]++
-      const w = (new Date(c.at).getUTCDay() + 6) % 7
-      if (c.kind === 'push') weekday[w].commits++
-      if (c.kind === 'review') weekday[w].reviews++
-      kinds[c.kind]++
-    }
-    const work = (
-      [
-        ['Commits', kinds.push],
-        ['Reviews', kinds.review],
-        ['Changes', kinds.change],
-        ['Issues', kinds.issue],
-        ['Releases', kinds.release],
-      ] as const
-    ).map(([axis, n]) => ({
-      axis,
-      value: shown.length ? Math.round((n / shown.length) * 100) : 0,
-    }))
-
-    const weight = new Map<RepoRec, number>()
-    for (const c of shown) weight.set(c.repo, (weight.get(c.repo) ?? 0) + 1)
-    for (const r of this.repos.values())
-      if (r.owner === a.handle && this.canRead(r, p) && !weight.has(r))
-        weight.set(r, 1)
-    const langs = new Map<string, number>()
-    for (const [r, w] of weight)
-      for (const [name, pct] of r.languages)
-        langs.set(name, (langs.get(name) ?? 0) + pct * w)
-    const langTotal = [...langs.values()].reduce((x, y) => x + y, 0) || 1
-
-    const ownedRepos = [...this.repos.values()].filter(
+    const owned = [...this.repos.values()].filter(
       (r) => r.owner === a.handle && this.canRead(r, p),
     )
-    const releases = ownedRepos.reduce(
-      (n, r) => n + (r.releases?.length ?? 0),
-      0,
-    )
-    const downloads = ownedRepos.reduce(
-      (n, r) =>
-        n +
-        (r.releases ?? []).reduce(
-          (m, x) => m + x.assets.reduce((k, s) => k + s.downloads, 0),
-          0,
-        ),
-      0,
-    )
-    const reviewed = shown.filter((c) => c.kind === 'review')
-    const showAgents = own || prefs.show_agents
-    const showActivity = own || prefs.show_activity
-    return {
-      object: 'profile' as const,
-      handle: a.handle,
-      name: a.name,
-      kind: a.kind,
-      bio: a.bio,
+    return presentProfile({
+      person: a,
+      now,
+      own,
+      prefs,
+      shown,
+      hidden,
+      owned,
+      keyOf: (r) => r,
+      releases: owned.reduce((n, r) => n + (r.releases?.length ?? 0), 0),
+      downloads: owned.reduce(
+        (n, r) =>
+          n +
+          (r.releases ?? []).reduce(
+            (m, x) => m + x.assets.reduce((k, s) => k + s.downloads, 0),
+            0,
+          ),
+        0,
+      ),
       followers: this.followersOf(a.handle).length,
       following: this.following.get(a.handle)?.size ?? 0,
-      viewer_follows:
+      viewerFollows:
         p && p.handle !== a.handle
           ? (this.following.get(p.handle)?.has(a.handle) ?? false)
           : null,
-      contributions: {
-        total: own || prefs.private_totals ? all : shown.length,
-        private: own || prefs.private_totals ? hidden : 0,
-        by_month: months,
-        by_day: showActivity ? days : [],
-        by_weekday: weekday,
-      },
-      work,
-      languages: [...langs.entries()]
-        .sort((x, y) => y[1] - x[1])
-        .slice(0, 5)
-        .map(([name, v]) => ({
-          name,
-          percent: Math.round((v / langTotal) * 100),
-        })),
-      repositories: ownedRepos.length,
-      releases,
-      downloads,
-      agent_share:
-        showAgents && reviewed.length
-          ? Math.round(
-              (reviewed.filter((c) => c.agent).length / reviewed.length) * 100,
-            )
-          : null,
-      activity: showActivity
-        ? shown
-            .sort((x, y) => y.at - x.at)
-            .slice(0, 30)
-            .map((c) => ({
-              kind: c.kind,
-              title: c.title,
-              repo: `${c.repo.owner}/${c.repo.name}`,
-              at: new Date(c.at).toISOString(),
-            }))
-        : [],
-      activity_hidden: !showActivity,
-    }
+    })
   }
 
   async profileVersion(handle: string, p: Viewer) {

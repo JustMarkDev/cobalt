@@ -3,12 +3,10 @@ import { canMove, deviceLifecycle } from './lifecycles'
 import type { DeviceStatus } from './lifecycles'
 import type { OAuthState } from './oauth-state'
 import { createHash } from 'node:crypto'
-import { randomSource } from './ids'
+import { randomBuffer } from './ids'
 import { deviceScopes, oauthScopes, secretFor } from './auth'
 import { cleanLabel } from './via'
 import type { Audience, Scope, TokenService } from './auth'
-
-const randomBytes = (n: number) => Buffer.from(randomSource.bytes(n))
 
 export type SessionUser = { handle: string; name: string }
 
@@ -72,8 +70,8 @@ export class MemorySessions implements SessionResolver {
       while (this.sessions.size >= MAX_SESSIONS)
         this.sessions.delete(this.sessions.keys().next().value as string)
     }
-    const sid = randomBytes(24).toString('base64url')
-    const csrf = randomBytes(18).toString('base64url')
+    const sid = randomBuffer(24).toString('base64url')
+    const csrf = randomBuffer(18).toString('base64url')
     this.sessions.set(sid, { user, csrf, expires: this.now() + SESSION_TTL })
     return {
       cookie: `cb_session=${sid}; Path=/; HttpOnly; SameSite=Lax${this.secure ? '; Secure' : ''}; Max-Age=${SESSION_TTL / 1000}`,
@@ -440,7 +438,7 @@ export class OAuthServer {
         { 'retry-after': '60' },
       )
     const client: Client = {
-      id: `cl_${randomBytes(15).toString('base64url')}`,
+      id: `cl_${randomBuffer(15).toString('base64url')}`,
       name,
       redirectUris: uris as Array<string>,
       createdAt: this.now(),
@@ -634,7 +632,7 @@ export class OAuthServer {
         )
     }
     const pending: Pending = {
-      id: `oar_${randomBytes(18).toString('base64url')}`,
+      id: `oar_${randomBuffer(18).toString('base64url')}`,
       client,
       redirectUri,
       challenge,
@@ -691,7 +689,7 @@ export class OAuthServer {
     const scopes = pending.scopes.filter(
       (s) => this.maxScopes(user.handle).includes(s) && oauthScopes.includes(s),
     )
-    const code = `oac_${randomBytes(24).toString('base64url')}`
+    const code = `oac_${randomBuffer(24).toString('base64url')}`
     const expires = this.now() + CODE_TTL
     await this.state.set(
       'code',
@@ -937,8 +935,8 @@ export class OAuthServer {
     if ('error' in parsed) return oauthError('invalid_scope', parsed.error)
     let userCode = ''
     for (let i = 0; i < 8; i++)
-      userCode += USER_CODE_CHARS[randomBytes(1)[0] % USER_CODE_CHARS.length]
-    const deviceCode = `cbd_${randomBytes(32).toString('base64url')}`
+      userCode += USER_CODE_CHARS[randomBuffer(1)[0] % USER_CODE_CHARS.length]
+    const deviceCode = `cbd_${randomBuffer(32).toString('base64url')}`
     const device: Device = {
       userCode,
       client,

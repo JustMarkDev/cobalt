@@ -8,14 +8,17 @@ import { accessStamp, accountByHandle, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { actorFor, counters, emit } from '../lib/events'
 import {
-  BIG_CHANGE,
   branchOwner,
   hydrate,
   loadPolicy,
-  policyRules,
   savePolicy,
   viewFor,
 } from '../lib/changes'
+import {
+  BIG_CHANGE,
+  describeCustomRule,
+  policyRules,
+} from '@cobaltforge/api/policy-builtins'
 import type { Actor } from '../lib/actor'
 import type { Loaded, RepoPolicy } from '../lib/changes'
 import { urls } from '../lib/present'
@@ -26,7 +29,11 @@ import {
   policyYaml,
   unifiedDiff,
 } from '@cobaltforge/api/policy-file'
-import { proposalEdits, proposalTitle } from '@cobaltforge/api/policy-proposals'
+import {
+  proposalChange,
+  proposalEdits,
+  proposalTitle,
+} from '@cobaltforge/api/policy-proposals'
 import { commit, hex, patchSetEvent, pushPatchSet } from './changes'
 import type { ChangeRec, CustomRuleRec, RuleMode } from '../lib/changeTypes'
 import type { Doc } from '../_generated/dataModel'
@@ -39,31 +46,6 @@ const mode = v.union(
   v.literal('dry-run'),
   v.literal('off'),
 )
-
-function describeCustomRule(r: CustomRuleRec) {
-  if (r.kind === 'required_check')
-    return {
-      when: 'any change',
-      requires: [`${r.check} passed, bound to the landing tree`],
-    }
-  if (r.kind === 'max_lines')
-    return {
-      when: 'any change',
-      requires: [`at most ${r.maxLines} lines added and removed`],
-    }
-  if (r.kind === 'allowed_paths')
-    return {
-      when: 'any change',
-      requires: [`touches only ${(r.paths ?? []).join(', ')}`],
-    }
-  const n = r.approvals ?? 1
-  return {
-    when: `paths ${(r.paths ?? []).join(', ')}`,
-    requires: [
-      `${n} approval${n === 1 ? '' : 's'}, human${r.from?.length ? `, from ${r.from.join(', ')}` : ''}`,
-    ],
-  }
-}
 
 function rulesOf(pol: RepoPolicy) {
   return [
@@ -312,42 +294,22 @@ async function proposeIn(
   const c = await counters(ctx, repo)
   await ctx.db.patch('repoCounters', c._id, { nextNumber: c.nextNumber + 1 })
   const rec: ChangeRec = {
-    id: newId('change', at),
-    number: c.nextNumber,
-    title: note,
-    description: pol.file
-      ? 'Proposed from the policy settings. The rules change when this lands.'
-      : 'Moves the rules from the repository settings into the policy file. The settings stay in force until this lands; after it, the file is the rules.',
-    state: 'open',
-    author: by,
-    base: repo.defaultBranch,
-    branch,
-    patchSets: [
-      {
-        n: 1,
-        sha,
-        tree: sha.slice(0, 7),
-        note,
-        author: by,
-        created: at,
-        files,
-        kind: 'initial',
-        contents: { [POLICY_FILE]: next },
-      },
-    ],
-    reviews: [],
-    findings: [],
-    checks: [],
-    stackId: null,
-    labels: [],
-    mirrors: [],
+    ...proposalChange({
+      id: newId('change', at),
+      number: c.nextNumber,
+      note,
+      hasFile: !!pol.file,
+      author: by,
+      base: repo.defaultBranch,
+      branch,
+      sha,
+      files,
+      next,
+      at,
+    }),
     evidence: [],
     comments: [],
     commentRev: 0,
-    created: at,
-    updated: at,
-    landed: null,
-    version: 1,
   }
   const l = { rec, parts: new Map() } as unknown as Loaded
   await commit(ctx, repo, l, null, {
