@@ -42,6 +42,11 @@ import type {
 import { DomainIssues } from './issues'
 import { changeBlame } from '../provenance'
 import { lineCounts } from '../lines'
+import {
+  presentPatchSet,
+  presentReview,
+  presentReviewComment,
+} from '../change-view'
 import { issueRefs } from '../references'
 import { fileKey, presentSeen } from '../seen'
 import { checkGuide, presentGuide } from '../guides'
@@ -53,13 +58,7 @@ import { DEFAULT_LANDING, landingWaits } from '../policy-file'
 import type { Landing } from '../policy-file'
 import { hasAfterSteps, landingPlan, skipRest } from '../landing'
 import type { LandingStepRec } from '../landing'
-import {
-  addressThreads,
-  anchorAt,
-  currentPosition,
-  placeThreads,
-  presentAnchor,
-} from '../anchors'
+import { addressThreads, anchorAt, placeThreads } from '../anchors'
 import type { Anchor } from '../anchors'
 import type { ProvenanceFacts } from './port'
 
@@ -585,24 +584,8 @@ export abstract class DomainChanges extends DomainIssues {
     return c.patchSets.map((ps) => this.presentPatchSet(repo, c, ps))
   }
 
-  protected presentPatchSet(
-    repo: RepoRec,
-    c: ChangeRec,
-    ps: PatchSetRec,
-  ): z.infer<typeof S.PatchSet> {
-    return {
-      object: 'patch_set',
-      number: ps.n,
-      change: c.number,
-      sha: ps.sha,
-      tree: ps.tree,
-      note: ps.note,
-      author: this.actor(ps.author),
-      files: Object.keys(ps.files).length,
-      url: `${this.repoUrl(repo)}/changes/${c.number}/patch-sets/${ps.n}`,
-      via: ps.via ?? null,
-      created_at: iso(ps.created),
-    }
+  protected presentPatchSet(repo: RepoRec, c: ChangeRec, ps: PatchSetRec) {
+    return presentPatchSet(this.repoUrl(repo), c, ps)
   }
 
   async getPatchSet(
@@ -904,18 +887,8 @@ export abstract class DomainChanges extends DomainIssues {
     return this.presentReview(review)
   }
 
-  protected presentReview(r: ReviewRec): z.infer<typeof S.Review> {
-    return {
-      object: 'review',
-      id: r.id,
-      actor: this.actor(r.actor),
-      state: r.state,
-      patch_set: r.patchSet,
-      carries_to_head: r.carries,
-      body: r.body,
-      via: r.via ?? null,
-      created_at: iso(r.created),
-    }
+  protected presentReview(r: ReviewRec) {
+    return presentReview(r)
   }
 
   async listFindings(
@@ -1550,36 +1523,7 @@ export abstract class DomainChanges extends DomainIssues {
   }
 
   protected presentReviewComment(c: ChangeRec, x: ReviewCommentRec) {
-    const root = x.replyTo
-      ? (c.comments ?? []).find((y) => y.id === x.replyTo)
-      : undefined
-    const start = root ?? x
-    return {
-      object: 'change_comment' as const,
-      id: x.id,
-      change: c.number,
-      author: this.actor(x.author),
-      body: x.body,
-      file: x.file,
-      line: x.line,
-      patch_set: x.patchSet,
-      reply_to: x.replyTo,
-      resolved: x.resolved,
-      anchor: start.anchor ? presentAnchor(start.anchor) : null,
-      ...currentPosition(x, root, this.head(c).n),
-      addressed: x.addressed
-        ? {
-            patch_set: x.addressed.patchSet,
-            by: this.actor(x.addressed.by),
-            note: x.addressed.note,
-            at: iso(x.addressed.at),
-          }
-        : null,
-      via: x.via ?? null,
-      created_at: iso(x.created),
-      updated_at: iso(x.updated),
-      version: x.version,
-    }
+    return presentReviewComment(c, x)
   }
 
   async listReviewComments(
