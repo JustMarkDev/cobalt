@@ -1,3 +1,5 @@
+export const SUPPORT_EMAIL = 'support@cobaltforge.dev'
+
 export const socials = [
   { id: 'x', label: 'X', href: 'https://x.com' },
   { id: 'discord', label: 'Discord', href: 'https://discord.com' },

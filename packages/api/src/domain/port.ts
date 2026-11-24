@@ -796,6 +796,15 @@ export interface DomainPort {
     p: Principal,
     access: string,
   ) => Promise<Array<Out<typeof S.GithubRepo>>>
+  githubOauthStart: (
+    p: Principal,
+    redirectUri: string,
+    returnTo: string | null,
+  ) => Promise<Out<typeof S.GithubOauth>>
+  githubOauthFinish: (
+    p: Principal,
+    body: { code: string; state: string; redirect_uri: string },
+  ) => Promise<Out<typeof S.GithubOauthResult>>
 
   createMirror: (
     p: Principal,

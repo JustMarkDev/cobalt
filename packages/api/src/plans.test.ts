@@ -21,7 +21,28 @@ describe('the effective plan', () => {
       source: 'free',
       until: null,
       lapsedAt: null,
+      unlimited: false,
     })
+  })
+
+  test('a standing grant never ends and lifts every limit', () => {
+    const e = effectivePlan(
+      { plan: 'team', status: 'active' },
+      [{ plan: 'solo', expires: null }],
+      NOW + 1000 * DAY,
+    )
+    expect(e).toEqual({
+      plan: 'business',
+      source: 'grant',
+      until: null,
+      lapsedAt: null,
+      unlimited: true,
+    })
+  })
+
+  test('a revoked standing grant no longer applies', () => {
+    const e = effectivePlan(null, [{ plan: 'business', revoked: NOW }], NOW)
+    expect(e).toMatchObject({ plan: 'free', unlimited: false })
   })
 
   test('an active subscription is its plan', () => {

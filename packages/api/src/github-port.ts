@@ -72,4 +72,35 @@ export const presentGithubRepo = (
   private: r.private,
   default_branch: r.defaultBranch,
   linked,
+  size_bytes: r.sizeBytes,
 })
+
+export async function oauthStart(
+  github: Github | null | undefined,
+  p: Principal,
+  redirectUri: string,
+  returnTo: string | null,
+): Promise<z.infer<typeof S.GithubOauth>> {
+  const r = await needGithub(github).oauthStart(p.handle, redirectUri, returnTo)
+  return { object: 'github_oauth', url: r.url, install_url: r.installUrl }
+}
+
+export async function oauthFinish(
+  github: Github | null | undefined,
+  p: Principal,
+  body: { code: string; state: string; redirect_uri: string },
+): Promise<z.infer<typeof S.GithubOauthResult>> {
+  const r = await needGithub(github).oauthFinish(
+    p.handle,
+    body.code,
+    body.state,
+    body.redirect_uri,
+  )
+  return {
+    object: 'github_oauth_result',
+    access: r.access,
+    login: r.login,
+    expires_in: r.expiresIn,
+    return_to: r.returnTo,
+  }
+}

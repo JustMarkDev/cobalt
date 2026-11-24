@@ -15,7 +15,12 @@ export async function sendMail(
   to: string,
   subject: string,
   text: string,
-  opts: { idempotencyKey?: string; html?: string } = {},
+  opts: {
+    idempotencyKey?: string
+    html?: string
+    /** `team` for mail people may answer; auth mail stays on the no-reply sender. */
+    sender?: 'team'
+  } = {},
 ) {
   const sink = (globalThis as { __cbMailSink?: MailSink }).__cbMailSink
   if (sink) {
@@ -23,7 +28,10 @@ export async function sendMail(
     return
   }
   const key = env.RESEND_API_KEY
-  const from = env.MAIL_FROM
+  const from =
+    opts.sender === 'team'
+      ? (env.MAIL_FROM_TEAM ?? env.MAIL_FROM)
+      : env.MAIL_FROM
   if (!key || !from) {
     if (local(env.SITE_URL)) console.log(`[mail] to ${to}: ${subject}\n${text}`)
     else

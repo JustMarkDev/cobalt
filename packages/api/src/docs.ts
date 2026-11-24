@@ -791,6 +791,19 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       },
     )
     const access = (polled.json as Json).access as string
+    const redirect_uri = 'https://cobaltforge.dev/github/callback'
+    const oauth = await call('github.oauth.start', 'POST', '/github/oauth', {
+      body: { redirect_uri, return_to: '/welcome' },
+    })
+    await call('github.oauth.finish', 'POST', '/github/oauth/finish', {
+      body: {
+        code: 'c0de',
+        state: new URL((oauth.json as Json).url as string).searchParams.get(
+          'state',
+        )!,
+        redirect_uri,
+      },
+    })
     await call('github.repos.list', 'POST', '/github/repos', {
       body: { access },
     })

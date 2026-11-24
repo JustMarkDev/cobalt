@@ -37,6 +37,7 @@ type Env = {
   readonly BETTER_AUTH_SECRET: string | undefined;
   readonly CODE_STORAGE_WEBHOOK_SECRET: string | undefined;
   readonly MAIL_FROM: string | undefined;
+  readonly MAIL_FROM_TEAM: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;
   readonly POLAR_WEBHOOK_SECRET: string | undefined;
   readonly POSTHOG_API_HOST: string | undefined;

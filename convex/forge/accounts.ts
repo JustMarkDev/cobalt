@@ -11,6 +11,7 @@ import { accountByHandle, assertMatch, roleIn } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { iso, presentAccount, urls } from '../lib/present'
 import { queueMail } from '../mail'
+import { renderMail } from '../lib/mailTemplate'
 import { bumpAccess } from '../lib/acl'
 import type { Actor } from '../lib/actor'
 import type { Role } from '../lib/access'
@@ -531,18 +532,24 @@ export const invite = mutation({
     }
     await touch(ctx, a)
     const by = (await accountByHandle(ctx, p.handle))?.name ?? p.handle
+    const { text, html } = renderMail({
+      heading: `Join ${a.name} on cobalt`,
+      intro: `${by} invited you to join ${a.name} (cobaltforge.dev/${a.handle}) as ${
+        args.role === 'member' ? 'a member' : `an ${args.role}`
+      }.`,
+      action: {
+        label: 'Accept the invitation',
+        url: `${urls().html}/organizations/join?token=${secret}`,
+      },
+      outro:
+        'The link works for 7 days. If you do not want to join, ignore this email.',
+    })
     await queueMail(ctx, {
       to: email,
       subject: `${by} invited you to ${a.name} on cobalt`,
-      text: [
-        `${by} invited you to join ${a.name} (cobaltforge.dev/${a.handle}) as ${
-          args.role === 'member' ? 'a member' : `an ${args.role}`
-        }.`,
-        '',
-        `Accept: ${urls().html}/organizations/join?token=${secret}`,
-        '',
-        'The link works for 7 days. If you do not want to join, ignore this email.',
-      ].join('\n'),
+      text,
+      html,
+      sender: 'team',
     })
     return finish(args.dry, {
       invitation: presentInvite(a.handle, rec),

@@ -123,8 +123,9 @@ export function toDashboardData(
             : `${m.repos} ${m.repos === 1 ? 'repository' : 'repositories'} in sync`,
       })),
     storage: {
-      usedGb: Math.round((d.storage.used_bytes / 1024 ** 3) * 100) / 100,
-      limitGb: Math.round(d.storage.limit_bytes / 1024 ** 3),
+      usedBytes: d.storage.used_bytes,
+      limitBytes: d.storage.limit_bytes,
+      unlimited: d.storage.unlimited,
     },
     imported: d.imported,
     downloads: {

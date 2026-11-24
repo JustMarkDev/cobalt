@@ -27,7 +27,9 @@ import { PlanAndData } from '~/components/forge/account-data'
 import { IntegrationsPanel } from '~/components/forge/integrations-panel'
 import { Toggle } from '~/components/forge/repo-pages'
 import { Button } from '~/components/ui/button'
+import { Badge } from '~/components/ui/badge'
 import { authClient } from '~/lib/auth/client'
+import { startGithubLink } from '~/lib/github-link'
 
 const sections = [
   ['profile', 'Profile', UserIcon],
@@ -437,9 +439,23 @@ function Accounts() {
                   </div>
                 </div>
                 {link ? (
-                  <Chip tone="warning">Linked, not verified</Chip>
+                  link.verified ? (
+                    <Chip tone="success">Verified</Chip>
+                  ) : (
+                    <Chip tone="warning">Linked, not verified</Chip>
+                  )
+                ) : p.id === 'github' ? (
+                  <Button
+                    onClick={() =>
+                      void startGithubLink(write, '/settings/accounts').then(
+                        (e) => e && setError(e),
+                      )
+                    }
+                  >
+                    Link
+                  </Button>
                 ) : (
-                  <Button onClick={() => setDialog(p)}>Link</Button>
+                  <Badge>Planned</Badge>
                 )}
               </div>
               {link && (

@@ -4,6 +4,8 @@ import {
   devicePoll,
   deviceStart,
   needGithub,
+  oauthFinish,
+  oauthStart,
   presentGithubRepo,
 } from '../github-port'
 import type { MirrorRec } from '../extras'
@@ -202,6 +204,21 @@ export abstract class DomainImports extends DomainIntegrations {
 
   async githubDevicePoll(p: Principal, deviceCode: string) {
     return devicePoll(this.svc.github, p, deviceCode)
+  }
+
+  async githubOauthStart(
+    p: Principal,
+    redirectUri: string,
+    returnTo: string | null,
+  ) {
+    return oauthStart(this.svc.github, p, redirectUri, returnTo)
+  }
+
+  async githubOauthFinish(
+    p: Principal,
+    body: { code: string; state: string; redirect_uri: string },
+  ) {
+    return oauthFinish(this.svc.github, p, body)
   }
 
   async githubRepos(p: Principal, access: string) {

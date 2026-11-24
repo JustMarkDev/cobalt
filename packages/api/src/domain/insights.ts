@@ -1,3 +1,4 @@
+import { GB, planLimits } from '../plans'
 import { apiError } from '../problem'
 import {
   INBOX_MAX,
@@ -16,7 +17,7 @@ import { DomainImports } from './imports'
 import { statusReport } from './status-report'
 
 const DAY = 86_400_000
-const STORAGE_LIMIT = 5 * 1024 ** 3
+const STORAGE_LIMIT = planLimits.free.storageGb * GB
 const WEEKS = 26
 
 function buckets(n: number, now: number, times: Iterable<number>) {
@@ -434,6 +435,7 @@ export abstract class DomainInsights extends DomainImports {
           0,
         ),
         limit_bytes: STORAGE_LIMIT,
+        unlimited: false,
       },
       imported: owned.filter((r) => r.upstream).length,
       downloads: this.downloadsOf(owned, now),

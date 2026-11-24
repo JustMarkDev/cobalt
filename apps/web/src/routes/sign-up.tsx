@@ -13,7 +13,7 @@ import {
 } from '~/components/forge/auth'
 import { Callout } from '~/components/ui/callout'
 import { Input } from '~/components/ui/input'
-import { authClient, safeRedirect } from '~/lib/auth/client'
+import { authClient, safeRedirect, verifiedUrl } from '~/lib/auth/client'
 
 export const Route = createFileRoute('/sign-up')({
   head: () => ({ meta: [{ title: 'Create your account · cobalt' }] }),
@@ -61,6 +61,7 @@ function SignUp() {
       name,
       email,
       password,
+      callbackURL: verifiedUrl(redirect),
     })
     if (err) {
       setBusy(false)

@@ -30,11 +30,15 @@ export const mine = query({
     const usage = await usageOf(ctx, account._id, now)
     return out({
       handle: account.handle,
-      usage: { ...usage, quota: overQuota(effective.plan, usage) },
+      usage: {
+        ...usage,
+        quota: effective.unlimited ? null : overQuota(effective.plan, usage),
+      },
       plan: effective.plan,
       source: effective.source,
       until: effective.until,
-      limits: planLimits[effective.plan],
+      unlimited: effective.unlimited,
+      limits: effective.unlimited ? null : planLimits[effective.plan],
       keptUntil:
         effective.lapsedAt === null
           ? null
@@ -63,17 +67,32 @@ export const grant = internalMutation({
   args: {
     handle: v.string(),
     plan: paid,
-    days: v.number(),
+    /** Leave out with `standing: true` for a grant that never ends. */
+    days: v.optional(v.number()),
+    /** No end and no limits: for the operator's own accounts only. */
+    standing: v.optional(v.boolean()),
     reason: v.string(),
     by: v.optional(v.string()),
   },
-  handler: async (ctx, { handle, plan, days, reason, by }) => {
+  handler: async (ctx, { handle, plan, days, standing, reason, by }) => {
     const account = await accountOf(ctx, handle)
-    const length = days * 86_400_000
-    if (!(days >= 1) || length > GRANT_MAX_MS)
-      fail('invalid_request', 'A grant lasts between 1 and 366 days.')
     if (!reason.trim()) fail('invalid_request', 'Say why in `reason`.')
     const now = Date.now()
+    if (standing) {
+      if (days !== undefined)
+        fail('invalid_request', 'A standing grant has no `days`.')
+      await ctx.db.insert('planGrants', {
+        accountId: account._id,
+        plan,
+        reason: reason.trim(),
+        grantedBy: by ?? 'operator',
+        created: now,
+      })
+      return { handle, plan, expires: null }
+    }
+    const length = (days ?? 0) * 86_400_000
+    if (!(days !== undefined && days >= 1) || length > GRANT_MAX_MS)
+      fail('invalid_request', 'A grant lasts between 1 and 366 days.')
     const expires = now + length
     await ctx.db.insert('planGrants', {
       accountId: account._id,
@@ -97,7 +116,7 @@ export const revokeGrants = internalMutation({
       .query('planGrants')
       .withIndex('by_accountId', (q) => q.eq('accountId', account._id))
       .take(50)) {
-      if (g.revoked || g.expires <= now) continue
+      if (g.revoked || (g.expires !== undefined && g.expires <= now)) continue
       await ctx.db.patch('planGrants', g._id, { revoked: now })
       revoked++
     }
@@ -121,8 +140,9 @@ export const grants = internalQuery({
       reason: g.reason,
       grantedBy: g.grantedBy,
       created: new Date(g.created).toISOString(),
-      expires: new Date(g.expires).toISOString(),
-      live: !g.revoked && g.expires > now,
+      expires:
+        g.expires === undefined ? null : new Date(g.expires).toISOString(),
+      live: !g.revoked && (g.expires === undefined || g.expires > now),
     }))
   },
 })

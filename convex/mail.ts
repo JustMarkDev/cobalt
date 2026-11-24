@@ -20,7 +20,13 @@ const KEEP_MS = 24 * 60 * 60 * 1000
 
 export async function queueMail(
   ctx: MutationCtx,
-  m: { to: string; subject: string; text: string },
+  m: {
+    to: string
+    subject: string
+    text: string
+    html?: string
+    sender?: 'team'
+  },
 ) {
   const id = await ctx.db.insert('outbox', {
     ...m,
@@ -34,11 +40,25 @@ export const read = internalQuery({
   args: { id: v.id('outbox') },
   returns: v.union(
     v.null(),
-    v.object({ to: v.string(), subject: v.string(), text: v.string() }),
+    v.object({
+      to: v.string(),
+      subject: v.string(),
+      text: v.string(),
+      html: v.optional(v.string()),
+      sender: v.optional(v.literal('team')),
+    }),
   ),
   handler: async (ctx, { id }) => {
     const m = await ctx.db.get('outbox', id)
-    return m && { to: m.to, subject: m.subject, text: m.text }
+    return (
+      m && {
+        to: m.to,
+        subject: m.subject,
+        text: m.text,
+        ...(m.html !== undefined && { html: m.html }),
+        ...(m.sender !== undefined && { sender: m.sender }),
+      }
+    )
   },
 })
 
@@ -81,6 +101,8 @@ export const deliver = internalAction({
     try {
       await sendMail(m.to, m.subject, m.text, {
         idempotencyKey: `outbox/${id}`,
+        ...(m.html !== undefined && { html: m.html }),
+        ...(m.sender !== undefined && { sender: m.sender }),
       })
     } catch (e) {
       await ctx.runMutation(internal.mail.settle, {

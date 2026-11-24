@@ -30,6 +30,7 @@ export function sampleGithub(o: { now?: () => number } = {}): Github {
             full_name: 'dana-okafor/dotfiles',
             private: false,
             default_branch: 'main',
+            size: 412,
             permissions: { push: true },
           },
           {
@@ -37,6 +38,7 @@ export function sampleGithub(o: { now?: () => number } = {}): Github {
             full_name: 'dana-okafor/notes',
             private: true,
             default_branch: 'main',
+            size: 96,
             permissions: { admin: true },
           },
         ],
@@ -46,6 +48,7 @@ export function sampleGithub(o: { now?: () => number } = {}): Github {
   return createGithub(
     {
       clientId: 'Iv1.sample',
+      clientSecret: 'sample-client-secret',
       sealKey: 'sample-github-seal-key',
       slug: 'cobalt-forge-sync',
     },

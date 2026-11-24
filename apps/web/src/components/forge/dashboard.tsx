@@ -86,6 +86,12 @@ function Stat({
   )
 }
 
+/** Plan sizes are decimal, as on the pricing page: 250 MB, 4 GB. */
+const bytes = (n: number) =>
+  n < 1e9
+    ? `${Math.round(n / 1e6)} MB`
+    : `${Math.round((n / 1e9) * 100) / 100} GB`
+
 export function SummaryStrip({ data }: { data: DashboardData }) {
   const health = Object.values(data.health).filter((h) => h !== undefined)
   const failing = health.filter((h) => h.checks === 'failing').length
@@ -341,7 +347,10 @@ export function History({
   data: DashboardData
   organization: boolean
 }) {
-  const pct = Math.round((data.storage.usedGb / data.storage.limitGb) * 100)
+  const { usedBytes, limitBytes, unlimited } = data.storage
+  const pct = unlimited
+    ? 0
+    : Math.min(100, Math.round((usedBytes / limitBytes) * 100))
   return (
     <section aria-labelledby="safe">
       <Heading id="safe" title={organization ? 'History' : 'Your history'}>
@@ -360,7 +369,9 @@ export function History({
           <div className="flex items-baseline justify-between text-xs">
             <span className="font-medium">Stored here</span>
             <span className="text-muted-foreground tabular-nums">
-              {data.storage.usedGb} of {data.storage.limitGb} GB
+              {unlimited
+                ? `${bytes(usedBytes)}, no limit`
+                : `${bytes(usedBytes)} of ${bytes(limitBytes)}`}
             </span>
           </div>
           <div

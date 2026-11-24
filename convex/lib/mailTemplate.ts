@@ -1,5 +1,6 @@
 const BRAND = '#2e5bff'
 const ASSETS = 'https://cobaltforge.dev'
+const SUPPORT = 'support@cobaltforge.dev'
 
 export type MailContent = {
   heading: string
@@ -25,6 +26,7 @@ export function renderMail(m: MailContent): { text: string; html: string } {
     ...(m.outro ? ['', m.outro] : []),
     '',
     '— cobalt',
+    `Questions? Write to ${SUPPORT}`,
   ].join('\n')
 
   const url = escape(m.action.url)
@@ -57,6 +59,7 @@ export function renderMail(m: MailContent): { text: string; html: string } {
       ${m.outro ? `<p style="margin:20px 0 0;padding-top:20px;border-top:1px solid #eceef4;font-size:13px;line-height:1.6;color:#6b7086;">${escape(m.outro)}</p>` : ''}
     </td></tr>
     <tr><td style="padding:20px 4px 0;font:12px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#8a8fa3;">
+      Questions? Write to <a href="mailto:${SUPPORT}" style="color:#8a8fa3;">${SUPPORT}</a><br>
       cobalt · <a href="${ASSETS}" style="color:#8a8fa3;">cobaltforge.dev</a>
     </td></tr>
   </table>

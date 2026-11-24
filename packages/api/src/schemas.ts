@@ -1205,6 +1205,46 @@ export const GithubRepo = named(
       .string()
       .nullable()
       .describe('The repository here that already holds it, if any'),
+    size_bytes: z
+      .number()
+      .int()
+      .describe('Its size as GitHub reports it, which counts against storage'),
+  }),
+)
+
+export const GithubOauth = named(
+  'GithubOauth',
+  obj({
+    object: z.literal('github_oauth'),
+    url: z
+      .string()
+      .describe(
+        'Sign in only, for someone who already installed the app on what they want',
+      ),
+    install_url: z
+      .string()
+      .nullable()
+      .describe(
+        'Install the Cobalt GitHub App, pick its repositories and sign in, in one step. Null when the server does not know the app',
+      ),
+  }),
+)
+
+export const GithubOauthResult = named(
+  'GithubOauthResult',
+  obj({
+    object: z.literal('github_oauth_result'),
+    access: z
+      .string()
+      .describe(
+        'Proof of who signed in, good for ten minutes, to give to `imports.create` or `github.repos.list`. Not stored here',
+      ),
+    login: z.string().describe('The GitHub login, now linked and verified'),
+    expires_in: z.number().int().describe('Seconds `access` stays good'),
+    return_to: z
+      .string()
+      .nullable()
+      .describe('The page the sign-in started from, if one was given'),
   }),
 )
 
@@ -1319,7 +1359,10 @@ export const Dashboard = named(
     ),
     storage: obj({
       used_bytes: z.number().int().describe('Release files'),
-      limit_bytes: z.number().int(),
+      limit_bytes: z.number().int().describe("The account's plan allowance"),
+      unlimited: z
+        .boolean()
+        .describe('True when no storage limit applies to the account'),
     }),
     imported: z
       .number()

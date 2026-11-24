@@ -83,6 +83,7 @@ async function signUp(input: {
   email: string
   password: string
   handle?: string
+  callbackURL?: string
 }): Promise<AuthResult> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const { error } = await client.signUp.email({
@@ -90,7 +91,7 @@ async function signUp(input: {
       email: input.email.trim().toLowerCase(),
       password: input.password,
       username: input.handle ?? randomHandle(),
-      callbackURL: '/dashboard',
+      callbackURL: input.callbackURL ?? '/dashboard',
     })
     if (!error) return current()
     if (error.code !== 'USERNAME_IS_ALREADY_TAKEN' || input.handle)
@@ -146,6 +147,7 @@ export const authClient = {
       name: string
       email: string
       password: string
+      callbackURL?: string
     }): Promise<AuthResult> {
       return signUp(input)
     },
@@ -219,6 +221,13 @@ export const authClient = {
   async signOut(): Promise<void> {
     await client.signOut()
   },
+}
+
+/** Where the confirmation link lands: back in onboarding, marked as confirmed. */
+export function verifiedUrl(redirect?: string): string {
+  const q = new URLSearchParams({ verified: '1' })
+  if (redirect) q.set('redirect', redirect)
+  return `/welcome?${q}`
 }
 
 export function safeRedirect(to: unknown): string | undefined {

@@ -1,9 +1,10 @@
+import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { EnvelopeOpenIcon } from '@heroicons/react/24/outline'
 import { AuthShell, RequireAuth } from '~/components/forge/auth'
 import { useResendVerification } from '~/components/forge/verify-email-banner'
 import { Button } from '~/components/ui/button'
-import { authClient, safeRedirect } from '~/lib/auth/client'
+import { authClient, safeRedirect, verifiedUrl } from '~/lib/auth/client'
 
 export const Route = createFileRoute('/check-email')({
   head: () => ({ meta: [{ title: 'Check your email · cobalt' }] }),
@@ -24,6 +25,11 @@ function CheckEmail() {
   const email = session?.user.email
   const { state, error, resend } = useResendVerification(email)
   const next = () => void navigate({ to: '/welcome', search: { redirect } })
+  const verified = session?.user.emailVerified ?? false
+  React.useEffect(() => {
+    if (verified)
+      void navigate({ to: '/welcome', search: { redirect, verified: true } })
+  }, [verified, navigate, redirect])
 
   return (
     <AuthShell
@@ -47,7 +53,7 @@ function CheckEmail() {
             <button
               type="button"
               disabled={state === 'sending'}
-              onClick={() => resend('/dashboard')}
+              onClick={() => resend(verifiedUrl(redirect))}
               className="focus-ring rounded font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground disabled:opacity-60"
             >
               {state === 'sending' ? 'sending' : 'send it again'}

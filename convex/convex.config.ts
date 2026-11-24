@@ -16,6 +16,7 @@ const app = defineApp({
     POLAR_WEBHOOK_SECRET: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     MAIL_FROM: v.optional(v.string()),
+    MAIL_FROM_TEAM: v.optional(v.string()),
     POSTHOG_KEY: v.optional(v.string()),
     POSTHOG_HOST: v.optional(v.string()),
     POSTHOG_PERSONAL_KEY: v.optional(v.string()),

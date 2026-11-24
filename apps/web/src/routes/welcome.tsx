@@ -1,18 +1,26 @@
 import * as React from 'react'
 import { cn } from 'cn'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { CheckIcon } from '@heroicons/react/24/outline'
 import { AuthShell, RequireAuth } from '~/components/forge/auth'
 import { BrandLogo } from '~/components/brand'
 import { Button } from '~/components/ui/button'
+import { Badge } from '~/components/ui/badge'
 import { authClient, safeRedirect } from '~/lib/auth/client'
 import { useOpMaybe, useWrite } from '~/lib/forge'
-import { field } from '~/components/ui/input'
+import { startGithubLink } from '~/lib/github-link'
+import { fieldShell } from '~/components/ui/input'
+import { Callout } from '~/components/ui/callout'
 
 export const Route = createFileRoute('/welcome')({
   head: () => ({ meta: [{ title: 'Welcome · cobalt' }] }),
-  validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { redirect?: string; verified?: boolean } => ({
     redirect: safeRedirect(s.redirect),
+    ...(s.verified === true || s.verified === 1 || s.verified === '1'
+      ? { verified: true }
+      : {}),
   }),
   component: () => (
     <RequireAuth>
@@ -40,54 +48,29 @@ const hosts = [
 ] as const
 
 function Welcome() {
-  const { redirect } = Route.useSearch()
+  const { redirect, verified } = Route.useSearch()
   const router = useRouter()
   const { data: session } = authClient.useSession()
   const handle = session?.user.handle ?? ''
   const links = useOpMaybe('links.list', { handle }, !!handle)?.data ?? []
   const write = useWrite()
-  const [editing, setEditing] = React.useState<string | null>(null)
-  const [login, setLogin] = React.useState('')
   const [error, setError] = React.useState('')
   const connected = hosts.filter((h) => links.some((l) => l.host === h.id))
-  const save = (host: (typeof hosts)[number]['id']) =>
-    void write('links.set', {
-      handle,
-      host,
-      body: { login: login.trim() },
-    }).then((r) => {
-      if (r.error) return setError(r.error.message)
-      setEditing(null)
-      setLogin('')
-      setError('')
-    })
-
-  const next = connected.length > 0 ? '/new?mode=import' : (redirect ?? '/new')
+  const next = redirect ?? (connected.length > 0 ? '/dashboard' : '/new')
 
   return (
     <AuthShell
       step="Step 3 of 3"
       title="Bring your history with you"
       subtitle="Optional. Copy your projects and activity from where they live now. You can do this any time in Settings."
-      footer={
-        session && (
-          <>
-            Your page is{' '}
-            <span className="font-mono text-foreground">
-              cobaltforge.dev/{session.user.handle}
-            </span>
-            .{' '}
-            <Link
-              to="/settings/$section"
-              params={{ section: 'profile' }}
-              className="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
-            >
-              Change it
-            </Link>
-          </>
-        )
-      }
     >
+      {session && <AddressEditor handle={session.user.handle} />}
+      {verified && (
+        <Callout tone="success" title="Email confirmed">
+          Your account is ready. Link where your work lives now, or skip this
+          for later.
+        </Callout>
+      )}
       <ul className="divide-y overflow-hidden rounded-xl border">
         {hosts.map((p) => {
           const link = links.find((l) => l.host === p.id)
@@ -106,33 +89,22 @@ function Welcome() {
                     <CheckIcon className="size-3.5" />
                     Linked
                   </span>
-                ) : (
-                  <Button size="sm" onClick={() => setEditing(p.id)}>
+                ) : p.id === 'github' ? (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      void startGithubLink(
+                        write,
+                        `/welcome${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`,
+                      ).then((e) => e && setError(e))
+                    }
+                  >
                     Link
                   </Button>
+                ) : (
+                  <Badge>Planned</Badge>
                 )}
               </div>
-              {editing === p.id && !link && (
-                <form
-                  className="flex gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    if (login.trim()) save(p.id)
-                  }}
-                >
-                  <input
-                    autoFocus
-                    value={login}
-                    onChange={(e) => setLogin(e.target.value)}
-                    placeholder={`Your ${p.name} username`}
-                    aria-label={`Your ${p.name} username`}
-                    className={cn(field, 'h-8 flex-1 px-2.5 font-mono')}
-                  />
-                  <Button size="sm" type="submit" disabled={!login.trim()}>
-                    Save
-                  </Button>
-                </form>
-              )}
             </li>
           )
         })}
@@ -148,10 +120,110 @@ function Welcome() {
         className="w-full"
         onClick={() => router.history.push(next)}
       >
-        {connected.length > 0
-          ? `Import from ${connected.length === 1 ? connected[0].name : `${connected.length} sources`}`
-          : 'Skip for now'}
+        {connected.length > 0 ? 'Continue' : 'Skip for now'}
       </Button>
     </AuthShell>
+  )
+}
+
+function AddressEditor({ handle }: { handle: string }) {
+  const [editing, setEditing] = React.useState(false)
+  const [value, setValue] = React.useState(handle)
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const save = async () => {
+    if (value === handle) return setEditing(false)
+    setSaving(true)
+    setError(null)
+    const r = await authClient.updateUser({ handle: value })
+    setSaving(false)
+    if (r.error) return setError(r.error.message)
+    setEditing(false)
+  }
+
+  if (!editing)
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3">
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground">Your page</div>
+          <div className="truncate font-mono text-sm">
+            cobaltforge.dev/{handle}
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setValue(handle)
+            setEditing(true)
+          }}
+        >
+          Change
+        </Button>
+      </div>
+    )
+
+  return (
+    <form
+      className="space-y-2 rounded-xl border px-3.5 py-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void save()
+      }}
+    >
+      <label htmlFor="address" className="block text-xs text-muted-foreground">
+        Your page
+      </label>
+      <span
+        className={cn(
+          fieldShell,
+          'flex h-9 w-full items-center overflow-hidden font-mono text-sm focus-within:border-foreground/40',
+          error && 'border-danger',
+        )}
+      >
+        <span
+          aria-hidden
+          className="flex shrink-0 items-center self-stretch border-r bg-muted/50 px-2.5 text-muted-foreground select-none"
+        >
+          cobaltforge.dev/
+        </span>
+        <input
+          id="address"
+          autoFocus
+          value={value}
+          onChange={(e) =>
+            setValue(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+          }
+          autoCapitalize="none"
+          spellCheck={false}
+          disabled={saving}
+          aria-invalid={error ? true : undefined}
+          className="h-full min-w-0 flex-1 bg-transparent px-2.5 outline-none"
+        />
+      </span>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          type="button"
+          disabled={saving}
+          onClick={() => {
+            setEditing(false)
+            setError(null)
+          }}
+        >
+          Cancel
+        </Button>
+        <Button size="sm" type="submit" disabled={saving || !value}>
+          {saving ? 'Saving' : 'Save'}
+        </Button>
+      </div>
+    </form>
   )
 }

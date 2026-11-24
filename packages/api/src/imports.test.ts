@@ -173,3 +173,83 @@ describe('linked accounts', () => {
     ).toBe(404)
   })
 })
+
+describe('signing in with GitHub in the browser', () => {
+  const redirect = 'https://cobaltforge.dev/github/callback'
+  const stateOf = (url: string) => new URL(url).searchParams.get('state')!
+
+  test('an address to GitHub, then a code traded for a proof', async () => {
+    const h = harness()
+    const start = await h.call('POST', '/github/oauth', {
+      body: { redirect_uri: redirect, return_to: '/welcome' },
+    })
+    expect(start.status).toBe(201)
+    const url = new URL(start.json.url)
+    expect(url.origin + url.pathname).toBe(
+      'https://github.com/login/oauth/authorize',
+    )
+    expect(url.searchParams.get('redirect_uri')).toBe(redirect)
+    const install = new URL(start.json.install_url)
+    expect(install.origin + install.pathname).toBe(
+      'https://github.com/apps/cobalt-forge-sync/installations/new',
+    )
+    expect(install.searchParams.get('state')).toBe(stateOf(start.json.url))
+    const done = await h.call('POST', '/github/oauth/finish', {
+      body: {
+        code: 'c0de',
+        state: stateOf(start.json.url),
+        redirect_uri: redirect,
+      },
+    })
+    expect(done.status).toBe(200)
+    expect(done.json).toMatchObject({
+      login: 'dana-okafor',
+      expires_in: 600,
+      return_to: '/welcome',
+    })
+    const repos = await h.call('POST', '/github/repos', {
+      body: { access: done.json.access },
+    })
+    expect(repos.json.data[0]).toMatchObject({
+      slug: 'dana-okafor/dotfiles',
+      size_bytes: 412 * 1024,
+    })
+  })
+
+  test('a state from someone else, or a changed one, is refused', async () => {
+    const h = harness()
+    const start = await h.call('POST', '/github/oauth', {
+      body: { redirect_uri: redirect },
+    })
+    const state = stateOf(start.json.url)
+    const other = await h.call('POST', '/github/oauth/finish', {
+      token: sampleTokens.hollis,
+      body: { code: 'c0de', state, redirect_uri: redirect },
+    })
+    expect(other.status).toBe(403)
+    const forged = await h.call('POST', '/github/oauth/finish', {
+      body: { code: 'c0de', state: `${state}x`, redirect_uri: redirect },
+    })
+    expect(forged.status).toBe(403)
+    const moved = await h.call('POST', '/github/oauth/finish', {
+      body: {
+        code: 'c0de',
+        state,
+        redirect_uri: 'http://localhost:3000/github/callback',
+      },
+    })
+    expect(moved.status).toBe(403)
+  })
+
+  test("only this site's callback, and only a path to come back to", async () => {
+    const h = harness()
+    const elsewhere = await h.call('POST', '/github/oauth', {
+      body: { redirect_uri: 'https://evil.example/steal' },
+    })
+    expect(elsewhere.status).toBe(400)
+    const offsite = await h.call('POST', '/github/oauth', {
+      body: { redirect_uri: redirect, return_to: '//evil.example' },
+    })
+    expect(offsite.status).toBe(400)
+  })
+})

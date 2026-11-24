@@ -27,7 +27,7 @@ import { Dropdown, MenuItem, MenuSeparator } from '~/components/ui/menu'
 import { switchAccount, useAccounts } from '~/lib/auth/accounts'
 import { useTarget } from '~/lib/platform'
 import { authClient } from '~/lib/auth/client'
-import { socials } from '~/lib/site'
+import { SUPPORT_EMAIL, socials } from '~/lib/site'
 import { BrandMark } from '~/components/brand-mark'
 import { SETUP_PROMPT } from '~/lib/setup-prompt'
 
@@ -859,7 +859,7 @@ const socialIcons = {
   github: siGithub,
 } as const
 
-type FooterLink = { label: string; link: LinkProps | null }
+type FooterLink = { label: string; link: LinkProps | null; href?: string }
 
 const footerColumns: Array<[string, Array<FooterLink>]> = [
   [
@@ -887,6 +887,7 @@ const footerColumns: Array<[string, Array<FooterLink>]> = [
     'Company',
     [
       { label: 'Status', link: { to: '/status' } },
+      { label: 'Support', link: null, href: `mailto:${SUPPORT_EMAIL}` },
       { label: 'Design system', link: { to: '/design' } },
       { label: 'Privacy', link: { to: '/privacy' } },
       { label: 'Terms', link: { to: '/terms' } },
@@ -942,7 +943,7 @@ export function SiteFooter() {
                 {title}
               </h2>
               <ul className="text-foreground/80">
-                {links.map(({ label, link }) => (
+                {links.map(({ label, link, href }) => (
                   <li key={label}>
                     {link ? (
                       <Link
@@ -953,7 +954,7 @@ export function SiteFooter() {
                       </Link>
                     ) : (
                       <a
-                        href="/llms.txt"
+                        href={href ?? '/llms.txt'}
                         className="inline-block py-1 hover:text-foreground"
                       >
                         {label}

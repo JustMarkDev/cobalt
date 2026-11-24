@@ -8,6 +8,8 @@ import { apiError } from './problem'
 
 export type GithubConfig = {
   clientId: string
+  /** For the web sign-in, which trades a code for a token. The device flow needs none. */
+  clientSecret?: string | null
   /** The secret that seals `access` blobs. */
   sealKey: string
   /** The app's public name in its install URL, `github.com/apps/<slug>`. */
@@ -20,6 +22,17 @@ export type GithubRepoRef = {
   private: boolean
   defaultBranch: string
   installation: number
+  /** What GitHub reports for the repository, in bytes. */
+  sizeBytes: number
+}
+
+export type OauthStart = { url: string; installUrl: string | null }
+
+export type OauthFinish = {
+  access: string
+  login: string
+  expiresIn: number
+  returnTo: string | null
 }
 
 export type DeviceStart = {
@@ -46,6 +59,7 @@ export function githubConfigFromEnv(
   if (!env.GITHUB_APP_CLIENT_ID || !sealKey) return null
   return {
     clientId: env.GITHUB_APP_CLIENT_ID,
+    clientSecret: env.GITHUB_APP_CLIENT_SECRET ?? null,
     sealKey,
     slug: env.GITHUB_APP_SLUG ?? null,
   }
@@ -56,6 +70,22 @@ export interface Github {
   devicePoll: (deviceCode: string, handle: string) => Promise<DevicePoll>
   /** The repositories this person may push to through the app. */
   repos: (access: string, handle: string) => Promise<Array<GithubRepoRef>>
+  /**
+   * Where to send the person to sign in on GitHub in the browser. `state`
+   * binds the answer to them and to `redirectUri`, for ten minutes.
+   */
+  oauthStart: (
+    handle: string,
+    redirectUri: string,
+    returnTo: string | null,
+  ) => Promise<OauthStart>
+  /** Trades the code GitHub sent back for a sealed `access`. */
+  oauthFinish: (
+    handle: string,
+    code: string,
+    state: string,
+    redirectUri: string,
+  ) => Promise<OauthFinish>
   /** Throws `forbidden` unless the person may push to `slug` through the app. */
   authorize: (
     access: string,
@@ -101,7 +131,7 @@ export async function sealAccess(
       new TextEncoder().encode(JSON.stringify(body)),
     ),
   )
-  return `ghs_${b64.enc(iv)}.${b64.enc(ct)}`
+  return `cbgh_${b64.enc(iv)}.${b64.enc(ct)}`
 }
 
 export async function openAccess(
@@ -114,7 +144,7 @@ export async function openAccess(
     apiError('forbidden', 'The GitHub sign-in is not valid or has expired.', {
       hint: 'Sign in with GitHub again.',
     })
-  const m = /^ghs_([\w-]+)\.([\w-]+)$/.exec(access)
+  const m = /^cbgh_([\w-]+)\.([\w-]+)$/.exec(access)
   if (!m) throw bad()
   let v: Sealed
   try {
@@ -132,6 +162,64 @@ export async function openAccess(
   }
   if (v.h !== handle || v.x < now) throw bad()
   return { token: v.t, login: v.l }
+}
+
+type State = { h: string; r: string; t: string | null; x: number }
+
+async function stateKeyOf(secret: string) {
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(`cobalt:github-state:${secret}`),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify'],
+  )
+}
+
+export async function signState(secret: string, s: State) {
+  const body = b64.enc(new TextEncoder().encode(JSON.stringify(s)))
+  const mac = new Uint8Array(
+    await crypto.subtle.sign(
+      'HMAC',
+      await stateKeyOf(secret),
+      new TextEncoder().encode(body),
+    ),
+  )
+  return `${body}.${b64.enc(mac)}`
+}
+
+export async function openState(
+  secret: string,
+  state: string,
+  handle: string,
+  redirectUri: string,
+  now: number,
+): Promise<State> {
+  const bad = () =>
+    apiError(
+      'forbidden',
+      'This GitHub sign-in did not start here, or it expired.',
+      {
+        hint: 'Start linking GitHub again.',
+      },
+    )
+  const [body, mac] = state.split('.')
+  if (!body || !mac) throw bad()
+  const ok = await crypto.subtle.verify(
+    'HMAC',
+    await stateKeyOf(secret),
+    b64.dec(mac),
+    new TextEncoder().encode(body),
+  )
+  if (!ok) throw bad()
+  let s: State
+  try {
+    s = JSON.parse(new TextDecoder().decode(b64.dec(body))) as State
+  } catch {
+    throw bad()
+  }
+  if (s.h !== handle || s.r !== redirectUri || s.x < now) throw bad()
+  return s
 }
 
 const API = 'https://api.github.com'
@@ -201,6 +289,7 @@ export function createGithub(
             full_name: string
             private: boolean
             default_branch: string
+            size?: number
             permissions?: { admin?: boolean; push?: boolean }
           }>
         }>(
@@ -215,6 +304,7 @@ export function createGithub(
               private: r1.private,
               defaultBranch: r1.default_branch,
               installation: inst.id,
+              sizeBytes: (r1.size ?? 0) * 1024,
             })
         if (r.repositories.length < 100) break
       }
@@ -278,6 +368,54 @@ export function createGithub(
             'That device code is not valid.',
             {},
           )
+      }
+    },
+    async oauthStart(handle, redirectUri, returnTo) {
+      const state = await signState(cfg.sealKey, {
+        h: handle,
+        r: redirectUri,
+        t: returnTo,
+        x: now() + ACCESS_TTL_MS,
+      })
+      const q = new URLSearchParams({
+        client_id: cfg.clientId,
+        redirect_uri: redirectUri,
+        state,
+      })
+      return {
+        url: `https://github.com/login/oauth/authorize?${q}`,
+        // Installing asks for the repositories and, with "request user
+        // authorization during installation" on, signs in in the same step.
+        installUrl: cfg.slug
+          ? `https://github.com/apps/${cfg.slug}/installations/new?${new URLSearchParams({ state })}`
+          : null,
+      }
+    },
+    async oauthFinish(handle, code, state, redirectUri) {
+      const s = await openState(cfg.sealKey, state, handle, redirectUri, now())
+      if (!cfg.clientSecret)
+        throw apiError(
+          'backend_unavailable',
+          'Signing in with GitHub in the browser is not set up on this server.',
+          { hint: 'The operator must set GITHUB_APP_CLIENT_SECRET.' },
+        )
+      // No redirect_uri: after an installation GitHub sends the code to the
+      // app's first callback address, which may not be the one this page is on.
+      const d = await form('https://github.com/login/oauth/access_token', {
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
+        code,
+      })
+      const token = typeof d.access_token === 'string' ? d.access_token : null
+      if (d.error || !token)
+        throw apiError(
+          'forbidden',
+          'GitHub did not accept that sign-in. It may have been used already.',
+          { hint: 'Start linking GitHub again.' },
+        )
+      return {
+        ...(await seal(token, handle)),
+        returnTo: s.t,
       }
     },
     async repos(access, handle) {

@@ -60,7 +60,7 @@ export type DashboardData = {
   repos: Array<Repo>
   health: Record<string, Health | undefined>
   mirrors: Array<Mirror>
-  storage: { usedGb: number; limitGb: number }
+  storage: { usedBytes: number; limitBytes: number; unlimited: boolean }
   imported: number
   downloads: Series
   contributions: Omit<Series, 'daily'> & {

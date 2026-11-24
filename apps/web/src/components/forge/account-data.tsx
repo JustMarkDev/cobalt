@@ -12,7 +12,8 @@ type Mine = {
   plan: 'free' | 'solo' | 'team' | 'business'
   source: 'free' | 'subscription' | 'grant'
   until: number | null
-  limits: { storageGb: number; transferGb: number; pushGb: number }
+  unlimited?: boolean
+  limits: { storageGb: number; transferGb: number; pushGb: number } | null
   usage: {
     storageBytes: number
     transferBytes: number
@@ -71,11 +72,13 @@ function Plan({ mine }: { mine: Mine }) {
         <div>
           <h2 className="text-lg font-semibold">{name} plan</h2>
           <p className="text-sm text-muted-foreground">
-            {mine.source === 'grant' && mine.until
-              ? `Given to this account until ${day(mine.until)}.`
-              : mine.source === 'subscription'
-                ? 'Paid.'
-                : 'Free, with no end date. Public repositories.'}
+            {mine.unlimited
+              ? 'No limits. Given to this account with no end date.'
+              : mine.source === 'grant' && mine.until
+                ? `Given to this account until ${day(mine.until)}.`
+                : mine.source === 'subscription'
+                  ? 'Paid.'
+                  : 'Free, with no end date. Public repositories.'}
           </p>
         </div>
         {mine.source === 'subscription' ? (
@@ -96,11 +99,15 @@ function Plan({ mine }: { mine: Mine }) {
           [
             [
               'Storage',
-              `${used(mine.usage.storageBytes)} of ${size(mine.limits.storageGb)}`,
+              mine.limits
+                ? `${used(mine.usage.storageBytes)} of ${size(mine.limits.storageGb)}`
+                : `${used(mine.usage.storageBytes)}, no limit`,
             ],
             [
               'Transfer out',
-              `${used(mine.usage.transferBytes)} of ${size(mine.limits.transferGb)} this month`,
+              mine.limits
+                ? `${used(mine.usage.transferBytes)} of ${size(mine.limits.transferGb)} this month`
+                : `${used(mine.usage.transferBytes)} this month, no limit`,
             ],
             ['Mirrors', 'Unlimited'],
           ] as const

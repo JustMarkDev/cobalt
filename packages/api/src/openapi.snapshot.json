@@ -4151,6 +4151,219 @@
         "x-cb-secret-request": false
       }
     },
+    "/github/oauth/finish": {
+      "post": {
+        "operationId": "github.oauth.finish",
+        "summary": "Finish signing in with GitHub in the browser",
+        "description": "Trades the `code` GitHub sent back for `access`, and links the GitHub account to yours as verified. A code works once.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri",
+                    "description": "Where GitHub sends the person back: this site's /github/callback"
+                  }
+                },
+                "required": [
+                  "code",
+                  "state",
+                  "redirect_uri"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubOauthResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": false,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/github/oauth": {
+      "post": {
+        "operationId": "github.oauth.start",
+        "summary": "Start signing in with GitHub in the browser",
+        "description": "Gives the GitHub address to send the person to. GitHub sends them back to `redirect_uri` with a `code` and the `state`, which go to `github.oauth.finish` within ten minutes.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "redirect_uri": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri",
+                    "description": "Where GitHub sends the person back: this site's /github/callback"
+                  },
+                  "return_to": {
+                    "description": "A path on this site to come back to afterwards",
+                    "type": "string",
+                    "maxLength": 500,
+                    "pattern": "^\\/(?!\\/)"
+                  }
+                },
+                "required": [
+                  "redirect_uri"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubOauth"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": false,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
     "/github/repos": {
       "post": {
         "operationId": "github.repos.list",
@@ -27251,12 +27464,18 @@
               "limit_bytes": {
                 "type": "integer",
                 "minimum": -9007199254740991,
-                "maximum": 9007199254740991
+                "maximum": 9007199254740991,
+                "description": "The account's plan allowance"
+              },
+              "unlimited": {
+                "type": "boolean",
+                "description": "True when no storage limit applies to the account"
               }
             },
             "required": [
               "used_bytes",
-              "limit_bytes"
+              "limit_bytes",
+              "unlimited"
             ]
           },
           "imported": {
@@ -27763,6 +27982,68 @@
           "interval"
         ]
       },
+      "GithubOauthResult": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "github_oauth_result"
+          },
+          "access": {
+            "type": "string",
+            "description": "Proof of who signed in, good for ten minutes, to give to `imports.create` or `github.repos.list`. Not stored here"
+          },
+          "login": {
+            "type": "string",
+            "description": "The GitHub login, now linked and verified"
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Seconds `access` stays good"
+          },
+          "return_to": {
+            "description": "The page the sign-in started from, if one was given",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "access",
+          "login",
+          "expires_in",
+          "return_to"
+        ]
+      },
+      "GithubOauth": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "github_oauth"
+          },
+          "url": {
+            "type": "string",
+            "description": "Sign in only, for someone who already installed the app on what they want"
+          },
+          "install_url": {
+            "description": "Install the Cobalt GitHub App, pick its repositories and sign in, in one step. Null when the server does not know the app",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "url",
+          "install_url"
+        ]
+      },
       "GithubRepo": {
         "type": "object",
         "properties": {
@@ -27786,6 +28067,12 @@
               "string",
               "null"
             ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Its size as GitHub reports it, which counts against storage"
           }
         },
         "required": [
@@ -27793,7 +28080,8 @@
           "slug",
           "private",
           "default_branch",
-          "linked"
+          "linked",
+          "size_bytes"
         ]
       },
       "Import": {

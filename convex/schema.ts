@@ -70,7 +70,8 @@ export default defineSchema({
     reason: v.string(),
     grantedBy: v.string(),
     created: v.number(),
-    expires: v.number(),
+    /** Absent for a standing grant, which never ends and lifts every limit. */
+    expires: v.optional(v.number()),
     revoked: v.optional(v.number()),
   }).index('by_accountId', ['accountId']),
 
@@ -871,6 +872,8 @@ export default defineSchema({
     to: v.string(),
     subject: v.string(),
     text: v.string(),
+    html: v.optional(v.string()),
+    sender: v.optional(v.literal('team')),
     created: v.number(),
     attempts: v.optional(v.number()),
   }).index('by_created', ['created']),

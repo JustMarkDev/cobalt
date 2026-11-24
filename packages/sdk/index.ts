@@ -425,7 +425,10 @@ export type Dashboard = {
   storage: {
     /** Release files */
     used_bytes: number
+    /** The account's plan allowance */
     limit_bytes: number
+    /** True when no storage limit applies to the account */
+    unlimited: boolean
   }
   /** Repositories brought from another host */
   imported: number
@@ -709,6 +712,26 @@ export type GithubDeviceStatus = {
   expires_in: number | null
 }
 
+export type GithubOauth = {
+  object: 'github_oauth'
+  /** Sign in only, for someone who already installed the app on what they want */
+  url: string
+  /** Install the Cobalt GitHub App, pick its repositories and sign in, in one step. Null when the server does not know the app */
+  install_url: string | null
+}
+
+export type GithubOauthResult = {
+  object: 'github_oauth_result'
+  /** Proof of who signed in, good for ten minutes, to give to `imports.create` or `github.repos.list`. Not stored here */
+  access: string
+  /** The GitHub login, now linked and verified */
+  login: string
+  /** Seconds `access` stays good */
+  expires_in: number
+  /** The page the sign-in started from, if one was given */
+  return_to: string | null
+}
+
 export type GithubRepo = {
   object: 'github_repo'
   /** `owner/name` on GitHub */
@@ -717,6 +740,8 @@ export type GithubRepo = {
   default_branch: string
   /** The repository here that already holds it, if any */
   linked: string | null
+  /** Its size as GitHub reports it, which counts against storage */
+  size_bytes: number
 }
 
 export type Import = {
@@ -2896,6 +2921,30 @@ export interface Operations {
   'github.device.start': {
     input: Record<string, never>
     output: GithubDevice
+  }
+  /** Finish signing in with GitHub in the browser (`POST /github/oauth/finish`) */
+  'github.oauth.finish': {
+    input: {
+      body: {
+        code: string
+        state: string
+        /** Where GitHub sends the person back: this site's /github/callback */
+        redirect_uri: string
+      }
+    }
+    output: GithubOauthResult
+  }
+  /** Start signing in with GitHub in the browser (`POST /github/oauth`) */
+  'github.oauth.start': {
+    input: {
+      body: {
+        /** Where GitHub sends the person back: this site's /github/callback */
+        redirect_uri: string
+        /** A path on this site to come back to afterwards */
+        return_to?: string
+      }
+    }
+    output: GithubOauth
   }
   /** The GitHub repositories you can import (`POST /github/repos`) */
   'github.repos.list': {
@@ -5510,6 +5559,28 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
+  'github.oauth.finish': {
+    method: 'POST',
+    path: '/github/oauth/finish',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'github.oauth.start': {
+    method: 'POST',
+    path: '/github/oauth',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
   'github.repos.list': {
     method: 'POST',
     path: '/github/repos',
@@ -7313,6 +7384,16 @@ export interface Client extends Core {
         input?: Operations['github.device.start']['input'],
         options?: RequestOptions,
       ) => Promise<Operations['github.device.start']['output']>
+    }
+    oauth: {
+      finish: (
+        input: Operations['github.oauth.finish']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['github.oauth.finish']['output']>
+      start: (
+        input: Operations['github.oauth.start']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['github.oauth.start']['output']>
     }
     repos: {
       list: (

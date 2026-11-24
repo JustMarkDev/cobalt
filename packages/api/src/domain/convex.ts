@@ -17,6 +17,8 @@ import {
   devicePoll,
   deviceStart,
   needGithub,
+  oauthFinish,
+  oauthStart,
   presentGithubRepo,
 } from '../github-port'
 import type { MirrorRec } from '../extras'
@@ -1420,6 +1422,19 @@ export class ConvexDomain implements DomainPort {
     return r
   }
 
+  githubOauthStart: Port['githubOauthStart'] = (p, redirectUri, returnTo) =>
+    oauthStart(this.svc.github, p, redirectUri, returnTo)
+
+  githubOauthFinish: Port['githubOauthFinish'] = async (p, body) => {
+    const r = await oauthFinish(this.svc.github, p, body)
+    await this.m(
+      'integrations:markVerified',
+      { handle: p.handle, login: r.login },
+      'system',
+    )
+    return r
+  }
+
   githubRepos: Port['githubRepos'] = async (p, access) => {
     const refs = await needGithub(this.svc.github).repos(access, p.handle)
     const held = refs.length
@@ -1713,6 +1728,8 @@ export class ConvexDomain implements DomainPort {
     }
     const f = await this.q<{
       account: string
+      storageLimit: number
+      unlimited: boolean
       owned: Array<{
         repo: string
         id: string
@@ -1885,7 +1902,8 @@ export class ConvexDomain implements DomainPort {
       mirrors: [...mirrors.values()],
       storage: {
         used_bytes: f.owned.reduce((n, r) => n + r.size, 0),
-        limit_bytes: 5 * 1024 ** 3,
+        limit_bytes: f.storageLimit,
+        unlimited: f.unlimited,
       },
       imported: f.owned.filter((r) => r.upstream).length,
       downloads: this.downloadsOf(f.downloads, now),

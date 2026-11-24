@@ -98,9 +98,110 @@ ratelimit: "write";r=37;t=60
   "object": "github_device_status",
   "status": "authorized",
   "interval": null,
-  "access": "ghs_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU",
+  "access": "cbgh_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU",
   "login": "dana-okafor",
   "expires_in": 600
+}
+```
+
+### `github.oauth.start`
+
+`POST /github/oauth`
+
+**Start signing in with GitHub in the browser**
+
+Gives the GitHub address to send the person to. GitHub sends them back to `redirect_uri` with a `code` and the `state`, which go to `github.oauth.finish` within ten minutes.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `201`, a `github_oauth`             |
+
+**Request body**
+
+| Member         | Type                                   | Notes                                                                      |
+| -------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| `redirect_uri` | string (up to 500 characters, uri)     | Required. Where GitHub sends the person back: this site's /github/callback |
+| `return_to`    | string (up to 500 characters, pattern) | A path on this site to come back to afterwards                             |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/github/oauth" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"redirect_uri":"https://cobaltforge.dev/github/callback","return_to":"/welcome"}'
+```
+
+```http
+HTTP/1.1 201
+ratelimit: "write";r=36;t=60
+```
+
+```json
+{
+  "object": "github_oauth",
+  "url": "https://github.com/login/oauth/authorize?client_id=Iv1.sample&redirect_uri=https%3A%2F%2Fcobaltforge.dev%2Fgithub%2Fcallback&state=eyJoIjoiZGFuYSIsInIiOiJodH…",
+  "install_url": "https://github.com/apps/cobalt-forge-sync/installations/new?state=eyJoIjoiZGFuYSIsInIiOiJodHRwczovL2NvYmFsdGZvcmdlLmRldi9naXRodWIvY2FsbGJhY2siLCJ0IjoiL3dlbGN…"
+}
+```
+
+### `github.oauth.finish`
+
+`POST /github/oauth/finish`
+
+**Finish signing in with GitHub in the browser**
+
+Trades the `code` GitHub sent back for `access`, and links the GitHub account to yours as verified. A code works once.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `200`, a `github_oauth_result`      |
+
+**Request body**
+
+| Member         | Type                                       | Notes                                                                      |
+| -------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `code`         | string (up to 200 characters, at least 1)  | Required.                                                                  |
+| `state`        | string (up to 2000 characters, at least 1) | Required.                                                                  |
+| `redirect_uri` | string (up to 500 characters, uri)         | Required. Where GitHub sends the person back: this site's /github/callback |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/github/oauth/finish" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"c0de","state":"eyJoIjoiZGFuYSIsInIiOiJodHRwczovL2NvYmFsdGZvcmdlLmRldi9naXRodWIvY2FsbGJhY2siLCJ0IjoiL3dlbGNvbWUiLCJ4IjoxNzk0MDQ2MjAwMDAwfQ.nUYtbYhkaWb_e7nL5umhiYfohZOCpSBA5_eZLFNdLFg","redirect_uri":"https://cobaltforge.dev/github/callback"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=35;t=60
+```
+
+```json
+{
+  "object": "github_oauth_result",
+  "access": "cbgh_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU",
+  "login": "dana-okafor",
+  "expires_in": 600,
+  "return_to": "/welcome"
 }
 ```
 
@@ -136,7 +237,7 @@ The repositories you may push to and that have the Cobalt GitHub App installed. 
 curl -X POST "https://api.cobaltforge.dev/v1/github/repos" \
   -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"access":"ghs_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
+  -d '{"access":"cbgh_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
 ```
 
 ```http
@@ -153,14 +254,16 @@ ratelimit: "read";r=1134;t=60
       "slug": "dana-okafor/dotfiles",
       "private": false,
       "default_branch": "main",
-      "linked": null
+      "linked": null,
+      "size_bytes": 421888
     },
     {
       "object": "github_repo",
       "slug": "dana-okafor/notes",
       "private": true,
       "default_branch": "main",
-      "linked": null
+      "linked": null,
+      "size_bytes": 98304
     }
   ],
   "has_more": false,
@@ -271,19 +374,19 @@ Makes the repository here and links it to the GitHub repository in a two-way syn
 curl -X POST "https://api.cobaltforge.dev/v1/imports" \
   -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"host":"github","slug":"dana-okafor/dotfiles","github_access":"ghs_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
+  -d '{"host":"github","slug":"dana-okafor/dotfiles","github_access":"cbgh_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
 ```
 
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80f721nfmg",
+  "id": "rep_01m6tq6r80sxhwmfce",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -569,7 +672,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/repos/northwind/scratch2?confirm=
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=16;t=60
+ratelimit: "write";r=14;t=60
 ```
 
 ### `repos.get`
@@ -728,7 +831,7 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=18;t=60
+ratelimit: "write";r=16;t=60
 ```
 
 ```json
@@ -2032,7 +2135,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=17;t=60
+ratelimit: "write";r=15;t=60
 ```
 
 ```json

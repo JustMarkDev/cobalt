@@ -34,6 +34,7 @@ import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './rout
 import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
 import { Route as DocsSplatRouteImport } from './routes/docs/$'
+import { Route as GithubCallbackRouteImport } from './routes/github/callback'
 import { Route as OrganizationsJoinRouteImport } from './routes/organizations/join'
 import { Route as OrganizationsNewRouteImport } from './routes/organizations/new'
 import { Route as SettingsSectionRouteImport } from './routes/settings/$section'
@@ -174,6 +175,11 @@ const DocsSplatRoute = DocsSplatRouteImport.update({
   path: '/docs/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GithubCallbackRoute = GithubCallbackRouteImport.update({
+  id: '/github/callback',
+  path: '/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrganizationsJoinRoute = OrganizationsJoinRouteImport.update({
   id: '/organizations/join',
   path: '/organizations/join',
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/search': typeof ApiSearchRoute
   '/docs/$': typeof DocsSplatRoute
+  '/github/callback': typeof GithubCallbackRoute
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -303,6 +310,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/search': typeof ApiSearchRoute
   '/docs/$': typeof DocsSplatRoute
+  '/github/callback': typeof GithubCallbackRoute
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/search': typeof ApiSearchRoute
   '/docs/$': typeof DocsSplatRoute
+  '/github/callback': typeof GithubCallbackRoute
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/api/search'
     | '/docs/$'
+    | '/github/callback'
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/api/search'
     | '/docs/$'
+    | '/github/callback'
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/api/search'
     | '/docs/$'
+    | '/github/callback'
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
@@ -502,6 +514,7 @@ export interface RootRouteChildren {
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
   ApiSearchRoute: typeof ApiSearchRoute
   DocsSplatRoute: typeof DocsSplatRoute
+  GithubCallbackRoute: typeof GithubCallbackRoute
   OrganizationsJoinRoute: typeof OrganizationsJoinRoute
   OrganizationsNewRoute: typeof OrganizationsNewRoute
   SettingsSectionRoute: typeof SettingsSectionRoute
@@ -694,6 +707,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/github/callback': {
+      id: '/github/callback'
+      path: '/github/callback'
+      fullPath: '/github/callback'
+      preLoaderRoute: typeof GithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/organizations/join': {
       id: '/organizations/join'
       path: '/organizations/join'
@@ -808,6 +828,7 @@ const rootRouteChildren: RootRouteChildren = {
     DotwellKnownOauthProtectedResourceRoute,
   ApiSearchRoute: ApiSearchRoute,
   DocsSplatRoute: DocsSplatRoute,
+  GithubCallbackRoute: GithubCallbackRoute,
   OrganizationsJoinRoute: OrganizationsJoinRoute,
   OrganizationsNewRoute: OrganizationsNewRoute,
   SettingsSectionRoute: SettingsSectionRoute,

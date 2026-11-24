@@ -42,7 +42,8 @@ export type Subscription = {
 
 export type Grant = {
   plan: PaidPlanId
-  expires: number
+  /** Absent for a standing grant: the operator's own account, which has no limits. */
+  expires?: number | null
   revoked?: number | null
 }
 
@@ -51,10 +52,12 @@ export type Effective = {
   source: 'subscription' | 'grant' | 'free'
   until: number | null
   lapsedAt: number | null
+  /** A standing grant: no storage, transfer or push limits apply. */
+  unlimited: boolean
 }
 
 export const grantIsLive = (g: Grant, now: number): boolean =>
-  !g.revoked && g.expires > now
+  !g.revoked && (g.expires == null || g.expires > now)
 
 export function effectivePlan(
   subscription: Subscription | null,
@@ -67,6 +70,7 @@ export function effectivePlan(
     until: null,
     lapsedAt:
       subscription?.status === 'lapsed' ? (subscription.lapsedAt ?? now) : null,
+    unlimited: false,
   }
   const rank = (p: PlanId) => planOrder.indexOf(p)
   if (subscription?.status === 'active')
@@ -75,11 +79,26 @@ export function effectivePlan(
       source: 'subscription',
       until: null,
       lapsedAt: null,
+      unlimited: false,
     }
   for (const g of grants) {
     if (!grantIsLive(g, now)) continue
+    if (g.expires == null)
+      return {
+        plan: 'business',
+        source: 'grant',
+        until: null,
+        lapsedAt: null,
+        unlimited: true,
+      }
     if (rank(g.plan) > rank(best.plan))
-      best = { plan: g.plan, source: 'grant', until: g.expires, lapsedAt: null }
+      best = {
+        plan: g.plan,
+        source: 'grant',
+        until: g.expires,
+        lapsedAt: null,
+        unlimited: false,
+      }
   }
   return best
 }
