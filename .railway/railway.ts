@@ -11,7 +11,7 @@ export default defineRailway(() => {
 
   const web = service('web', {
     // Deploys only a commit whose GitHub checks passed.
-    source: github('cobaltforge/cobalt', {
+    source: github('JustMarkDev/cobalt', {
       branch: 'main',
       checkSuites: true,
     }),
