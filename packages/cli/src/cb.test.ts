@@ -6,7 +6,7 @@ import { parse } from './args'
 import { run } from './main'
 import { scrub } from './secrets'
 
-async function sx(...argv: Array<string>) {
+async function cb(...argv: Array<string>) {
   let out = ''
   let err = ''
   const code = await run([...argv, '--json'], {
@@ -65,21 +65,21 @@ describe('scrub', () => {
   })
 })
 
-describe('sx', () => {
+describe('cb', () => {
   test('never prompts: a missing repo is an error with a hint', async () => {
     // Outside a clone with no -R the repo cannot be known.
     const cwd = process.cwd()
-    const repo = process.env.SX_REPO
-    delete process.env.SX_REPO
-    process.chdir(mkdtempSync(join(tmpdir(), 'sx-')))
+    const repo = process.env.CB_REPO
+    delete process.env.CB_REPO
+    process.chdir(mkdtempSync(join(tmpdir(), 'cb-')))
     try {
-      const r = await sx('change', 'list')
+      const r = await cb('change', 'list')
       expect(r.code).toBe(2)
       expect(JSON.parse(r.err).error.code).toBe('repo_unknown')
       expect(JSON.parse(r.err).error.hint).toContain('-R')
     } finally {
       process.chdir(cwd)
-      if (repo !== undefined) process.env.SX_REPO = repo
+      if (repo !== undefined) process.env.CB_REPO = repo
     }
   })
 
@@ -94,8 +94,8 @@ describe('sx', () => {
       '--title',
       'T',
     ]
-    const first = JSON.parse((await sx(...args)).out)
-    const second = JSON.parse((await sx(...args)).out)
+    const first = JSON.parse((await cb(...args)).out)
+    const second = JSON.parse((await cb(...args)).out)
     expect(first.action).toBe('created')
     expect(second.action).toBe('patch_set_added')
     expect(second.id).toBe(first.id)
@@ -103,13 +103,13 @@ describe('sx', () => {
   })
 
   test('landing a blocked change exits 5 and says why', async () => {
-    const r = await sx('change', 'land', '216', '-R', 'dana/gitfs')
+    const r = await cb('change', 'land', '216', '-R', 'dana/gitfs')
     expect(r.code).toBe(5)
     expect(JSON.parse(r.err).error.code).toBe('policy_blocked')
   })
 
   test('--dry-run changes nothing', async () => {
-    const r = await sx(
+    const r = await cb(
       'issue',
       'create',
       'Brand new',
@@ -119,7 +119,7 @@ describe('sx', () => {
     )
     expect(JSON.parse(r.out).created).toBe(true)
     const list = JSON.parse(
-      (await sx('issue', 'list', '--state', 'all', '-R', 'dana/gitfs')).out,
+      (await cb('issue', 'list', '--state', 'all', '-R', 'dana/gitfs')).out,
     )
     expect(list.some((i: { title: string }) => i.title === 'Brand new')).toBe(
       false,
@@ -127,7 +127,7 @@ describe('sx', () => {
   })
 
   test('env list never contains values', async () => {
-    const r = await sx('env', 'list', '-R', 'dana/gitfs')
+    const r = await cb('env', 'list', '-R', 'dana/gitfs')
     expect(r.out).not.toContain('value')
     expect(JSON.parse(r.out)[0]).toMatchObject({
       name: 'DATABASE_URL',
@@ -141,24 +141,24 @@ describe('agent support', () => {
   test('every documented command has a handler', async () => {
     const { schema } = await import('./schema')
     for (const c of schema) {
-      const r = await sx(...c.command.split(' '), '--help')
+      const r = await cb(...c.command.split(' '), '--help')
       expect(r.code).toBe(0)
     }
-    const top = JSON.parse((await sx('commands')).out) as {
+    const top = JSON.parse((await cb('commands')).out) as {
       commands: Array<{ command: string }>
     }
     expect(top.commands.length).toBe(schema.length)
   })
 
   test('a mistyped command suggests the right one', async () => {
-    const r = await sx('chnge', 'list')
+    const r = await cb('chnge', 'list')
     expect(r.code).toBe(2)
-    expect(JSON.parse(r.err).error.hint).toContain('sx change')
+    expect(JSON.parse(r.err).error.hint).toContain('cb change')
   })
 
   test('the skill installs once and is then unchanged', async () => {
     const { installSkill } = await import('./skill')
-    const dir = mkdtempSync(join(tmpdir(), 'sx-'))
+    const dir = mkdtempSync(join(tmpdir(), 'cb-'))
     expect(installSkill(dir, 'claude').action).toBe('created')
     expect(installSkill(dir, 'claude').action).toBe('unchanged')
     expect(installSkill(dir, 'agents').action).toBe('created')
@@ -254,27 +254,27 @@ describe('mcp', () => {
 
   test('serves the skill as a resource', async () => {
     const c = await client()
-    const r = await c.readResource({ uri: 'sx://skill' })
-    expect((r.contents[0] as { text: string }).text).toContain('sx context')
+    const r = await c.readResource({ uri: 'cb://skill' })
+    expect((r.contents[0] as { text: string }).text).toContain('cb context')
   })
 })
 
 describe('secrets through your login', () => {
   // dana's agent on her laptop: her login, a narrower token, the same team.
   const asAgent = async <T>(fn: () => Promise<T>) => {
-    process.env.SX_SAMPLE_TOKEN = 'scoped'
-    process.env.SX_MODEL = 'Claude Opus 5.5'
+    process.env.CB_SAMPLE_TOKEN = 'scoped'
+    process.env.CB_MODEL = 'Claude Opus 5.5'
     try {
       return await fn()
     } finally {
-      delete process.env.SX_SAMPLE_TOKEN
-      delete process.env.SX_MODEL
+      delete process.env.CB_SAMPLE_TOKEN
+      delete process.env.CB_MODEL
     }
   }
 
   test("an agent on a team member's machine runs with values, scrubbed from what it sees", async () => {
     const ran = await asAgent(() =>
-      sx(
+      cb(
         'env',
         'run',
         '-R',
@@ -302,7 +302,7 @@ describe('secrets through your login', () => {
 
   test('production waits for the person to confirm this login, and says where', async () => {
     const r = await asAgent(() =>
-      sx(
+      cb(
         'env',
         'run',
         '--env',
@@ -319,16 +319,16 @@ describe('secrets through your login', () => {
     expect(e.code).toBe('confirmation_required')
     expect(e.hint).toContain('confirm=cnf_')
     const list = JSON.parse(
-      (await asAgent(() => sx('env', 'confirmations', '-R', 'dana/gitfs'))).out,
+      (await asAgent(() => cb('env', 'confirmations', '-R', 'dana/gitfs'))).out,
     ) as Array<{ state: string; device: string }>
     expect(list[0]).toMatchObject({ state: 'pending', device: 'Laptop' })
   })
 
   test('no plaintext file unless asked for by name', async () => {
-    const r = await sx('env', 'pull', '-R', 'dana/gitfs', '--dry-run')
+    const r = await cb('env', 'pull', '-R', 'dana/gitfs', '--dry-run')
     expect(r.code).toBe(2)
     expect(JSON.parse(r.err).error.code).toBe('plaintext_refused')
-    const ok = await sx(
+    const ok = await cb(
       'env',
       'pull',
       '-R',
@@ -344,21 +344,21 @@ describe('accounts', () => {
   let dir = ''
   beforeEach(() => {
     // Settings go to a folder of their own, so a test never touches yours.
-    dir = mkdtempSync(join(tmpdir(), 'sx-accounts-'))
-    process.env.SX_CONFIG_DIR = dir
-    delete process.env.SX_ACCOUNT
-    delete process.env.SX_REPO
+    dir = mkdtempSync(join(tmpdir(), 'cb-accounts-'))
+    process.env.CB_CONFIG_DIR = dir
+    delete process.env.CB_ACCOUNT
+    delete process.env.CB_REPO
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
-    delete process.env.SX_CONFIG_DIR
-    delete process.env.SX_ACCOUNT
-    delete process.env.SX_REPO
+    delete process.env.CB_CONFIG_DIR
+    delete process.env.CB_ACCOUNT
+    delete process.env.CB_REPO
   })
   const json = (r: { out: string }) => JSON.parse(r.out)
 
   test('list shows yourself and your organizations, with your role in each', async () => {
-    const rows = json(await sx('account', 'list')) as Array<{
+    const rows = json(await cb('account', 'list')) as Array<{
       handle: string
       kind: string
       role: string
@@ -373,7 +373,7 @@ describe('accounts', () => {
   })
 
   test('by default you act as yourself, and it says why', async () => {
-    const cur = json(await sx('account', 'current'))
+    const cur = json(await cb('account', 'current'))
     expect(cur).toMatchObject({
       handle: 'dana',
       kind: 'person',
@@ -383,85 +383,85 @@ describe('accounts', () => {
   })
 
   test('-A acts as another account for one command, and saves nothing', async () => {
-    const cur = json(await sx('account', 'current', '-A', 'northwind'))
+    const cur = json(await cb('account', 'current', '-A', 'northwind'))
     expect(cur).toMatchObject({ handle: 'northwind', from: 'flag' })
-    expect(json(await sx('account', 'current')).handle).toBe('dana')
+    expect(json(await cb('account', 'current')).handle).toBe('dana')
   })
 
   test('an account you cannot act as is an error with a hint, exit 3', async () => {
-    const r = await sx('account', 'current', '-A', 'someone-else')
+    const r = await cb('account', 'current', '-A', 'someone-else')
     expect(r.code).toBe(3)
     const e = JSON.parse(r.err).error
     expect(e.code).toBe('account_not_found')
-    expect(e.hint).toContain('sx account list')
-    expect((await sx('account', 'switch', 'someone-else')).code).toBe(3)
+    expect(e.hint).toContain('cb account list')
+    expect((await cb('account', 'switch', 'someone-else')).code).toBe(3)
   })
 
   test('switch is saved, and repeating it changes nothing', async () => {
-    const first = json(await sx('account', 'switch', 'northwind'))
+    const first = json(await cb('account', 'switch', 'northwind'))
     expect(first).toMatchObject({
       handle: 'northwind',
       switched: true,
       previous: 'dana',
     })
-    expect(json(await sx('account', 'current'))).toMatchObject({
+    expect(json(await cb('account', 'current'))).toMatchObject({
       handle: 'northwind',
       from: 'config',
     })
-    const again = json(await sx('account', 'switch', 'northwind'))
+    const again = json(await cb('account', 'switch', 'northwind'))
     expect(again.switched).toBe(false)
     // Back to yourself is the same kind of switch.
-    expect(json(await sx('account', 'switch', 'dana')).switched).toBe(true)
+    expect(json(await cb('account', 'switch', 'dana')).switched).toBe(true)
   })
 
   test('--dry-run switches nothing', async () => {
-    const r = json(await sx('account', 'switch', 'northwind', '--dry-run'))
+    const r = json(await cb('account', 'switch', 'northwind', '--dry-run'))
     expect(r.switched).toBe(true)
-    expect(json(await sx('account', 'current')).handle).toBe('dana')
+    expect(json(await cb('account', 'current')).handle).toBe('dana')
   })
 
   test('in a clone you act as the repository owner, with no switching', async () => {
-    const cur = json(await sx('account', 'current', '-R', 'northwind/relay'))
+    const cur = json(await cb('account', 'current', '-R', 'northwind/relay'))
     expect(cur).toMatchObject({ handle: 'northwind', from: 'repo' })
     // A saved switch does not beat the repository you are working in.
-    await sx('account', 'switch', 'dana')
-    process.env.SX_REPO = 'northwind/relay'
-    expect(json(await sx('account', 'current')).from).toBe('repo')
+    await cb('account', 'switch', 'dana')
+    process.env.CB_REPO = 'northwind/relay'
+    expect(json(await cb('account', 'current')).from).toBe('repo')
   })
 
-  test('precedence: flag, SX_ACCOUNT, repository, saved, you', async () => {
-    await sx('account', 'switch', 'lumen-studio')
-    expect(json(await sx('account', 'current')).from).toBe('config')
-    process.env.SX_REPO = 'northwind/relay'
-    expect(json(await sx('account', 'current')).handle).toBe('northwind')
-    process.env.SX_ACCOUNT = 'dana'
-    expect(json(await sx('account', 'current'))).toMatchObject({
+  test('precedence: flag, CB_ACCOUNT, repository, saved, you', async () => {
+    await cb('account', 'switch', 'lumen-studio')
+    expect(json(await cb('account', 'current')).from).toBe('config')
+    process.env.CB_REPO = 'northwind/relay'
+    expect(json(await cb('account', 'current')).handle).toBe('northwind')
+    process.env.CB_ACCOUNT = 'dana'
+    expect(json(await cb('account', 'current'))).toMatchObject({
       handle: 'dana',
       from: 'env',
     })
     expect(
-      json(await sx('account', 'current', '-A', 'lumen-studio')),
+      json(await cb('account', 'current', '-A', 'lumen-studio')),
     ).toMatchObject({ handle: 'lumen-studio', from: 'flag' })
   })
 
-  test('switching says so when SX_ACCOUNT would still win', async () => {
-    process.env.SX_ACCOUNT = 'dana'
-    const r = json(await sx('account', 'switch', 'northwind'))
-    expect(r.overriddenBy).toBe('SX_ACCOUNT')
+  test('switching says so when CB_ACCOUNT would still win', async () => {
+    process.env.CB_ACCOUNT = 'dana'
+    const r = json(await cb('account', 'switch', 'northwind'))
+    expect(r.overriddenBy).toBe('CB_ACCOUNT')
   })
 
   test('repo list is the account you act as; --all is every account', async () => {
-    const mine = json(await sx('repo', 'list')) as Array<{ slug: string }>
+    const mine = json(await cb('repo', 'list')) as Array<{ slug: string }>
     expect(mine.map((r) => r.slug).sort()).toEqual([
       'dana/gitfs',
       'dana/notes',
       'dana/tinyqueue',
     ])
-    const org = json(await sx('repo', 'list', '-A', 'northwind')) as Array<{
+    const org = json(await cb('repo', 'list', '-A', 'northwind')) as Array<{
       slug: string
     }>
     expect(org.map((r) => r.slug)).toEqual(['northwind/relay'])
-    const all = json(await sx('repo', 'list', '--all')) as Array<{
+    const all = json(await cb('repo', 'list', '--all')) as Array<{
       slug: string
     }>
     expect(all.map((r) => r.slug).sort()).toEqual([
@@ -474,15 +474,15 @@ describe('accounts', () => {
 
   test('a bare repo name is created in the account you act as', async () => {
     const r = json(
-      await sx('repo', 'create', 'tools', '-A', 'northwind', '--dry-run'),
+      await cb('repo', 'create', 'tools', '-A', 'northwind', '--dry-run'),
     )
     expect(r.slug).toBe('northwind/tools')
-    const own = json(await sx('repo', 'create', 'notes', '--dry-run'))
+    const own = json(await cb('repo', 'create', 'notes', '--dry-run'))
     expect(own.slug).toBe('dana/notes')
   })
 
   test('members cannot create in an organization; the hint says who can', async () => {
-    const r = await sx('repo', 'create', 'lumen-studio/x', '--dry-run')
+    const r = await cb('repo', 'create', 'lumen-studio/x', '--dry-run')
     expect(r.code).toBe(5)
     const e = JSON.parse(r.err).error
     expect(e.code).toBe('forbidden')
@@ -490,25 +490,25 @@ describe('accounts', () => {
   })
 
   test('creating under an account you cannot act as is not found', async () => {
-    const r = await sx('repo', 'create', 'stranger/x', '--dry-run')
+    const r = await cb('repo', 'create', 'stranger/x', '--dry-run')
     expect(r.code).toBe(3)
     expect(JSON.parse(r.err).error.code).toBe('not_found')
   })
 
   test('context and auth status name the account', async () => {
-    const ctx = json(await sx('context', '-R', 'northwind/relay'))
+    const ctx = json(await cb('context', '-R', 'northwind/relay'))
     expect(ctx.account).toEqual({
       handle: 'northwind',
       kind: 'organization',
       role: 'owner',
     })
-    process.env.SX_TOKEN = 'sxt_test'
+    process.env.CB_TOKEN = 'cbt_test'
     try {
-      expect(json(await sx('auth', 'status', '-A', 'northwind')).account).toBe(
+      expect(json(await cb('auth', 'status', '-A', 'northwind')).account).toBe(
         'northwind',
       )
     } finally {
-      delete process.env.SX_TOKEN
+      delete process.env.CB_TOKEN
     }
   })
 
@@ -541,14 +541,14 @@ describe('hand-off', () => {
       ['216', 'change'],
       ['run:1839', 'pipeline'],
     ] as const) {
-      const r = await sx('handoff', subject, '-R', 'dana/gitfs', '--to', 'boat')
+      const r = await cb('handoff', subject, '-R', 'dana/gitfs', '--to', 'boat')
       expect(r.code).toBe(0)
       const out = JSON.parse(r.out)
       expect(out.type).toBe(type)
       expect(out.command).toContain('boat')
       expect(r.out).not.toContain('hunter2')
     }
-    const missing = await sx('handoff', 'run:999999', '-R', 'dana/gitfs')
+    const missing = await cb('handoff', 'run:999999', '-R', 'dana/gitfs')
     expect(JSON.parse(missing.err).error.code).toBe('not_found')
   })
 })
@@ -556,14 +556,14 @@ describe('hand-off', () => {
 // Last: imports add repositories to the sample state other tests count.
 describe('import', () => {
   test('from a host and owner/name, or from its address, once', async () => {
-    const made = await sx('import', 'github', 'dana-okafor/recipes')
+    const made = await cb('import', 'github', 'dana-okafor/recipes')
     expect(made.code, made.err).toBe(0)
     expect(JSON.parse(made.out)).toMatchObject({
       slug: 'dana/recipes',
       created: true,
       upstream: { host: 'github', slug: 'dana-okafor/recipes' },
     })
-    const again = await sx(
+    const again = await cb(
       'import',
       'https://github.com/dana-okafor/recipes.git',
     )
@@ -571,7 +571,7 @@ describe('import', () => {
       slug: 'dana/recipes',
       created: false,
     })
-    const placed = await sx(
+    const placed = await cb(
       'import',
       'git@gitlab.com:dana/zine.git',
       '--as',
@@ -582,31 +582,31 @@ describe('import', () => {
       slug: 'northwind/zine',
       visibility: 'private',
     })
-    const list = JSON.parse((await sx('import', 'list')).out) as Array<{
+    const list = JSON.parse((await cb('import', 'list')).out) as Array<{
       repo: string
     }>
     expect(list.map((i) => i.repo)).toContain('dana/recipes')
   })
 
   test('a dry run makes nothing', async () => {
-    const r = await sx('import', 'codeberg', 'dana/quiet', '--dry-run')
+    const r = await cb('import', 'codeberg', 'dana/quiet', '--dry-run')
     expect(JSON.parse(r.out)).toMatchObject({ dryRun: true })
-    const list = JSON.parse((await sx('import', 'list')).out) as Array<{
+    const list = JSON.parse((await cb('import', 'list')).out) as Array<{
       repo: string
     }>
     expect(list.map((i) => i.repo)).not.toContain('dana/quiet')
   })
 
   test('a host it cannot import from is a usage error with an example', async () => {
-    const r = await sx('import', 'https://bitbucket.org/dana/x')
+    const r = await cb('import', 'https://bitbucket.org/dana/x')
     expect(r.code).toBe(2)
-    expect(JSON.parse(r.err).error.hint).toContain('sx import github')
+    expect(JSON.parse(r.err).error.hint).toContain('cb import github')
   })
 })
 
 describe('runners', () => {
   test('register shows the token once; start runs a job with it; revoke ends it', async () => {
-    const made = await sx(
+    const made = await cb(
       'runner',
       'register',
       'cli-runner',
@@ -615,31 +615,31 @@ describe('runners', () => {
     )
     expect(made.code).toBe(0)
     const r = JSON.parse(made.out)
-    expect(r.secret).toMatch(/^sxr_/)
-    const listed = JSON.parse((await sx('runner', 'list')).out) as Array<{
+    expect(r.secret).toMatch(/^cbr_/)
+    const listed = JSON.parse((await cb('runner', 'list')).out) as Array<{
       id: string
       secret: string | null
     }>
     expect(listed.find((x) => x.id === r.id)?.secret).toBeNull()
-    const dir = mkdtempSync(join(tmpdir(), 'sx-runner-'))
-    process.env.SX_RUNNER_TOKEN = r.secret
+    const dir = mkdtempSync(join(tmpdir(), 'cb-runner-'))
+    process.env.CB_RUNNER_TOKEN = r.secret
     try {
-      const ran = await sx('runner', 'start', '--once', '--workdir', dir)
+      const ran = await cb('runner', 'start', '--once', '--workdir', dir)
       expect(ran.code).toBe(0)
       const out = JSON.parse(ran.out)
       expect(out.ran === null || typeof out.ran.run === 'number').toBe(true)
       if (out.ran) expect(out.status).toBe('success')
-      expect((await sx('runner', 'revoke', r.id)).code).toBe(0)
-      const after = await sx('runner', 'start', '--once', '--workdir', dir)
+      expect((await cb('runner', 'revoke', r.id)).code).toBe(0)
+      const after = await cb('runner', 'start', '--once', '--workdir', dir)
       expect(after.code).toBe(4)
     } finally {
-      delete process.env.SX_RUNNER_TOKEN
+      delete process.env.CB_RUNNER_TOKEN
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
   test('pipeline resume says what it needs', async () => {
-    const r = await sx('pipeline', 'resume', 'x')
+    const r = await cb('pipeline', 'resume', 'x')
     expect(r.code).toBe(2)
   })
 })

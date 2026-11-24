@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { handler } from '~/lib/auth/server'
-import type { SessionResolver, SessionUser } from '@source-code/api/oauth'
+import type { SessionResolver, SessionUser } from '@cobaltforge/api/oauth'
 
 /**
  * Who is signed in on the OAuth pages (consent, device code): the same

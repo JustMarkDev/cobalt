@@ -3,7 +3,7 @@
 // both read from here, so what the UI says travels is what the mapping does.
 //
 // The rule behind every row: a host only ever sees what it has a place for.
-// Anything it has no place for stays on source.code and is marked as native.
+// Anything it has no place for stays on cobalt and is marked as native.
 
 export type Host = 'github' | 'gitlab' | 'codeberg' | 'gitea'
 
@@ -64,7 +64,7 @@ export type RemoteChange = {
   headSha: string
 }
 
-/** What source.code keeps about a change. */
+/** What cobalt keeps about a change. */
 export type LocalChange = {
   /** The number people say: #216. One counter per repository, shared with issues. */
   number: number
@@ -84,7 +84,7 @@ export type LocalChange = {
 // Identity
 // ---------------------------------------------------------------------------
 
-const MARKER = /<!--\s*source\.code:change=(\d+)(?:\s+ps=(\d+))?\s*-->/
+const MARKER = /<!--\s*cobalt:change=(\d+)(?:\s+ps=(\d+))?\s*-->/
 
 const slug = (title: string) =>
   title
@@ -100,11 +100,11 @@ const slug = (title: string) =>
  * does not break the link between the two sides.
  */
 export const branchFor = (number: number, title: string) =>
-  `sx/${number}${slug(title) ? `-${slug(title)}` : ''}`
+  `cb/${number}${slug(title) ? `-${slug(title)}` : ''}`
 
 /** Hidden footer that lets either side find the other after a rewrite. */
 export function marker(number: number, patchSet: number) {
-  return `<!-- source.code:change=${number} ps=${patchSet} -->`
+  return `<!-- cobalt:change=${number} ps=${patchSet} -->`
 }
 
 /** The change number a remote body carries, if it came from here. */
@@ -370,7 +370,7 @@ export const features: Array<Feature> = [
   {
     id: 'policy',
     label: 'Policies as code',
-    there: 'One required status, source.code/policy.',
+    there: 'One required status, cobalt/policy.',
     fit: 'partial',
     note: 'The host can require the status. The rules themselves stay here.',
   },

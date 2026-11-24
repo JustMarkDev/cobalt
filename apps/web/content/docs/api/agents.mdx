@@ -11,7 +11,7 @@ No model has seen this API. The API is built so one that has not can still use i
 | Ask                      | You get                                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------------------- |
 | `GET /v1`                | Links to every collection, the OpenAPI document, the limits, the MCP server, `llms.txt`. |
-| `GET /v1/openapi.json`   | Every operation with its schemas and the `x-sx-*` metadata below.                        |
+| `GET /v1/openapi.json`   | Every operation with its schemas and the `x-cb-*` metadata below.                        |
 | `GET /v1/errors`         | Every error code: status, whether it is retryable, the CLI exit code, the hint.          |
 | `GET /v1/limits`         | Rate-limit pools, page sizes and every other number.                                     |
 | `GET /v1/auth/principal` | Who the token is, what it may do, when it expires.                                       |
@@ -21,13 +21,13 @@ Every operation in the OpenAPI document says, before you call it:
 
 | Member                   | Tells you                                            |
 | ------------------------ | ---------------------------------------------------- |
-| `x-sx-safety`            | `read`, `write` or `destructive`                     |
-| `x-sx-idempotent`        | Whether repeating it with the same input is harmless |
-| `x-sx-dry-run`           | Whether `?dry_run=true` works                        |
-| `x-sx-scopes`            | The scopes it needs                                  |
-| `x-sx-pool`, `x-sx-cost` | Which rate-limit pool, how many units                |
-| `x-sx-errors`            | The error codes it can return                        |
-| `x-sx-async`             | Whether it may answer `202` and an operation         |
+| `x-cb-safety`            | `read`, `write` or `destructive`                     |
+| `x-cb-idempotent`        | Whether repeating it with the same input is harmless |
+| `x-cb-dry-run`           | Whether `?dry_run=true` works                        |
+| `x-cb-scopes`            | The scopes it needs                                  |
+| `x-cb-pool`, `x-cb-cost` | Which rate-limit pool, how many units                |
+| `x-cb-errors`            | The error codes it can return                        |
+| `x-cb-async`             | Whether it may answer `202` and an operation         |
 
 An agent can decide what to confirm, what to retry and what to budget from this alone.
 
@@ -36,7 +36,7 @@ An agent can decide what to confirm, what to retry and what to budget from this 
 A change, an issue and the start-up bundle can come back as short Markdown instead of JSON, with the same facts in a fraction of the tokens:
 
 ```bash
-curl -H "Authorization: Bearer $SX_TOKEN" -H "Accept: text/markdown" $SX/repos/dana/gitfs/changes/216
+curl -H "Authorization: Bearer $CB_TOKEN" -H "Accept: text/markdown" $CB/repos/dana/gitfs/changes/216
 ```
 
 ```
@@ -53,20 +53,20 @@ The Markdown is built from the JSON, so the two cannot disagree. Each form has i
 
 ## Say who you are: the receipt
 
-An agent works under a person's login: the one on the machine it runs on (`sx auth login`), or a narrower token the person made for it. There is no separate kind of account for agents. What it writes is the person's, and every write keeps a receipt:
+An agent works under a person's login: the one on the machine it runs on (`cb auth login`), or a narrower token the person made for it. There is no separate kind of account for agents. What it writes is the person's, and every write keeps a receipt:
 
 | Part      | From                                                                 |
 | --------- | -------------------------------------------------------------------- |
 | `machine` | The login: the name the machine gave when it signed in               |
-| `tool`    | The `Sx-Tool` header, such as `T3 Code` (`sx` sends its own)         |
-| `model`   | The `Sx-Model` header, such as `Claude Opus 5.5` (`SX_MODEL` for sx) |
+| `tool`    | The `Cb-Tool` header, such as `T3 Code` (`cb` sends its own)         |
+| `model`   | The `Cb-Model` header, such as `Claude Opus 5.5` (`CB_MODEL` for cb) |
 
 ```bash
-curl -X POST $SX/repos/dana/gitfs/changes -H "Authorization: Bearer $SX_TOKEN" \
-  -H "Sx-Tool: T3 Code" -H "Sx-Model: Claude Opus 5.5" -d '{"branch":"fix-cache"}'
+curl -X POST $CB/repos/dana/gitfs/changes -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Cb-Tool: T3 Code" -H "Cb-Model: Claude Opus 5.5" -d '{"branch":"fix-cache"}'
 ```
 
-Tool and model are declarations: source.code hosts no model and cannot check them, so they grant nothing. A repository may decline changes declared with a given model (`declined_models`), which answers `403 model_declined`. Labels that are not plain text are dropped, not stored. A `git push` reads the model from the commit message: `Assisted-by: <tool>:<model>`, or a `Co-Authored-By` with a model vendor's no-reply address.
+Tool and model are declarations: cobalt hosts no model and cannot check them, so they grant nothing. A repository may decline changes declared with a given model (`declined_models`), which answers `403 model_declined`. Labels that are not plain text are dropped, not stored. A `git push` reads the model from the commit message: `Assisted-by: <tool>:<model>`, or a `Co-Authored-By` with a model vendor's no-reply address.
 
 ## A loop that works
 
@@ -121,4 +121,4 @@ Agents pay for every token they read. The API helps:
 
 ## The CLI and MCP
 
-`sx` and the [MCP server](/docs/mcp) speak the same language: the same error codes, the same exit codes, the same operation names (`changes.land` here, `land_change` there). They are clients of this API: with `SX_API` and a token (or after `sx auth login`) every command and tool is an API call made with your token, so scopes, rate limits and policy apply to them exactly as they do to curl. Without them they run the same code on sample data in-process.
+`cb` and the [MCP server](/docs/mcp) speak the same language: the same error codes, the same exit codes, the same operation names (`changes.land` here, `land_change` there). They are clients of this API: with `CB_API` and a token (or after `cb auth login`) every command and tool is an API call made with your token, so scopes, rate limits and policy apply to them exactly as they do to curl. Without them they run the same code on sample data in-process.

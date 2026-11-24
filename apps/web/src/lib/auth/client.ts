@@ -16,15 +16,15 @@ import { convexClient } from '@convex-dev/better-auth/client/plugins'
 import { usernameClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
 import * as React from 'react'
-import { isValidHandle } from '@source-code/api/handles'
-import { randomHandle } from '@source-code/api/handles'
+import { isValidHandle } from '@cobaltforge/api/handles'
+import { randomHandle } from '@cobaltforge/api/handles'
 
 export type AuthUser = {
   id: string
   name: string
   email: string
   /**
-   * The address in every URL (source.code/<handle>). Generated at sign-up, and
+   * The address in every URL (cobaltforge.dev/<handle>). Generated at sign-up, and
    * the person can change it in Settings. It is Better Auth's `username`.
    */
   handle: string
@@ -204,7 +204,7 @@ export const authClient = {
       const { error } = await client.updateUser(changes)
       if (error)
         return error.code === 'USERNAME_IS_ALREADY_TAKEN'
-          ? fail('ADDRESS_TAKEN', `source.code/${handle} is already taken.`)
+          ? fail('ADDRESS_TAKEN', `cobaltforge.dev/${handle} is already taken.`)
           : { data: null, error: toError(error) }
     }
     if (email !== undefined && email !== me.email) {

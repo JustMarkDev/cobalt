@@ -1,16 +1,16 @@
-import { createSampleApi } from '@source-code/api'
-import { AuthStore } from '@source-code/api/auth'
+import { createSampleApi } from '@cobaltforge/api'
+import { AuthStore } from '@cobaltforge/api/auth'
 import {
   sampleTokenStore,
   sampleTokens,
   seedBulk,
-} from '@source-code/api/sample'
+} from '@cobaltforge/api/sample'
 
 /** The server under test: sample data, a 10,000-change repository, 1,000 tokens. */
 export const HUGE = 'dana/huge'
 export const TOKENS = 1000
 export const manyToken = (i: number) =>
-  `sxp_bench_token_${String(i % TOKENS).padStart(6, '0')}`
+  `cbp_bench_token_${String(i % TOKENS).padStart(6, '0')}`
 
 /** Counts bytes and keeps none, so an upload benchmark measures the API and not the size of RAM. */
 class DiscardingBlobs {

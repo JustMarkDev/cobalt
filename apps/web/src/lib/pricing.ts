@@ -4,12 +4,12 @@
  * and a test fails if a price here stops covering them.
  */
 
-import { planLimits } from '@source-code/api/plans'
-import type { PaidPlanId, PlanLimits } from '@source-code/api/plans'
+import { planLimits } from '@cobaltforge/api/plans'
+import type { PaidPlanId, PlanLimits } from '@cobaltforge/api/plans'
 
-export type { PaidPlanId, PlanId } from '@source-code/api/plans'
+export type { PaidPlanId, PlanId } from '@cobaltforge/api/plans'
 
-/** The numbers are in `@source-code/api/plans`, where the code that enforces them reads them. */
+/** The numbers are in `@cobaltforge/api/plans`, where the code that enforces them reads them. */
 export type Limits = PlanLimits
 
 export type Plan = {

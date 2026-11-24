@@ -11,7 +11,7 @@ Files do not go through the JSON API. You announce a file, send the bytes to a s
 ## 1. Announce
 
 ```bash
-curl -X POST "$SX/uploads" -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type: application/json" \
+curl -X POST "$CB/uploads" -H "Authorization: Bearer $CB_TOKEN" -H "Content-Type: application/json" \
   -d '{"filename":"after.png","content_type":"image/png","size":48213}'
 ```
 
@@ -23,7 +23,7 @@ curl -X POST "$SX/uploads" -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type
   "content_type": "image/png",
   "size": 48213,
   "state": "pending",
-  "upload_url": "https://api.source.code/v1/uploads/upl_01m6dqs9m0g7q74420/data?exp=1794131643000&sig=…",
+  "upload_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6dqs9m0g7q74420/data?exp=1794131643000&sig=…",
   "content_url": null,
   "expires_at": "2026-11-07T10:14:03Z"
 }
@@ -49,8 +49,8 @@ The response is the upload with `state: "uploaded"`, its `sha256`, and a `conten
 ## 3. Attach
 
 ```bash
-curl -X POST "$SX/repos/dana/gitfs/changes/216/evidence" \
-  -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type: application/json" \
+curl -X POST "$CB/repos/dana/gitfs/changes/216/evidence" \
+  -H "Authorization: Bearer $CB_TOKEN" -H "Content-Type: application/json" \
   -d '{"upload":"upl_01m6dqs9m0g7q74420","kind":"image","caption":"After: the cache stats line"}'
 ```
 

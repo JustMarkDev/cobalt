@@ -33,7 +33,7 @@ export const listAccounts = defineOp({
   id: 'accounts.list',
   summary: 'Every account you can act as',
   description:
-    'Yourself and each organization you belong to, with your role in each. Send Sx-Account to act as one of them.',
+    'Yourself and each organization you belong to, with your role in each. Send Cb-Account to act as one of them.',
   tags: ['accounts'],
   method: 'GET',
   path: '/accounts',
@@ -136,7 +136,7 @@ export const repoContext = defineOp({
   summary: 'Everything needed to start work, in one request',
   scopes: ['repo:read'],
   description:
-    'Open changes and what blocks each, open issues, a policy summary and the env schema (names and kinds only, never values). This is what `sx context` calls. The cursor is a position in the event log to continue from with /sync.',
+    'Open changes and what blocks each, open issues, a policy summary and the env schema (names and kinds only, never values). This is what `cb context` calls. The cursor is a position in the event log to continue from with /sync.',
   tags: ['repositories', 'agents'],
   method: 'GET',
   path: '/repos/{owner}/{repo}/context',
@@ -371,8 +371,8 @@ const setStar = (on: boolean) =>
     id: on ? 'stars.add' : 'stars.remove',
     summary: on ? 'Star a repository' : 'Remove your star',
     description: on
-      ? 'Any repository you can read. Only people give stars: an agent or a bot answers `forbidden`. Starring twice changes nothing (`Sx-Outcome: unchanged`).'
-      : 'Removing a star you did not give changes nothing (`Sx-Outcome: unchanged`).',
+      ? 'Any repository you can read. Only people give stars: an agent or a bot answers `forbidden`. Starring twice changes nothing (`Cb-Outcome: unchanged`).'
+      : 'Removing a star you did not give changes nothing (`Cb-Outcome: unchanged`).',
     method: on ? 'PUT' : 'DELETE',
     handler: (ctx) =>
       Effect.gen(function* () {
@@ -387,7 +387,7 @@ const setStar = (on: boolean) =>
           ),
         )
         return reply(r.star, {
-          headers: { 'sx-outcome': r.changed ? 'updated' : 'unchanged' },
+          headers: { 'cb-outcome': r.changed ? 'updated' : 'unchanged' },
         })
       }),
   })

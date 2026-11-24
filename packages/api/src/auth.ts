@@ -59,7 +59,7 @@ export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
 
 /**
  * What a device login may also ask for: secret values. A device login is a
- * person signing in their own machine (`sx auth login`), approved on a page
+ * person signing in their own machine (`cb auth login`), approved on a page
  * that names the machine and says so; a web application never gets values.
  */
 export const deviceScopes: ReadonlyArray<Scope> = allScopes.filter(
@@ -172,16 +172,16 @@ export interface TokenStore {
 export const hashToken = (token: string) =>
   bytesToHex(sha256(utf8ToBytes(token)))
 
-export const tokenShape = /^sx[pofr]_[A-Za-z0-9_-]{8,}$/
+export const tokenShape = /^cb[pofr]_[A-Za-z0-9_-]{8,}$/
 
 const prefixes: Record<TokenKind, string> = {
-  personal: 'sxp',
-  oauth: 'sxo',
-  runner: 'sxr',
+  personal: 'cbp',
+  oauth: 'cbo',
+  runner: 'cbr',
 }
 
 export function secretFor(kind: TokenKind | 'refresh'): string {
-  const p = kind === 'refresh' ? 'sxf' : prefixes[kind]
+  const p = kind === 'refresh' ? 'cbf' : prefixes[kind]
   return `${p}_${base64url(randomSource.bytes(24))}`
 }
 

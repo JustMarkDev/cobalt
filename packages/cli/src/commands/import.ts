@@ -1,6 +1,6 @@
 import { activeAccount } from '../account'
 import { has, str } from '../args'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import type { Command } from './types'
 
 const hosts = ['github', 'gitlab', 'codeberg', 'gitea'] as const
@@ -56,12 +56,12 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
   }
   const from = source(rest)
   if (!from)
-    throw new SxError(
+    throw new CbError(
       'missing_argument',
       rest.length
-        ? `${rest.join(' ')} is not a repository sx can import. It takes GitHub, GitLab, Codeberg and Gitea.`
+        ? `${rest.join(' ')} is not a repository cb can import. It takes GitHub, GitLab, Codeberg and Gitea.`
         : 'import needs the repository to bring in.',
-      'Example: sx import github dana/notes, or sx import https://gitlab.com/dana/notes',
+      'Example: cb import github dana/notes, or cb import https://gitlab.com/dana/notes',
       exit.usage,
     )
   // --as owner/name places it; a bare --as name keeps the account you act as.
@@ -80,11 +80,11 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
     },
     dryRun: dry,
   })
-  const created = r.headers.get('sx-outcome') === 'created'
+  const created = r.headers.get('cb-outcome') === 'created'
   const full = r.json.full_name as string
   print(ctx, { ...r.json, slug: full, created, dryRun: dry }, () =>
     created
-      ? `${dry ? 'would import' : 'imported'} ${from.host}:${from.slug} as ${full}. It keeps pulling from there until you sx mirror remove it.`
+      ? `${dry ? 'would import' : 'imported'} ${from.host}:${from.slug} as ${full}. It keeps pulling from there until you cb mirror remove it.`
       : `${full} is already imported`,
   )
 }

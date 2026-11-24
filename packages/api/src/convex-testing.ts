@@ -97,8 +97,8 @@ export const convexFactory: DomainFactory = ({
       setSystemTime()
     }
   })
-  const g = globalThis as { __sxMailSink?: unknown }
-  g.__sxMailSink = (m: { to: string; subject: string; text: string }) =>
+  const g = globalThis as { __cbMailSink?: unknown }
+  g.__cbMailSink = (m: { to: string; subject: string; text: string }) =>
     memory.svc.mail.send(m)
   let following = false
   /** One function, with the lock held and the test clock as the system clock. */

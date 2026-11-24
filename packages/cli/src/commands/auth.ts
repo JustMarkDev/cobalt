@@ -1,5 +1,5 @@
 import { platform } from 'node:os'
-import { SxError, exit, print } from '../output'
+import { CbError, exit, print } from '../output'
 import { activeAccount, whoami } from '../account'
 import { readConfig, resolve, writeConfig } from '../config'
 import {
@@ -17,7 +17,7 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
   const saved = network
     ? readCredentials(apiConfig.value.replace(/\/$/, ''))
     : null
-  const token = process.env.SX_TOKEN ?? saved?.access_token
+  const token = process.env.CB_TOKEN ?? saved?.access_token
   if (sub === 'status') {
     // Over the network the token is checked by asking who it is. In the preview
     // there is no server to ask, so a token in the environment is enough.
@@ -36,8 +36,8 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
     const data = {
       host: network ? apiConfig.value : resolve('host').value,
       authenticated,
-      via: process.env.SX_TOKEN ? 'SX_TOKEN' : saved ? 'credentials' : null,
-      // Who the token acts as, once signed in. `sx account list` shows the others.
+      via: process.env.CB_TOKEN ? 'CB_TOKEN' : saved ? 'credentials' : null,
+      // Who the token acts as, once signed in. `cb account list` shows the others.
       account,
       login,
       scopes,
@@ -67,10 +67,10 @@ export const auth: Command = async ({ rest: [sub = 'status'], flags }, ctx) => {
     )
     return
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `auth ${sub} is not a command.`,
-    'sx auth --help lists them.',
+    'cb auth --help lists them.',
     exit.usage,
   )
 }
@@ -84,7 +84,7 @@ export async function signIn(
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   },
 ) {
-  // With no API set, sign in to the host's own (https://source.code/api/v1
+  // With no API set, sign in to the host's own (https://cobaltforge.dev/api/v1
   // by default) and remember it, so every later command talks to it too.
   const given = resolve('api').value.replace(/\/$/, '')
   const api = given || `${resolve('host').value.replace(/\/$/, '')}/api/v1`
@@ -104,12 +104,12 @@ export async function signIn(
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      client_name: 'sx command line',
+      client_name: 'cb command line',
       redirect_uris: ['http://127.0.0.1/callback'],
     }),
   })
   if (registered.status !== 201)
-    throw new SxError(
+    throw new CbError(
       'login_failed',
       `Could not register this tool: ${registered.json.error_description ?? registered.status}`,
       'Try again later.',
@@ -138,7 +138,7 @@ export async function signIn(
     form({ client_id: clientId, scope, device_name: device }),
   )
   if (started.status !== 200)
-    throw new SxError(
+    throw new CbError(
       'login_failed',
       String(started.json.error_description ?? 'The server refused.'),
       'Check --scope.',
@@ -183,21 +183,21 @@ export async function signIn(
       interval += 5000
       continue
     }
-    throw new SxError(
+    throw new CbError(
       'login_failed',
       t.json.error === 'access_denied'
         ? 'The request was denied.'
         : t.json.error === 'expired_token'
           ? 'The code expired.'
           : String(t.json.error_description ?? t.json.error),
-      'Run sx auth login again.',
+      'Run cb auth login again.',
       exit.error,
     )
   }
-  throw new SxError(
+  throw new CbError(
     'login_failed',
     'The code expired before it was approved.',
-    'Run sx auth login again.',
+    'Run cb auth login again.',
     exit.error,
   )
 }

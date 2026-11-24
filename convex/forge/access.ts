@@ -3,8 +3,8 @@ import {
   MAX_ACCESS_RULES,
   readsRule,
   ruleProblems,
-} from '@source-code/api/access-rules'
-import type { AccessRule } from '@source-code/api/access-rules'
+} from '@cobaltforge/api/access-rules'
+import type { AccessRule } from '@cobaltforge/api/access-rules'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { actorOf, signedIn } from '../lib/actor'

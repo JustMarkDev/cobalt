@@ -4,7 +4,7 @@ import { PageTitle } from '~/components/forge/bits'
 import { NewOrganizationForm } from '~/components/forge/organization'
 
 export const Route = createFileRoute('/organizations/new')({
-  head: () => ({ meta: [{ title: 'New organization · source.code' }] }),
+  head: () => ({ meta: [{ title: 'New organization · cobalt' }] }),
   component: () => (
     <RequireAuth>
       <div className="mx-auto max-w-xl">

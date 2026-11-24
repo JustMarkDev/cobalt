@@ -2,7 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { LegalPage, LegalSection } from '~/components/forge/legal'
 
 export const Route = createFileRoute('/terms')({
-  head: () => ({ meta: [{ title: 'Terms of service · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Terms of service · cobalt' }] }),
   component: Terms,
 })
 
@@ -27,12 +27,12 @@ function Terms() {
     <LegalPage
       title="Terms of service"
       updated="Draft of November 5, 2026"
-      intro="The deal between you and source.code, in plain words: what you can count on, and what we ask of you."
+      intro="The deal between you and cobalt, in plain words: what you can count on, and what we ask of you."
       sections={sections}
     >
       <LegalSection id="service" title="The service">
         <p>
-          source.code is operated by Marco Procopio. It hosts git repositories,
+          cobalt is operated by Marco Procopio. It hosts git repositories,
           reviews changes and lands them under policies you write, and works
           with any model, harness and agent you choose to connect. By creating
           an account or using the service you agree to these terms and to the{' '}

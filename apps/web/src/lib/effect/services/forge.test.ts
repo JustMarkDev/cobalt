@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test'
 import { Effect } from 'effect'
-import { createSampleApi } from '@source-code/api'
+import { createSampleApi } from '@cobaltforge/api'
 import { Callers, forgeOver } from './forge'
 import type { CurrentUser } from '~/lib/auth/server'
-import type { AuthStore } from '@source-code/api/auth'
+import type { AuthStore } from '@cobaltforge/api/auth'
 
 const person = (handle: string, name: string): CurrentUser => ({
   id: handle,

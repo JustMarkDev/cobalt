@@ -10,7 +10,7 @@ import type {
   CheckRun,
   Evidence,
   PatchSetFiles,
-} from '@source-code/sdk'
+} from '@cobaltforge/sdk'
 import type {
   ChangeItem,
   FileVersions,

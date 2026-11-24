@@ -56,7 +56,7 @@ export const sampleRepos: Array<Repo> = [
     docs: 'https://gitfs.dev/docs',
     updated: '2 days ago',
     source: 'native',
-    install: 'curl -fsSL https://source.code/dana/gitfs/install | sh',
+    install: 'curl -fsSL https://cobaltforge.dev/dana/gitfs/install | sh',
     releases: [
       {
         version: 'v0.9.0',

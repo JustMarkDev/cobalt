@@ -1,4 +1,4 @@
-import { isTriggerFile, parseTriggerFiles } from '@source-code/api/trigger-file'
+import { isTriggerFile, parseTriggerFiles } from '@cobaltforge/api/trigger-file'
 import { counters, emit } from './events'
 import type { ActorRef } from './events'
 import type { ChangeRec } from './changeTypes'

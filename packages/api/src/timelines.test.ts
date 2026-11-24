@@ -37,7 +37,7 @@ describe('one timeline per change and per issue', () => {
     const h = harness()
     await h.call('POST', `${REPO}/changes/216/patch-sets`, {
       token: sampleTokens.scoped,
-      headers: { 'sx-tool': 'T3 Code', 'sx-model': 'Claude Opus 5.5' },
+      headers: { 'cb-tool': 'T3 Code', 'cb-model': 'Claude Opus 5.5' },
       body: { sha: '9'.repeat(40), kind: 'update', note: 'Bounded the cache' },
     })
     const entries = await all(h, `${REPO}/changes/216/timeline`)

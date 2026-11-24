@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { DELETION_GRACE_MS } from '@source-code/api/plans'
+import { DELETION_GRACE_MS } from '@cobaltforge/api/plans'
 import { components, internal } from './_generated/api'
 import {
   env,
@@ -1131,7 +1131,7 @@ export const exportData = query({
       .unique()
     return out({
       exported: new Date().toISOString(),
-      format: 'source.code account export, version 1',
+      format: 'cobalt account export, version 1',
       account: {
         handle: a.handle,
         name: a.name,
@@ -1145,7 +1145,7 @@ export const exportData = query({
         description: r.description,
         visibility: r.visibility,
         created: new Date(r.created).toISOString(),
-        clone: `git clone <your source.code remote>/${r.owner}/${r.name}`,
+        clone: `git clone <your cobalt remote>/${r.owner}/${r.name}`,
       })),
       following: (
         await ctx.db
@@ -1170,7 +1170,7 @@ export const exportData = query({
       })),
       notes: [
         'Repositories are plain git: clone each one, with its history and its sealed secrets, from the list above.',
-        'Issues and changes in your repositories live in those repositories’ settings and API; use `sx` to export them.',
+        'Issues and changes in your repositories live in those repositories’ settings and API; use `cb` to export them.',
         'What you wrote in other people’s repositories belongs to those repositories.',
       ],
     })

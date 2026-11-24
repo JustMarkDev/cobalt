@@ -19,7 +19,7 @@ export const exit = {
   needsHuman: 6,
 } as const
 
-export class SxError extends Error {
+export class CbError extends Error {
   problem?: Record<string, unknown>
   constructor(
     readonly code: string,
@@ -67,12 +67,12 @@ export function table(
 
 export function fail(ctx: Ctx, e: unknown): number {
   const err =
-    e instanceof SxError
+    e instanceof CbError
       ? e
-      : new SxError(
+      : new CbError(
           'internal',
           e instanceof Error ? e.message : String(e),
-          'This is a bug in sx. Re-run with SX_DEBUG=1 for a stack trace.',
+          'This is a bug in cb. Re-run with CB_DEBUG=1 for a stack trace.',
         )
   if (ctx.json)
     ctx.err(

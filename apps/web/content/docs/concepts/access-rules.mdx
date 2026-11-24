@@ -7,7 +7,7 @@ description: Branches and paths only some people may see, inside a repository ma
 An organization's members can read its repositories. Sometimes a part of one is for fewer people: a branch where three people prepare an acquisition, a folder of contracts, a key file. An access rule says which part, and who.
 
 ```bash
-curl -X PUT "$SX/repos/northwind/atlas/access-rules/deal" -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "$CB/repos/northwind/atlas/access-rules/deal" -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"kind":"branch","patterns":["deal/*"],"readers":["dana","hollis","team:legal"]}'
 ```
@@ -21,7 +21,7 @@ curl -X PUT "$SX/repos/northwind/atlas/access-rules/deal" -H "Authorization: Bea
 
 ## What someone outside a rule sees
 
-Nothing of what it hides, anywhere source.code shows it:
+Nothing of what it hides, anywhere cobalt shows it:
 
 - the change answers `404`, and is not in lists, search, the event feed, the stream, sync, the inbox or the dashboard;
 - nobody is notified about it who cannot see it;

@@ -8,7 +8,7 @@ type MailSink = (m: { to: string; subject: string; text: string }) => unknown
  */
 export async function sendMail(to: string, subject: string, text: string) {
   // Tests running the functions in-process catch mail here instead.
-  const sink = (globalThis as { __sxMailSink?: MailSink }).__sxMailSink
+  const sink = (globalThis as { __cbMailSink?: MailSink }).__cbMailSink
   if (sink) {
     await sink({ to, subject, text })
     return

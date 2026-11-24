@@ -14,7 +14,7 @@ import { baseOptions } from '~/lib/layout.shared'
 import { useMDXComponents } from '~/components/mdx'
 
 export const Route = createFileRoute('/docs/$')({
-  head: () => ({ meta: [{ title: 'Docs · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Docs · cobalt' }] }),
   component: Page,
   loader: async ({ params }) => {
     const slugs = params._splat?.split('/').filter(Boolean) ?? []

@@ -2,7 +2,7 @@ import { cleanLabel } from './via'
 import type { Receipt } from './via'
 
 /**
- * The receipt of a `git push`. A push carries no `Sx-Tool` or `Sx-Model`
+ * The receipt of a `git push`. A push carries no `Cb-Tool` or `Cb-Model`
  * header, so the tool is `git push` and the model is whatever the commit
  * message itself declares, by the conventions agents already follow:
  *

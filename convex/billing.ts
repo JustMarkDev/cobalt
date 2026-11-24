@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { perSeat, polarProducts } from '@source-code/api/polar'
+import { perSeat, polarProducts } from '@cobaltforge/api/polar'
 import { internal } from './_generated/api'
 import { action, env, internalQuery } from './_generated/server'
 import { signedIn } from './lib/actor'

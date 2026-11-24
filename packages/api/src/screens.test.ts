@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { ConvexError } from 'convex/values'
-import { SxError, createClient } from '@source-code/sdk'
+import { CbError, createClient } from '@cobaltforge/sdk'
 import { convexFactory } from './convex-testing'
 import { createSampleApi } from './index'
 import { T0, sampleTokens } from './sample'
@@ -12,7 +12,7 @@ import {
   screenWrites,
 } from './screens'
 import { clock } from './testing'
-import type { OperationId, Operations } from '@source-code/sdk'
+import type { OperationId, Operations } from '@cobaltforge/sdk'
 
 /**
  * A page calls Convex itself (`screens.ts`); a client of the API calls the
@@ -56,7 +56,7 @@ function world() {
     try {
       return { ok: (await client(who).call(id, input)) ?? null }
     } catch (e) {
-      if (e instanceof SxError) return { refused: e.code }
+      if (e instanceof CbError) return { refused: e.code }
       throw e
     }
   }

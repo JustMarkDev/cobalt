@@ -125,7 +125,7 @@ const lost = {
   headers: JSON.stringify({ 'content-type': 'application/problem+json' }),
   // The same problem the API answers for `request_outcome_unknown`.
   body: JSON.stringify({
-    type: 'https://source.code/docs/api/errors#request_outcome_unknown',
+    type: 'https://cobaltforge.dev/docs/api/errors#request_outcome_unknown',
     title:
       'The first request with this Idempotency-Key changed something, then lost its answer',
     status: 409,

@@ -8,7 +8,7 @@ describe('change guides', () => {
   test('an agent writes the guide, and a newer patch set leaves it behind', async () => {
     const h = harness()
     expect((await h.call('GET', `${C}/guide`)).status).toBe(404)
-    const AGENT = { 'sx-tool': 'Claude Code', 'sx-model': 'Claude Opus 5.5' }
+    const AGENT = { 'cb-tool': 'Claude Code', 'cb-model': 'Claude Opus 5.5' }
     const put = await h.call('PUT', `${C}/guide`, {
       token: h.tokens.scoped,
       headers: AGENT,

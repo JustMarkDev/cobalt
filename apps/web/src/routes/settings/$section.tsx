@@ -45,7 +45,7 @@ const sections = [
 type SectionId = (typeof sections)[number][0]
 
 export const Route = createFileRoute('/settings/$section')({
-  head: () => ({ meta: [{ title: 'Settings · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Settings · cobalt' }] }),
   component: () => (
     <RequireAuth>
       <Settings />
@@ -103,8 +103,8 @@ function Settings() {
           <div className="max-w-4xl">
             <Header id="runners" title="Runners">
               Machines that run your pipeline jobs: a Mac mini under a desk, a
-              Linux build server, or a hosted provider. source.code routes each
-              job to a runner whose labels cover its <code>runs-on</code>; the
+              Linux build server, or a hosted provider. cobalt routes each job
+              to a runner whose labels cover its <code>runs-on</code>; the
               machine runs it.
             </Header>
             <RunnersPanel />
@@ -308,7 +308,7 @@ function ProfileForm({ user }: { user: AuthUser }) {
                 aria-hidden
                 className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm text-muted-foreground"
               >
-                source.code/
+                cobaltforge.dev/
               </span>
               <input
                 value={address}
@@ -451,7 +451,7 @@ function Accounts() {
         </div>
         <div className="text-sm text-muted-foreground">
           linked {links.length === 1 ? 'account' : 'accounts'}. Contributions
-          from other hosts are counted once source.code can sign in with them.
+          from other hosts are counted once cobalt can sign in with them.
         </div>
       </Card>
 
@@ -603,7 +603,7 @@ function Accounts() {
                   Link {dialog.name}
                 </Dialog.Title>
                 <Dialog.Description className="text-sm text-muted-foreground">
-                  Say who you are there. Until source.code can sign in with{' '}
+                  Say who you are there. Until cobalt can sign in with{' '}
                   {dialog.name}, it is shown as not verified.
                 </Dialog.Description>
                 <Field label={`Your ${dialog.name} username`}>
@@ -758,9 +758,9 @@ function Privacy() {
             ))}
           </fieldset>
           <p className="text-sm text-muted-foreground">
-            source.code is its own home for your work, so imported projects look
-            like any other project. Their origin is never shown on Discover or
-            on a project page.
+            cobalt is its own home for your work, so imported projects look like
+            any other project. Their origin is never shown on Discover or on a
+            project page.
           </p>
         </Card>
         <Card>

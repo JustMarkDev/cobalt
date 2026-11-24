@@ -9,7 +9,7 @@ import { authClient } from '~/lib/auth/client'
 type Search = { token?: string; error?: string }
 
 export const Route = createFileRoute('/reset-password')({
-  head: () => ({ meta: [{ title: 'Choose a new password · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Choose a new password · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): Search => ({
     token: typeof s.token === 'string' && s.token ? s.token : undefined,
     error: typeof s.error === 'string' ? s.error : undefined,

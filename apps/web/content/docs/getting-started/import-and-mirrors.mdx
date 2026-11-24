@@ -4,11 +4,11 @@ title: Keep your history
 description: Import from another host, mirror back to it, and leave it whenever you like.
 ---
 
-source.code is designed so that no other host is a dependency. This page explains how history gets here, how copies stay elsewhere, and what happens when a host goes away.
+cobalt is designed so that no other host is a dependency. This page explains how history gets here, how copies stay elsewhere, and what happens when a host goes away.
 
 ## Bring history in
 
-Open **Settings, Linked accounts** and connect the host you use today. source.code reads your repositories, issues, review threads and releases and stores them here. Your profile then counts that past work.
+Open **Settings, Linked accounts** and connect the host you use today. cobalt reads your repositories, issues, review threads and releases and stores them here. Your profile then counts that past work.
 
 <Callout title="Public pages never name the origin">
   A repository imported from another host looks like any other project to
@@ -42,8 +42,8 @@ The same is true if a host disappears entirely. Remove its mirror and carry on.
 Turn on **Only accept pushes here** in Mirrors and sync. Pushes to the mirror are rejected with a link back to the repository. Mirrors keep receiving a copy until you remove them.
 
 ```bash
-sx mirror list
-sx mirror remove m2
+cb mirror list
+cb mirror remove m2
 ```
 
-Removing a mirror stops syncing. It never deletes anything on source.code.
+Removing a mirror stops syncing. It never deletes anything on cobalt.

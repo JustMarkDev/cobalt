@@ -1,5 +1,5 @@
 /**
- * The docs as plain text for agents. Models have not seen source.code or sx,
+ * The docs as plain text for agents. Models have not seen cobalt or cb,
  * so we publish an index (/llms.txt) and the full text (/llms-full.txt).
  */
 const raw = import.meta.glob<string>('/content/docs/**/*.mdx', {
@@ -33,12 +33,12 @@ export const pages: Array<Page> = Object.entries(raw)
 
 export function llmsIndex(origin: string) {
   return [
-    '# source.code',
+    '# cobalt',
     '',
-    '> A git host that keeps your history, reviews changes, and is built for people who work with agents. Its command line is `sx`. Neither is in any model training data: read the pages below instead of guessing.',
+    '> A git host that keeps your history, reviews changes, and is built for people who work with agents. Its command line is `cb`. Neither is in any model training data: read the pages below instead of guessing.',
     '',
     '## Start here',
-    `- [Teach an agent to use sx](${origin}/docs/cli/agent-guide): the skill, \`sx context\`, \`sx commands\`.`,
+    `- [Teach an agent to use cb](${origin}/docs/cli/agent-guide): the skill, \`cb context\`, \`cb commands\`.`,
     `- [The HTTP API for agents](${origin}/docs/api/agents): discovery, planning with simulate and dry run, safe retries, what to do on each error.`,
     `- [Full docs as one file](${origin}/llms-full.txt)`,
     '',

@@ -71,7 +71,7 @@ ignored if an older file still names them.
 | `allowed_paths` | `["docs/**", "*.md"]`                | The change touches nothing else; deleting a file is touching it |
 
 `allowed_paths` applies to every change, however it arrived: through the API,
-`sx`, MCP or a plain `git push`. A token's own `paths` limit covers only the
+`cb`, MCP or a plain `git push`. A token's own `paths` limit covers only the
 calls made with it, so use this rule for what must hold for everyone.
 
 ## Exception

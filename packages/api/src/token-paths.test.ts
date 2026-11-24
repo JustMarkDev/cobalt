@@ -5,7 +5,7 @@ import { harness } from './testing'
 
 /**
  * A token can name paths inside its one repository: a token for `docs/**`
- * changes nothing else, through the API, sx and MCP. A direct `git push`
+ * changes nothing else, through the API, cb and MCP. A direct `git push`
  * does not carry a token, so the `allowed-paths` rule covers that path.
  */
 

@@ -315,7 +315,7 @@ This can start on change and issue pages as soon as phases 3 and 4 are done.
   `search_operations` + `call_operation` for the rest.
 - Move to the 2026-07-28 MCP spec: no sessions, version in `_meta`, the
   `Mcp-Method` header.
-- Later: `sx` keeps a local cache of what it read (refreshed with `304`s) and
+- Later: `cb` keeps a local cache of what it read (refreshed with `304`s) and
   queues writes made offline, replaying them with their idempotency keys.
 
 ### Phase 11: running it
@@ -379,7 +379,7 @@ every host accepts writes, so two hosts can each accept a different commit on
 the same branch. No forge solves this in general (Forgejo's mirrors are
 one-way in each direction, and so are GitLab's). Our design:
 
-- **One writable home per repository.** Either source.code (no `upstream`) or
+- **One writable home per repository.** Either cobalt (no `upstream`) or
   one external host (as the `upstream`).
 - **Any number of read mirrors.** A worker listens for code.storage push
   webhooks and pushes the new refs to each mirror host using code.storage's
@@ -460,7 +460,7 @@ what jj adds:
 
 - **Conflicts.** jj can commit a conflict and resolve it later. A commit that
   still holds a jj conflict is shown as conflicted and cannot land.
-- **Docs.** A page on using source.code with `jj git push`, and `sx` accepts
+- **Docs.** A page on using cobalt with `jj git push`, and `cb` accepts
   jj revisions where it takes a commit.
 
 No other version control system is worth supporting now. Sapling works as a

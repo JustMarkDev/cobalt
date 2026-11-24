@@ -37,7 +37,7 @@ function setup(opts: Parameters<typeof harness>[0] = {}) {
       ...form({ handle, return_to: returnTo }),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
-        origin: 'https://source.code',
+        origin: 'https://cobaltforge.dev',
       },
     })
     return res.headers.get('set-cookie')!.split(';')[0]
@@ -133,12 +133,12 @@ describe('discovery', () => {
     expect(m.response_types_supported).toEqual(['code'])
     expect(m.grant_types_supported).not.toContain('implicit')
     expect(m.grant_types_supported).not.toContain('password')
-    expect(m.token_endpoint).toBe('https://api.source.code/v1/oauth/token')
+    expect(m.token_endpoint).toBe('https://api.cobaltforge.dev/v1/oauth/token')
     expect(m.authorization_response_iss_parameter_supported).toBe(true)
     expect(m.scopes_supported).not.toContain('tokens:manage')
     expect(m.scopes_supported).not.toContain('secrets:decrypt')
     const r = h.api.oauth!.protectedResource()
-    expect(r.authorization_servers).toEqual(['https://source.code'])
+    expect(r.authorization_servers).toEqual(['https://cobaltforge.dev'])
     expect(r.bearer_methods_supported).toEqual(['header'])
   })
 
@@ -146,7 +146,7 @@ describe('discovery', () => {
     const h = setup()
     const res = await h.call('GET', '/auth/principal', { token: null })
     expect(res.headers.get('www-authenticate')).toContain(
-      'resource_metadata="https://source.code/.well-known/oauth-protected-resource"',
+      'resource_metadata="https://cobaltforge.dev/.well-known/oauth-protected-resource"',
     )
   })
 })
@@ -213,7 +213,7 @@ describe('authorization code with PKCE', () => {
     expect(r.done.status).toBe(302)
     expect(r.location.origin + r.location.pathname).toBe(REDIRECT)
     expect(r.location.searchParams.get('state')).toBe('xyz')
-    expect(r.location.searchParams.get('iss')).toBe('https://source.code')
+    expect(r.location.searchParams.get('iss')).toBe('https://cobaltforge.dev')
     expect(r.html).toContain('Test App')
     expect(r.html).toContain('repo:read')
     const t = await h.exchange(h.tokenRequest(client, code, verifier))
@@ -224,8 +224,8 @@ describe('authorization code with PKCE', () => {
       expires_in: 3600,
       scope: 'repo:read pulls:read issues:read',
     })
-    expect(t.json.access_token).toMatch(/^sxo_/)
-    expect(t.json.refresh_token).toMatch(/^sxf_/)
+    expect(t.json.access_token).toMatch(/^cbo_/)
+    expect(t.json.refresh_token).toMatch(/^cbf_/)
 
     const who = await h.call('GET', '/auth/principal', {
       token: t.json.access_token,
@@ -343,7 +343,7 @@ describe('authorization code with PKCE', () => {
         ...h.form({ handle: 'dana', return_to: to }),
         headers: {
           'content-type': 'application/x-www-form-urlencoded',
-          origin: 'https://source.code',
+          origin: 'https://cobaltforge.dev',
         },
       })
       expect(res.status, to).toBe(400)
@@ -353,7 +353,7 @@ describe('authorization code with PKCE', () => {
       ...h.form({ handle: 'dana', return_to: '/' }),
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
-        origin: 'https://source.code',
+        origin: 'https://cobaltforge.dev',
       },
     })
     expect(ok.status).toBe(303)
@@ -500,7 +500,9 @@ describe('authorization code with PKCE', () => {
 
   test('resource indicators narrow the audience: an MCP token is not an API token', async () => {
     const h = setup()
-    const apiOnly = await h.getCode({ resource: 'https://api.source.code/v1' })
+    const apiOnly = await h.getCode({
+      resource: 'https://api.cobaltforge.dev/v1',
+    })
     const t = await h.exchange(
       h.tokenRequest(apiOnly.client, apiOnly.code, apiOnly.verifier),
     )
@@ -510,7 +512,7 @@ describe('authorization code with PKCE', () => {
     ).toBe(200)
     expect((await h.api.verifyToken(t.json.access_token, 'mcp')).ok).toBe(false)
 
-    const mcpOnly = await h.getCode({ resource: 'https://source.code/mcp' })
+    const mcpOnly = await h.getCode({ resource: 'https://cobaltforge.dev/mcp' })
     const m = await h.exchange(
       h.tokenRequest(mcpOnly.client, mcpOnly.code, mcpOnly.verifier),
     )
@@ -533,7 +535,7 @@ describe('authorization code with PKCE', () => {
     const narrow = await h.getCode()
     const n = await h.exchange({
       ...h.tokenRequest(narrow.client, narrow.code, narrow.verifier),
-      resource: 'https://source.code/mcp',
+      resource: 'https://cobaltforge.dev/mcp',
     })
     expect((await h.api.verifyToken(n.json.access_token, 'api')).ok).toBe(false)
     expect((await h.api.verifyToken(n.json.access_token, 'mcp')).ok).toBe(true)
@@ -675,7 +677,7 @@ describe('tokens expire, refresh rotates, and a replay takes everything back', (
       (
         await h.fetchRaw(
           '/oauth/revoke',
-          h.form({ token: 'sxo_unknown_garbage_value' }),
+          h.form({ token: 'cbo_unknown_garbage_value' }),
         )
       ).status,
     ).toBe(200)
@@ -745,7 +747,7 @@ describe('device authorization', () => {
       /^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/,
     )
     expect(json.verification_uri).toBe(
-      'https://api.source.code/v1/oauth/device',
+      'https://api.cobaltforge.dev/v1/oauth/device',
     )
     expect(json.interval).toBe(5)
     const poll = () =>
@@ -886,7 +888,7 @@ describe('tokens API', () => {
     })
     expect(made.status).toBe(201)
     expect(made.headers.get('cache-control')).toBe('no-store')
-    expect(made.json.secret).toMatch(/^sxp_/)
+    expect(made.json.secret).toMatch(/^cbp_/)
     expect(made.json.prefix).toBe(made.json.secret.slice(0, 8))
     const secret = made.json.secret as string
     expect(

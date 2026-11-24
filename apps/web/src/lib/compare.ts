@@ -1,4 +1,4 @@
-// How source.code compares with other hosts, as a checklist: a short title, one
+// How cobalt compares with other hosts, as a checklist: a short title, one
 // line under it, and a mark per product. A note sits only on the marks that
 // need one. These are claims about other people's products, so a mark is never
 // better for us than what we could confirm: what we could not confirm is
@@ -15,7 +15,7 @@ export type Product =
   | 'trylle'
 
 export const products: Array<{ id: Product; name: string; note?: string }> = [
-  { id: 'us', name: 'source.code' },
+  { id: 'us', name: 'cobalt' },
   { id: 'github', name: 'GitHub' },
   { id: 'gitlab', name: 'GitLab' },
   { id: 'gitcafe', name: 'GitCafe', note: 'Public beta' },

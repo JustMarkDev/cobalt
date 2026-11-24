@@ -1,5 +1,5 @@
 {
-  "name": "@source-code/git",
+  "name": "@cobaltforge/git",
   "version": "0.0.0",
   "private": true,
   "license": "BUSL-1.1",

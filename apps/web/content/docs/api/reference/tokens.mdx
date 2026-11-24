@@ -33,13 +33,13 @@ The OAuth grants on your account: which application, what it may do, when it was
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/authorizations" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/authorizations" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"uy9vKaEsenC9vQng"
+etag: W/"qpdifagyuvIRyF-H"
 ratelimit: "read";r=1170;t=60
 ```
 
@@ -57,7 +57,7 @@ ratelimit: "read";r=1170;t=60
       "device": null,
       "scopes": ["repo:read", "pulls:read"],
       "audience": ["api", "mcp"],
-      "url": "https://api.source.code/v1/authorizations/atz_01m6tq6r808bzk8j8h",
+      "url": "https://api.cobaltforge.dev/v1/authorizations/atz_01m6tq6r808bzk8j8h",
       "created_at": "2026-11-07T10:00:00.000Z",
       "last_used_at": null
     }
@@ -94,7 +94,7 @@ Every access and refresh token the application holds stops working at once.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -103,8 +103,8 @@ Every access and refresh token the application holds stops working at once.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/authorizations/atz_01m6tq6r808bzk8j8h" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/authorizations/atz_01m6tq6r808bzk8j8h" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -135,13 +135,13 @@ Personal, bot and run tokens that belong to you, newest first. Never includes th
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/tokens" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/tokens" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"EgMPVSXJDm3fo_HP"
+etag: W/"WXZAABpO5SL4JE4t"
 ratelimit: "read";r=1172;t=60
 ```
 
@@ -158,9 +158,9 @@ ratelimit: "read";r=1172;t=60
       "scopes": ["repo:read", "repo:write", "…and 14 more"],
       "repos": null,
       "paths": null,
-      "prefix": "sxp_dana",
+      "prefix": "cbp_dana",
       "secret": null,
-      "url": "https://api.source.code/v1/tokens/tok_01m6tkrwm0bw4d69nd",
+      "url": "https://api.cobaltforge.dev/v1/tokens/tok_01m6tkrwm0bw4d69nd",
       "expires_at": "2027-11-07T10:00:00.000Z",
       "created_at": "2026-11-07T10:00:00.000Z",
       "last_used_at": "2026-11-07T10:00:00.000Z"
@@ -174,9 +174,9 @@ ratelimit: "read";r=1172;t=60
       "scopes": ["repo:read", "repo:write", "…and 5 more"],
       "repos": ["dana/gitfs"],
       "paths": null,
-      "prefix": "sxp_dana",
+      "prefix": "cbp_dana",
       "secret": null,
-      "url": "https://api.source.code/v1/tokens/tok_01m6tkrwm03xzhzwj8",
+      "url": "https://api.cobaltforge.dev/v1/tokens/tok_01m6tkrwm03xzhzwj8",
       "expires_at": "2027-11-07T10:00:00.000Z",
       "created_at": "2026-11-07T10:00:00.000Z",
       "last_used_at": "2026-11-07T10:00:00.000Z"
@@ -209,7 +209,7 @@ The response is the only time the secret is shown. A token can never have a scop
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -229,15 +229,15 @@ The response is the only time the secret is shown. A token can never have a scop
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/tokens" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/tokens" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"ci","scopes":["repo:read","pulls:read"],"expires_in_days":30,"repos":["dana/gitfs"]}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8
+location: https://api.cobaltforge.dev/v1/tokens/tok_01m6tq6r80e5jvv8p8
 ratelimit: "write";r=94;t=60
 ```
 
@@ -251,9 +251,9 @@ ratelimit: "write";r=94;t=60
   "scopes": ["repo:read", "pulls:read"],
   "repos": ["dana/gitfs"],
   "paths": null,
-  "prefix": "sxp_dn2i",
-  "secret": "sxp_…",
-  "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8",
+  "prefix": "cbp_dn2i",
+  "secret": "cbp_…",
+  "url": "https://api.cobaltforge.dev/v1/tokens/tok_01m6tq6r80e5jvv8p8",
   "expires_at": "2026-12-07T10:00:00.000Z",
   "created_at": "2026-11-07T10:00:00.000Z",
   "last_used_at": null
@@ -287,7 +287,7 @@ It stops working at once. Revoking a token that is already revoked answers 404.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -296,8 +296,8 @@ It stops working at once. Revoking a token that is already revoked answers 404.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -332,13 +332,13 @@ ratelimit: "write";r=93;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/tokens/tok_01m6tq6r80e5jvv8p8" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"FFB_dg_RHVEY0Xhc"
+etag: W/"Q6jtyIg-WApoPONQ"
 ratelimit: "read";r=1171;t=60
 ```
 
@@ -352,9 +352,9 @@ ratelimit: "read";r=1171;t=60
   "scopes": ["repo:read", "pulls:read"],
   "repos": ["dana/gitfs"],
   "paths": null,
-  "prefix": "sxp_dn2i",
+  "prefix": "cbp_dn2i",
   "secret": null,
-  "url": "https://api.source.code/v1/tokens/tok_01m6tq6r80e5jvv8p8",
+  "url": "https://api.cobaltforge.dev/v1/tokens/tok_01m6tq6r80e5jvv8p8",
   "expires_at": "2026-12-07T10:00:00.000Z",
   "created_at": "2026-11-07T10:00:00.000Z",
   "last_used_at": null

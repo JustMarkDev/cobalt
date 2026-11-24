@@ -61,12 +61,12 @@ async function setup() {
   const dana = (key: string | null, lease = key && leases.get(key)) =>
     t.withIdentity({
       subject: 'dana',
-      sx_tok: 'tok',
-      sx_api: 'true',
-      sx_act: 'dana',
-      sx_scp: 'repo:read repo:write issues:read issues:write',
+      cb_tok: 'tok',
+      cb_api: 'true',
+      cb_act: 'dana',
+      cb_scp: 'repo:read repo:write issues:read issues:write',
       ...(key
-        ? { sx_idem: JSON.stringify(['dana@dana:tok', key, lease]) }
+        ? { cb_idem: JSON.stringify(['dana@dana:tok', key, lease]) }
         : {}),
     })
   const openIssue = (
@@ -138,7 +138,7 @@ test('only the API can mark a key: a sign-in token carrying the claim marks noth
   await t
     .withIdentity({
       subject: authId,
-      sx_idem: JSON.stringify(['dana@dana:tok', 'k5']),
+      cb_idem: JSON.stringify(['dana@dana:tok', 'k5']),
     })
     .mutation(forge.forge.issues.create, {
       owner: 'dana',
@@ -157,11 +157,11 @@ test('the API signs the held key into each call, and only while the request hold
     scopes: new Set(['repo:read']),
     repos: null,
   } as never
-  expect(claimsOf(principal).sx_idem).toBeUndefined()
+  expect(claimsOf(principal).cb_idem).toBeUndefined()
   const inside = heldKey.run({ scope: 's', key: 'k', lease: 'l1' }, () =>
     Promise.resolve().then(() => claimsOf(principal)),
   )
-  expect((await inside).sx_idem).toBe('["s","k","l1"]')
+  expect((await inside).cb_idem).toBe('["s","k","l1"]')
 
   // Through the pipeline: the domain sees the key only for a keyed write.
   const api = createSampleApi({})

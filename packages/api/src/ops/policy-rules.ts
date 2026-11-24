@@ -219,7 +219,7 @@ export const createRule = defineOp({
       )
       return reply(out.rule, {
         status: out.created && !ctx.dryRun ? 201 : 200,
-        headers: { 'sx-outcome': out.created ? 'created' : 'updated' },
+        headers: { 'cb-outcome': out.created ? 'created' : 'updated' },
       })
     }),
 })

@@ -126,13 +126,13 @@ export function createSampleApi(
     sessions?: SessionResolver
     /** The most a signed-in person may delegate to a client. */
     userScopes?: (handle: string) => ReadonlyArray<Scope>
-    /** Whether a machine sign-in may read secret values. Default: `SX_DEVICE_DECRYPT` is not `0`. */
+    /** Whether a machine sign-in may read secret values. Default: `CB_DEVICE_DECRYPT` is not `0`. */
     deviceDecrypt?: (handle: string) => boolean
     /** How email is sent. Default: written to the server log. */
     mail?: Mailer
     /** Where git data comes from. Default: the git store in `packages/git`. */
     git?: GitData
-    /** The master key for secret values, base64. Default: `SX_SECRETS_KEY`. Without one the server keeps no values. */
+    /** The master key for secret values, base64. Default: `CB_SECRETS_KEY`. Without one the server keeps no values. */
     secretsKey?: string
     /**
      * Keep values under a key that dies with this process, when there is no
@@ -144,8 +144,8 @@ export function createSampleApi(
 ) {
   const now = overrides.now ?? Date.now
   const urls = {
-    api: overrides.base ?? 'https://api.source.code/v1',
-    html: overrides.htmlBase ?? 'https://source.code',
+    api: overrides.base ?? 'https://api.cobaltforge.dev/v1',
+    html: overrides.htmlBase ?? 'https://cobaltforge.dev',
   }
   const events = overrides.events ?? new EventLog(now)
   const domain = new MemoryDomain(urls, now, events)
@@ -171,7 +171,7 @@ export function createSampleApi(
   // unless it is a test or the in-process preview, which ask for a key that
   // lives as long as the process.
   domain.svc.secrets = SecretBox.fromBase64(
-    overrides.secretsKey ?? process.env.SX_SECRETS_KEY,
+    overrides.secretsKey ?? process.env.CB_SECRETS_KEY,
   ).then(
     (box) => box ?? (overrides.ephemeralSecrets ? SecretBox.ephemeral() : null),
   )
@@ -221,7 +221,7 @@ export function createSampleApi(
         now,
       ),
     deviceDecrypt:
-      overrides.deviceDecrypt ?? (() => process.env.SX_DEVICE_DECRYPT !== '0'),
+      overrides.deviceDecrypt ?? (() => process.env.CB_DEVICE_DECRYPT !== '0'),
     userScopes:
       overrides.userScopes ??
       ((handle) =>

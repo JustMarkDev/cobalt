@@ -1,5 +1,5 @@
-import { newId, seededId } from '@source-code/api/ids'
-import type { EventRecord } from '@source-code/api/events'
+import { newId, seededId } from '@cobaltforge/api/ids'
+import type { EventRecord } from '@cobaltforge/api/events'
 import { accountByHandle } from './access'
 import { now } from './time'
 import { internal } from '../_generated/api'

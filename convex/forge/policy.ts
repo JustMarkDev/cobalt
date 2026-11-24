@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { newId } from '@source-code/api/ids'
+import { newId } from '@cobaltforge/api/ids'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
@@ -25,14 +25,14 @@ import {
   lineStats,
   policyYaml,
   unifiedDiff,
-} from '@source-code/api/policy-file'
-import { proposalEdits, proposalTitle } from '@source-code/api/policy-proposals'
+} from '@cobaltforge/api/policy-file'
+import { proposalEdits, proposalTitle } from '@cobaltforge/api/policy-proposals'
 import { commit, hex, patchSetEvent, pushPatchSet } from './changes'
 import type { ChangeRec, CustomRuleRec, RuleMode } from '../lib/changeTypes'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import type { ActorRef } from '../lib/events'
-import type { PolicyEdit } from '@source-code/api/policy-file'
+import type { PolicyEdit } from '@cobaltforge/api/policy-file'
 
 /**
  * A repository's policy: which rules apply and how hard, its own rules, and
@@ -378,7 +378,7 @@ async function proposeIn(
 
 /**
  * The one-off move: each repository whose rules are still settings gets a
- * change that writes them to the policy file, opened by source.code. The
+ * change that writes them to the policy file, opened by cobalt. The
  * settings stay in force until it lands. Run once from the dashboard;
  * `after` pages through repositories.
  */
@@ -395,7 +395,7 @@ export const moveToFile = internalMutation({
         a.after ? q.gt('publicId', a.after) : q,
       )
       .take(a.limit ?? 50)
-    const by = await actorFor(ctx, 'source-code')
+    const by = await actorFor(ctx, 'cobalt')
     let opened = 0
     for (const repo of repos) {
       if ((await loadPolicy(ctx, repo)).file) continue

@@ -2,7 +2,7 @@
  * The Pipelines tab was designed on `mock/pipelines`' shapes. These turn the
  * API's runs and step logs into them.
  */
-import type { PipelineLog, PipelineRun } from '@source-code/sdk'
+import type { PipelineLog, PipelineRun } from '@cobaltforge/sdk'
 import type { Run, RunDetail } from '~/lib/model/pipelines'
 import { timeAgo } from '~/lib/repo'
 

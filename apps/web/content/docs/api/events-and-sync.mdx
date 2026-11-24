@@ -18,11 +18,11 @@ Polling a list to see what changed costs you requests and costs us load, and it 
 Read something, keep its `ETag`, and read it again with `If-None-Match` and `wait`:
 
 ```bash
-curl -i "$SX/repos/dana/gitfs/changes/216" -H "Authorization: Bearer $SX_TOKEN"
+curl -i "$CB/repos/dana/gitfs/changes/216" -H "Authorization: Bearer $CB_TOKEN"
 # etag: W/"3-q9X…"
 
-curl -i "$SX/repos/dana/gitfs/changes/216?wait=20" \
-  -H "If-None-Match: W/\"3-q9X…\"" -H "Authorization: Bearer $SX_TOKEN"
+curl -i "$CB/repos/dana/gitfs/changes/216?wait=20" \
+  -H "If-None-Match: W/\"3-q9X…\"" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 The request is held until the ETag would change or `wait` seconds pass (0 to 30). Changed: `200` with the new object. Not changed: `304`. Then ask again. It works on single objects, lists, the policy of a change, and operations.
@@ -59,7 +59,7 @@ Everything that happens in a repository you can see is an event, in order.
 - **`sequence`** has no gaps. The preview keeps a bounded count/size window; the hosted service keeps 30 days.
 
 ```bash
-curl "$SX/events?repo=dana/gitfs&type=change.*&limit=100" -H "Authorization: Bearer $SX_TOKEN"
+curl "$CB/events?repo=dana/gitfs&type=change.*&limit=100" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 Types so far: `issue.created`, `issue.updated`, `issue.closed`, `change.opened`, `change.updated`, `change.reviewed`, `change.landed`, `change.abandoned`, `finding.resolved`, `check.reported`, `ci.failed`, `operation.finished`, `repo.updated`, `repo.deleted`, `run.started`, `run.finished`, `webhook.disabled`. `type` takes a comma list, and `change.*` matches the family. Private repositories' events are shown only to people who can read them.
@@ -67,7 +67,7 @@ Types so far: `issue.created`, `issue.updated`, `issue.closed`, `change.opened`,
 ## The stream
 
 ```bash
-curl -N "$SX/events/stream?repo=dana/gitfs" -H "Authorization: Bearer $SX_TOKEN"
+curl -N "$CB/events/stream?repo=dana/gitfs" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 Server-Sent Events. Each event is sent with its `sequence` as the SSE `id`, so when the connection drops, reconnect with `Last-Event-ID` and carry on without a gap, inside the retention window. A comment line is sent every 15 seconds to keep proxies from closing it. Without `Last-Event-ID` you start from now.
@@ -84,11 +84,11 @@ data: {"object":"event","id":"evt_01m6…","sequence":48212,"type":"issue.create
 
 ```bash
 # 1. A snapshot. reset is true; keep the cursor.
-curl "$SX/sync?repo=dana/gitfs" -H "Authorization: Bearer $SX_TOKEN"
+curl "$CB/sync?repo=dana/gitfs" -H "Authorization: Bearer $CB_TOKEN"
 # { "object": "sync", "cursor": "e_rep_01m3kkw4m0zvf3zfc9_4811", "objects": [ … every object … ], "has_more": false, "reset": true }
 
 # 2. From then on, only what changed, newest state of each object.
-curl "$SX/sync?repo=dana/gitfs&cursor=e_rep_01m3kkw4m0zvf3zfc9_4811" -H "Authorization: Bearer $SX_TOKEN"
+curl "$CB/sync?repo=dana/gitfs&cursor=e_rep_01m3kkw4m0zvf3zfc9_4811" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 - A large snapshot is paged: while `has_more` is true, call again with the new `cursor`.

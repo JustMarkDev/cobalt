@@ -71,7 +71,7 @@ test('only the API server may write or read the shared health', async () => {
   const { t } = await setup()
   await expect(
     t
-      .withIdentity({ subject: 'dana', sx_api: 'true', sx_scp: '' })
+      .withIdentity({ subject: 'dana', cb_api: 'true', cb_scp: '' })
       .mutation(forge.forge.health.record, { buckets: [] }),
   ).rejects.toThrow()
   await expect(
@@ -110,10 +110,10 @@ test('the tally fill counts every table once, then writes keep it', async () => 
   // Writes now keep the tallies: a repository made and one deleted.
   const dana = t.withIdentity({
     subject: 'dana',
-    sx_tok: 'tok',
-    sx_api: 'true',
-    sx_act: 'dana',
-    sx_scp: 'repo:read repo:write repo:admin',
+    cb_tok: 'tok',
+    cb_api: 'true',
+    cb_act: 'dana',
+    cb_scp: 'repo:read repo:write repo:admin',
   })
   await dana.mutation(forge.forge.repos.create, {
     name: 'tallied',
@@ -168,10 +168,10 @@ test('product events are queued with the write and sent in a batch', async () =>
     const { t } = await setup()
     const dana = t.withIdentity({
       subject: 'dana',
-      sx_tok: 'tok',
-      sx_api: 'true',
-      sx_act: 'dana',
-      sx_scp: 'repo:read repo:write repo:admin',
+      cb_tok: 'tok',
+      cb_api: 'true',
+      cb_act: 'dana',
+      cb_scp: 'repo:read repo:write repo:admin',
     })
     await dana.mutation(forge.forge.repos.create, {
       name: 'tracked',

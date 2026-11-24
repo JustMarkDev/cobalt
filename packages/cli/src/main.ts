@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { has, parse } from './args'
-import { SxError, exit, fail, wantsJson } from './output'
+import { CbError, exit, fail, wantsJson } from './output'
 import { completions, groupHelp, topHelp, version } from './help'
 import { account } from './commands/account'
 import { handoff } from './commands/handoff'
@@ -69,7 +69,7 @@ function closest(word: string, names: Array<string>): string | undefined {
     .at(0)?.[0]
 }
 
-/** Runs sx and returns the exit code. Separate from `main` so tests can call it. */
+/** Runs cb and returns the exit code. Separate from `main` so tests can call it. */
 export async function run(
   argv: ReadonlyArray<string>,
   io: { out: (s: string) => void; err: (s: string) => void } = {
@@ -100,7 +100,7 @@ export async function run(
       const shell = rest.at(0) ?? ''
       const script = completions[shell] as string | undefined
       if (script === undefined)
-        throw new SxError(
+        throw new CbError(
           'bad_shell',
           `${shell || '(none)'} is not a shell.`,
           'Use bash, zsh or fish.',
@@ -117,18 +117,18 @@ export async function run(
     }
     const command = commands[name] as Command | undefined
     if (command === undefined)
-      throw new SxError(
+      throw new CbError(
         'unknown_command',
         `${name} is not a command.`,
         closest(name, Object.keys(commands))
-          ? `Did you mean: sx ${closest(name, Object.keys(commands))}? sx commands lists everything as JSON.`
-          : 'sx commands lists everything as JSON.',
+          ? `Did you mean: cb ${closest(name, Object.keys(commands))}? cb commands lists everything as JSON.`
+          : 'cb commands lists everything as JSON.',
         exit.usage,
       )
     const code = await command({ rest, flags }, ctx)
     return code ?? exit.ok
   } catch (e) {
-    if (process.env.SX_DEBUG && e instanceof Error) console.error(e.stack)
+    if (process.env.CB_DEBUG && e instanceof Error) console.error(e.stack)
     return fail(ctx, e)
   }
 }

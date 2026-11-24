@@ -119,7 +119,7 @@ export const createIssue = defineOp({
   id: 'issues.create',
   summary: 'Open an issue',
   description:
-    'Naturally idempotent: an open issue with the same title is returned instead of a second one. `Sx-Outcome` is created or unchanged.',
+    'Naturally idempotent: an open issue with the same title is returned instead of a second one. `Cb-Outcome` is created or unchanged.',
   tags: ['issues'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/issues',
@@ -149,7 +149,7 @@ export const createIssue = defineOp({
       return reply(r.issue, {
         status: r.outcome === 'created' ? 201 : 200,
         headers: {
-          'sx-outcome': r.outcome,
+          'cb-outcome': r.outcome,
           ...(r.outcome === 'created' ? { location: r.issue.url } : {}),
         },
       })
@@ -248,7 +248,7 @@ export const createLabel = defineOp({
   id: 'labels.create',
   summary: 'Add a label',
   description:
-    'Naturally idempotent: a label with the same name, in any case, is returned instead. `Sx-Outcome` is created or unchanged.',
+    'Naturally idempotent: a label with the same name, in any case, is returned instead. `Cb-Outcome` is created or unchanged.',
   tags: ['issues'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/labels',
@@ -281,7 +281,7 @@ export const createLabel = defineOp({
       )
       return reply(r.label, {
         status: r.outcome === 'created' ? 201 : 200,
-        headers: { 'sx-outcome': r.outcome },
+        headers: { 'cb-outcome': r.outcome },
       })
     }),
 })

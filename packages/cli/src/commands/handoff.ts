@@ -1,11 +1,11 @@
 import { resolveRepo } from '../repo'
-import { SxError, exit, print } from '../output'
+import { CbError, exit, print } from '../output'
 import { has, str } from '../args'
 import { resolve } from '../config'
 import type { Command } from './types'
 
 /**
- * Hand an issue or a change to an orchestrator. source.code runs no agent and
+ * Hand an issue or a change to an orchestrator. cobalt runs no agent and
  * hosts no model: the orchestrator (T3 Code, and boat.dev beneath it) starts
  * one on your machine or its own, under your login. Whatever it writes comes
  * back with a receipt naming the machine, the tool and the model.
@@ -15,15 +15,15 @@ const targets = ['t3', 'boat'] as const
 export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
   const repo = resolveRepo(str(flags, 'repo'))
   if (!subject)
-    throw new SxError(
+    throw new CbError(
       'missing_argument',
       'handoff needs an issue or change.',
-      'Example: sx handoff 4,  sx handoff 216 --to boat,  sx handoff run:1839',
+      'Example: cb handoff 4,  cb handoff 216 --to boat,  cb handoff run:1839',
       exit.usage,
     )
   const target = str(flags, 'to') ?? resolve('handoff.to').value
   if (!(targets as ReadonlyArray<string>).includes(target))
-    throw new SxError(
+    throw new CbError(
       'bad_target',
       `${target} is not somewhere to hand off to.`,
       `Use one of: ${targets.join(', ')}.`,
@@ -34,7 +34,7 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
   let prompt: string
   let type: string
   if (run) {
-    // A pipeline run: the failure is the task. Its log is read through sx.
+    // A pipeline run: the failure is the task. Its log is read through cb.
     const p = (
       await api.get(`${repo.path}/pipelines/${run[1]}`).catch(() => null)
     )?.json as
@@ -55,7 +55,7 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
         }
       | undefined
     if (!p)
-      throw new SxError(
+      throw new CbError(
         'not_found',
         `${subject} is not a pipeline run here.`,
         'Pipeline runs are on the Pipelines tab.',
@@ -74,20 +74,20 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
     if (waiting) {
       // The run waits on someone: the agent does the work, then resumes it
       // with the same login it runs under. No token travels in the prompt.
-      const resume = `sx pipeline resume ${p.number} --job ${waiting.job} --step ${waiting.step} --status success --note "<what you did>"`
-      prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}) is waiting at step "${waiting.name}": ${waiting.wait.reason}. Do that work on ${p.branch} and add a patch set with sx change create. When it is done, resume the run with exactly: ${resume} (use --status failure and say why if it cannot be done). If you have not used sx, run "sx skill" first. Set SX_MODEL to the model you are, so the receipt says so.`
+      const resume = `cb pipeline resume ${p.number} --job ${waiting.job} --step ${waiting.step} --status success --note "<what you did>"`
+      prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}) is waiting at step "${waiting.name}": ${waiting.wait.reason}. Do that work on ${p.branch} and add a patch set with cb change create. When it is done, resume the run with exactly: ${resume} (use --status failure and say why if it cannot be done). If you have not used cb, run "cb skill" first. Set CB_MODEL to the model you are, so the receipt says so.`
     } else
-      prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}, "${p.title}") ended ${p.status}. Read its jobs and the failing step's log (sx commands lists the pipelines operations), reproduce the failure, fix it on ${p.branch}, and add a patch set with sx change create. If you have not used sx, run "sx skill" first. Set SX_MODEL to the model you are, so the receipt says so.`
+      prompt = `In ${repo.slug}, pipeline run #${p.number} (${p.workflow}, branch ${p.branch}, "${p.title}") ended ${p.status}. Read its jobs and the failing step's log (cb commands lists the pipelines operations), reproduce the failure, fix it on ${p.branch}, and add a patch set with cb change create. If you have not used cb, run "cb skill" first. Set CB_MODEL to the model you are, so the receipt says so.`
   } else {
     const n = subject.replace(/^#/, '')
     // A number is a change or an issue; the API says which.
     const ref = (await api.get(`${repo.path}/numbers/${n}`).catch(() => null))
       ?.json
     if (!ref)
-      throw new SxError(
+      throw new CbError(
         'not_found',
         `${subject} is not an issue or change here.`,
-        'sx issue list and sx change list show what exists.',
+        'cb issue list and cb change list show what exists.',
         exit.notFound,
       )
     const title = (
@@ -97,8 +97,8 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
     ).json.title as string
     type = ref.type as string
     // Names and structure only. Values never travel in a prompt: the agent
-    // runs commands with `sx env run`, under the login of the machine it is on.
-    prompt = `Work on ${repo.slug} #${n}: ${title}. Open a draft change. If you have not used sx, run "sx skill" first, then "sx context" for policies and the env schema. Set SX_MODEL to the model you are, so the receipt says so.`
+    // runs commands with `cb env run`, under the login of the machine it is on.
+    prompt = `Work on ${repo.slug} #${n}: ${title}. Open a draft change. If you have not used cb, run "cb skill" first, then "cb context" for policies and the env schema. Set CB_MODEL to the model you are, so the receipt says so.`
   }
   const command =
     target === 't3'

@@ -20,7 +20,7 @@ const MONTH = 30 * 24 * 3_600_000
 
 /** The handle behind a contributor's email when it is one of ours, else their name. */
 const handleOf = (c: { name: string; email: string }) =>
-  c.email.toLowerCase().endsWith('@users.source.code')
+  c.email.toLowerCase().endsWith('@users.cobaltforge.dev')
     ? c.email.split('@')[0]
     : c.name
 
@@ -37,14 +37,17 @@ function installsFor(repo: Repo): Array<[string, string]> {
   out.push([
     'script',
     repo.install ??
-      `curl -fsSL https://source.code/${repo.owner}/${repo.name}/install | sh`,
+      `curl -fsSL https://cobaltforge.dev/${repo.owner}/${repo.name}/install | sh`,
   ])
   out.push(['brew', `brew install ${repo.owner}/tap/${repo.name}`])
   const lang = langInstall[repo.language] as
     | [string, (n: string) => string]
     | undefined
   if (lang) out.push([lang[0], lang[1](repo.name)])
-  out.push(['docker', `docker run --rm source.code/${repo.owner}/${repo.name}`])
+  out.push([
+    'docker',
+    `docker run --rm cobaltforge.dev/${repo.owner}/${repo.name}`,
+  ])
   return out
 }
 

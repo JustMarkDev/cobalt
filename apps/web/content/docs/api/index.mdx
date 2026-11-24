@@ -4,7 +4,7 @@ title: API
 description: Everything the web app does, over HTTP. Stable, fast, one shape for everything, and readable by an agent that has never seen it.
 ---
 
-The source.code API is plain HTTP and JSON at `https://api.source.code/v1`. The `sx` command line and the MCP server are clients of it, with the caller's own token, so they can do no more than the token allows. The web app is meant to be the third: no second, private API behind the screens.
+The cobalt API is plain HTTP and JSON at `https://api.cobaltforge.dev/v1`. The `cb` command line and the MCP server are clients of it, with the caller's own token, so they can do no more than the token allows. The web app is meant to be the third: no second, private API behind the screens.
 
 <Callout type="warn" title="Preview">
   The API runs today on sample data, in memory, so every endpoint, header and
@@ -18,10 +18,10 @@ The source.code API is plain HTTP and JSON at `https://api.source.code/v1`. The 
 Run the app (`bun run dev`) and call it. The sample tokens work only on your own machine; see [Authentication](/docs/api/authentication#sample-tokens).
 
 ```bash
-export SX=http://localhost:3000/api/v1
-export SX_TOKEN=sxp_dana_full_access_0001
+export CB=http://localhost:3000/api/v1
+export CB_TOKEN=cbp_dana_full_access_0001
 
-curl "$SX/repos/dana/gitfs/context" -H "Authorization: Bearer $SX_TOKEN"
+curl "$CB/repos/dana/gitfs/context" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 `context` returns the open changes and what blocks each one, open issues, a policy summary and the env schema, in one request. It is what an agent calls first.
@@ -75,7 +75,7 @@ Every object says what it is, where it lives and which version it is.
   "object": "change",
   "id": "chg_01m6dqs9m0g7q74420",
   "number": 216,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216",
   "title": "Cache negative ref lookups",
   "state": "open",
   "checks": { "state": "pending", "passed": 0, "failed": 0, "pending": 1 },

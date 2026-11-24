@@ -297,7 +297,7 @@ describe('triggers when a change lands', () => {
     await land(h, 901)
     await land(h, 902)
     expect(await runsBy(h)).toHaveLength(0)
-    await land(h, 903, { 'sx-model': 'claude-test' })
+    await land(h, 903, { 'cb-model': 'claude-test' })
     expect(await runsBy(h)).toHaveLength(1)
   })
 

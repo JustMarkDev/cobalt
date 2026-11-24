@@ -486,7 +486,7 @@ export type Attached = {
   extras: ExtrasPort
   /**
    * Seals and opens secret values (`secret-box.ts`). Null when the server has
-   * no `SX_SECRETS_KEY`: then no value is kept or given out at all.
+   * no `CB_SECRETS_KEY`: then no value is kept or given out at all.
    */
   secrets: Promise<SecretBox | null>
   git: GitData

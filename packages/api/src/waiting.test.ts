@@ -12,7 +12,7 @@ import { clock, harness } from './testing'
 
 /**
  * A run can pause for a person or an outside agent and resume with how the
- * step ended. source.code starts no agent: it records the wait, tells whom
+ * step ended. cobalt starts no agent: it records the wait, tells whom
  * it waits on, and fails the run when nobody answers in time.
  */
 

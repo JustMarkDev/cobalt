@@ -41,7 +41,7 @@ describe('renaming, editing and deleting a repository', () => {
   test('webhooks follow a rename', async () => {
     const h = harness({ transport: new OkTransport() })
     const hook = await h.call('POST', `${REPO}/webhooks`, {
-      body: { endpoint: 'https://hooks.example.com/sx', events: ['*'] },
+      body: { endpoint: 'https://hooks.example.com/cb', events: ['*'] },
     })
     expect(hook.status).toBe(201)
     await h.call('PATCH', REPO, { body: { name: 'gitfs2' } })
@@ -137,7 +137,7 @@ describe('renaming, editing and deleting a repository', () => {
   test('deleting needs the full name, then removes the repository and what hangs on it', async () => {
     const h = harness({ transport: new OkTransport() })
     await h.call('POST', `${REPO}/webhooks`, {
-      body: { endpoint: 'https://hooks.example.com/sx', events: ['*'] },
+      body: { endpoint: 'https://hooks.example.com/cb', events: ['*'] },
     })
     const noConfirm = await h.call('DELETE', REPO)
     expect(noConfirm.status).toBe(400)
@@ -427,7 +427,7 @@ describe('teams', () => {
     })
     const again = await h.call('POST', ORG, { body: { slug: 'readers' } })
     expect(again.status).toBe(200)
-    expect(again.headers.get('sx-outcome')).toBe('unchanged')
+    expect(again.headers.get('cb-outcome')).toBe('unchanged')
     expect(
       (await h.call('GET', ORG, { token: h.tokens.hollis })).json.data,
     ).toHaveLength(1)
@@ -589,7 +589,7 @@ describe('a transfer to another account', () => {
   test("the old owner's webhooks do not follow the repository", async () => {
     const h = harness({ transport: new OkTransport() })
     const hook = await h.call('POST', `${REPO}/webhooks`, {
-      body: { endpoint: 'https://hooks.example.com/sx', events: ['*'] },
+      body: { endpoint: 'https://hooks.example.com/cb', events: ['*'] },
     })
     expect(hook.status).toBe(201)
     await h.call('POST', `${REPO}/transfer`, {

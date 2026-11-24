@@ -1,10 +1,10 @@
 ---
 icon: ServerIcon
 title: MCP server
-description: Connect any agent to source.code over MCP. Same tools as the CLI, same answers as the web page.
+description: Connect any agent to cobalt over MCP. Same tools as the CLI, same answers as the web page.
 ---
 
-source.code ships a Model Context Protocol server (and an [HTTP API](/docs/api) for everything else), so agents that speak MCP can read changes, check policy and open issues without a shell. Every tool runs the matching [`sx`](/docs/cli) command, so what an agent gets is exactly what a person sees: the same blockers, the same error codes and the same hints.
+cobalt ships a Model Context Protocol server (and an [HTTP API](/docs/api) for everything else), so agents that speak MCP can read changes, check policy and open issues without a shell. Every tool runs the matching [`cb`](/docs/cli) command, so what an agent gets is exactly what a person sees: the same blockers, the same error codes and the same hints.
 
 <Callout type="warn" title="Preview">
   The tools answer from sample data today. Tokens, scopes and sign-in are real:
@@ -18,11 +18,11 @@ There are two ways in. Both expose the same tools.
 
 ### Hosted endpoint
 
-Streamable HTTP at `https://source.code/mcp`. Sign in with OAuth, which MCP clients do on their own, or send a token in the `Authorization` header.
+Streamable HTTP at `https://cobaltforge.dev/mcp`. Sign in with OAuth, which MCP clients do on their own, or send a token in the `Authorization` header.
 
 ```bash
-claude mcp add --transport http source-code https://source.code/mcp \
-  --header "Authorization: Bearer $SX_TOKEN"
+claude mcp add --transport http cobalt https://cobaltforge.dev/mcp \
+  --header "Authorization: Bearer $CB_TOKEN"
 ```
 
 For clients that read a JSON config:
@@ -30,10 +30,10 @@ For clients that read a JSON config:
 ```json
 {
   "mcpServers": {
-    "source-code": {
+    "cobalt": {
       "type": "http",
-      "url": "https://source.code/mcp",
-      "headers": { "Authorization": "Bearer ${SX_TOKEN}" }
+      "url": "https://cobaltforge.dev/mcp",
+      "headers": { "Authorization": "Bearer ${CB_TOKEN}" }
     }
   }
 }
@@ -41,16 +41,16 @@ For clients that read a JSON config:
 
 ### Signing in with OAuth
 
-A client that supports MCP authorization finds everything it needs from the server. An unauthenticated request answers `401` with `WWW-Authenticate: Bearer resource_metadata="https://source.code/.well-known/oauth-protected-resource/mcp"`, which names the authorization server. The client registers itself, sends you to a consent page, and gets a token that refreshes. See [OAuth](/docs/api/oauth).
+A client that supports MCP authorization finds everything it needs from the server. An unauthenticated request answers `401` with `WWW-Authenticate: Bearer resource_metadata="https://cobaltforge.dev/.well-known/oauth-protected-resource/mcp"`, which names the authorization server. The client registers itself, sends you to a consent page, and gets a token that refreshes. See [OAuth](/docs/api/oauth).
 
 The token is the same kind the API accepts. One sign-in covers both, unless the client asked for one with the `resource` parameter.
 
 ### Local command
 
-If the agent starts a local command instead, run `sx` as the server over stdio:
+If the agent starts a local command instead, run `cb` as the server over stdio:
 
 ```bash
-claude mcp add sx -- sx mcp
+claude mcp add cb -- cb mcp
 ```
 
 The local server uses your git remote to know which repository you mean. Over HTTP, pass `repo` on each call.
@@ -96,7 +96,7 @@ The named tools cover the daily work. Two more reach the rest of the [HTTP API](
 The answer is `{ "status": 201, "data": { … } }`, and a refusal is the same error object the API returns. Three rules hold here that the API leaves to you:
 
 - A destructive operation (deleting, landing, revoking) needs `confirm: true`, unless `dry_run` is set. Run it dry first.
-- An operation whose answer carries a secret, such as creating a token or a webhook, is listed but not callable: MCP never returns a secret value. Use `sx` or the API.
+- An operation whose answer carries a secret, such as creating a token or a webhook, is listed but not callable: MCP never returns a secret value. Use `cb` or the API.
 - An operation that takes raw bytes, such as an upload, is listed but not callable.
 
 Each tool carries MCP annotations: `readOnlyHint`, `idempotentHint` and `destructiveHint`, so a client can decide what to confirm.
@@ -105,8 +105,8 @@ Each tool carries MCP annotations: `readOnlyHint`, `idempotentHint` and `destruc
 
 | URI             | Contents                                            |
 | --------------- | --------------------------------------------------- |
-| `sx://skill`    | The agent skill: rules, exit codes and the workflow |
-| `sx://commands` | The whole CLI as JSON                               |
+| `cb://skill`    | The agent skill: rules, exit codes and the workflow |
+| `cb://commands` | The whole CLI as JSON                               |
 
 ## Errors
 
@@ -117,7 +117,7 @@ A failed call sets `isError` and returns the same object the CLI prints:
   "error": {
     "code": "policy_blocked",
     "message": "#216 cannot land: ci/test is running; 1 high finding unresolved.",
-    "hint": "sx change view shows each requirement. sx policy explain says which rule asked for it."
+    "hint": "cb change view shows each requirement. cb policy explain says which rule asked for it."
   }
 }
 ```
@@ -130,7 +130,7 @@ A tool calls the API as the token that connected, so it can do what that token's
 
 ## What an agent never gets
 
-- **Secret values.** `get_context` and `list_env` return names and kinds only. Values reach a command through `sx env run`, under the login of the machine, and production waits for you to confirm.
+- **Secret values.** `get_context` and `list_env` return names and kinds only. Values reach a command through `cb env run`, under the login of the machine, and production waits for you to confirm.
 - **Scopes it was not given.** A token belongs to a bot. A bot's scopes can shrink while it is installed and never grow. See [Agents](/docs/concepts/agents).
 
 ## How it works

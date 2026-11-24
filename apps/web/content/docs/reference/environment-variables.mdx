@@ -1,22 +1,22 @@
 ---
 icon: VariableIcon
 title: Environment variables
-description: Variables sx reads.
+description: Variables cb reads.
 ---
 
 | Variable                            | Meaning                                                                   |
 | ----------------------------------- | ------------------------------------------------------------------------- |
-| `SX_TOKEN`                          | Token used to sign in                                                     |
-| `SX_HOST`                           | Server address. Same as the `host` setting                                |
-| `SX_REPO`                           | Repository to use when you are not in a clone                             |
-| `SX_ACCOUNT`                        | Account to act as. Same as the `account` setting, and beats the saved one |
-| `SX_CONFIG_DIR`                     | Folder that holds `config.json`                                           |
-| `SX_OUTPUT`                         | `auto`, `json` or `text`                                                  |
-| `SX_HANDOFF_TO`                     | Default for `sx handoff`: `t3` or `boat`                                  |
-| `SX_TOOL`, `SX_MODEL`               | The tool and model `sx` declares on every request, for receipts           |
-| `SX_CHANGE_BASE`, `SX_CHANGE_DRAFT` | Defaults for `sx change create`                                           |
-| `SX_CLONE_PROTOCOL`                 | `ssh` or `https`                                                          |
-| `SX_DEBUG`                          | Print stack traces                                                        |
+| `CB_TOKEN`                          | Token used to sign in                                                     |
+| `CB_HOST`                           | Server address. Same as the `host` setting                                |
+| `CB_REPO`                           | Repository to use when you are not in a clone                             |
+| `CB_ACCOUNT`                        | Account to act as. Same as the `account` setting, and beats the saved one |
+| `CB_CONFIG_DIR`                     | Folder that holds `config.json`                                           |
+| `CB_OUTPUT`                         | `auto`, `json` or `text`                                                  |
+| `CB_HANDOFF_TO`                     | Default for `cb handoff`: `t3` or `boat`                                  |
+| `CB_TOOL`, `CB_MODEL`               | The tool and model `cb` declares on every request, for receipts           |
+| `CB_CHANGE_BASE`, `CB_CHANGE_DRAFT` | Defaults for `cb change create`                                           |
+| `CB_CLONE_PROTOCOL`                 | `ssh` or `https`                                                          |
+| `CB_DEBUG`                          | Print stack traces                                                        |
 | `NO_COLOR`                          | Turn off colour                                                           |
 
-Every setting can be set as `SX_` plus its key in capitals, with `.` written as `_`. See [Settings](/docs/cli/config).
+Every setting can be set as `CB_` plus its key in capitals, with `.` written as `_`. See [Settings](/docs/cli/config).

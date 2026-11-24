@@ -1,6 +1,6 @@
 import { attachUpload } from '../lib/uploads'
 import { v } from 'convex/values'
-import { newId } from '@source-code/api/ids'
+import { newId } from '@cobaltforge/api/ids'
 import { internal } from '../_generated/api'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'

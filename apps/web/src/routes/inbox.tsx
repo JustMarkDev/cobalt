@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import type { BadgeTone } from '~/components/ui/badge'
-import type { InboxItem, Notification } from '@source-code/sdk'
+import type { InboxItem, Notification } from '@cobaltforge/sdk'
 import { RequireAuth } from '~/components/forge/auth'
 import { Stagger } from '~/components/motion'
 import { GitMergeIcon } from '~/components/icons'
@@ -32,7 +32,7 @@ import { timeAgo } from '~/lib/repo'
  * landing happen there, where their own permissions are checked.
  */
 export const Route = createFileRoute('/inbox')({
-  head: () => ({ meta: [{ title: 'Inbox · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Inbox · cobalt' }] }),
   validateSearch: (
     s: Record<string, unknown>,
   ): { tab?: 'needs' | 'activity' } =>

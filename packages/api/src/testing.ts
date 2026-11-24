@@ -24,9 +24,9 @@ export type Reply = {
 
 /**
  * Which domain the suite runs on: memory by default, Convex when
- * `SX_DOMAIN=convex` (`bun run test:convex`).
+ * `CB_DOMAIN=convex` (`bun run test:convex`).
  */
-export const onConvex = process.env.SX_DOMAIN === 'convex'
+export const onConvex = process.env.CB_DOMAIN === 'convex'
 
 export function harness(overrides: Parameters<typeof createSampleApi>[0] = {}) {
   const now = overrides.now ?? clock()

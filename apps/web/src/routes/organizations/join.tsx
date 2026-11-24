@@ -8,11 +8,11 @@ import { Button } from '~/components/ui/button'
 import { Callout } from '~/components/ui/callout'
 import { switchAccount, useAccount, useMe } from '~/lib/auth/accounts'
 import { useWrite } from '~/lib/forge'
-import type { Member } from '@source-code/sdk'
+import type { Member } from '@cobaltforge/sdk'
 
 /** Where the link in an invitation email leads. */
 export const Route = createFileRoute('/organizations/join')({
-  head: () => ({ meta: [{ title: 'Join an organization · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Join an organization · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): { token?: string } => ({
     token: typeof s.token === 'string' && s.token ? s.token : undefined,
   }),
@@ -94,7 +94,7 @@ function Join() {
             {name}
           </h2>
           <p className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-            source.code/{offer.account} <RoleBadge role={offer.role} />
+            cobaltforge.dev/{offer.account} <RoleBadge role={offer.role} />
           </p>
         </div>
       </div>

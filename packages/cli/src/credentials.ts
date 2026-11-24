@@ -10,9 +10,9 @@ import { dirname, join } from 'node:path'
 import { configPath } from './config'
 
 /**
- * What `sx auth login` leaves behind: an OAuth client, an access token and a
+ * What `cb auth login` leaves behind: an OAuth client, an access token and a
  * refresh token for one API. Kept beside the settings, readable only by you.
- * `SX_TOKEN` in the environment always wins over this file.
+ * `CB_TOKEN` in the environment always wins over this file.
  */
 export type Credentials = {
   api: string

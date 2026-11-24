@@ -155,7 +155,7 @@ export const importRepo = defineOp({
       )
       return reply(r.repo, {
         status: r.created ? 201 : 200,
-        headers: { 'sx-outcome': r.created ? 'created' : 'unchanged' },
+        headers: { 'cb-outcome': r.created ? 'created' : 'unchanged' },
       })
     }),
 })

@@ -115,7 +115,7 @@ export function CompareTable() {
       <div className="scroll-fade-x overflow-x-auto">
         <table className="w-full min-w-[38rem] sm:min-w-[52rem] text-sm">
           <caption className="sr-only">
-            How source.code compares with other code hosts, feature by feature.
+            How cobalt compares with other code hosts, feature by feature.
           </caption>
           <thead>
             <tr>

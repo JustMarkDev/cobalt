@@ -4,7 +4,7 @@ import {
   LAPSED_KEEP_MS,
   overQuota,
   planLimits,
-} from '@source-code/api/plans'
+} from '@cobaltforge/api/plans'
 import { internalMutation, internalQuery, query } from './_generated/server'
 import { signedIn } from './lib/actor'
 import { fail, out } from './lib/errors'
@@ -23,7 +23,7 @@ import { usageOf } from './lib/usage'
  *   bunx convex run plans:grants '{"handle":"theo"}'
  *
  * Polar calls `setSubscription` from its webhook (`http.ts`, `/hooks/polar`,
- * `@source-code/api/polar`): the checkout carries the paying address and the
+ * `@cobaltforge/api/polar`): the checkout carries the paying address and the
  * plan in its metadata (`account`, `plan`).
  */
 

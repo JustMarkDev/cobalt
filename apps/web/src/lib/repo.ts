@@ -8,7 +8,7 @@ import type {
   Release as ApiRelease,
   Repo as ApiRepo,
   GitCommit,
-} from '@source-code/sdk'
+} from '@cobaltforge/sdk'
 import type { Release, Repo, Source } from '~/lib/model/data'
 
 /** "3 hours ago", "yesterday", "2 weeks ago", from an RFC 3339 time. */

@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
-import { WAIT_DEFAULT_MS } from '@source-code/api/lifecycles'
-import { waitingForLabels } from '@source-code/api/runners'
+import { WAIT_DEFAULT_MS } from '@cobaltforge/api/lifecycles'
+import { waitingForLabels } from '@cobaltforge/api/runners'
 import { query } from '../_generated/server'
 import { signedIn } from '../lib/actor'
 import { canRead } from '../lib/access'

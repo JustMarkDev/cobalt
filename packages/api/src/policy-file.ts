@@ -131,7 +131,7 @@ export function policyYaml(
   return [
     `# ${POLICY_FILE}`,
     '# The rules changes in this repository land under. Edit it in a change;',
-    '# policy owners review it. https://source.code/docs/reference/policy-file',
+    '# policy owners review it. https://cobaltforge.dev/docs/reference/policy-file',
     d.toString({ lineWidth: 0 }),
   ].join('\n')
 }

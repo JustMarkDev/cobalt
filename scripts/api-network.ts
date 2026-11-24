@@ -19,7 +19,7 @@
  *     Writes pay two (read, then commit), lists and searches one.
  */
 import { writeFileSync } from 'node:fs'
-import { sampleTokens } from '@source-code/api/sample'
+import { sampleTokens } from '@cobaltforge/api/sample'
 import { HUGE, buildWorld } from './bench/world'
 
 const arg = (name: string, fallback: string) => {

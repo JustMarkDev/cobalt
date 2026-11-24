@@ -11,14 +11,14 @@
  *
  *   v1.<iv>.<ciphertext and tag>      (both base64url)
  *
- * The master key is `SX_SECRETS_KEY`: 32 random bytes, base64. Without it the
+ * The master key is `CB_SECRETS_KEY`: 32 random bytes, base64. Without it the
  * server keeps no values at all (`secrets_unavailable`), rather than keeping
  * them under a key anyone could guess. Plain Web Crypto, so the API server
  * and anything else that has the key seal and open the same way.
  */
 
 const VERSION = 'v1'
-const SALT = new TextEncoder().encode('source.code secrets v1')
+const SALT = new TextEncoder().encode('cobalt secrets v1')
 
 const b64url = {
   encode(bytes: Uint8Array) {
@@ -44,7 +44,7 @@ export class SecretBox {
 
   private constructor(private readonly master: CryptoKey) {}
 
-  /** From `SX_SECRETS_KEY`; null when it is missing or not 32 bytes. */
+  /** From `CB_SECRETS_KEY`; null when it is missing or not 32 bytes. */
   static async fromBase64(text: string | undefined | null) {
     if (!text) return null
     let raw: Uint8Array

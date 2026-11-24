@@ -12,7 +12,7 @@ import { Segmented } from '~/components/ui/tabs'
 import { freePlan, overage, perMonth, perYear, plans } from '~/lib/pricing'
 
 export const Route = createFileRoute('/pricing')({
-  head: () => ({ meta: [{ title: 'Pricing · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Pricing · cobalt' }] }),
   component: Pricing,
 })
 
@@ -41,15 +41,15 @@ const questions: Array<[string, string]> = [
   ],
   [
     'Is there a trial of the paid plans?',
-    'No. Free is how you try source.code. If you pay and it is not for you, you have the withdrawal period the law gives you where you live, and we refund it.',
+    'No. Free is how you try cobalt. If you pay and it is not for you, you have the withdrawal period the law gives you where you live, and we refund it.',
   ],
   [
     'Why are there no CI minutes or AI credits?',
-    'Because we would have to pick for you. source.code works with any runner, model, harness and agent, and stays out of the way of the ones you already pay for. We never resell compute or tokens, so there is no markup and no credit to run out of.',
+    'Because we would have to pick for you. cobalt works with any runner, model, harness and agent, and stays out of the way of the ones you already pay for. We never resell compute or tokens, so there is no markup and no credit to run out of.',
   ],
   [
     'What counts as transfer?',
-    'Data leaving source.code: clones, fetches and mirror pushes. Agents and CI clone a lot, so heavy automation uses more. Pushing data in has its own, smaller allowance. Release downloads do not count.',
+    'Data leaving cobalt: clones, fetches and mirror pushes. Agents and CI clone a lot, so heavy automation uses more. Pushing data in has its own, smaller allowance. Release downloads do not count.',
   ],
   [
     'What happens if I go over?',

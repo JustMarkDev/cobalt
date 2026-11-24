@@ -1409,7 +1409,7 @@ export abstract class DomainChanges extends DomainIssues {
         : 'internal'
     const entry = errorCatalog[code]
     return {
-      type: `https://source.code/docs/api/errors#${code}`,
+      type: `https://cobaltforge.dev/docs/api/errors#${code}`,
       title: entry.title,
       status: entry.status,
       code,

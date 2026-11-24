@@ -1,7 +1,7 @@
 import { loadRules, seesChange } from '../lib/accessRules'
 import { findChange, hydrate } from '../lib/changes'
 import { v } from 'convex/values'
-import { newId } from '@source-code/api/ids'
+import { newId } from '@cobaltforge/api/ids'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'

@@ -695,7 +695,7 @@ function WaitingPanel({ repo, detail }: { repo: Repo; detail: RunDetail }) {
               {new Date(w.wait.expiresAt).toLocaleString()} if nobody resumes it
             </p>
             <p className="font-mono text-xs break-all text-muted-foreground">
-              sx pipeline resume {detail.run.id} --job {w.job} --step {w.step}{' '}
+              cb pipeline resume {detail.run.id} --job {w.job} --step {w.step}{' '}
               --status success --note "…"
             </p>
             {error && <p className="text-danger">{error}</p>}

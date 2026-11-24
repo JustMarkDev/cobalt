@@ -10,7 +10,7 @@ import { useOpMaybe, useWrite } from '~/lib/forge'
 import { field } from '~/components/ui/input'
 
 export const Route = createFileRoute('/welcome')({
-  head: () => ({ meta: [{ title: 'Welcome · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Welcome · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
     redirect: safeRedirect(s.redirect),
   }),
@@ -75,7 +75,7 @@ function Welcome() {
           <>
             Your page is{' '}
             <span className="font-mono text-foreground">
-              source.code/{session.user.handle}
+              cobaltforge.dev/{session.user.handle}
             </span>
             .{' '}
             <Link

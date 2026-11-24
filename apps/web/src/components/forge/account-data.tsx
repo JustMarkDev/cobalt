@@ -180,7 +180,7 @@ function Export() {
       )
       const a = document.createElement('a')
       a.href = url
-      a.download = 'source-code-export.json'
+      a.download = 'cobalt-export.json'
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {

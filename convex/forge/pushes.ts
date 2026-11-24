@@ -5,8 +5,8 @@ import { markStale } from '../lib/usage'
 import { emit } from '../lib/events'
 import { branchOwner, hydrate, saveChange } from '../lib/changes'
 import { counters } from '../lib/events'
-import { pushReceipt } from '@source-code/api/trailers'
-import { contributionRefusal } from '@source-code/api/via'
+import { pushReceipt } from '@cobaltforge/api/trailers'
+import { contributionRefusal } from '@cobaltforge/api/via'
 
 /**
  * A push code.storage told us about. Recorded once, however many times the

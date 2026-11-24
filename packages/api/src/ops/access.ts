@@ -92,7 +92,7 @@ export const putAccessRule = defineOp({
       )
       return reply(r.rule, {
         status: r.created && !ctx.dryRun ? 201 : 200,
-        headers: { 'sx-outcome': r.created ? 'created' : 'updated' },
+        headers: { 'cb-outcome': r.created ? 'created' : 'updated' },
       })
     }),
 })

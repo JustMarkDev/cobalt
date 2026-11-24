@@ -78,7 +78,7 @@ function loadTab(tab: string) {
 type TabSearch = {
   n?: number
   section?: string
-  /** A production confirmation to open, from the link `sx` prints. */
+  /** A production confirmation to open, from the link `cb` prints. */
   confirm?: string
   path?: string
   view?: 'history'
@@ -95,7 +95,7 @@ export const Route = createFileRoute('/$handle/$repo/$tab')({
       })
   },
   head: ({ params }) => ({
-    meta: [{ title: `${params.handle}/${params.repo} · source.code` }],
+    meta: [{ title: `${params.handle}/${params.repo} · cobalt` }],
   }),
   validateSearch: (s: Record<string, unknown>): TabSearch => ({
     n:

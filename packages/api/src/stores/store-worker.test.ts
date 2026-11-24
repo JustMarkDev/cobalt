@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { MemoryGitAdmin } from '@source-code/git/admin'
+import { MemoryGitAdmin } from '@cobaltforge/git/admin'
 import { MemoryBlobStore } from '../uploads'
 import { StoreWorker } from './store-worker'
 import type { ConvexCall } from './convex'

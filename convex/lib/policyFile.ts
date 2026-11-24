@@ -1,4 +1,4 @@
-import { POLICY_FILE, parsePolicy } from '@source-code/api/policy-file'
+import { POLICY_FILE, parsePolicy } from '@cobaltforge/api/policy-file'
 import { counters, emit } from './events'
 import { loadPolicy, policyRules, savePolicy } from './changes'
 import type { ActorRef } from './events'

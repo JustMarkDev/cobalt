@@ -63,9 +63,9 @@ afterEach(() => {
 
 const SYSTEM = {
   subject: '~system',
-  sx_api: 'true',
-  sx_sys: 'true',
-  sx_scp: '',
+  cb_api: 'true',
+  cb_sys: 'true',
+  cb_scp: '',
 }
 const advance = (ms: number) => setSystemTime(new Date(Date.now() + ms))
 
@@ -80,10 +80,10 @@ async function setup() {
   const dana = (extra: Record<string, unknown> = {}) =>
     t.withIdentity({
       subject: 'dana',
-      sx_tok: 'tok',
-      sx_api: 'true',
-      sx_act: 'dana',
-      sx_scp:
+      cb_tok: 'tok',
+      cb_api: 'true',
+      cb_act: 'dana',
+      cb_scp:
         'repo:read repo:write issues:read issues:write pulls:read pulls:write pulls:merge',
       ...extra,
     })
@@ -177,7 +177,7 @@ test('a request whose key was taken over can no longer write, finish or give it 
   expect(secondLease).not.toBe(firstLease)
 
   const openIssue = (lease: string | undefined, title: string) =>
-    dana({ sx_idem: JSON.stringify([scope, 'k', lease]) }).mutation(
+    dana({ cb_idem: JSON.stringify([scope, 'k', lease]) }).mutation(
       forge.forge.issues.create,
       { owner: 'dana', name: 'gitfs', title },
     )
@@ -536,16 +536,16 @@ test('the lease sweep puts a silent runner’s job back in the queue, once', asy
   const s = await setup()
   const made = JSON.parse(
     await s
-      .dana({ sx_scp: 'repo:read repo:write runners:manage' })
+      .dana({ cb_scp: 'repo:read repo:write runners:manage' })
       .mutation(forge.forge.runners.create, { name: 'quiet', labels: [] }),
   ) as { id: string }
   const asRunner = s.t.withIdentity({
     subject: 'dana',
-    sx_tok: 'tok_runner',
-    sx_api: 'true',
-    sx_act: 'dana',
-    sx_scp: 'repo:read runners:claim runners:report',
-    sx_run: made.id,
+    cb_tok: 'tok_runner',
+    cb_api: 'true',
+    cb_act: 'dana',
+    cb_scp: 'repo:read runners:claim runners:report',
+    cb_run: made.id,
   })
   const job = JSON.parse(await asRunner.mutation(forge.forge.runners.claim, {}))
   expect(job.runner_id).toBe(made.id)

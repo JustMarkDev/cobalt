@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
-import { normalizeModels } from '@source-code/api/via'
+import { normalizeModels } from '@cobaltforge/api/via'
 import { tally, track } from '../lib/stats'
-import { newId, seededId } from '@source-code/api/ids'
+import { newId, seededId } from '@cobaltforge/api/ids'
 import { seedLabels } from '../lib/issues'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
@@ -1081,7 +1081,7 @@ export const commitFacts = query({
     const repo = await repoByKey(ctx, a.full)
     const facts = []
     for (const c of a.commits) {
-      const login = /^([a-z0-9-]+)@users\.source\.code$/.exec(
+      const login = /^([a-z0-9-]+)@users\.cobaltforge\.dev$/.exec(
         c.email.toLowerCase(),
       )?.[1]
       const who = login ? await knownActor(ctx, login) : null

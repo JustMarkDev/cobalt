@@ -1,6 +1,6 @@
-import { getGitRepo } from '@source-code/git'
+import { getGitRepo } from '@cobaltforge/git'
 import { apiError } from './problem'
-import type { GitRepo } from '@source-code/git'
+import type { GitRepo } from '@cobaltforge/git'
 
 /**
  * What the API reads from git. It is the slice of the git store the app already

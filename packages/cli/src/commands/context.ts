@@ -36,7 +36,7 @@ export const context: Command = async ({ flags }, ctx) => {
       autoLand: c.json.repo.auto_land ?? false,
       vouched: c.json.repo.vouched ?? [],
       declare:
-        'Set SX_MODEL to the model you are; every write keeps it on its receipt.',
+        'Set CB_MODEL to the model you are; every write keeps it on its receipt.',
     },
     envSchema: c.json.env.map((v: { name: string; kind: string }) => ({
       name: v.name,
@@ -44,13 +44,13 @@ export const context: Command = async ({ flags }, ctx) => {
     })),
     envAccess: {
       values: 'never returned here',
-      run: 'sx env run --env development -- <command>',
+      run: 'cb env run --env development -- <command>',
       who: "the repository's team, through the login of the machine you run on",
       production:
-        'waits until the person confirms this login on a signed-in page; sx says where',
+        'waits until the person confirms this login on a signed-in page; cb says where',
     },
     cursor: c.json.cursor,
-    note: 'Secret values are never included. Run commands through sx env run so values reach the process but never you.',
+    note: 'Secret values are never included. Run commands through cb env run so values reach the process but never you.',
   }
   print(ctx, data, () => JSON.stringify(data, null, 2))
 }

@@ -20,7 +20,7 @@ async function uploaded(
   await h.api.fetch(
     new Request(
       up.upload_url.replace(
-        'https://api.source.code/v1',
+        'https://api.cobaltforge.dev/v1',
         'https://api.test/v1',
       ),
       {

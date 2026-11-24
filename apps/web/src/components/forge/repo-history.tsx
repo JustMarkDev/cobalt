@@ -84,7 +84,7 @@ export function HistoryView({ repo }: { repo: Repo }) {
   const [q, setQ] = React.useState('')
   const first = useOp('git.commits', { ...at, limit: PAGE })
   const pages = useInfiniteQuery({
-    queryKey: ['sx', 'git.commits', at, 'pages'],
+    queryKey: ['cb', 'git.commits', at, 'pages'],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       pageParam === undefined

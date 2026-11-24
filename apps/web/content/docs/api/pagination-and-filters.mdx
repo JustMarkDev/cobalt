@@ -20,7 +20,7 @@ Every list is an object, never a bare array, so we can add to it later without b
 Pass `next_cursor` back as `cursor` to get the next page. Stop when `has_more` is `false`.
 
 ```bash
-curl "$SX/repos/dana/gitfs/changes?state=all&limit=50&cursor=c_WzE3…" -H "Authorization: Bearer $SX_TOKEN"
+curl "$CB/repos/dana/gitfs/changes?state=all&limit=50&cursor=c_WzE3…" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 - **Keyset, not offset.** A cursor holds the sort key and ID of the last item you got. The next page starts after it. Items added or removed meanwhile never shift the pages, and a page 150 deep costs the same as the first. There is no `page=N`.
@@ -30,7 +30,7 @@ curl "$SX/repos/dana/gitfs/changes?state=all&limit=50&cursor=c_WzE3…" -H "Auth
 
 ## Page size
 
-`limit` is 1 to 200 and defaults to 50. A larger value is clamped and the response says so in `Sx-Limit-Applied`. Both numbers are in `GET /v1/limits`, so a client does not have to hard-code them.
+`limit` is 1 to 200 and defaults to 50. A larger value is clamped and the response says so in `Cb-Limit-Applied`. Both numbers are in `GET /v1/limits`, so a client does not have to hard-code them.
 
 ## No totals by default
 
@@ -41,8 +41,8 @@ Counting is the slowest part of most lists, so no list returns a total today. To
 Every list uses the same words: filters are named after the field, and `sort` takes a field with `-` for descending.
 
 ```bash
-curl "$SX/repos/dana/gitfs/changes?state=open,draft&author=ines&label=perf&sort=-number"
-curl "$SX/repos/dana/gitfs/issues?state=all&label=bug"
+curl "$CB/repos/dana/gitfs/changes?state=open,draft&author=ines&label=perf&sort=-number"
+curl "$CB/repos/dana/gitfs/issues?state=all&label=bug"
 ```
 
 | List    | Filters                                              | Sort                                                       |
@@ -61,7 +61,7 @@ A filter that matches very few items still scans only as far as it must to fill 
 Ask for newline-delimited JSON and the list arrives as it is produced:
 
 ```bash
-curl "$SX/repos/dana/gitfs/changes?state=all" -H "Accept: application/x-ndjson" -H "Authorization: Bearer $SX_TOKEN"
+curl "$CB/repos/dana/gitfs/changes?state=all" -H "Accept: application/x-ndjson" -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 One object per line, then a last line `{"object":"page","has_more":false,"next_cursor":null}`. Use it for exports and for clients that want to start work before the page ends.

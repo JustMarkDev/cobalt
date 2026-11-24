@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { newId } from '@source-code/api/ids'
+import { newId } from '@cobaltforge/api/ids'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { signedIn } from '../lib/actor'

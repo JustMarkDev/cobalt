@@ -57,8 +57,8 @@ Open and draft changes by default, most recently updated first. Each change carr
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes?limit=2&fields=number,title,state,checks,policy" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes?limit=2&fields=number,title,state,checks,policy" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -117,7 +117,7 @@ ratelimit: "read";r=1193;t=60
 
 **Create a change from a branch**
 
-Naturally idempotent: asking again for a branch that already has an open change adds a patch set, or returns the same change when the branch did not move. `Sx-Outcome` says which: created, patch_set_added or unchanged.
+Naturally idempotent: asking again for a branch that already has an open change adds a patch set, or returns the same change when the branch did not move. `Cb-Outcome` says which: created, patch_set_added or unchanged.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -139,7 +139,7 @@ Naturally idempotent: asking again for a branch that already has an open change 
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -161,16 +161,16 @@ Naturally idempotent: asking again for a branch that already has an open change 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"branch":"fix/trailing-dot-refs","title":"Reject trailing-dot ref names","draft":true}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/repos/dana/gitfs/changes/219
-sx-outcome: created
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/219
+cb-outcome: created
 ratelimit: "write";r=113;t=60
 ```
 
@@ -179,13 +179,13 @@ ratelimit: "write";r=113;t=60
   "object": "change",
   "id": "chg_01m6tq6r80srjcp421",
   "number": 219,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/219",
-  "html_url": "https://source.code/dana/gitfs/changes/219",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/219",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/changes/219",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Reject trailing-dot ref names",
   "description": "",
@@ -296,8 +296,8 @@ A change is addressed by its number or its id. The object says what you may do n
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -311,13 +311,13 @@ ratelimit: "read";r=1192;t=60
   "object": "change",
   "id": "chg_01m6dqs9m0g7q74420",
   "number": 216,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216",
-  "html_url": "https://source.code/dana/gitfs/changes/216",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/changes/216",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Cache negative ref lookups",
   "description": "Remembers lookups for refs that do not exist, so asking again skips the disk. Added to `lookup()` in `src/refs.rs`, with a test that two misses cost one read…",
@@ -445,7 +445,7 @@ Send If-Match with the ETag you read to avoid overwriting someone else’s edit.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -462,8 +462,8 @@ Send If-Match with the ETag you read to avoid overwriting someone else’s edit.
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/changes/212" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/212" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"title":"Normalize Windows and UNC path separators","labels":["windows","bug"]}'
 ```
@@ -478,13 +478,13 @@ ratelimit: "write";r=114;t=60
   "object": "change",
   "id": "chg_01m6dqs9m0w3j6an18",
   "number": 212,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/212",
-  "html_url": "https://source.code/dana/gitfs/changes/212",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/212",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/changes/212",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Normalize Windows and UNC path separators",
   "description": "",
@@ -598,7 +598,7 @@ ratelimit: "write";r=114;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -607,8 +607,8 @@ ratelimit: "write";r=114;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/218/abandon" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/218/abandon" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -621,13 +621,13 @@ ratelimit: "write";r=111;t=60
   "object": "change",
   "id": "chg_01m6dqs9m0t1x4map7",
   "number": 218,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/218",
-  "html_url": "https://source.code/dana/gitfs/changes/218",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/218",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/changes/218",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Show cache stats in `gitfs doctor`",
   "description": "",
@@ -737,8 +737,8 @@ ratelimit: "write";r=111;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/checks" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/checks" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -791,7 +791,7 @@ ratelimit: "read";r=1188;t=60
 
 **Report a check run**
 
-CI and runners report here with the `tree` they ran on. The same `key` on the same tree updates one run; `Sx-Outcome` says created, updated or unchanged. A result for an older tree is stored but does not count for the head.
+CI and runners report here with the `tree` they ran on. The same `key` on the same tree updates one run; `Cb-Outcome` says created, updated or unchanged. A result for an older tree is stored but does not count for the head.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -814,7 +814,7 @@ CI and runners report here with the `tree` they ran on. The same `key` on the sa
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -834,15 +834,15 @@ CI and runners report here with the `tree` they ran on. The same `key` on the sa
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/checks" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/checks" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"key":"ci/test","state":"pass","tree":"9c4d7e1","details_url":"https://ci.example.com/runs/881"}'
 ```
 
 ```http
 HTTP/1.1 200
-sx-outcome: updated
+cb-outcome: updated
 ratelimit: "write";r=116;t=60
 ```
 
@@ -917,8 +917,8 @@ Oldest first: comments on a line, on a file and on the whole change, with replie
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/comments" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1032,7 +1032,7 @@ Give `file` and `line` for a line, `file` alone for a file, neither for the whol
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1052,8 +1052,8 @@ Give `file` and `line` for a line, `file` alone for a file, neither for the whol
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/comments" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 8a1e5c3d-7b2f-4d9a-b6e0-3c4f1a2d5e7b" \
   -H "Content-Type: application/json" \
   -d '{"body":"Does this still hold when the ref is packed?","file":"src/refs.rs","line":3}'
@@ -1130,7 +1130,7 @@ Its author, or anyone who can change the repository. Deleting the comment that s
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1139,8 +1139,8 @@ Its author, or anyone who can change the repository. Deleting the comment that s
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1178,7 +1178,7 @@ ratelimit: "write";r=95;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1194,8 +1194,8 @@ ratelimit: "write";r=95;t=60
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"resolved":true}'
 ```
@@ -1280,7 +1280,7 @@ Links a fix to the comment it answers. The thread's author is told, and the chan
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1296,8 +1296,8 @@ Links a fix to the comment it answers. The thread's author is told, and the chan
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj/address" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/comments/cmt_01m6tq6r80bawfbmjj/address" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"note":"Packed refs go through the same lookup now."}'
 ```
@@ -1390,8 +1390,8 @@ The files that differ between patch sets, so a reviewer who read patch set 2 rea
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/compare?from=2&to=3" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/compare?from=2&to=3" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1453,13 +1453,13 @@ ratelimit: "heavy";r=117;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings?state=open" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings?state=open" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"0P4sN6waZujv0CFd"
+etag: W/"hyZ69altdNXh2jEC"
 ratelimit: "read";r=1189;t=60
 ```
 
@@ -1480,7 +1480,7 @@ ratelimit: "read";r=1189;t=60
       "title": "NegCache is unbounded",
       "body": "The positive cache in src/cache.rs evicts at 10,000 entries, but put() here never evicts. A scan of random names grows memory without limit.",
       "patch_set": 3,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40a9zg92n0",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40a9zg92n0",
       "suggestion": {
         "summary": "Cap the cache at the same size as the positive one",
         "file": "src/refs.rs",
@@ -1507,7 +1507,7 @@ ratelimit: "read";r=1189;t=60
       "title": "Lookup takes the cache lock on every call",
       "body": "contains() locks the whole map even for repeat hits. A read-mostly structure would keep lookups lock-free under load.",
       "patch_set": 3,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40xtsz03t4",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40xtsz03t4",
       "suggestion": {
         "summary": "Read a snapshot instead of taking the lock",
         "file": "src/refs.rs",
@@ -1555,7 +1555,7 @@ For a reviewer, person or bot: a problem on a line of the newest patch set, with
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1576,8 +1576,8 @@ For a reviewer, person or bot: a problem on a line of the newest patch set, with
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 2f7a9c1e-4b3d-4e8a-9f6b-1c0d5e7a3b28" \
   -H "Content-Type: application/json" \
   -d '{"severity":"medium","file":"src/refs.rs","line":3,"title":"The cache is never bounded","body":"A long-running mount keeps every missing ref forever."}'
@@ -1602,7 +1602,7 @@ ratelimit: "write";r=118;t=60
   "title": "The cache is never bounded",
   "body": "A long-running mount keeps every missing ref forever.",
   "patch_set": 4,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6tq6r8060d2gg0y",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6tq6r8060d2gg0y",
   "suggestion": null,
   "prompt": null,
   "via": {
@@ -1642,7 +1642,7 @@ ratelimit: "write";r=118;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1657,8 +1657,8 @@ ratelimit: "write";r=118;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/F-3/dismiss" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/F-3/dismiss" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"reason":"Covered by the docs change in #209"}'
 ```
@@ -1682,7 +1682,7 @@ ratelimit: "write";r=117;t=60
   "title": "Lookup takes the cache lock on every call",
   "body": "contains() locks the whole map even for repeat hits. A read-mostly structure would keep lookups lock-free under load.",
   "patch_set": 3,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40xtsz03t4",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40xtsz03t4",
   "suggestion": {
     "summary": "Read a snapshot instead of taking the lock",
     "file": "src/refs.rs",
@@ -1724,7 +1724,7 @@ ratelimit: "write";r=117;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1733,8 +1733,8 @@ ratelimit: "write";r=117;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/F-2/resolve" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/F-2/resolve" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1756,7 +1756,7 @@ ratelimit: "write";r=118;t=60
   "title": "NegCache is unbounded",
   "body": "The positive cache in src/cache.rs evicts at 10,000 entries, but put() here never evicts. A scan of random names grows memory without limit.",
   "patch_set": 3,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40a9zg92n0",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/findings/fnd_01m6rf3m40a9zg92n0",
   "suggestion": {
     "summary": "Cap the cache at the same size as the positive one",
     "file": "src/refs.rs",
@@ -1803,8 +1803,8 @@ What the change does and the order to read its files in, each with why and how r
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/guide" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/guide" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1875,7 +1875,7 @@ For the agent or person who knows the change best: a summary and every file wort
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1892,8 +1892,8 @@ For the agent or person who knows the change best: a summary and every file wort
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/changes/216/guide" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/guide" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"summary":"Caches missing refs so a lookup reads the disk once.","order":[{"path":"src/refs.rs","why":"The cache, and where a miss fills it.","risk":"medium"},{"path":"tests/refs_test.rs","why":"Proves one read.","risk":"low"}]}'
 ```
@@ -1966,7 +1966,7 @@ Lands exactly the tree you name. If the change moved, it is stale_head. If polic
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1981,15 +1981,15 @@ Lands exactly the tree you name. If the change moved, it is stale_head. If polic
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/stacky/changes/1/land?dry_run=true" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/stacky/changes/1/land?dry_run=true" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"expected_tree":"1111111"}'
 ```
 
 ```http
 HTTP/1.1 200
-sx-dry-run: true
+cb-dry-run: true
 ratelimit: "write";r=119;t=60
 ```
 
@@ -1998,13 +1998,13 @@ ratelimit: "write";r=119;t=60
   "object": "change",
   "id": "chg_stacky100000000000",
   "number": 1,
-  "url": "https://api.source.code/v1/repos/dana/stacky/changes/1",
-  "html_url": "https://source.code/dana/stacky/changes/1",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/stacky/changes/1",
+  "html_url": "https://cobaltforge.dev/dana/stacky/changes/1",
   "repo": {
     "object": "repo",
     "id": "rep_01m6nezem0qw6cjdq0",
     "full_name": "dana/stacky",
-    "url": "https://api.source.code/v1/repos/dana/stacky"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/stacky"
   },
   "title": "Step 1 of the migration",
   "description": "",
@@ -2117,8 +2117,8 @@ Each failed or pending requirement and each landing step it waits on, with why, 
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/landability" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/landability" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2209,13 +2209,13 @@ ratelimit: "read";r=1159;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"qEExpUJwNZq5Q6kZ"
+etag: W/"r7vZafBEeRyJ40hl"
 ratelimit: "read";r=1191;t=60
 ```
 
@@ -2236,7 +2236,7 @@ ratelimit: "read";r=1191;t=60
         "handle": "dana"
       },
       "files": 2,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/1",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/1",
       "via": null,
       "created_at": "2026-11-04T09:00:00.000Z"
     },
@@ -2253,7 +2253,7 @@ ratelimit: "read";r=1191;t=60
         "handle": "dana"
       },
       "files": 2,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/2",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/2",
       "via": null,
       "created_at": "2026-11-05T09:00:00.000Z"
     },
@@ -2293,7 +2293,7 @@ ratelimit: "read";r=1191;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -2312,15 +2312,15 @@ ratelimit: "read";r=1191;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/212/patch-sets" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/212/patch-sets" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"sha":"8e41c07d2b9a","kind":"update","note":"Handle UNC paths"}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/repos/dana/gitfs/changes/212/patch-sets/3
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/212/patch-sets/3
 ratelimit: "write";r=115;t=60
 ```
 
@@ -2338,7 +2338,7 @@ ratelimit: "write";r=115;t=60
     "handle": "dana"
   },
   "files": 2,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/212/patch-sets/3",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/212/patch-sets/3",
   "via": {
     "machine": "Laptop",
     "tool": null,
@@ -2378,13 +2378,13 @@ ratelimit: "write";r=115;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/3" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/3" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"nxhobOMXS3x57ynM"
+etag: W/"kt6fkyOJJpd-gHa2"
 ratelimit: "read";r=1190;t=60
 ```
 
@@ -2402,7 +2402,7 @@ ratelimit: "read";r=1190;t=60
     "handle": "dana"
   },
   "files": 2,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/3",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/3",
   "via": null,
   "created_at": "2026-11-06T09:00:00.000Z"
 }
@@ -2440,8 +2440,8 @@ Every file the change touches, on the base and at this patch set, to draw a diff
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/3/files" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/3/files" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2502,8 +2502,8 @@ The people and agents with the change open now, and the file each is on. It chan
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/presence" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/presence" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2571,8 +2571,8 @@ A heartbeat: send one every `interval` seconds while the change is open, with th
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/changes/216/presence" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/presence" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"session":"tab-7f3a91c2","path":"src/refs.rs"}'
 ```
@@ -2629,7 +2629,7 @@ ratelimit: "write";r=76;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -2638,8 +2638,8 @@ ratelimit: "write";r=76;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/218/ready" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/218/ready" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2652,13 +2652,13 @@ ratelimit: "write";r=112;t=60
   "object": "change",
   "id": "chg_01m6dqs9m0t1x4map7",
   "number": 218,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/218",
-  "html_url": "https://source.code/dana/gitfs/changes/218",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/218",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/changes/218",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Show cache stats in `gitfs doctor`",
   "description": "",
@@ -2762,7 +2762,7 @@ ratelimit: "write";r=112;t=60
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -2771,8 +2771,8 @@ ratelimit: "write";r=112;t=60
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/218/restore" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/218/restore" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -2785,13 +2785,13 @@ ratelimit: "write";r=110;t=60
   "object": "change",
   "id": "chg_01m6dqs9m0t1x4map7",
   "number": 218,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/218",
-  "html_url": "https://source.code/dana/gitfs/changes/218",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/218",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/changes/218",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Show cache stats in `gitfs doctor`",
   "description": "",
@@ -2897,7 +2897,7 @@ An approval is tied to a patch set and says whether it still holds for the head.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -2914,8 +2914,8 @@ An approval is tied to a patch set and says whether it still holds for the head.
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/212/reviews" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/212/reviews" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"state":"commented","body":"The regression test covers it. One question inline."}'
 ```
@@ -2978,8 +2978,8 @@ Yours alone. A file counts as seen while it is the same as when you marked it; a
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/seen" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/seen" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -3041,7 +3041,7 @@ For a reviewer working through a change file by file, and for an agent or the CL
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -3057,8 +3057,8 @@ For a reviewer working through a change file by file, and for an agent or the CL
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/changes/216/seen" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/seen" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"paths":["src/refs.rs"]}'
 ```
@@ -3130,13 +3130,13 @@ Everything that happened to a change, oldest first: patch sets, review comments,
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/timeline?limit=5" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/timeline?limit=5" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"hr1lXuoDdoRndgpA"
+etag: W/"zq-nDYqXjfXNkHFz"
 ratelimit: "read";r=1156;t=60
 ```
 
@@ -3169,7 +3169,7 @@ ratelimit: "read";r=1156;t=60
           "handle": "dana"
         },
         "files": 2,
-        "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/1",
+        "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/1",
         "via": null,
         "created_at": "2026-11-04T09:00:00.000Z"
       }
@@ -3199,7 +3199,7 @@ ratelimit: "read";r=1156;t=60
           "handle": "dana"
         },
         "files": 2,
-        "url": "https://api.source.code/v1/repos/dana/gitfs/changes/216/patch-sets/2",
+        "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/patch-sets/2",
         "via": null,
         "created_at": "2026-11-05T09:00:00.000Z"
       }
@@ -3241,7 +3241,7 @@ Returns 202 and an operation. Children are rebased onto what landed and keep the
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -3256,15 +3256,15 @@ Returns 202 and an operation. Children are rebased onto what landed and keep the
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/stacky/stacks/stk_stacky000000000000/land" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/stacky/stacks/stk_stacky000000000000/land" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"expected_trees":{"1":"1111111","2":"2222222","3":"3333333"}}'
 ```
 
 ```http
 HTTP/1.1 202
-location: https://api.source.code/v1/operations/op_01m6tq6r80vx1nsgvy
+location: https://api.cobaltforge.dev/v1/operations/op_01m6tq6r80vx1nsgvy
 retry-after: 1
 ratelimit: "write";r=8;t=60
 ```
@@ -3281,7 +3281,7 @@ ratelimit: "write";r=8;t=60
   },
   "result": null,
   "error": null,
-  "url": "https://api.source.code/v1/operations/op_01m6tq6r80vx1nsgvy",
+  "url": "https://api.cobaltforge.dev/v1/operations/op_01m6tq6r80vx1nsgvy",
   "created_at": "2026-11-07T10:00:00.000Z",
   "finished_at": null,
   "steps": [

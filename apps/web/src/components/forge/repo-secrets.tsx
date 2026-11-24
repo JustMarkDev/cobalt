@@ -165,7 +165,7 @@ function RotateDialog({
             Or from a terminal in the repository:
           </p>
           <CopyField
-            value={`printf %s "$VALUE" | sx env set ${v.name} - --env ${env} -R ${repo.owner}/${repo.name}`}
+            value={`printf %s "$VALUE" | cb env set ${v.name} - --env ${env} -R ${repo.owner}/${repo.name}`}
             prefix="$"
           />
           <p className="text-xs text-muted-foreground">
@@ -191,7 +191,7 @@ type Confirmation = {
 /**
  * Production values wait for the person to confirm the login that asked,
  * from here: a page you are signed in to, which a token cannot reach. A link
- * from `sx` (`?confirm=cnf_…`) opens the request; nothing is confirmed until
+ * from `cb` (`?confirm=cnf_…`) opens the request; nothing is confirmed until
  * you press the button.
  */
 function Confirmations({ repo }: { repo: Repo }) {
@@ -315,13 +315,13 @@ function WhoReads({ repo }: { repo: Repo }) {
         on this page, not in a clone, not through the API.
       </p>
       <CopyField
-        value={`sx env run --env development -R ${repo.owner}/${repo.name} -- bun dev`}
+        value={`cb env run --env development -R ${repo.owner}/${repo.name} -- bun dev`}
         prefix="$"
       />
       <p className="text-xs text-muted-foreground">
         Values go into that one process and are scrubbed from what it prints. No
         .env file is written unless you ask for one with{' '}
-        <code>sx env pull --plaintext</code>.
+        <code>cb env pull --plaintext</code>.
       </p>
     </Panel>
   )

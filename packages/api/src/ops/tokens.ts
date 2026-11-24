@@ -171,7 +171,7 @@ export const createToken = defineOp({
           throw apiError(
             'forbidden',
             'A token that reads secret values is made by signing a machine in, not from a page.',
-            { hint: 'Run sx auth login on the machine that needs them.' },
+            { hint: 'Run cb auth login on the machine that needs them.' },
           )
         const missing = body.scopes.filter((s) => !p.scopes.has(s))
         if (missing.length)
@@ -225,7 +225,7 @@ export const createToken = defineOp({
               repos,
               paths,
               audience: ['api', 'mcp'],
-              prefix: 'sxp_',
+              prefix: 'cbp_',
               createdAt: ctx.now(),
               expiresAt: ctx.now() + body.expires_in_days * 86_400_000,
               lastUsedAt: null,

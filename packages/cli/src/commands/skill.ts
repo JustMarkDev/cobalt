@@ -1,4 +1,4 @@
-import { SxError, exit, print } from '../output'
+import { CbError, exit, print } from '../output'
 import { str } from '../args'
 import { installSkill, skillFile } from '../skill'
 import { schema } from '../schema'
@@ -12,18 +12,18 @@ export const skill: Command = ({ rest, flags }, ctx) => {
     return
   }
   if (sub !== 'install')
-    throw new SxError(
+    throw new CbError(
       'unknown_command',
       `skill ${sub} is not a command.`,
-      'sx skill prints the skill. sx skill install writes it into this repository.',
+      'cb skill prints the skill. cb skill install writes it into this repository.',
       exit.usage,
     )
   const target = str(flags, 'target') ?? 'claude'
   if (target !== 'claude' && target !== 'agents')
-    throw new SxError(
+    throw new CbError(
       'bad_target',
       `${target} is not a skill target.`,
-      'Use --target claude (.claude/skills/sx/SKILL.md) or --target agents (AGENTS.md).',
+      'Use --target claude (.claude/skills/cb/SKILL.md) or --target agents (AGENTS.md).',
       exit.usage,
     )
   if (flags['dry-run'] === true) {
@@ -38,7 +38,7 @@ export const skill: Command = ({ rest, flags }, ctx) => {
   print(ctx, { target, ...r }, () => `${r.action} ${r.path}`)
 }
 
-/** `sx commands`: the whole CLI as JSON. Always JSON, since its reader is a program. */
+/** `cb commands`: the whole CLI as JSON. Always JSON, since its reader is a program. */
 export const commandsList: Command = (_args, ctx) => {
   ctx.out(JSON.stringify({ commands: schema }, null, 2))
 }

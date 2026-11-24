@@ -29,14 +29,14 @@ The format follows [Varlock](https://varlock.dev/getting-started/introduction/)'
 
 ## Values
 
-Values are not in the repository, encrypted or otherwise, so a clone carries none. They live on source.code, sealed, and only the repository's team reads them:
+Values are not in the repository, encrypted or otherwise, so a clone carries none. They live on cobalt, sealed, and only the repository's team reads them:
 
 ```bash
-printf %s "$VALUE" | sx env set DATABASE_URL - --env production
-sx env run --env development -- bun test
+printf %s "$VALUE" | cb env set DATABASE_URL - --env production
+cb env run --env development -- bun test
 ```
 
-See [Secrets](/docs/concepts/secrets). Do not commit a `.env` file; if you pull one with `sx env pull --plaintext`, keep it out of git.
+See [Secrets](/docs/concepts/secrets). Do not commit a `.env` file; if you pull one with `cb env pull --plaintext`, keep it out of git.
 
 ## Environments
 

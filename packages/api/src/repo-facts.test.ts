@@ -76,13 +76,13 @@ describe('stars', () => {
       token: h.tokens.stranger,
     })
     expect(added.status).toBe(200)
-    expect(added.headers.get('sx-outcome')).toBe('updated')
+    expect(added.headers.get('cb-outcome')).toBe('updated')
     expect(added.json.starred).toBe(true)
     expect(added.json.stars).toBe(before.stars + 1)
     const again = await h.call('PUT', `${R}/star`, {
       token: h.tokens.stranger,
     })
-    expect(again.headers.get('sx-outcome')).toBe('unchanged')
+    expect(again.headers.get('cb-outcome')).toBe('unchanged')
     expect(again.json.stars).toBe(before.stars + 1)
     // It is the caller's star: someone else has not starred it.
     expect((await h.call('GET', `${R}/star`)).json.starred).toBe(false)
@@ -94,7 +94,7 @@ describe('stars', () => {
     const twice = await h.call('DELETE', `${R}/star`, {
       token: h.tokens.stranger,
     })
-    expect(twice.headers.get('sx-outcome')).toBe('unchanged')
+    expect(twice.headers.get('cb-outcome')).toBe('unchanged')
     expect((await h.call('GET', R)).json.stars).toBe(before.stars)
   })
 

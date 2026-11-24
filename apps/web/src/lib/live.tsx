@@ -6,7 +6,7 @@ import type { Query, QueryClient } from '@tanstack/react-query'
 
 /**
  * Keeps what is on screen current. The page's reads are named by their query
- * keys (`['sx', id, input]`), and their inputs say which repository or
+ * keys (`['cb', id, input]`), and their inputs say which repository or
  * account each is about. One live Convex query watches just those, and the
  * viewer's own things; when one moves, only the reads about it are fetched
  * again. A write in one repository does not make every open page read
@@ -21,7 +21,7 @@ type Watched = {
 
 const inputOf = (q: Pick<Query, 'queryKey'>) => {
   const [root, , input] = q.queryKey
-  if (root !== 'sx' || !input || typeof input !== 'object') return null
+  if (root !== 'cb' || !input || typeof input !== 'object') return null
   return input as Record<string, unknown>
 }
 

@@ -66,7 +66,7 @@ function hooksHarness() {
   const h = harness({ now, transport, scheduler })
   const create = async (
     events = ['*'],
-    endpoint = 'https://hooks.example.com/sx',
+    endpoint = 'https://hooks.example.com/cb',
   ) => {
     const r = await h.call('POST', `${REPO}/webhooks`, {
       body: { endpoint, events },
@@ -95,7 +95,7 @@ describe('webhooks: endpoints', () => {
     expect(made.secret).toMatch(/^whsec_/)
     expect(made).toMatchObject({
       object: 'webhook',
-      endpoint: 'https://hooks.example.com/sx',
+      endpoint: 'https://hooks.example.com/cb',
       active: true,
       events: ['change.*', 'issue.created'],
     })
@@ -132,7 +132,7 @@ describe('webhooks: endpoints', () => {
 
   test('only people who can write the repository, with the scope, manage webhooks', async () => {
     const h = hooksHarness()
-    const body = { endpoint: 'https://hooks.example.com/sx', events: ['*'] }
+    const body = { endpoint: 'https://hooks.example.com/cb', events: ['*'] }
     expect(
       (
         await h.call('POST', `${REPO}/webhooks`, {
@@ -223,7 +223,7 @@ describe('webhooks: deliveries', () => {
     expect(Number(sent.headers['webhook-timestamp'])).toBe(
       Math.floor(h.now() / 1000),
     )
-    expect(sent.headers['sx-event']).toBe('issue.created')
+    expect(sent.headers['cb-event']).toBe('issue.created')
     expect(verify(made.secret, sent)).toBe(true)
     // Not a valid signature for another secret or a tampered body.
     expect(
@@ -335,7 +335,7 @@ describe('webhooks: deliveries', () => {
     const ping = await h.call('POST', `${REPO}/webhooks/${made.id}/ping`)
     expect(ping.status).toBe(202)
     await h.settle()
-    expect(h.transport.sent[0].headers['sx-event']).toBe('webhook.ping')
+    expect(h.transport.sent[0].headers['cb-event']).toBe('webhook.ping')
     expect(verify(made.secret, h.transport.sent[0])).toBe(true)
 
     const before = h.api.events.head
@@ -782,7 +782,7 @@ describe('uploads', () => {
   ) =>
     h.api.fetch(
       new Request(
-        url.replace('https://api.source.code/v1', 'https://api.test/v1'),
+        url.replace('https://api.cobaltforge.dev/v1', 'https://api.test/v1'),
         {
           method: 'PUT',
           headers: { 'content-type': type },
@@ -807,7 +807,7 @@ describe('uploads', () => {
     const got = await h.api.fetch(
       new Request(
         done.content_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         { headers: { authorization: `Bearer ${h.tokens.dana}` } },
@@ -850,7 +850,7 @@ describe('uploads', () => {
       h.api.fetch(
         new Request(
           made.upload_url.replace(
-            'https://api.source.code/v1',
+            'https://api.cobaltforge.dev/v1',
             'https://api.test/v1',
           ),
           {
@@ -878,7 +878,7 @@ describe('uploads', () => {
       h.api.fetch(
         new Request(
           u.upload_url.replace(
-            'https://api.source.code/v1',
+            'https://api.cobaltforge.dev/v1',
             'https://api.test/v1',
           ),
           {
@@ -895,7 +895,7 @@ describe('uploads', () => {
     expect((await send(a, '1.1.1.1')).status).toBe(200)
     const second = await send(b, '2.2.2.2')
     expect(second.status).toBe(200)
-    expect(second.headers.get('sx-replayed')).toBeNull()
+    expect(second.headers.get('cb-replayed')).toBeNull()
   })
 
   test('an upload that is never attached is swept after its grace period', async () => {
@@ -984,7 +984,7 @@ describe('uploads', () => {
     const res = await h.api.fetch(
       new Request(
         made.upload_url.replace(
-          'https://api.source.code/v1',
+          'https://api.cobaltforge.dev/v1',
           'https://api.test/v1',
         ),
         {
@@ -1024,7 +1024,7 @@ describe('uploads', () => {
     ).toBe(1)
     // Public repository: anyone can read the attached file. Before attaching, nobody else could.
     const url = ev.json.upload.content_url.replace(
-      'https://api.source.code/v1',
+      'https://api.cobaltforge.dev/v1',
       'https://api.test/v1',
     )
     expect((await h.api.fetch(new Request(url))).status).toBe(200)
@@ -1156,9 +1156,9 @@ describe('creating repositories', () => {
       visibility: 'public',
       description: 'Scratch',
     })
-    expect(a.headers.get('sx-outcome')).toBe('created')
+    expect(a.headers.get('cb-outcome')).toBe('created')
     const b = await h.call('POST', '/repos', { body: { name: 'notes2' } })
-    expect([b.status, b.headers.get('sx-outcome'), b.json.id]).toEqual([
+    expect([b.status, b.headers.get('cb-outcome'), b.json.id]).toEqual([
       200,
       'unchanged',
       a.json.id,
@@ -1232,7 +1232,7 @@ describe('mirrors', () => {
     const add = await h.call('POST', R, {
       body: { host: 'codeberg', slug: 'dana/gitfs', direction: 'push' },
     })
-    expect([add.status, add.headers.get('sx-outcome')]).toEqual([
+    expect([add.status, add.headers.get('cb-outcome')]).toEqual([
       201,
       'created',
     ])

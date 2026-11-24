@@ -427,7 +427,7 @@ export abstract class DomainInsights extends DomainImports {
     const commitTimes: Array<number> = []
     for (const r of owned)
       for (const c of await this.history(r, 300))
-        if (c.author.email.toLowerCase() === `${me}@users.source.code`)
+        if (c.author.email.toLowerCase() === `${me}@users.cobaltforge.dev`)
           commitTimes.push(Date.parse(c.date))
     const reviewTimes: Array<number> = []
     const openedTimes: Array<number> = []

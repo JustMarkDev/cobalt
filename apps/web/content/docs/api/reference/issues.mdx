@@ -54,8 +54,8 @@ Open by default, newest number first.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/issues?state=all&limit=2" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues?state=all&limit=2" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -72,13 +72,13 @@ ratelimit: "read";r=1185;t=60
       "object": "issue",
       "id": "iss_01m60vspm0fb68frme",
       "number": 209,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/issues/209",
-      "html_url": "https://source.code/dana/gitfs/issues/209",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/209",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/issues/209",
       "repo": {
         "object": "repo",
         "id": "rep_01m3kkw4m0zvf3zfc9",
         "full_name": "dana/gitfs",
-        "url": "https://api.source.code/v1/repos/dana/gitfs"
+        "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
       },
       "title": "Document the cache flags",
       "body": "",
@@ -100,13 +100,13 @@ ratelimit: "read";r=1185;t=60
       "object": "issue",
       "id": "iss_01m60vspm0vzeemxf0",
       "number": 7,
-      "url": "https://api.source.code/v1/repos/dana/gitfs/issues/7",
-      "html_url": "https://source.code/dana/gitfs/issues/7",
+      "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/7",
+      "html_url": "https://cobaltforge.dev/dana/gitfs/issues/7",
       "repo": {
         "object": "repo",
         "id": "rep_01m3kkw4m0zvf3zfc9",
         "full_name": "dana/gitfs",
-        "url": "https://api.source.code/v1/repos/dana/gitfs"
+        "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
       },
       "title": "Support read-only mounts",
       "body": "",
@@ -136,7 +136,7 @@ ratelimit: "read";r=1185;t=60
 
 **Open an issue**
 
-Naturally idempotent: an open issue with the same title is returned instead of a second one. `Sx-Outcome` is created or unchanged.
+Naturally idempotent: an open issue with the same title is returned instead of a second one. `Cb-Outcome` is created or unchanged.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -158,7 +158,7 @@ Naturally idempotent: an open issue with the same title is returned instead of a
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -176,8 +176,8 @@ Naturally idempotent: an open issue with the same title is returned instead of a
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/issues" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: c1f0e7a2-5b1d-4f3a-9a7c-2d6e8b0f4a11" \
   -H "Content-Type: application/json" \
   -d '{"title":"Crash on empty repo","labels":["bug"]}'
@@ -185,8 +185,8 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/issues" \
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/repos/dana/gitfs/issues/220
-sx-outcome: created
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/220
+cb-outcome: created
 ratelimit: "write";r=108;t=60
 ```
 
@@ -195,13 +195,13 @@ ratelimit: "write";r=108;t=60
   "object": "issue",
   "id": "iss_01m6tq6r80e9enjepj",
   "number": 220,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/issues/220",
-  "html_url": "https://source.code/dana/gitfs/issues/220",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/220",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/issues/220",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Crash on empty repo",
   "body": "",
@@ -259,8 +259,8 @@ ratelimit: "write";r=108;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/issues/4" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -274,13 +274,13 @@ ratelimit: "read";r=1184;t=60
   "object": "issue",
   "id": "iss_01m60vspm0e27awv79",
   "number": 4,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/issues/4",
-  "html_url": "https://source.code/dana/gitfs/issues/4",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/issues/4",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Panic on trailing-dot ref names",
   "body": "Cloning a repository with a ref named `release.` panics in `Refs::lookup`.",
@@ -335,7 +335,7 @@ Send If-Match with the ETag you read. `state: closed` closes.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -354,8 +354,8 @@ Send If-Match with the ETag you read. `state: closed` closes.
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/4" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "if-match: W/\"iss_01m60vspm0e27awv79.1.1.0-Fo5kJPZtZazuIpIR\"" \
   -H "Content-Type: application/json" \
   -d '{"state":"closed"}'
@@ -371,13 +371,13 @@ ratelimit: "write";r=107;t=60
   "object": "issue",
   "id": "iss_01m60vspm0e27awv79",
   "number": 4,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/issues/4",
-  "html_url": "https://source.code/dana/gitfs/issues/4",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4",
+  "html_url": "https://cobaltforge.dev/dana/gitfs/issues/4",
   "repo": {
     "object": "repo",
     "id": "rep_01m3kkw4m0zvf3zfc9",
     "full_name": "dana/gitfs",
-    "url": "https://api.source.code/v1/repos/dana/gitfs"
+    "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs"
   },
   "title": "Panic on trailing-dot ref names",
   "body": "Cloning a repository with a ref named `release.` panics in `Refs::lookup`.",
@@ -443,8 +443,8 @@ Oldest first.
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/comments" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/comments" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -520,7 +520,7 @@ Anyone who can read the repository may comment. Not idempotent by nature: send a
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -535,8 +535,8 @@ Anyone who can read the repository may comment. Not idempotent by nature: send a
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/issues/4/comments" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/comments" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 5e0b7d1c-2a4f-4c8e-b3d9-71f6a2c0e9b4" \
   -H "Content-Type: application/json" \
   -d '{"body":"Fixed by #217, closing."}'
@@ -595,8 +595,8 @@ The people and agents with the issue open now, and the file each is on. It chang
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/presence" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/presence" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -664,8 +664,8 @@ A heartbeat: send one every `interval` seconds while the issue is open, with the
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/repos/dana/gitfs/issues/4/presence" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/presence" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"session":"tab-7f3a91c2"}'
 ```
@@ -733,13 +733,13 @@ Everything that happened to an issue, oldest first: comments, evidence, the note
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/timeline" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/timeline" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"UGudWJ542pznrSgm"
+etag: W/"8RKAUgQzqD4BERGz"
 ratelimit: "read";r=1155;t=60
 ```
 
@@ -837,7 +837,7 @@ Its author, or anyone who can change the repository.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -846,8 +846,8 @@ Its author, or anyone who can change the repository.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80dvhcf1ay" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80dvhcf1ay" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -884,7 +884,7 @@ Its author only. Send If-Match with the ETag you read.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -899,8 +899,8 @@ Its author only. Send If-Match with the ETag you read.
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80dvhcf1ay" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/comments/cmt_01m6tq6r80dvhcf1ay" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"body":"Fixed by #217."}'
 ```
@@ -964,8 +964,8 @@ Every label, by name, with how many open issues carry it. A repository starts wi
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/labels" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/labels" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1009,7 +1009,7 @@ ratelimit: "read";r=1182;t=60
 
 **Add a label**
 
-Naturally idempotent: a label with the same name, in any case, is returned instead. `Sx-Outcome` is created or unchanged.
+Naturally idempotent: a label with the same name, in any case, is returned instead. `Cb-Outcome` is created or unchanged.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -1031,7 +1031,7 @@ Naturally idempotent: a label with the same name, in any case, is returned inste
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1048,15 +1048,15 @@ Naturally idempotent: a label with the same name, in any case, is returned inste
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/labels" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/labels" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"windows","color":"blue","description":"Windows only"}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=106;t=60
 ```
 
@@ -1101,7 +1101,7 @@ It comes off every issue that has it.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -1110,8 +1110,8 @@ It comes off every issue that has it.
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/labels/windows" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/labels/windows" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -1148,7 +1148,7 @@ A new name follows the label onto every issue that has it.
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -1165,8 +1165,8 @@ A new name follows the label onto every issue that has it.
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/labels/windows" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/labels/windows" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"color":"purple"}'
 ```

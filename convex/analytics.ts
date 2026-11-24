@@ -93,7 +93,7 @@ export const send = internalAction({
               properties: {
                 ...(JSON.parse(e.props) as Record<string, unknown>),
                 $process_person_profile: false,
-                $lib: 'source-code-convex',
+                $lib: 'cobalt-convex',
               },
             })),
           ),

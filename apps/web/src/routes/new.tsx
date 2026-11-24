@@ -14,7 +14,7 @@ import { Select, SelectItem } from '~/components/ui/select'
 import { field } from '~/components/ui/input'
 
 export const Route = createFileRoute('/new')({
-  head: () => ({ meta: [{ title: 'New repository · source.code' }] }),
+  head: () => ({ meta: [{ title: 'New repository · cobalt' }] }),
   validateSearch: (
     s: Record<string, unknown>,
   ): { mode?: 'create' | 'import' } => ({
@@ -120,7 +120,7 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
           </div>
         </div>
         <CopyField
-          value={`git remote add origin https://source.code/${owner.handle}/${created}.git`}
+          value={`git remote add origin https://cobaltforge.dev/${owner.handle}/${created}.git`}
         />
         <CopyField value="git push -u origin main" />
         <Button

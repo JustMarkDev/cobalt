@@ -16,7 +16,7 @@ import { Input } from '~/components/ui/input'
 import { authClient, safeRedirect } from '~/lib/auth/client'
 
 export const Route = createFileRoute('/sign-up')({
-  head: () => ({ meta: [{ title: 'Create your account · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Create your account · cobalt' }] }),
   validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
     redirect: safeRedirect(s.redirect),
   }),

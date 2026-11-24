@@ -25,7 +25,7 @@ export const errorCatalog = {
     title: 'That API version is not supported',
     retryable: false,
     exit: 2,
-    hint: 'Omit Sx-Version, or use one listed in GET /v1.',
+    hint: 'Omit Cb-Version, or use one listed in GET /v1.',
   },
   unauthenticated: {
     status: 401,
@@ -39,7 +39,7 @@ export const errorCatalog = {
     title: 'The token is not valid',
     retryable: false,
     exit: 4,
-    hint: 'Check the token was copied whole. Tokens start with sxp_ or sxo_.',
+    hint: 'Check the token was copied whole. Tokens start with cbp_ or cbo_.',
   },
   token_expired: {
     status: 401,
@@ -53,7 +53,7 @@ export const errorCatalog = {
     title: 'The token lacks a scope this needs',
     retryable: false,
     exit: 5,
-    hint: 'Create a token with the scopes in required_scopes, or sign in again with them (sx auth login --scope).',
+    hint: 'Create a token with the scopes in required_scopes, or sign in again with them (cb auth login --scope).',
   },
   forbidden: {
     status: 403,
@@ -95,7 +95,7 @@ export const errorCatalog = {
     title: 'This server keeps no secret values',
     retryable: false,
     exit: 1,
-    hint: 'The server has no SX_SECRETS_KEY, so it seals and opens nothing. Names and kinds still work.',
+    hint: 'The server has no CB_SECRETS_KEY, so it seals and opens nothing. Names and kinds still work.',
   },
   model_declined: {
     status: 403,
@@ -307,7 +307,7 @@ export type Problem = {
 export function toProblem(error: ApiError, requestId: string): Problem {
   const entry = errorCatalog[error.code]
   return {
-    type: `https://source.code/docs/api/errors#${error.code}`,
+    type: `https://cobaltforge.dev/docs/api/errors#${error.code}`,
     title: entry.title,
     status: entry.status,
     code: error.code,

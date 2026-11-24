@@ -75,7 +75,7 @@ Include the version (\`${n} --version\`), your platform, and the smallest steps 
 ## Local setup
 
 \`\`\`bash
-git clone https://source.code/${repo.owner}/${n}.git
+git clone https://cobaltforge.dev/${repo.owner}/${n}.git
 cd ${n}
 ${n} init
 ${n} run --watch

@@ -33,8 +33,8 @@ export function MirrorCard({
       <Panel className="space-y-2 p-4 text-sm">
         <h3 className="font-medium">Not mirrored</h3>
         <p className="text-muted-foreground">
-          This change exists only on source.code. Add a two-way mirror to open a
-          pull request for it on another host.
+          This change exists only on cobalt. Add a two-way mirror to open a pull
+          request for it on another host.
         </p>
         <Link
           to="/$handle/$repo/$tab"
@@ -96,7 +96,7 @@ export function MirrorCard({
         />
       )}
       <Group
-        title={`Stays on source.code`}
+        title={`Stays on cobalt`}
         icon={<LockClosedIcon className="size-3.5 text-muted-foreground" />}
         rows={fit.native.map((f) => ({ id: f.id, label: f.label }))}
       />

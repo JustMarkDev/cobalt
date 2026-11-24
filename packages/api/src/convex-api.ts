@@ -25,8 +25,8 @@ import {
 } from './stores/convex'
 import { blobStoreFromEnv } from './stores/blobs'
 import { StoreWorker } from './stores/store-worker'
-import { codeStorageAdmin } from '@source-code/git/admin'
-import type { GitAdmin } from '@source-code/git/admin'
+import { codeStorageAdmin } from '@cobaltforge/git/admin'
+import type { GitAdmin } from '@cobaltforge/git/admin'
 import type { Attached } from './domain/records'
 import type { SessionResolver } from './oauth'
 import type { Scope } from './auth'
@@ -53,7 +53,7 @@ export type ConvexApiOptions = {
   htmlBase: string
   sessions: SessionResolver
   userScopes?: (handle: string) => ReadonlyArray<Scope>
-  /** Whether a machine sign-in may read secret values. Default: `SX_DEVICE_DECRYPT` is not `0`. */
+  /** Whether a machine sign-in may read secret values. Default: `CB_DEVICE_DECRYPT` is not `0`. */
   deviceDecrypt?: (handle: string) => boolean
   /** Seed an empty deployment with the sample, for development. */
   seedSample?: () => string
@@ -79,8 +79,8 @@ export function createConvexApi(o: ConvexApiOptions) {
   const svc = {
     auth: new ConvexTokens(call),
     extras: new ConvexExtras(call, now),
-    // Without SX_SECRETS_KEY no value is kept or given out (fail closed).
-    secrets: SecretBox.fromBase64(env.SX_SECRETS_KEY),
+    // Without CB_SECRETS_KEY no value is kept or given out (fail closed).
+    secrets: SecretBox.fromBase64(env.CB_SECRETS_KEY),
     uploads: new ConvexUploads(
       call,
       blobs,
@@ -190,7 +190,7 @@ export function createConvexApi(o: ConvexApiOptions) {
     resources: { api: o.base, mcp: `${o.htmlBase}/mcp` },
     sessions: o.sessions,
     userScopes: o.userScopes ?? (() => oauthScopes),
-    deviceDecrypt: o.deviceDecrypt ?? (() => env.SX_DEVICE_DECRYPT !== '0'),
+    deviceDecrypt: o.deviceDecrypt ?? (() => env.CB_DEVICE_DECRYPT !== '0'),
     now,
   })
   const shared = o.storeSecret ? convexCaller(o.convexUrl) : null

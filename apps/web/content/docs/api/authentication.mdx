@@ -7,7 +7,7 @@ description: Logins, tokens, scopes, acting as an organization, and how agents w
 Send a token in the `Authorization` header. Never in a URL.
 
 ```http
-Authorization: Bearer sxp_…
+Authorization: Bearer cbp_…
 ```
 
 Public data (public repositories, the OpenAPI document, the error list) needs no token. Everything else does. A private repository answers `404` to anyone who cannot see it, so its existence does not leak.
@@ -18,20 +18,20 @@ The prefix says what a token is, so secret scanners can find a leaked one and yo
 
 | Prefix | Is                                                                                 | Lives                                         |
 | ------ | ---------------------------------------------------------------------------------- | --------------------------------------------- |
-| `sxp_` | A personal token you made, optionally named for the machine it is on               | 30, 60, 90 days or 1 year. Always expires.    |
-| `sxo_` | An OAuth access token: `sx auth login`, MCP clients, [OAuth](/docs/api/oauth) apps | 1 hour, renewed with a refresh token (`sxf_`) |
-| `sxr_` | A runner's token, made by `POST /v1/runners` and shown once                        | 1 year, or until the runner is revoked        |
+| `cbp_` | A personal token you made, optionally named for the machine it is on               | 30, 60, 90 days or 1 year. Always expires.    |
+| `cbo_` | An OAuth access token: `cb auth login`, MCP clients, [OAuth](/docs/api/oauth) apps | 1 hour, renewed with a refresh token (`cbf_`) |
+| `cbr_` | A runner's token, made by `POST /v1/runners` and shown once                        | 1 year, or until the runner is revoked        |
 
 Tokens are stored as hashes and shown once. A token may be limited to named repositories, and inside one repository to paths. There is no separate kind of token for agents: an agent works under the login of the machine it runs on, or under a narrower personal token you made for it.
 
 ## Log in once per machine
 
-`sx auth login` signs this machine in with the device flow. The approval page names the machine and, because a machine login can read secret values, says so. Approve it only if you started it yourself, a moment ago. After that, every agent you run on the machine uses the same login: no keys to paste, nothing that expires in the middle of a task. Its writes carry a receipt naming the machine.
+`cb auth login` signs this machine in with the device flow. The approval page names the machine and, because a machine login can read secret values, says so. Approve it only if you started it yourself, a moment ago. After that, every agent you run on the machine uses the same login: no keys to paste, nothing that expires in the middle of a task. Its writes carry a receipt naming the machine.
 
 ## Create, list and revoke
 
 ```bash
-curl -X POST "$SX/tokens" -H "Authorization: Bearer $SX_TOKEN" -H "Content-Type: application/json" \
+curl -X POST "$CB/tokens" -H "Authorization: Bearer $CB_TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"ci","scopes":["repo:read","pulls:read"],"expires_in_days":30,"repos":["dana/gitfs"]}'
 ```
 
@@ -40,8 +40,8 @@ The response is the only time `secret` is shown. It needs the `tokens:manage` sc
 - **A token can never have a scope its creator lacks**, and never outlives a year.
 - `device` names the machine the token lives on. Receipts show it; without it they show the token's name.
 - **A token limited to repositories can only create tokens limited to the same ones.**
-- `paths` limits a token inside its one repository: `["docs/**"]` makes a token that changes nothing outside `docs/`. The globs are the ones policy rules use (`src/**` does not match `src` itself). A change made with it that touches, edits or deletes anything else is `403 forbidden`, and the hint names the first paths. It covers the API, `sx` and MCP. A `git push` carries no token, so it is not covered: the `allowed_paths` policy rule is, for everyone ([Policies](/docs/concepts/policies)). A token limited to paths can only create tokens limited to some of them.
-- Runner tokens (`sxr_`) are not listed here: they belong to [runners](/docs/api/reference/pipelines) and are revoked with them.
+- `paths` limits a token inside its one repository: `["docs/**"]` makes a token that changes nothing outside `docs/`. The globs are the ones policy rules use (`src/**` does not match `src` itself). A change made with it that touches, edits or deletes anything else is `403 forbidden`, and the hint names the first paths. It covers the API, `cb` and MCP. A `git push` carries no token, so it is not covered: the `allowed_paths` policy rule is, for everyone ([Policies](/docs/concepts/policies)). A token limited to paths can only create tokens limited to some of them.
+- Runner tokens (`cbr_`) are not listed here: they belong to [runners](/docs/api/reference/pipelines) and are revoked with them.
 - You can have 100 active tokens.
 - `GET /v1/tokens` lists yours without secrets, with `last_used_at` (updated at most once a minute, so reading a token never becomes a write per request). `DELETE /v1/tokens/{id}` revokes at once: the next request with it is `401 token_revoked`.
 - Someone else's token answers `404`, as if it did not exist.
@@ -51,7 +51,7 @@ Applications you have authorized with OAuth are listed at `GET /v1/authorization
 ## Who a token is
 
 ```bash
-curl $SX/auth/principal -H "Authorization: Bearer $SX_TOKEN"
+curl $CB/auth/principal -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 It returns the login, the account the request acts as, the machine (`device`), the scopes, the repositories the token is limited to, and when it expires. It is never rate limited, so call it whenever you are unsure.
@@ -81,7 +81,7 @@ It returns the login, the account the request acts as, the machine (`device`), t
 
 `pulls:*` is the scope family for changes. The names match the ones shown in **Settings, Agents and tokens**.
 
-Every operation lists its scopes in [the reference](/docs/api/reference/changes) and in the OpenAPI document (`x-sx-scopes`). A missing scope is `403 insufficient_scope`, and the body lists `required_scopes` and `token_scopes` so you can see the gap:
+Every operation lists its scopes in [the reference](/docs/api/reference/changes) and in the OpenAPI document (`x-cb-scopes`). A missing scope is `403 insufficient_scope`, and the body lists `required_scopes` and `token_scopes` so you can see the gap:
 
 ```json
 {
@@ -96,17 +96,17 @@ Scopes narrow what a token can do. They never widen what its owner may do: readi
 
 ## Acting as an organization
 
-One login covers you and every organization you belong to. By default a request acts as you. To act as an organization, send `Sx-Account`:
+One login covers you and every organization you belong to. By default a request acts as you. To act as an organization, send `Cb-Account`:
 
 ```bash
-curl $SX/auth/principal -H "Authorization: Bearer $SX_TOKEN" -H "Sx-Account: northwind"
+curl $CB/auth/principal -H "Authorization: Bearer $CB_TOKEN" -H "Cb-Account: northwind"
 ```
 
-You must belong to it, otherwise `403 forbidden`. `GET /v1/accounts` lists every account you can act as and your role in each. This is the same as `sx -A northwind`.
+You must belong to it, otherwise `403 forbidden`. `GET /v1/accounts` lists every account you can act as and your role in each. This is the same as `cb -A northwind`.
 
 ## Agents work under your login
 
-There is one kind of account. An agent on your machine is you, as far as access goes: it can do what your login can, under the same [policies](/docs/concepts/policies). What it writes is yours, and each write keeps a receipt with the machine, the tool (`Sx-Tool`) and the model (`Sx-Model`), so the timeline shows how every part got there. See [Agents](/docs/api/agents).
+There is one kind of account. An agent on your machine is you, as far as access goes: it can do what your login can, under the same [policies](/docs/concepts/policies). What it writes is yours, and each write keeps a receipt with the machine, the tool (`Cb-Tool`) and the model (`Cb-Model`), so the timeline shows how every part got there. See [Agents](/docs/api/agents).
 
 - Whoever opened a change cannot approve it, from any machine.
 - A repository can decline changes declared with given models, and denounce accounts.
@@ -115,14 +115,14 @@ There is one kind of account. An agent on your machine is you, as far as access 
 
 ## Sample tokens
 
-For local development only. They are in `packages/api/src/sample.ts` and work when you run the app yourself, or set `SX_API_SAMPLE_TOKENS=1`. A deployed preview refuses them, so nobody can write into shared sample data, and its OAuth page offers no sample accounts.
+For local development only. They are in `packages/api/src/sample.ts` and work when you run the app yourself, or set `CB_API_SAMPLE_TOKENS=1`. A deployed preview refuses them, so nobody can write into shared sample data, and its OAuth page offers no sample accounts.
 
 | Token                       | Is                                                                           | Try                                    |
 | --------------------------- | ---------------------------------------------------------------------------- | -------------------------------------- |
-| `sxp_dana_full_access_0001` | dana, owner of the sample repositories                                       | Everything                             |
-| `sxp_hollis_maintainer_02`  | hollis, a maintainer who can review and land                                 | Approve a change, then land it         |
-| `sxp_dana_scoped_gitfs_03`  | dana's token for her agent on `Laptop`: changes on `dana/gitfs`, cannot land | Open a change; see its receipt         |
-| `sxp_dana_issues_only_04`   | dana, issues only, on `dana/gitfs`                                           | `403` on anything that is not an issue |
-| `sxp_dana_limited_repo_05`  | dana, limited to `dana/tinyqueue`                                            | Read `dana/gitfs`, fail to write to it |
-| `sxp_dana_expired_token_06` | An expired token                                                             | `401 token_expired`                    |
-| `sxp_stranger_no_access_07` | Someone with no access to private repositories                               | `404` on `dana/notes`                  |
+| `cbp_dana_full_access_0001` | dana, owner of the sample repositories                                       | Everything                             |
+| `cbp_hollis_maintainer_02`  | hollis, a maintainer who can review and land                                 | Approve a change, then land it         |
+| `cbp_dana_scoped_gitfs_03`  | dana's token for her agent on `Laptop`: changes on `dana/gitfs`, cannot land | Open a change; see its receipt         |
+| `cbp_dana_issues_only_04`   | dana, issues only, on `dana/gitfs`                                           | `403` on anything that is not an issue |
+| `cbp_dana_limited_repo_05`  | dana, limited to `dana/tinyqueue`                                            | Read `dana/gitfs`, fail to write to it |
+| `cbp_dana_expired_token_06` | An expired token                                                             | `401 token_expired`                    |
+| `cbp_stranger_no_access_07` | Someone with no access to private repositories                               | `404` on `dana/notes`                  |

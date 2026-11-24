@@ -49,7 +49,7 @@ import { Select, SelectItem } from '~/components/ui/select'
 import { sampleDeveloper, sampleRepos } from '~/components/forge/design-samples'
 
 export const Route = createFileRoute('/design')({
-  head: () => ({ meta: [{ title: 'Design system · source.code' }] }),
+  head: () => ({ meta: [{ title: 'Design system · cobalt' }] }),
   component: Design,
 })
 
@@ -653,7 +653,7 @@ function Design() {
               </div>
             </div>
             <div className="sm:col-span-2">
-              <CopyField value="sx change create" />
+              <CopyField value="cb change create" />
             </div>
           </div>
         </Section>

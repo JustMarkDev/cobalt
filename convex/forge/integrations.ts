@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
-import { integrations } from '@source-code/api/integrations'
+import { integrations } from '@cobaltforge/api/integrations'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'

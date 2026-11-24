@@ -4,7 +4,7 @@
  * API's own OpenAPI document and `call` runs it through the caller's client,
  * so the token's scopes, the rate limits and the error codes are the API's.
  */
-import { SxError, exit } from './output'
+import { CbError, exit } from './output'
 import type { ApiClient } from './client'
 
 type Json = Record<string, unknown>
@@ -76,12 +76,12 @@ export class Catalogue {
           ),
           body: bodyType ? (content[bodyType].schema ?? null) : null,
           bodyType,
-          safety: o['x-sx-safety'] as Operation['safety'],
-          idempotent: !!o['x-sx-idempotent'],
-          dryRun: !!o['x-sx-dry-run'],
-          scopes: (o['x-sx-scopes'] ?? []) as Array<string>,
-          errors: (o['x-sx-errors'] ?? []) as Array<string>,
-          secretResponse: !!o['x-sx-secret-response'],
+          safety: o['x-cb-safety'] as Operation['safety'],
+          idempotent: !!o['x-cb-idempotent'],
+          dryRun: !!o['x-cb-dry-run'],
+          scopes: (o['x-cb-scopes'] ?? []) as Array<string>,
+          errors: (o['x-cb-errors'] ?? []) as Array<string>,
+          secretResponse: !!o['x-cb-secret-response'],
           auth:
             security.length === 0
               ? 'none'
@@ -170,9 +170,9 @@ export class Catalogue {
   /** Why `call` will not run it, if it will not. */
   unreachable(op: Operation): string | null {
     if (op.secretResponse)
-      return 'Its answer carries a secret, and MCP never returns one. Run it with sx or the API directly.'
+      return 'Its answer carries a secret, and MCP never returns one. Run it with cb or the API directly.'
     if (op.bodyType && op.bodyType !== 'application/json')
-      return 'It takes raw bytes. Use sx or the API directly.'
+      return 'It takes raw bytes. Use cb or the API directly.'
     if (op.id === 'api.openapi') return 'Use search_operations instead.'
     return null
   }
@@ -209,7 +209,7 @@ export type CallInput = {
 }
 
 const refuse = (code: string, message: string, hint: string) =>
-  new SxError(code, message, hint, exit.usage)
+  new CbError(code, message, hint, exit.usage)
 
 /**
  * Runs one operation. A destructive one needs `confirm`, unless it is a dry
@@ -291,7 +291,7 @@ export async function callOperation(client: ApiClient, input: CallInput) {
   })
   return {
     status: r.status,
-    ...(r.headers.get('sx-dry-run') === 'true' ? { dry_run: true } : {}),
+    ...(r.headers.get('cb-dry-run') === 'true' ? { dry_run: true } : {}),
     data: r.json,
   }
 }

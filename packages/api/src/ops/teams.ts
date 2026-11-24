@@ -69,7 +69,7 @@ export const createTeam = defineOp({
   id: 'teams.create',
   summary: 'Create a team',
   description:
-    'Owners and admins only. A team is a named group of people. Give it repositories of the organization and its members can read or write them, whether or not they belong to the organization. Naturally idempotent on the slug: asking for one that exists returns it with `Sx-Outcome: unchanged`.',
+    'Owners and admins only. A team is a named group of people. Give it repositories of the organization and its members can read or write them, whether or not they belong to the organization. Naturally idempotent on the slug: asking for one that exists returns it with `Cb-Outcome: unchanged`.',
   method: 'POST',
   path: '/accounts/{handle}/teams',
   params: org,
@@ -90,7 +90,7 @@ export const createTeam = defineOp({
       return reply(r.team, {
         status: r.created ? 201 : 200,
         headers: {
-          'sx-outcome': r.created ? 'created' : 'unchanged',
+          'cb-outcome': r.created ? 'created' : 'unchanged',
           ...(r.created ? { location: r.team.url } : {}),
         },
       })

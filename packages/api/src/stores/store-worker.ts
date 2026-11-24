@@ -1,4 +1,4 @@
-import type { GitAdmin } from '@source-code/git/admin'
+import type { GitAdmin } from '@cobaltforge/git/admin'
 import type { BlobStore } from '../uploads'
 import type { ConvexCall } from './convex'
 

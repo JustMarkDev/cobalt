@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
-import { newId } from '@source-code/api/ids'
-import { runnerScopes } from '@source-code/api/auth'
+import { newId } from '@cobaltforge/api/ids'
+import { runnerScopes } from '@cobaltforge/api/auth'
 import {
   LEASE_MS,
   MAX_CONCURRENCY,
@@ -12,8 +12,8 @@ import {
   mayServe,
   normalizeLabels,
   runnerStatus,
-} from '@source-code/api/runners'
-import type { RunnerLike } from '@source-code/api/runners'
+} from '@cobaltforge/api/runners'
+import type { RunnerLike } from '@cobaltforge/api/runners'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { actorOf, signedIn } from '../lib/actor'

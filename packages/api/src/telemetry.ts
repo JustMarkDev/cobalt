@@ -13,14 +13,14 @@ import {
  * configured the standard way, from the environment:
  *
  *   OTEL_EXPORTER_OTLP_ENDPOINT   where to send, e.g. https://api.axiom.co
- *   OTEL_EXPORTER_OTLP_HEADERS    e.g. Authorization=Bearer xaat-...,X-Axiom-Dataset=source-code
+ *   OTEL_EXPORTER_OTLP_HEADERS    e.g. Authorization=Bearer xaat-...,X-Axiom-Dataset=cobalt
  *   OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
  *   OTEL_EXPORTER_OTLP_METRICS_HEADERS
  *                                 headers for one signal, added to the ones
  *                                 above. When any is set, only the signals
  *                                 that have one are exported (Axiom keeps
  *                                 traces and logs in separate datasets).
- *   OTEL_SERVICE_NAME             defaults to `source-code`
+ *   OTEL_SERVICE_NAME             defaults to `cobalt`
  *   OTEL_SDK_DISABLED=true        turns it off
  *
  * With no endpoint nothing is exported and nothing is sent: spans stay in
@@ -40,7 +40,7 @@ export const TelemetryLive = Layer.unwrap(
     if (!endpoint || env.OTEL_SDK_DISABLED === 'true') return Layer.empty
     const common = headersOf(env.OTEL_EXPORTER_OTLP_HEADERS)
     const resource = {
-      serviceName: env.OTEL_SERVICE_NAME ?? 'source-code',
+      serviceName: env.OTEL_SERVICE_NAME ?? 'cobalt',
       serviceVersion: env.OTEL_SERVICE_VERSION,
     }
     const traces = env.OTEL_EXPORTER_OTLP_TRACES_HEADERS

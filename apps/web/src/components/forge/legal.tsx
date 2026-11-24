@@ -3,7 +3,7 @@ import { Callout } from '~/components/ui/callout'
 
 /**
  * The frame the policy pages share. Both are written in plain words and say,
- * at the top, that they are a draft: source.code is a preview, so they
+ * at the top, that they are a draft: cobalt is a preview, so they
  * describe how the service is designed to treat people, not a promise yet.
  */
 export function LegalPage({
@@ -26,9 +26,9 @@ export function LegalPage({
         <p className="font-mono text-xs text-muted-foreground">{updated}</p>
         <p className="max-w-[65ch] text-lg text-muted-foreground">{intro}</p>
         <Callout tone="warning" title="A draft for a preview">
-          source.code is not open for real accounts yet. This page describes how
-          the service is designed to work. It has not been reviewed by a lawyer,
-          and the last section lists what is still to be decided. It will be
+          cobalt is not open for real accounts yet. This page describes how the
+          service is designed to work. It has not been reviewed by a lawyer, and
+          the last section lists what is still to be decided. It will be
           finished before launch.
         </Callout>
       </header>

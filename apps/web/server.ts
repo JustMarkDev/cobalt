@@ -87,6 +87,6 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const)
 
 const ram = process.env.BUN_JSC_forceRAMSize
 console.log(
-  `source.code is listening on ${server.url}` +
+  `cobalt is listening on ${server.url}` +
     (ram ? ` (heap sized for ${Math.round(Number(ram) / 2 ** 20)} MiB)` : ''),
 )

@@ -2,9 +2,9 @@ import {
   canMove,
   uploadLifecycle,
   uploadMoveRefusal,
-} from '@source-code/api/lifecycles'
+} from '@cobaltforge/api/lifecycles'
 import { v } from 'convex/values'
-import { newId } from '@source-code/api/ids'
+import { newId } from '@cobaltforge/api/ids'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { system } from '../lib/actor'

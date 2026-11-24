@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 /**
- * The source.code mark: a git branch drawn as glossy cobalt tubes and beads.
+ * The cobalt mark: a git branch drawn as glossy cobalt tubes and beads.
  * It takes the brand colour from CSS, so it follows the theme. Each instance
  * gets its own gradient ids, so several marks on one page never share them.
  */

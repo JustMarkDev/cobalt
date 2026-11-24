@@ -1,8 +1,8 @@
 import { v } from 'convex/values'
 import { ConvexError } from 'convex/values'
-import { errorCatalog } from '@source-code/api/problem'
-import { newId } from '@source-code/api/ids'
-import { skipRest } from '@source-code/api/landing'
+import { errorCatalog } from '@cobaltforge/api/problem'
+import { newId } from '@cobaltforge/api/ids'
+import { skipRest } from '@cobaltforge/api/landing'
 import { internal } from '../_generated/api'
 import { internalMutation } from '../_generated/server'
 import { emit } from '../lib/events'
@@ -12,14 +12,14 @@ import { checkLandable, doLand } from './changes'
 import { startWorkflow } from './pipelines'
 import { enqueue } from './webhooks'
 import { actorRef } from '../schema'
-import type { LandingStepRec } from '@source-code/api/landing'
+import type { LandingStepRec } from '@cobaltforge/api/landing'
 import {
   canMove,
   isTerminal,
   landingStepLifecycle,
   operationLifecycle,
-} from '@source-code/api/lifecycles'
-import type { StepState } from '@source-code/api/lifecycles'
+} from '@cobaltforge/api/lifecycles'
+import type { StepState } from '@cobaltforge/api/lifecycles'
 import type { Actor } from '../lib/actor'
 import type { ActorRef } from '../lib/events'
 import type { Doc } from '../_generated/dataModel'
@@ -122,7 +122,7 @@ export const step = internalMutation({
       skipRest(steps, a.i + 1)
       await finished('failed', {
         error: JSON.stringify({
-          type: `https://source.code/docs/api/errors#${code}`,
+          type: `https://cobaltforge.dev/docs/api/errors#${code}`,
           title: entry.title,
           status: entry.status,
           code,

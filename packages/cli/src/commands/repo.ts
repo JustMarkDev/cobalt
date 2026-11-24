@@ -1,6 +1,6 @@
 import { accounts, activeAccount } from '../account'
 import { gitContext, resolveRepo } from '../repo'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import { resolve } from '../config'
 import type { Command } from './types'
@@ -45,10 +45,10 @@ export const repo: Command = async (
   if (sub === 'create') {
     const given = rest.at(0)
     if (!given)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'repo create needs a name.',
-        'Example: sx repo create notes (as the account you are acting as), or sx repo create dana/notes',
+        'Example: cb repo create notes (as the account you are acting as), or cb repo create dana/notes',
         exit.usage,
       )
     // A bare name goes in the account you are acting as.
@@ -67,7 +67,7 @@ export const repo: Command = async (
       },
       dryRun: dry,
     })
-    const created = r.headers.get('sx-outcome') === 'created'
+    const created = r.headers.get('cb-outcome') === 'created'
     print(ctx, { ...withSlug(r.json), created, dryRun: dry }, () =>
       created
         ? `${dry ? 'would create' : 'created'} ${r.json.full_name}`
@@ -78,17 +78,17 @@ export const repo: Command = async (
   if (sub === 'clone') {
     const slug = rest.at(0)
     if (!slug)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'repo clone needs owner/name.',
-        'Example: sx repo clone dana/gitfs',
+        'Example: cb repo clone dana/gitfs',
         exit.usage,
       )
     const proto = resolve('clone.protocol').value
     const url =
       proto === 'https'
-        ? `https://source.code/${slug}.git`
-        : `git@source.code:${slug}.git`
+        ? `https://cobaltforge.dev/${slug}.git`
+        : `git@cobaltforge.dev:${slug}.git`
     print(ctx, { slug, url }, () => `git clone ${url}`)
     return
   }
@@ -105,10 +105,10 @@ export const repo: Command = async (
     )
     return
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `repo ${sub} is not a command.`,
-    'sx repo --help lists them.',
+    'cb repo --help lists them.',
     exit.usage,
   )
 }

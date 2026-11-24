@@ -39,13 +39,13 @@ description: Announce a file, send it to a signed address, attach it to a change
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/evidence" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/evidence" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"h7dVEMsp4Ky1wxvG"
+etag: W/"EyjhvvG-BebotQcr"
 ratelimit: "read";r=1164;t=60
 ```
 
@@ -64,7 +64,7 @@ ratelimit: "read";r=1164;t=60
         "content_type": "image/png",
         "size": 48,
         "sha256": "33c6c1549803ca3c04149dbbaf110943e9d6d4e5b4b19fb6ad44ca68f2b3d607",
-        "content_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/content"
+        "content_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/content"
       },
       "created_by": {
         "object": "actor",
@@ -108,7 +108,7 @@ Evidence shows what a change does: before and after images, a recording, an inte
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -125,8 +125,8 @@ Evidence shows what a change does: before and after images, a recording, an inte
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/evidence" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/evidence" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"upload":"upl_01m6tq6r80adqv0dqt","kind":"image","caption":"After: the cache stats line"}'
 ```
@@ -148,7 +148,7 @@ ratelimit: "write";r=82;t=60
     "content_type": "image/png",
     "size": 48,
     "sha256": "33c6c1549803ca3c04149dbbaf110943e9d6d4e5b4b19fb6ad44ca68f2b3d607",
-    "content_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/content"
+    "content_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/content"
   },
   "created_by": {
     "object": "actor",
@@ -188,13 +188,13 @@ ratelimit: "write";r=82;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/issues/4/evidence" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/evidence" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"nxeZrqL798oJyJoV"
+etag: W/"FTGSmzFTcFE06IU2"
 ratelimit: "read";r=1162;t=60
 ```
 
@@ -213,7 +213,7 @@ ratelimit: "read";r=1162;t=60
         "content_type": "image/png",
         "size": 48,
         "sha256": "33c6c1549803ca3c04149dbbaf110943e9d6d4e5b4b19fb6ad44ca68f2b3d607",
-        "content_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80ek7tytw9/content"
+        "content_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80ek7tytw9/content"
       },
       "created_by": {
         "object": "actor",
@@ -257,7 +257,7 @@ What someone saw, shown on the issue. Anyone who can read the repository may att
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -274,8 +274,8 @@ What someone saw, shown on the issue. Anyone who can read the repository may att
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/issues/4/evidence" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/issues/4/evidence" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"upload":"upl_01m6tq6r80ek7tytw9","kind":"image","caption":"The error on an empty repo"}'
 ```
@@ -297,7 +297,7 @@ ratelimit: "write";r=80;t=60
     "content_type": "image/png",
     "size": 48,
     "sha256": "33c6c1549803ca3c04149dbbaf110943e9d6d4e5b4b19fb6ad44ca68f2b3d607",
-    "content_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80ek7tytw9/content"
+    "content_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80ek7tytw9/content"
   },
   "created_by": {
     "object": "actor",
@@ -329,7 +329,7 @@ Say what the file is. The response has an `upload_url`: PUT the bytes there with
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -347,15 +347,15 @@ Say what the file is. The response has an `upload_url`: PUT the bytes there with
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/uploads" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/uploads" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"filename":"after.png","content_type":"image/png","size":48}'
 ```
 
 ```http
 HTTP/1.1 201
-location: https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt
+location: https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt
 ratelimit: "write";r=83;t=60
 ```
 
@@ -369,10 +369,10 @@ ratelimit: "write";r=83;t=60
   "purpose": "evidence",
   "state": "pending",
   "sha256": null,
-  "upload_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/data?exp=1794049200000&sig=…",
+  "upload_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/data?exp=1794049200000&sig=…",
   "content_url": null,
   "expires_at": "2026-11-07T11:00:00.000Z",
-  "url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt",
+  "url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt",
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -404,13 +404,13 @@ ratelimit: "write";r=83;t=60
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"KmC6znyGIt5Bl9S1"
+etag: W/"h2uoUdVrYlJZBpPz"
 ratelimit: "read";r=1165;t=60
 ```
 
@@ -425,9 +425,9 @@ ratelimit: "read";r=1165;t=60
   "state": "uploaded",
   "sha256": "33c6c1549803ca3c04149dbbaf110943e9d6d4e5b4b19fb6ad44ca68f2b3d607",
   "upload_url": null,
-  "content_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/content",
+  "content_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/content",
   "expires_at": "2026-11-07T11:00:00.000Z",
-  "url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt",
+  "url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt",
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```
@@ -461,8 +461,8 @@ You can read your own uploads with a token that has `repo:read`; without it the 
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/content" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/content" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -507,7 +507,7 @@ The address comes from `uploads.create`. It carries its own signature in `exp` a
 **Example**
 
 ```bash
-curl -X PUT "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/data?exp=1794049200000&sig=…" \
+curl -X PUT "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/data?exp=1794049200000&sig=…" \
   -H "content-type: image/png" \
   --data-binary @after.png
 ```
@@ -528,9 +528,9 @@ ratelimit: "anonymous";r=58;t=60
   "state": "uploaded",
   "sha256": "33c6c1549803ca3c04149dbbaf110943e9d6d4e5b4b19fb6ad44ca68f2b3d607",
   "upload_url": null,
-  "content_url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt/content",
+  "content_url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt/content",
   "expires_at": "2026-11-07T11:00:00.000Z",
-  "url": "https://api.source.code/v1/uploads/upl_01m6tq6r80adqv0dqt",
+  "url": "https://api.cobaltforge.dev/v1/uploads/upl_01m6tq6r80adqv0dqt",
   "created_at": "2026-11-07T10:00:00.000Z"
 }
 ```

@@ -6,7 +6,7 @@ import { authComponent, createAuth } from './auth'
 import {
   subscriptionChange,
   verifyStandardWebhook,
-} from '@source-code/api/polar'
+} from '@cobaltforge/api/polar'
 import { verifyPierre } from './lib/pierre'
 
 const http = httpRouter()

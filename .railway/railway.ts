@@ -1,6 +1,6 @@
 import { bucket, defineRailway, github, project, service } from 'railway/iac'
 
-// The Railway side of source.code: one web service and the bucket that holds
+// The Railway side of cobalt: one web service and the bucket that holds
 // uploaded files. Variables stay in the Railway dashboard (`managed: false`),
 // so secrets never enter this file. Preview a change with `railway config
 // plan`, apply it with `railway config apply`.
@@ -11,7 +11,7 @@ export default defineRailway(() => {
 
   const web = service('web', {
     // Deploys only a commit whose GitHub checks passed.
-    source: github('JustMarkDev/source.code', {
+    source: github('JustMarkDev/cobalt', {
       branch: 'main',
       checkSuites: true,
     }),
@@ -38,7 +38,7 @@ export default defineRailway(() => {
     replicas: { 'us-east4-eqdc4a': 1 },
   })
 
-  return project('source-code', {
+  return project('cobaltforge', {
     variables: { managed: false },
     resources: [web, blobs],
   })

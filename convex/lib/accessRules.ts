@@ -4,9 +4,9 @@ import {
   hiddenRules,
   pathHidden,
   rulesOverChange,
-} from '@source-code/api/access-rules'
-import type { AccessRule, RuleViewer } from '@source-code/api/access-rules'
-import { touchedFiles } from '@source-code/api/paths'
+} from '@cobaltforge/api/access-rules'
+import type { AccessRule, RuleViewer } from '@cobaltforge/api/access-rules'
+import { touchedFiles } from '@cobaltforge/api/paths'
 import { accountByHandle, roleIn } from './access'
 import { fail } from './errors'
 import type { Actor } from './actor'

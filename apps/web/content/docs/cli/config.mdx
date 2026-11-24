@@ -1,49 +1,49 @@
 ---
 icon: Cog6ToothIcon
 title: Settings
-description: Every setting sx reads, where it is stored and how to override it.
+description: Every setting cb reads, where it is stored and how to override it.
 ---
 
 ```bash
-sx config list
-sx config get handoff.to
-sx config set handoff.to boat
-sx config path
+cb config list
+cb config get handoff.to
+cb config set handoff.to boat
+cb config path
 ```
 
 ## Where settings live
 
-`~/.config/sx/config.json`, or `$XDG_CONFIG_HOME/sx/config.json`. Set `SX_CONFIG_DIR` to use another folder.
+`~/.config/cb/config.json`, or `$XDG_CONFIG_HOME/cb/config.json`. Set `CB_CONFIG_DIR` to use another folder.
 
 ## Order of precedence
 
 1. A flag on the command
-2. An environment variable, `SX_` plus the key in capitals, with `.` as `_`
+2. An environment variable, `CB_` plus the key in capitals, with `.` as `_`
 3. The settings file
 4. The default
 
-`sx config list` shows where each value came from.
+`cb config list` shows where each value came from.
 
 ## All settings
 
-| Key              | Default               | Environment         | Meaning                                                        |
-| ---------------- | --------------------- | ------------------- | -------------------------------------------------------------- |
-| `host`           | `https://source.code` | `SX_HOST`           | The server, for links and the browser                          |
-| `api`            | (set by `auth login`) | `SX_API`            | The API to call. `sx auth login` sets it to `host` + `/api/v1` |
-| `account`        | (you)                 | `SX_ACCOUNT`        | The account commands act as. Set by `sx account switch`        |
-| `output`         | `auto`                | `SX_OUTPUT`         | `auto`, `json` or `text`                                       |
-| `handoff.to`     | `t3`                  | `SX_HANDOFF_TO`     | Where `sx handoff` hands work: `t3` or `boat`                  |
-| `change.base`    | `main`                | `SX_CHANGE_BASE`    | Base branch for new changes                                    |
-| `change.draft`   | `false`               | `SX_CHANGE_DRAFT`   | Create changes as drafts                                       |
-| `clone.protocol` | `ssh`                 | `SX_CLONE_PROTOCOL` | `ssh` or `https` for `repo clone`                              |
+| Key              | Default                   | Environment         | Meaning                                                        |
+| ---------------- | ------------------------- | ------------------- | -------------------------------------------------------------- |
+| `host`           | `https://cobaltforge.dev` | `CB_HOST`           | The server, for links and the browser                          |
+| `api`            | (set by `auth login`)     | `CB_API`            | The API to call. `cb auth login` sets it to `host` + `/api/v1` |
+| `account`        | (you)                     | `CB_ACCOUNT`        | The account commands act as. Set by `cb account switch`        |
+| `output`         | `auto`                    | `CB_OUTPUT`         | `auto`, `json` or `text`                                       |
+| `handoff.to`     | `t3`                      | `CB_HANDOFF_TO`     | Where `cb handoff` hands work: `t3` or `boat`                  |
+| `change.base`    | `main`                    | `CB_CHANGE_BASE`    | Base branch for new changes                                    |
+| `change.draft`   | `false`                   | `CB_CHANGE_DRAFT`   | Create changes as drafts                                       |
+| `clone.protocol` | `ssh`                     | `CB_CLONE_PROTOCOL` | `ssh` or `https` for `repo clone`                              |
 
 ## Other environment variables
 
 | Variable        | Meaning                                        |
 | --------------- | ---------------------------------------------- |
-| `SX_TOKEN`      | A token. Wins over a saved sign-in             |
-| `SX_REPO`       | The repository when you are not in a clone     |
-| `SX_ACCOUNT`    | The account to act as. Wins over the saved one |
-| `SX_CONFIG_DIR` | Where the settings file lives                  |
-| `SX_DEBUG`      | Print stack traces                             |
+| `CB_TOKEN`      | A token. Wins over a saved sign-in             |
+| `CB_REPO`       | The repository when you are not in a clone     |
+| `CB_ACCOUNT`    | The account to act as. Wins over the saved one |
+| `CB_CONFIG_DIR` | Where the settings file lives                  |
+| `CB_DEBUG`      | Print stack traces                             |
 | `NO_COLOR`      | Turn off colour                                |

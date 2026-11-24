@@ -8,7 +8,7 @@ A **change** is the unit of review. It plays the role a pull request plays elsew
 
 ## The idea
 
-A pull request is a branch with a conversation attached. Rebase or force-push the branch and the conversation loses its footing. Gerrit solved this years ago with a stable `Change-Id`, and Jujutsu keeps a change ID that survives rewrites. A source.code change works the same way.
+A pull request is a branch with a conversation attached. Rebase or force-push the branch and the conversation loses its footing. Gerrit solved this years ago with a stable `Change-Id`, and Jujutsu keeps a change ID that survives rewrites. A cobalt change works the same way.
 
 |                         | Pull request                | Change                                 |
 | ----------------------- | --------------------------- | -------------------------------------- |
@@ -29,7 +29,7 @@ A stack is a chain of changes where each builds on the last. They land in order.
 
 ## Is this better than a pull request?
 
-For most work, yes, and it costs almost nothing to adopt: pushing a branch and running `sx change create` is the whole workflow, and you only meet patch sets on your second push.
+For most work, yes, and it costs almost nothing to adopt: pushing a branch and running `cb change create` is the whole workflow, and you only meet patch sets on your second push.
 
 It is not free everywhere:
 
@@ -39,7 +39,7 @@ It is not free everywhere:
 
 ## Numbers
 
-A change is named by a number, `#216`, from the same counter as the repository's issues. A bare `#216` is never ambiguous, and it is the number you type: `sx change view 216`. It does not change when you rewrite the change, and it does not depend on any host. Pull requests on other hosts have their own numbers, and a change remembers which one is which.
+A change is named by a number, `#216`, from the same counter as the repository's issues. A bare `#216` is never ambiguous, and it is the number you type: `cb change view 216`. It does not change when you rewrite the change, and it does not depend on any host. Pull requests on other hosts have their own numbers, and a change remembers which one is which.
 
 ## Findings from reviewers
 

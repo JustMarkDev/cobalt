@@ -1,5 +1,5 @@
 {
-  "name": "source-code",
+  "name": "cobalt",
   "private": true,
   "license": "BUSL-1.1",
   "sideEffects": false,
@@ -18,21 +18,21 @@
     "format": "vp fmt .",
     "lint": "vp lint",
     "test": "bun test",
-    "test:convex": "SX_DOMAIN=convex bun test --timeout 60000 packages/api",
+    "test:convex": "CB_DOMAIN=convex bun test --timeout 60000 packages/api",
     "prepare": "vp config"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.13.1",
     "@convex-dev/presence": "^0.4.0",
     "@noble/hashes": "^2.4.0",
-    "@source-code/api": "workspace:*",
+    "@cobaltforge/api": "workspace:*",
     "better-auth": "~1.7.27",
     "convex": "^1.51.0",
     "jose": "^6.2.18"
   },
   "devDependencies": {
     "@convex-dev/eslint-plugin": "^5.0.1",
-    "@source-code/sdk": "workspace:*",
+    "@cobaltforge/sdk": "workspace:*",
     "@types/bun": "^1.4.5",
     "@typescript/native": "npm:typescript@^7.0.2",
     "convex-test": "^0.0.73",

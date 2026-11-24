@@ -168,7 +168,7 @@ export const createChange = defineOp({
   id: 'changes.create',
   summary: 'Create a change from a branch',
   description:
-    'Naturally idempotent: asking again for a branch that already has an open change adds a patch set, or returns the same change when the branch did not move. `Sx-Outcome` says which: created, patch_set_added or unchanged.',
+    'Naturally idempotent: asking again for a branch that already has an open change adds a patch set, or returns the same change when the branch did not move. `Cb-Outcome` says which: created, patch_set_added or unchanged.',
   tags: ['changes'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/changes',
@@ -220,7 +220,7 @@ export const createChange = defineOp({
       return reply(r.change, {
         status: r.outcome === 'created' ? 201 : 200,
         headers: {
-          'sx-outcome': r.outcome,
+          'cb-outcome': r.outcome,
           ...(r.outcome === 'created' ? { location: r.change.url } : {}),
         },
       })
@@ -722,7 +722,7 @@ export const reportCheck = defineOp({
   id: 'checks.report',
   summary: 'Report a check run',
   description:
-    'CI and runners report here with the `tree` they ran on. The same `key` on the same tree updates one run; `Sx-Outcome` says created, updated or unchanged. A result for an older tree is stored but does not count for the head.',
+    'CI and runners report here with the `tree` they ran on. The same `key` on the same tree updates one run; `Cb-Outcome` says created, updated or unchanged. A result for an older tree is stored but does not count for the head.',
   tags: ['changes', 'ci'],
   method: 'POST',
   path: '/repos/{owner}/{repo}/changes/{number}/checks',
@@ -773,7 +773,7 @@ export const reportCheck = defineOp({
       })
       return reply(r.check, {
         status: r.outcome === 'created' ? 201 : 200,
-        headers: { 'sx-outcome': r.outcome },
+        headers: { 'cb-outcome': r.outcome },
       })
     }),
 })
@@ -783,7 +783,7 @@ export const getPolicy = defineOp({
   id: 'policy.get',
   summary: 'Each policy requirement for a change',
   description:
-    'Every requirement, its state, and what would satisfy it. The same answer as `sx policy explain`.',
+    'Every requirement, its state, and what would satisfy it. The same answer as `cb policy explain`.',
   tags: ['policy'],
   method: 'GET',
   path: '/repos/{owner}/{repo}/changes/{number}/policy',

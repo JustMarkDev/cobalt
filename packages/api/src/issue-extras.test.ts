@@ -28,12 +28,12 @@ describe('labels', () => {
       body: { name: 'windows', color: 'blue' },
     })
     expect(made.status).toBe(201)
-    expect(made.headers.get('sx-outcome')).toBe('created')
+    expect(made.headers.get('cb-outcome')).toBe('created')
     const again = await h.call('POST', `${R}/labels`, {
       body: { name: 'Windows' },
     })
     expect(again.status).toBe(200)
-    expect(again.headers.get('sx-outcome')).toBe('unchanged')
+    expect(again.headers.get('cb-outcome')).toBe('unchanged')
     expect(again.json.id).toBe(made.json.id)
   })
 

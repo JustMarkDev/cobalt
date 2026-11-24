@@ -1,7 +1,7 @@
 import type { Case } from './grade'
 
 /**
- * What an agent should do with source.code's MCP tools, on the sample data
+ * What an agent should do with cobalt's MCP tools, on the sample data
  * (`dana/gitfs`). Each case is a rule from the server's instructions or a
  * tool description; when an agent breaks a rule in real use, add the case
  * that catches it, and check it fails before the fix.

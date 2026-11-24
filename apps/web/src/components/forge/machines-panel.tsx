@@ -11,7 +11,7 @@ import { useOp, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
 /**
- * Where you are signed in. A machine signs in once (`sx auth login`) and every
+ * Where you are signed in. A machine signs in once (`cb auth login`) and every
  * agent on it works under that login, so this list is the whole of who can
  * act as you: machines, applications, and tokens you made. Revoking one ends
  * it on its next request.
@@ -36,7 +36,7 @@ export function MachinesPanel() {
           read the secrets your team can read, and every write they make names
           the machine, the tool and the model.
         </p>
-        <CopyField value="sx auth login" prefix="$" />
+        <CopyField value="cb auth login" prefix="$" />
         {machines.length ? (
           <Panel as="div" className="divide-y">
             {machines.map((a) => (
@@ -82,7 +82,7 @@ export function MachinesPanel() {
         <p className="max-w-prose text-sm text-muted-foreground">
           For a machine that cannot open a browser, or to give an agent less
           than you have: fewer scopes, fewer repositories. Make one with{' '}
-          <code className="text-foreground">sx</code> or the API.
+          <code className="text-foreground">cb</code> or the API.
         </p>
         {tokens.length ? (
           <Panel as="div" className="divide-y">

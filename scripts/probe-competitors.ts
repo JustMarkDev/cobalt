@@ -55,7 +55,7 @@ const token = spawnSync('gh', ['auth', 'token'], {
   encoding: 'utf8',
 }).stdout.trim()
 const ua = {
-  'user-agent': 'sx-latency-probe/0.1 (read-only; github.com/JustMarkDev)',
+  'user-agent': 'cobalt-latency-probe/0.1 (read-only; github.com/JustMarkDev)',
 }
 
 const github: Array<Probe> = [

@@ -31,7 +31,7 @@ import type { Viewer } from './presence'
 import type { TimelineEvent } from './change-timeline'
 import type { StatusItem } from './status-card'
 import type { Repo } from '~/lib/model/data'
-import type { Change } from '@source-code/sdk'
+import type { Change } from '@cobaltforge/sdk'
 import type {
   Author,
   ChangeItem,
@@ -207,7 +207,7 @@ function ChangeList({ repo }: { repo: Repo }) {
     return (
       <EmptyState title="No changes yet">
         Push a branch and run{' '}
-        <code className="font-mono text-xs">sx change create</code> to open one.
+        <code className="font-mono text-xs">cb change create</code> to open one.
         With a two-way mirror, a pull request opened on another host shows up
         here as a change too.
       </EmptyState>
@@ -468,7 +468,7 @@ function FindingCard({
 /* ---------------------------------------------------------------------------
  * The change page. One question answered first: can this land, and if not,
  * what is in the way. The same answer is what an agent reads from
- * `sx change view --json` or the MCP `get_change` tool.
+ * `cb change view --json` or the MCP `get_change` tool.
  * ------------------------------------------------------------------------- */
 
 type Tab = 'summary' | 'discussion' | 'timeline' | 'code'
@@ -696,11 +696,11 @@ function ChangeDetail({
         body: { reason: next.reason },
       }).then(undo)
   }
-  // source.code starts no agent: the finding's fix goes to the clipboard as
+  // cobalt starts no agent: the finding's fix goes to the clipboard as
   // a prompt, for whichever agent you hand it to.
   const send = (id: string) => {
     const f = list.find((x) => x.id === id)
-    const prompt = `${f?.prompt ?? `Address ${id}: ${f?.title ?? ''}`}\n\nIn ${repo.owner}/${repo.name} change #${api.number}. Add a patch set with sx change create.`
+    const prompt = `${f?.prompt ?? `Address ${id}: ${f?.title ?? ''}`}\n\nIn ${repo.owner}/${repo.name} change #${api.number}. Add a patch set with cb change create.`
     void navigator.clipboard.writeText(prompt).then(
       () =>
         log({

@@ -9,7 +9,7 @@ export const Route = createFileRoute('/$handle/$repo/commit/$sha')({
   head: ({ params }) => ({
     meta: [
       {
-        title: `${params.sha.slice(0, 7)} · ${params.handle}/${params.repo} · source.code`,
+        title: `${params.sha.slice(0, 7)} · ${params.handle}/${params.repo} · cobalt`,
       },
     ],
   }),

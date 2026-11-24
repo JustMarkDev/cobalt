@@ -1,7 +1,7 @@
 import { showTimeline } from '../timeline'
 import { showPresence } from '../presence'
 import { resolveRepo } from '../repo'
-import { SxError, exit, print, table } from '../output'
+import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import type { Command } from './types'
 
@@ -27,10 +27,10 @@ export const issue: Command = async (
   if (sub === 'create') {
     const title = str(flags, 'title') ?? rest.join(' ')
     if (!title)
-      throw new SxError(
+      throw new CbError(
         'missing_argument',
         'issue create needs a title.',
-        'Example: sx issue create "Crash on empty repo" --label bug',
+        'Example: cb issue create "Crash on empty repo" --label bug',
         exit.usage,
       )
     const labels = str(flags, 'label')?.split(',')
@@ -39,7 +39,7 @@ export const issue: Command = async (
       body: { title, ...(labels ? { labels } : {}) },
       dryRun: dry,
     })
-    const created = r.headers.get('sx-outcome') !== 'unchanged'
+    const created = r.headers.get('cb-outcome') !== 'unchanged'
     print(ctx, { ...r.json, created, dryRun: dry }, () =>
       created
         ? `${dry ? 'would create' : 'created'} #${r.json.number}`
@@ -49,10 +49,10 @@ export const issue: Command = async (
   }
   const n = (rest.at(0) ?? '').replace('#', '')
   if (!/^\d+$/.test(n))
-    throw new SxError(
+    throw new CbError(
       'issue_not_found',
       `No issue ${rest.at(0) ?? ''}.`,
-      'sx issue list --state all shows every issue.',
+      'cb issue list --state all shows every issue.',
       exit.notFound,
     )
   if (sub === 'view') {
@@ -87,10 +87,10 @@ export const issue: Command = async (
     )
     return
   }
-  throw new SxError(
+  throw new CbError(
     'unknown_command',
     `issue ${sub} is not a command.`,
-    'sx issue --help lists them.',
+    'cb issue --help lists them.',
     exit.usage,
   )
 }

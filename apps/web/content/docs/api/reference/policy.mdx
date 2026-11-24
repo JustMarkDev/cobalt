@@ -16,7 +16,7 @@ description: The rules a change must meet to land, the exceptions to them, and c
 
 **Each policy requirement for a change**
 
-Every requirement, its state, and what would satisfy it. The same answer as `sx policy explain`.
+Every requirement, its state, and what would satisfy it. The same answer as `cb policy explain`.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |
@@ -48,8 +48,8 @@ Every requirement, its state, and what would satisfy it. The same answer as `sx 
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/changes/216/policy" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/policy" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -132,8 +132,8 @@ Plan before acting: “if hollis approves and ci/test passes, can this land?” 
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/changes/216/policy/simulate" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/216/policy/simulate" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"checks":{"ci/test":"pass"},"resolve":["F-2"]}'
 ```
@@ -206,8 +206,8 @@ Its rules with their modes, what each applied to and held back, what a rule in d
 **Example**
 
 ```bash
-curl "https://api.source.code/v1/repos/dana/gitfs/policy" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -221,7 +221,7 @@ ratelimit: "read";r=1148;t=60
   "object": "policy_set",
   "repo": "dana/gitfs",
   "file": ".source/policy/main.yml",
-  "yaml": "# .source/policy/main.yml\n# The rules changes in this repository land under. Edit it in a change;\n# policy owners review it. https://source.code/docs/referen…",
+  "yaml": "# .source/policy/main.yml\n# The rules changes in this repository land under. Edit it in a change;\n# policy owners review it. https://cobaltforge.dev/docs/ref…",
   "rules": [
     {
       "id": "ci-evidence",
@@ -305,7 +305,7 @@ Up to 90 days. For core-paths the person counts as a maintainer; for the other r
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -323,8 +323,8 @@ Up to 90 days. For core-paths the person counts as a maintainer; for the other r
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/exceptions" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy/exceptions" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 3c9d1f6e-8b2a-4e7c-a1d5-6f0b9e2c4a77" \
   -H "Content-Type: application/json" \
   -d '{"rule":"reviewed","who":"hollis","reason":"On call this week","expires_at":"2026-11-14T09:00:00Z"}'
@@ -378,7 +378,7 @@ When the policy lives in the repository, this proposes instead of applying: it a
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -387,8 +387,8 @@ When the policy lives in the repository, this proposes instead of applying: it a
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/policy/exceptions/pex_01m6tq6r804sgncbs4" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy/exceptions/pex_01m6tq6r804sgncbs4" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -424,7 +424,7 @@ The edits, made to `.source/policy/main.yml` as a change: it keeps the file's co
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -439,8 +439,8 @@ The edits, made to `.source/policy/main.yml` as a change: it keeps the file's co
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/proposals" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy/proposals" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "idempotency-key: 7a1e3c9b-2d4f-4b6a-8e0c-1f5d7b9a3c62" \
   -H "Content-Type: application/json" \
   -d '{"edits":[{"op":"set_mode","rule":"reviewed","mode":"enforce"},{"op":"set_landing","fresh_approvals":true,"steps":[{"wait_checks":["ci/test"]}]}]}'
@@ -448,7 +448,7 @@ curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/proposals" \
 
 ```http
 HTTP/1.1 202
-location: https://api.source.code/v1/repos/dana/gitfs/changes/222
+location: https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/222
 ratelimit: "write";r=64;t=60
 ```
 
@@ -456,7 +456,7 @@ ratelimit: "write";r=64;t=60
 {
   "object": "policy_proposal",
   "change": 222,
-  "url": "https://api.source.code/v1/repos/dana/gitfs/changes/222",
+  "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/changes/222",
   "patch_set": 1,
   "created": true,
   "edits": [
@@ -508,7 +508,7 @@ Four kinds. `required_check`: `check` has to pass on the tree that lands. `path_
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -531,15 +531,15 @@ Four kinds. `required_check`: `check` has to pass on the tree that lands. `path_
 **Example**
 
 ```bash
-curl -X POST "https://api.source.code/v1/repos/dana/gitfs/policy/rules" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy/rules" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"id":"docs-owners","name":"Docs need a docs owner","kind":"path_approval","paths":["docs/**"],"approvals":1,"from":["hollis"]}'
 ```
 
 ```http
 HTTP/1.1 201
-sx-outcome: created
+cb-outcome: created
 ratelimit: "write";r=68;t=60
 ```
 
@@ -587,7 +587,7 @@ Its exceptions go with it. A built-in rule cannot be deleted; turn it off instea
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Errors**
 
@@ -596,8 +596,8 @@ Its exceptions go with it. A built-in rule cannot be deleted; turn it off instea
 **Example**
 
 ```bash
-curl -X DELETE "https://api.source.code/v1/repos/dana/gitfs/policy/rules/docs-owners" \
-  -H "Authorization: Bearer $SX_TOKEN"
+curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy/rules/docs-owners" \
+  -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
@@ -635,7 +635,7 @@ Every open change's requirements are worked out again, so a change can become la
 
 | Name      | Type    | Notes                                                                                                   |
 | --------- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Sx-Dry-Run: true. |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
 
 **Request body**
 
@@ -650,8 +650,8 @@ Every open change's requirements are worked out again, so a change can become la
 **Example**
 
 ```bash
-curl -X PATCH "https://api.source.code/v1/repos/dana/gitfs/policy/rules/reviewed" \
-  -H "Authorization: Bearer $SX_TOKEN" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/policy/rules/reviewed" \
+  -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"mode":"enforce"}'
 ```
