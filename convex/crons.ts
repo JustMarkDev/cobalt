@@ -21,6 +21,8 @@ crons.interval(
   {},
 )
 crons.interval('sweep oauth', { minutes: 15 }, internal.forge.oauth.sweep, {})
+// Mail that never went out and was left behind (a crash between two tries).
+crons.interval('sweep mail', { hours: 6 }, internal.mail.sweep, {})
 crons.interval(
   'sweep operations',
   { hours: 6 },

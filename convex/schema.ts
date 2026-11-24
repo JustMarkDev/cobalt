@@ -1057,14 +1057,18 @@ export default defineSchema({
     .index('by_expires', ['expires']),
 
   // Mail waiting to be sent. A write that sends mail adds it here in the same
-  // transaction, and `mail.send` delivers it, so mail goes out only for
-  // writes that committed.
+  // transaction, and `mail.deliver` delivers it, so mail goes out only for
+  // writes that committed. A row stays until Resend took the message, or the
+  // attempts ran out, so a failed send is tried again; `mail.sweep` drops
+  // what a crash left behind.
   outbox: defineTable({
     to: v.string(),
     subject: v.string(),
     text: v.string(),
     created: v.number(),
-  }),
+    // Sends that failed so far.
+    attempts: v.optional(v.number()),
+  }).index('by_created', ['created']),
 
   // ---- Shared state of the HTTP API (packages/api) --------------------------
   // Everything below is read and written by the API servers through

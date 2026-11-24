@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   canMove,
   expireWait,
+  pipelineDone,
   pipelineLifecycle,
   pipelineStepLifecycle,
   resumeStep,
@@ -54,6 +55,7 @@ describe('the moves', () => {
       expect(canMove(pipelineStepLifecycle, 'waiting', to)).toBe(true)
     expect(canMove(pipelineStepLifecycle, 'waiting', 'skipped')).toBe(false)
     expect(canMove(pipelineStepLifecycle, 'success', 'waiting')).toBe(false)
+    expect(pipelineDone('waiting')).toBe(false)
   })
 
   test('only a running step waits; only a waiting one resumes; a late timer does nothing', () => {
