@@ -41,7 +41,8 @@ export const claim = mutation({
         .take(max)) {
         if (sweeps.length >= max) break
         await ctx.db.patch('sweeps', s._id, { lease: now + LEASE_MS })
-        sweeps.push({ id: s._id, kind: s.kind, key: s.key })
+        if (s.kind !== 'provider')
+          sweeps.push({ id: s._id, kind: s.kind, key: s.key })
       }
     const measure = a.measure
       ? (

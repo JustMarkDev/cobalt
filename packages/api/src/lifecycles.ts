@@ -46,6 +46,41 @@ export function changeTarget(
   return canMove(changeLifecycle, c.state, to) ? to : null
 }
 
+/**
+ * A pull request imported read-only from a provider, in the words of changes
+ * here. The provider decides, so it may make an open one a draft again or
+ * reopen a closed one, which a change here cannot; landed stays landed.
+ */
+export const remotePullLifecycle = machine<ChangeState>('remote pull request', {
+  draft: ['open', 'abandoned', 'landed'],
+  open: ['draft', 'landed', 'abandoned'],
+  abandoned: ['draft', 'open'],
+  landed: [],
+})
+
+/** The state a provider pull request is in, as a change here would say it. */
+export function remotePullState(r: {
+  state: 'open' | 'closed' | 'merged'
+  draft: boolean
+}): ChangeState {
+  if (r.state === 'merged') return 'landed'
+  if (r.state === 'closed') return 'abandoned'
+  return r.draft ? 'draft' : 'open'
+}
+
+/**
+ * Where an imported pull request goes when the provider reports `next`: the
+ * move when the table allows it, or null to keep what it was (a landed one
+ * reported closed, say, after a revert of the merge commit there).
+ */
+export function remotePullTarget(
+  from: ChangeState | null,
+  next: ChangeState,
+): ChangeState | null {
+  if (from === null || from === next) return next
+  return canMove(remotePullLifecycle, from, next) ? next : null
+}
+
 export type OperationState =
   | 'queued'
   | 'running'

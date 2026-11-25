@@ -1,4 +1,6 @@
 import { apiError } from './problem'
+import { createGithubForge } from './forge/github'
+import { ProviderError } from './forge/types'
 
 /**
  * The platform's GitHub App, for proving that someone may push to a GitHub
@@ -86,6 +88,8 @@ export interface Github {
     state: string,
     redirectUri: string,
   ) => Promise<OauthFinish>
+  /** The person's GitHub token inside a sealed `access`, for one batch of work. */
+  token: (access: string, handle: string) => Promise<string>
   /** Throws `forbidden` unless the person may push to `slug` through the app. */
   authorize: (
     access: string,
@@ -276,39 +280,32 @@ export function createGithub(
     return (await res.json()) as T
   }
 
+  // Through the forge adapter, which follows every page of every
+  // installation (there used to be a ten-page limit here).
+  const forge = createGithubForge({ fetch: f })
   async function all(token: string): Promise<Array<GithubRepoRef>> {
-    const out: Array<GithubRepoRef> = []
-    const { installations } = await json<{
-      installations: Array<{ id: number }>
-    }>(token, '/user/installations?per_page=100')
-    for (const inst of installations)
-      for (let page = 1; page <= 10; page++) {
-        const r = await json<{
-          repositories: Array<{
-            id: number
-            full_name: string
-            private: boolean
-            default_branch: string
-            size?: number
-            permissions?: { admin?: boolean; push?: boolean }
-          }>
-        }>(
-          token,
-          `/user/installations/${inst.id}/repositories?per_page=100&page=${page}`,
+    try {
+      return [...(await forge.pushable(token)).values()].map((r) => ({
+        id: Number(r.id),
+        slug: r.slug,
+        private: r.private,
+        defaultBranch: r.defaultBranch,
+        installation: r.installation ?? 0,
+        sizeBytes: r.sizeBytes,
+      }))
+    } catch (e) {
+      if (e instanceof ProviderError && e.status === 401)
+        throw apiError('forbidden', 'GitHub no longer accepts this sign-in.', {
+          hint: 'Sign in with GitHub again.',
+        })
+      if (e instanceof ProviderError)
+        throw apiError(
+          'backend_unavailable',
+          `GitHub answered ${e.status}.`,
+          {},
         )
-        for (const r1 of r.repositories)
-          if (r1.permissions?.push || r1.permissions?.admin)
-            out.push({
-              id: r1.id,
-              slug: r1.full_name,
-              private: r1.private,
-              defaultBranch: r1.default_branch,
-              installation: inst.id,
-              sizeBytes: (r1.size ?? 0) * 1024,
-            })
-        if (r.repositories.length < 100) break
-      }
-    return out
+      throw e
+    }
   }
 
   const seal = async (token: string, handle: string) => {
@@ -417,6 +414,9 @@ export function createGithub(
         ...(await seal(token, handle)),
         returnTo: s.t,
       }
+    },
+    async token(access, handle) {
+      return (await openAccess(cfg.sealKey, access, handle, now())).token
     },
     async repos(access, handle) {
       const { token } = await openAccess(cfg.sealKey, access, handle, now())

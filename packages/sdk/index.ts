@@ -584,6 +584,18 @@ export type Evidence = {
   created_at: string
 }
 
+export type ExternalActor = {
+  object: 'external_actor'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  login: string
+  name: string | null
+  avatar_url: string | null
+  /** Their profile on the provider */
+  url: string
+  deleted: boolean
+}
+
 export type Finding = {
   object: 'finding'
   /** Starts with fnd_ */
@@ -754,6 +766,35 @@ export type Import = {
   state: 'in-sync' | 'syncing' | 'behind' | 'failing'
   /** RFC 3339 time, UTC */
   created_at: string
+  /** What to know about the link: who may push through it, Git LFS, a missing webhook */
+  warnings: Array<string>
+}
+
+export type ImportJob = {
+  object: 'import_job'
+  /** Starts with imj_ */
+  id: string
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  /** Where the repositories are made */
+  owner: string
+  state: 'running' | 'done' | 'cancelled'
+  total: number
+  /** Imported or skipped */
+  done: number
+  failed: number
+  items: Array<{
+    slug: string
+    state: 'queued' | 'running' | 'done' | 'failed' | 'skipped'
+    /** The repository here, once made */
+    repo: string | null
+    error: string | null
+    attempts: number
+  }>
+  /** RFC 3339 time, UTC */
+  created_at: string
+  /** RFC 3339 time, UTC */
+  updated_at: string
 }
 
 export type Inbox = {
@@ -1485,6 +1526,112 @@ export type Provenance = {
   via: Via | null
 }
 
+export type ProviderAudit = {
+  object: 'provider_audit'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  action:
+    | 'connected'
+    | 'reconnected'
+    | 'disconnected'
+    | 'imported'
+    | 'adopted'
+    | 'unlinked'
+    | 'relinked'
+    | 'needs_reconnect'
+  repo: string | null
+  detail: string | null
+  /** RFC 3339 time, UTC */
+  at: string
+}
+
+export type ProviderConnection = {
+  object: 'provider_connection'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  /** The provider host, `gitlab.com` */
+  instance: string
+  /** Who you are there */
+  login: string
+  /** `needs_reconnect`: the provider refused the stored token; connect again */
+  state: 'ok' | 'needs_reconnect'
+  problem: string | null
+  scopes: Array<string>
+  /** Repositories here that sync through it */
+  repos: number
+  /** RFC 3339 time, UTC */
+  connected_at: string
+}
+
+export type ProviderLink = {
+  object: 'provider_link'
+  repo: string
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  /** `owner/name` on the provider today */
+  slug: string
+  url: string
+  /** `delayed`: no webhook, changes there arrive on fetch or within hours; `broken`: the connection that kept it in sync stopped working */
+  state: 'syncing' | 'linked' | 'delayed' | 'broken' | 'archived' | 'gone'
+  problem: string | null
+  warnings: Array<string>
+  /** Whether `.gitattributes` uses Git LFS */
+  lfs: boolean
+  /** Whose provider account keeps it in sync; null on GitHub, where the Cobalt GitHub App does */
+  connection: {
+    handle: string
+    login: string
+    state: 'ok' | 'needs_reconnect'
+  } | null
+  /** Whether you can take the link over with your own connection (POST .../provider/adopt) */
+  adoptable: boolean
+  linked_by: string
+  last_sync_at: string | null
+  last_pull_at: string | null
+  /** When pull requests, issues and releases were last read from the provider */
+  items_imported_at: string | null
+}
+
+export type ProviderOauth = {
+  object: 'provider_oauth'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  /** Send the person here to sign in */
+  url: string
+}
+
+export type ProviderOauthResult = {
+  object: 'provider_oauth_result'
+  connection: ProviderConnection
+  return_to: string | null
+}
+
+export type ProviderRepo = {
+  object: 'provider_repo'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  /** `owner/name` there */
+  slug: string
+  private: boolean
+  archived: boolean
+  fork: boolean
+  default_branch: string
+  description: string
+  size_bytes: number
+  /** Whether you can push to it there, when the provider says */
+  can_push: boolean | null
+  /** The repository here that already holds it, if any */
+  linked: string | null
+}
+
+export type ProviderRepoPage = {
+  object: 'list'
+  data: Array<ProviderRepo>
+  has_more: boolean
+  /** Send it back as `cursor` for the next page */
+  next_cursor: string | null
+}
+
 export type Reference = {
   object: 'reference'
   change: number
@@ -1541,6 +1688,115 @@ export type ReleaseAsset = {
   sha256: string
   /** Where the file is served, when it was uploaded here */
   content_url: string | null
+}
+
+export type RemoteComment = {
+  object: 'remote_comment'
+  author: ExternalActor | null
+  body: string
+  /** RFC 3339 time, UTC */
+  created_at: string
+  /** RFC 3339 time, UTC */
+  updated_at: string
+  /** Set when it was removed on the provider; it stays here, marked */
+  removed: {
+    /** RFC 3339 time, UTC */
+    at: string
+    /** Who removed it, when the provider said */
+    by: ExternalActor | null
+  } | null
+}
+
+export type RemoteIssue = {
+  object: 'remote_issue'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  number: number
+  title: string
+  body: string
+  state: 'open' | 'closed'
+  author: ExternalActor | null
+  labels: Array<string>
+  comments: number
+  url: string
+  /** RFC 3339 time, UTC */
+  created_at: string
+  /** RFC 3339 time, UTC */
+  updated_at: string
+  closed_at: string | null
+  /** Set when it was removed on the provider; it stays here, marked */
+  removed: {
+    /** RFC 3339 time, UTC */
+    at: string
+    /** Who removed it, when the provider said */
+    by: ExternalActor | null
+  } | null
+}
+
+export type RemotePatch = {
+  object: 'remote_patch'
+  number: number
+  /** The patch as the provider gave it, as `git apply` reads it */
+  text: string
+  /** Cut at 900 KB */
+  truncated: boolean
+}
+
+export type RemotePull = {
+  object: 'remote_pull'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  number: number
+  title: string
+  body: string
+  /** In the words of changes here: merged is landed, closed is abandoned */
+  state: 'draft' | 'open' | 'landed' | 'abandoned'
+  author: ExternalActor | null
+  head_ref: string
+  head_sha: string
+  base_ref: string
+  from_fork: boolean
+  /** Whether its head commit is in this repository; when not, the patch is kept with it */
+  commits_here: boolean | null
+  has_patch: boolean
+  comments: number
+  url: string
+  /** RFC 3339 time, UTC */
+  created_at: string
+  /** RFC 3339 time, UTC */
+  updated_at: string
+  closed_at: string | null
+  landed_at: string | null
+  /** Set when it was removed on the provider; it stays here, marked */
+  removed: {
+    /** RFC 3339 time, UTC */
+    at: string
+    /** Who removed it, when the provider said */
+    by: ExternalActor | null
+  } | null
+}
+
+export type RemoteRelease = {
+  object: 'remote_release'
+  /** A git provider a repository here can be linked to */
+  provider: 'github' | 'gitlab' | 'codeberg'
+  tag: string
+  name: string
+  body: string
+  draft: boolean
+  prerelease: boolean
+  author: ExternalActor | null
+  url: string
+  /** RFC 3339 time, UTC */
+  created_at: string
+  published_at: string | null
+  /** Set when it was removed on the provider; it stays here, marked */
+  removed: {
+    /** RFC 3339 time, UTC */
+    at: string
+    /** Who removed it, when the provider said */
+    by: ExternalActor | null
+  } | null
 }
 
 export type Repo = {
@@ -2960,6 +3216,23 @@ export interface Operations {
       next_cursor: string | null
     }
   }
+  /** Import many repositories at once (`POST /imports/batch`) */
+  'imports.batch': {
+    input: {
+      body: {
+        /** The git provider */
+        provider: 'github' | 'gitlab' | 'codeberg'
+        slugs: Array<string>
+        /** Default: the account you act as */
+        owner?: string
+        /** Default: as each is on the provider */
+        visibility?: 'public' | 'private'
+        /** For GitHub: the `access` from signing in with GitHub (`github.device.poll`) */
+        github_access?: string
+      }
+    }
+    output: ImportJob
+  }
   /** Import a repository from another host (`POST /imports`) */
   'imports.create': {
     input: {
@@ -2976,6 +3249,13 @@ export interface Operations {
       }
     }
     output: Repo
+  }
+  /** How a bulk import is going (`GET /imports/jobs/{id}`) */
+  'imports.jobs.get': {
+    input: {
+      id: string
+    }
+    output: ImportJob
   }
   /** What you imported (`GET /imports`) */
   'imports.list': {
@@ -3958,6 +4238,78 @@ export interface Operations {
     }
     output: AccountPreferences
   }
+  /** What you connected, imported and unlinked (`GET /providers/audit`) */
+  'providers.audit': {
+    input: Record<string, never>
+    output: {
+      object: 'list'
+      data: Array<ProviderAudit>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** Disconnect a provider account (`DELETE /providers/{provider}`) */
+  'providers.disconnect': {
+    input: {
+      provider: 'github' | 'gitlab' | 'codeberg'
+    }
+    output: void
+  }
+  /** Your accounts on git providers (`GET /providers`) */
+  'providers.list': {
+    input: Record<string, never>
+    output: {
+      object: 'list'
+      data: Array<ProviderConnection>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** Finish connecting GitLab or Codeberg (`POST /providers/{provider}/oauth/finish`) */
+  'providers.oauth.finish': {
+    input: {
+      provider: 'gitlab' | 'codeberg'
+      body: {
+        code: string
+        state: string
+        /** Where the provider sends the person back: this site's /gitlab/callback or /codeberg/callback */
+        redirect_uri: string
+      }
+    }
+    output: ProviderOauthResult
+  }
+  /** Start connecting GitLab or Codeberg (`POST /providers/{provider}/oauth`) */
+  'providers.oauth.start': {
+    input: {
+      provider: 'gitlab' | 'codeberg'
+      body: {
+        /** Where the provider sends the person back: this site's /gitlab/callback or /codeberg/callback */
+        redirect_uri: string
+        /** A path on this site to come back to afterwards */
+        return_to?: string
+      }
+    }
+    output: ProviderOauth
+  }
+  /** The repositories you can import from a provider (`POST /providers/{provider}/repos`) */
+  'providers.repos.list': {
+    input: {
+      provider: 'github' | 'gitlab' | 'codeberg'
+      body: {
+        /** For GitHub: the `access` from signing in with GitHub (`github.device.poll`) */
+        github_access?: string
+        /** `next_cursor` from the previous page */
+        cursor?: string
+        /** Text in the name or description */
+        q?: string
+        /** Default true; false leaves forks out */
+        forks?: boolean
+        /** Default true; false leaves archived repositories out */
+        archived?: boolean
+      }
+    }
+    output: ProviderRepoPage
+  }
   /** Publish a release (`POST /repos/{owner}/{repo}/releases`) */
   'releases.create': {
     input: {
@@ -4157,6 +4509,124 @@ export interface Operations {
       change?: number
     }
     output: Provenance
+  }
+  /** Take over the link with your own connection (`POST /repos/{owner}/{repo}/provider/adopt`) */
+  'repos.provider.adopt': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: ProviderLink
+  }
+  /** The provider a repository is linked to (`GET /repos/{owner}/{repo}/provider`) */
+  'repos.provider.get': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: ProviderLink
+  }
+  /** Comments on an issue from the provider (`GET /repos/{owner}/{repo}/provider/issues/{number}/comments`) */
+  'repos.provider.issues.comments': {
+    input: {
+      owner: string
+      repo: string
+      number: number
+    }
+    output: {
+      object: 'list'
+      data: Array<RemoteComment>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** An issue from the provider (`GET /repos/{owner}/{repo}/provider/issues/{number}`) */
+  'repos.provider.issues.get': {
+    input: {
+      owner: string
+      repo: string
+      number: number
+    }
+    output: RemoteIssue
+  }
+  /** Issues from the provider (`GET /repos/{owner}/{repo}/provider/issues`) */
+  'repos.provider.issues.list': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: {
+      object: 'list'
+      data: Array<RemoteIssue>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** Comments on a pull request from the provider (`GET /repos/{owner}/{repo}/provider/pulls/{number}/comments`) */
+  'repos.provider.pulls.comments': {
+    input: {
+      owner: string
+      repo: string
+      number: number
+    }
+    output: {
+      object: 'list'
+      data: Array<RemoteComment>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** A pull request from the provider (`GET /repos/{owner}/{repo}/provider/pulls/{number}`) */
+  'repos.provider.pulls.get': {
+    input: {
+      owner: string
+      repo: string
+      number: number
+    }
+    output: RemotePull
+  }
+  /** Pull requests from the provider (`GET /repos/{owner}/{repo}/provider/pulls`) */
+  'repos.provider.pulls.list': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: {
+      object: 'list'
+      data: Array<RemotePull>
+      has_more: boolean
+      next_cursor: string | null
+    }
+  }
+  /** The kept patch of a pull request (`GET /repos/{owner}/{repo}/provider/pulls/{number}/patch`) */
+  'repos.provider.pulls.patch': {
+    input: {
+      owner: string
+      repo: string
+      number: number
+    }
+    output: RemotePatch
+  }
+  /** Read pull requests, issues and releases again (`POST /repos/{owner}/{repo}/provider/refresh`) */
+  'repos.provider.refresh': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: ProviderLink
+  }
+  /** Releases from the provider (`GET /repos/{owner}/{repo}/provider/releases`) */
+  'repos.provider.releases.list': {
+    input: {
+      owner: string
+      repo: string
+    }
+    output: {
+      object: 'list'
+      data: Array<RemoteRelease>
+      has_more: boolean
+      next_cursor: string | null
+    }
   }
   /** Give a repository to another account (`POST /repos/{owner}/{repo}/transfer`) */
   'repos.transfer': {
@@ -5592,6 +6062,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'read',
   },
+  'imports.batch': {
+    method: 'POST',
+    path: '/imports/batch',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
   'imports.create': {
     method: 'POST',
     path: '/imports',
@@ -5602,6 +6083,17 @@ const OPERATIONS = {
     idempotent: true,
     secretResponse: false,
     safety: 'write',
+  },
+  'imports.jobs.get': {
+    method: 'GET',
+    path: '/imports/jobs/{id}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
   },
   'imports.list': {
     method: 'GET',
@@ -6362,6 +6854,72 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
+  'providers.audit': {
+    method: 'GET',
+    path: '/providers/audit',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'providers.disconnect': {
+    method: 'DELETE',
+    path: '/providers/{provider}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'destructive',
+  },
+  'providers.list': {
+    method: 'GET',
+    path: '/providers',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'providers.oauth.finish': {
+    method: 'POST',
+    path: '/providers/{provider}/oauth/finish',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'providers.oauth.start': {
+    method: 'POST',
+    path: '/providers/{provider}/oauth',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: false,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'providers.repos.list': {
+    method: 'POST',
+    path: '/providers/{provider}/repos',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
   'releases.create': {
     method: 'POST',
     path: '/repos/{owner}/{repo}/releases',
@@ -6509,6 +7067,127 @@ const OPERATIONS = {
     method: 'GET',
     path: '/repos/{owner}/{repo}/provenance',
     query: ['path', 'line', 'ref', 'change'],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.adopt': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/provider/adopt',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'repos.provider.get': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.issues.comments': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/issues/{number}/comments',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.issues.get': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/issues/{number}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.issues.list': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/issues',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.pulls.comments': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/pulls/{number}/comments',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.pulls.get': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/pulls/{number}',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.pulls.list': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/pulls',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.pulls.patch': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/pulls/{number}/patch',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'repos.provider.refresh': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/provider/refresh',
+    query: [],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
+  'repos.provider.releases.list': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/provider/releases',
+    query: [],
     body: false,
     rawBody: false,
     json: true,
@@ -7403,6 +8082,10 @@ export interface Client extends Core {
     }
   }
   imports: {
+    batch: (
+      input: Operations['imports.batch']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['imports.batch']['output']>
     create: (
       input: Operations['imports.create']['input'],
       options?: RequestOptions,
@@ -7411,6 +8094,12 @@ export interface Client extends Core {
       input?: Operations['imports.list']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['imports.list']['output']>
+    jobs: {
+      get: (
+        input: Operations['imports.jobs.get']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['imports.jobs.get']['output']>
+    }
   }
   inbox: {
     list: (
@@ -7720,6 +8409,36 @@ export interface Client extends Core {
       options?: RequestOptions,
     ) => Promise<Operations['preferences.update']['output']>
   }
+  providers: {
+    audit: (
+      input?: Operations['providers.audit']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['providers.audit']['output']>
+    disconnect: (
+      input: Operations['providers.disconnect']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['providers.disconnect']['output']>
+    list: (
+      input?: Operations['providers.list']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['providers.list']['output']>
+    oauth: {
+      finish: (
+        input: Operations['providers.oauth.finish']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['providers.oauth.finish']['output']>
+      start: (
+        input: Operations['providers.oauth.start']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['providers.oauth.start']['output']>
+    }
+    repos: {
+      list: (
+        input: Operations['providers.repos.list']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['providers.repos.list']['output']>
+    }
+  }
   releases: {
     create: (
       input: Operations['releases.create']['input'],
@@ -7787,6 +8506,58 @@ export interface Client extends Core {
       input: Operations['repos.update']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['repos.update']['output']>
+    provider: {
+      adopt: (
+        input: Operations['repos.provider.adopt']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['repos.provider.adopt']['output']>
+      get: (
+        input: Operations['repos.provider.get']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['repos.provider.get']['output']>
+      refresh: (
+        input: Operations['repos.provider.refresh']['input'],
+        options?: RequestOptions,
+      ) => Promise<Operations['repos.provider.refresh']['output']>
+      issues: {
+        comments: (
+          input: Operations['repos.provider.issues.comments']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.issues.comments']['output']>
+        get: (
+          input: Operations['repos.provider.issues.get']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.issues.get']['output']>
+        list: (
+          input: Operations['repos.provider.issues.list']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.issues.list']['output']>
+      }
+      pulls: {
+        comments: (
+          input: Operations['repos.provider.pulls.comments']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.pulls.comments']['output']>
+        get: (
+          input: Operations['repos.provider.pulls.get']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.pulls.get']['output']>
+        list: (
+          input: Operations['repos.provider.pulls.list']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.pulls.list']['output']>
+        patch: (
+          input: Operations['repos.provider.pulls.patch']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.pulls.patch']['output']>
+      }
+      releases: {
+        list: (
+          input: Operations['repos.provider.releases.list']['input'],
+          options?: RequestOptions,
+        ) => Promise<Operations['repos.provider.releases.list']['output']>
+      }
+    }
   }
   reviews: {
     create: (

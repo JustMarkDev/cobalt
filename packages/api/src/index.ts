@@ -34,8 +34,11 @@ import { accessOps } from './ops/access'
 import { policyRuleOps } from './ops/policy-rules'
 import { integrationOps } from './ops/integrations'
 import { importOps } from './ops/imports'
+import { providerOps } from './ops/providers'
 import { githubOps } from './ops/github'
 import { sampleGithub } from './github-sample'
+import { sampleProviders } from './forge/sample'
+import type { ProviderSync } from './forge/sync'
 import type { Github } from './github'
 import { insightOps } from './ops/insights'
 import { peopleOps } from './ops/people'
@@ -90,6 +93,7 @@ export const operations: ReadonlyArray<Op> = [
   ...policyRuleOps,
   ...integrationOps,
   ...importOps,
+  ...providerOps,
   ...githubOps,
   ...insightOps,
   ...peopleOps,
@@ -119,6 +123,7 @@ export function createSampleApi(
     mail?: Mailer
     git?: GitData
     github?: Github | null
+    providers?: ProviderSync | null
     secretsKey?: string
     ephemeralSecrets?: boolean
   } = {},
@@ -155,6 +160,11 @@ export function createSampleApi(
   domain.svc.github =
     overrides.github === undefined ? sampleGithub({ now }) : overrides.github
   domain.svc.mail = overrides.mail ?? mailerFromEnv()
+  domain.svc.providers =
+    overrides.providers === undefined
+      ? sampleProviders(domain.svc.github ?? null, urls.html, now)
+      : overrides.providers
+  domain.svc.providers?.attach(domain.providerHost())
   seedSample(domain)
   overrides.seed?.(domain)
   seedExtras(domain)
@@ -218,7 +228,11 @@ export function createSampleApi(
     ...overrides,
     domain: port,
   })
-  return { ...api, domain, port }
+  const receiveHook = async (provider: string, req: Request) =>
+    domain.svc.providers
+      ? domain.svc.providers.receiveRequest(provider, req)
+      : new Response('Webhooks are not received here.', { status: 404 })
+  return { ...api, domain, port, receiveHook }
 }
 
 const SAMPLE_VALUES: Partial<Record<string, string>> = {

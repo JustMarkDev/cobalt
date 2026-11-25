@@ -116,12 +116,16 @@ describe('imports', () => {
     expect((await h.call('GET', '/repos/dana/private-thing')).status).toBe(404)
   })
 
-  test('only GitHub is linked', async () => {
+  test('GitLab needs a connection first; self-hosted Gitea is not linked', async () => {
     const h = harness()
     const gitlab = await h.call('POST', '/imports', {
-      body: { host: 'gitlab', slug: 'x/zine' },
+      body: { host: 'gitlab', slug: 'dana.okafor/zine' },
     })
-    expect(gitlab.status).toBe(400)
+    expect([gitlab.status, gitlab.json.code]).toEqual([409, 'invalid_state'])
+    const gitea = await h.call('POST', '/imports', {
+      body: { host: 'gitea', slug: 'x/zine' },
+    })
+    expect(gitea.status).toBe(400)
   })
 
   test('a dry run makes nothing', async () => {

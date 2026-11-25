@@ -5,6 +5,7 @@ import type { CursorPosition, Page } from '../cursor'
 import type { EventLog } from '../events'
 import type { Pre } from '../registry'
 import type * as S from '../schemas'
+import type { ForgeOps } from '../forge/ports'
 import type { SearchDoc } from '../search'
 import type { UploadRec } from '../uploads'
 import type { GuideBody } from '../guides'
@@ -786,6 +787,25 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<{ repo: Out<typeof S.Repo>; created: boolean }>
   listImports: (p: Viewer) => Promise<Array<Out<typeof S.Import>>>
+
+  // Git providers: connections, listing, bulk import, the link of a
+  // repository, and what was copied from it read-only (forge/ports.ts).
+  providerConnections: ForgeOps['providerConnections']
+  providerRepos: ForgeOps['providerRepos']
+  providerOauthStart: ForgeOps['providerOauthStart']
+  providerOauthFinish: ForgeOps['providerOauthFinish']
+  providerDisconnect: ForgeOps['providerDisconnect']
+  providerAudit: ForgeOps['providerAudit']
+  importBatch: ForgeOps['importBatch']
+  importJob: ForgeOps['importJob']
+  repoProvider: ForgeOps['repoProvider']
+  adoptProvider: ForgeOps['adoptProvider']
+  refreshProvider: ForgeOps['refreshProvider']
+  remoteList: ForgeOps['remoteList']
+  remotePull: ForgeOps['remotePull']
+  remoteIssue: ForgeOps['remoteIssue']
+  remoteComments: ForgeOps['remoteComments']
+  remotePatch: ForgeOps['remotePatch']
 
   githubDeviceStart: (p: Principal) => Promise<Out<typeof S.GithubDevice>>
   githubDevicePoll: (

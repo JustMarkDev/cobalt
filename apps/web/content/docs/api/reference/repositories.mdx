@@ -1,7 +1,7 @@
 ---
 icon: FolderIcon
 title: Repositories
-description: The repositories you can see, creating, changing, transferring and importing one, stars, releases and the one-call context for starting work.
+description: The repositories you can see, creating, changing, transferring and importing one, accounts on git providers and what is linked to them, stars, releases and the one-call context for starting work.
 ---
 
 {/* Generated from the API definitions by scripts/api-docs.ts. Do not edit by hand. */}
@@ -300,7 +300,7 @@ curl "https://api.cobaltforge.dev/v1/imports" \
 
 ```http
 HTTP/1.1 200
-etag: W/"5oyWwZ9tk8dor04o"
+etag: W/"959EAKoSqJQJXYZv"
 ratelimit: "read";r=1133;t=60
 ```
 
@@ -314,7 +314,10 @@ ratelimit: "read";r=1133;t=60
       "host": "github",
       "slug": "dana-okafor/dotfiles",
       "state": "syncing",
-      "created_at": "2026-11-07T10:00:00.000Z"
+      "created_at": "2026-11-07T10:00:00.000Z",
+      "warnings": [
+        "Access is decided here: anyone who can write to this repository here can push to dana-okafor/dotfiles through Cobalt, even if GitHub would refuse them. GitHu…"
+      ]
     },
     {
       "object": "import",
@@ -322,7 +325,8 @@ ratelimit: "read";r=1133;t=60
       "host": "github",
       "slug": "dana/tinyqueue",
       "state": "in-sync",
-      "created_at": "2026-10-08T09:00:00.000Z"
+      "created_at": "2026-10-08T09:00:00.000Z",
+      "warnings": []
     }
   ],
   "has_more": false,
@@ -336,7 +340,7 @@ ratelimit: "read";r=1133;t=60
 
 **Import a repository from another host**
 
-Makes the repository here and links it to the GitHub repository in a two-way sync: what is pushed here reaches GitHub, and what is pushed on GitHub reaches here. Needs `github_access`, which proves you may push to it. Naturally idempotent like `repos.create`.
+Makes the repository here and links it to the provider repository in a two-way sync: what is pushed here reaches the provider, and what is pushed there reaches here. GitHub needs `github_access`, which proves you may push to it; GitLab and Codeberg need a connection (`providers.oauth.start`). Anyone who can write here can then push there through Cobalt, and the provider's branch protection still applies. Pull requests, issues and releases follow, read-only. Naturally idempotent like `repos.create`.
 
 | About      |                         |
 | ---------- | ----------------------- |
@@ -366,7 +370,7 @@ Makes the repository here and links it to the GitHub repository in a two-way syn
 
 **Errors**
 
-[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
 
 **Example**
 
@@ -390,7 +394,7 @@ ratelimit: "write";r=34;t=60
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
-  "description": "Imported from github:dana-okafor/dotfiles",
+  "description": "My shell, editor and git setup.",
   "visibility": "public",
   "default_branch": "main",
   "stars": 0,
@@ -402,8 +406,17 @@ ratelimit: "write";r=34;t=60
   },
   "install": null,
   "category": null,
-  "language": null,
-  "languages": [],
+  "language": "Shell",
+  "languages": [
+    {
+      "name": "Shell",
+      "percent": 88.2
+    },
+    {
+      "name": "Lua",
+      "percent": 11.8
+    }
+  ],
   "license": null,
   "website": null,
   "docs_url": null,
@@ -419,6 +432,489 @@ ratelimit: "write";r=34;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "updated_at": "2026-11-07T10:00:00.000Z",
   "version": 2
+}
+```
+
+### `imports.batch`
+
+`POST /imports/batch`
+
+**Import many repositories at once**
+
+Checks that you can push to every one (on GitHub, in one pass over your installations), then imports them a few at a time in the background. Each becomes a repository here linked two ways to its provider, named as it is there. Follow it with `imports.jobs.get`.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 10 units              |
+| Success    | `202`, a `import_job`               |
+
+**Request body**
+
+| Member          | Type                                       | Notes                                                                       |
+| --------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
+| `provider`      | `github` or `gitlab` or `codeberg`         | Required. The git provider                                                  |
+| `slugs`         | array of string (pattern)                  | Required.                                                                   |
+| `owner`         | string                                     | Default: the account you act as                                             |
+| `visibility`    | `public` or `private`                      | Default: as each is on the provider                                         |
+| `github_access` | string (up to 4000 characters, at least 1) | For GitHub: the `access` from signing in with GitHub (`github.device.poll`) |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/imports/batch" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"github","slugs":["dana-okafor/notes"],"github_access":"cbgh_AAAAAAAAAAAAAAAA.jjrM8Wk5U09NVjy9GRev90ECn93Tvf5z48L-Vqwl93TkrfIOEeepSAnfP0OY_QyBB7hFZCo5xDUJ9vg05CN3NSEc36xax9DvHbt9YZxzXBxU"}'
+```
+
+```http
+HTTP/1.1 202
+ratelimit: "write";r=109;t=60
+```
+
+```json
+{
+  "object": "import_job",
+  "id": "imj_twm82smtqfew",
+  "provider": "github",
+  "owner": "dana",
+  "state": "running",
+  "total": 1,
+  "done": 0,
+  "failed": 0,
+  "items": [
+    {
+      "slug": "dana-okafor/notes",
+      "state": "queued",
+      "repo": null,
+      "error": null,
+      "attempts": 0
+    }
+  ],
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "updated_at": "2026-11-07T10:00:00.000Z"
+}
+```
+
+### `imports.jobs.get`
+
+`GET /imports/jobs/{id}`
+
+**How a bulk import is going**
+
+| About      |                        |
+| ---------- | ---------------------- |
+| Safety     | `read`, safe to repeat |
+| Needs      | a token                |
+| Scopes     | none                   |
+| Rate limit | `read` pool, 1 unit    |
+| Success    | `200`, a `import_job`  |
+
+**Path parameters**
+
+| Name | Type                          | Notes |
+| ---- | ----------------------------- | ----- |
+| `id` | string (up to 100 characters) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_kn3xydw000vq" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"wFfQ6aobTvbSHQ6M"
+ratelimit: "read";r=1198;t=60
+```
+
+```json
+{
+  "object": "import_job",
+  "id": "imj_kn3xydw000vq",
+  "provider": "github",
+  "owner": "dana",
+  "state": "running",
+  "total": 1,
+  "done": 0,
+  "failed": 0,
+  "items": [
+    {
+      "slug": "dana-okafor/notes",
+      "state": "queued",
+      "repo": null,
+      "error": null,
+      "attempts": 0
+    }
+  ],
+  "created_at": "2026-11-07T10:00:00.000Z",
+  "updated_at": "2026-11-07T10:00:00.000Z"
+}
+```
+
+### `providers.list`
+
+`GET /providers`
+
+**Your accounts on git providers**
+
+The GitLab and Codeberg accounts you connected with OAuth, and the GitHub account you signed in with. Each says how many repositories here sync through it.
+
+| About      |                                        |
+| ---------- | -------------------------------------- |
+| Safety     | `read`, safe to repeat                 |
+| Needs      | a token                                |
+| Scopes     | none                                   |
+| Rate limit | `read` pool, 1 unit                    |
+| Success    | `200`, a list of `provider_connection` |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/providers" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"Qv0DUGugjpJOzQo6"
+ratelimit: "read";r=1197;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "provider_connection",
+      "provider": "gitlab",
+      "instance": "gitlab.com",
+      "login": "dana.okafor",
+      "state": "ok",
+      "problem": null,
+      "scopes": ["api"],
+      "repos": 0,
+      "connected_at": "2026-11-07T10:00:00.000Z"
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `providers.disconnect`
+
+`DELETE /providers/{provider}`
+
+**Disconnect a provider account**
+
+Revokes the token at the provider, removes the webhooks and git credentials Cobalt made with it, and unlinks the repositories that synced through it. Their history here stays.
+
+| About      |                               |
+| ---------- | ----------------------------- |
+| Safety     | `destructive`, safe to repeat |
+| Needs      | a token                       |
+| Scopes     | `repo:write`                  |
+| Rate limit | `write` pool, 1 unit          |
+| Dry run    | `?dry_run=true`               |
+| Success    | `204`, no body                |
+
+**Path parameters**
+
+| Name       | Type                               | Notes |
+| ---------- | ---------------------------------- | ----- |
+| `provider` | `github` or `gitlab` or `codeberg` |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X DELETE "https://api.cobaltforge.dev/v1/providers/gitlab?dry_run=true" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 204
+cb-dry-run: true
+ratelimit: "write";r=93;t=60
+```
+
+### `providers.oauth.start`
+
+`POST /providers/{provider}/oauth`
+
+**Start connecting GitLab or Codeberg**
+
+Gives the address to send the person to. The provider sends them back to `redirect_uri` with a `code` and the `state`, which go to `providers.oauth.finish` within ten minutes. GitLab asks for the `api` scope, which repository webhooks need: the token is sealed at rest and revoked when you disconnect.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `201`, a `provider_oauth`           |
+
+**Path parameters**
+
+| Name       | Type                   | Notes |
+| ---------- | ---------------------- | ----- |
+| `provider` | `gitlab` or `codeberg` |       |
+
+**Request body**
+
+| Member         | Type                                   | Notes                                                                                                  |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `redirect_uri` | string (up to 500 characters, uri)     | Required. Where the provider sends the person back: this site's /gitlab/callback or /codeberg/callback |
+| `return_to`    | string (up to 500 characters, pattern) | A path on this site to come back to afterwards                                                         |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/providers/gitlab/oauth" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"redirect_uri":"https://cobaltforge.dev/gitlab/callback","return_to":"/new"}'
+```
+
+```http
+HTTP/1.1 201
+ratelimit: "write";r=98;t=60
+```
+
+```json
+{
+  "object": "provider_oauth",
+  "provider": "gitlab",
+  "url": "https://gitlab.com/oauth/authorize?client_id=sample-gitlab-client&redirect_uri=https%3A%2F%2Fcobaltforge.dev%2Fgitlab%2Fcallback&response_type=code&state=eyJ…"
+}
+```
+
+### `providers.oauth.finish`
+
+`POST /providers/{provider}/oauth/finish`
+
+**Finish connecting GitLab or Codeberg**
+
+Trades the `code` the provider sent back for a token, which is kept sealed here and refreshed when it is about to expire. Connecting again replaces the token and resumes repositories that had stopped syncing.
+
+| About      |                                     |
+| ---------- | ----------------------------------- |
+| Safety     | `write`, not safe to repeat blindly |
+| Needs      | a token                             |
+| Scopes     | `repo:write`                        |
+| Rate limit | `write` pool, 1 unit                |
+| Success    | `200`, a `provider_oauth_result`    |
+
+**Path parameters**
+
+| Name       | Type                   | Notes |
+| ---------- | ---------------------- | ----- |
+| `provider` | `gitlab` or `codeberg` |       |
+
+**Request body**
+
+| Member         | Type                                       | Notes                                                                                                  |
+| -------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `code`         | string (up to 500 characters, at least 1)  | Required.                                                                                              |
+| `state`        | string (up to 2000 characters, at least 1) | Required.                                                                                              |
+| `redirect_uri` | string (up to 500 characters, uri)         | Required. Where the provider sends the person back: this site's /gitlab/callback or /codeberg/callback |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/providers/gitlab/oauth/finish" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"c0de","state":"eyJoIjoiZGFuYSIsInIiOiJodHRwczovL2NvYmFsdGZvcmdlLmRldi9naXRsYWIvY2FsbGJhY2siLCJ0IjoiL25ldyIsIngiOjE3OTQwNDYyMDAwMDB9.5V1tyVKxidLO0suuhTYa47xCmPSRhcJEYiQJvYiJcio","redirect_uri":"https://cobaltforge.dev/gitlab/callback"}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "write";r=97;t=60
+```
+
+```json
+{
+  "object": "provider_oauth_result",
+  "connection": {
+    "object": "provider_connection",
+    "provider": "gitlab",
+    "instance": "gitlab.com",
+    "login": "dana.okafor",
+    "state": "ok",
+    "problem": null,
+    "scopes": ["api"],
+    "repos": 0,
+    "connected_at": "2026-11-07T10:00:00.000Z"
+  },
+  "return_to": "/new"
+}
+```
+
+### `providers.repos.list`
+
+`POST /providers/{provider}/repos`
+
+**The repositories you can import from a provider**
+
+A page of the repositories your account there can see, with whether you can push to each and whether one here already holds it. On GitHub, the repositories the Cobalt GitHub App is installed on, every page of every installation. Filter by text with `q`, and leave out forks or archived ones. Sent as a POST because `github_access` is a secret.
+
+| About      |                                  |
+| ---------- | -------------------------------- |
+| Safety     | `read`, safe to repeat           |
+| Needs      | a token                          |
+| Scopes     | `repo:write`                     |
+| Rate limit | `read` pool, 1 unit              |
+| Success    | `200`, a list of `provider_repo` |
+
+**Path parameters**
+
+| Name       | Type                               | Notes |
+| ---------- | ---------------------------------- | ----- |
+| `provider` | `github` or `gitlab` or `codeberg` |       |
+
+**Request body**
+
+| Member          | Type                                       | Notes                                                                       |
+| --------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
+| `github_access` | string (up to 4000 characters, at least 1) | For GitHub: the `access` from signing in with GitHub (`github.device.poll`) |
+| `cursor`        | string (up to 2000 characters)             | `next_cursor` from the previous page                                        |
+| `q`             | string (up to 200 characters)              | Text in the name or description                                             |
+| `forks`         | boolean                                    | Default true; false leaves forks out                                        |
+| `archived`      | boolean                                    | Default true; false leaves archived repositories out                        |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/providers/gitlab/repos" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"q":"zine","forks":false}'
+```
+
+```http
+HTTP/1.1 200
+ratelimit: "read";r=1196;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "provider_repo",
+      "provider": "gitlab",
+      "slug": "dana.okafor/zine",
+      "private": false,
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": "A small static site generator for zines.",
+      "size_bytes": 1840000,
+      "can_push": true,
+      "linked": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `providers.audit`
+
+`GET /providers/audit`
+
+**What you connected, imported and unlinked**
+
+The last hundred connections, imports, adoptions, relinks and disconnections you made, newest first.
+
+| About      |                                   |
+| ---------- | --------------------------------- |
+| Safety     | `read`, safe to repeat            |
+| Needs      | a token                           |
+| Scopes     | none                              |
+| Rate limit | `read` pool, 1 unit               |
+| Success    | `200`, a list of `provider_audit` |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/providers/audit" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"-n4H3utghGFeuKof"
+ratelimit: "read";r=1187;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "provider_audit",
+      "provider": "github",
+      "action": "imported",
+      "repo": "dana/dotfiles",
+      "detail": "dana-okafor/dotfiles",
+      "at": "2026-11-07T10:00:00.000Z"
+    },
+    {
+      "object": "provider_audit",
+      "provider": "gitlab",
+      "action": "connected",
+      "repo": null,
+      "detail": "dana.okafor",
+      "at": "2026-11-07T10:00:00.000Z"
+    },
+    "…and 1 more"
+  ],
+  "has_more": false,
+  "next_cursor": null
 }
 ```
 
@@ -1463,6 +1959,796 @@ ratelimit: "read";r=1120;t=60
   "change": null,
   "patch_set": null,
   "via": null
+}
+```
+
+### `repos.provider.get`
+
+`GET /repos/{owner}/{repo}/provider`
+
+**The provider a repository is linked to**
+
+How the link is doing, who keeps it in sync, and what to know: anyone who can write here can push there through Cobalt, the provider still applies its branch protection, Git LFS objects do not travel outside GitHub.
+
+| About      |                          |
+| ---------- | ------------------------ |
+| Safety     | `read`, safe to repeat   |
+| Needs      | a token                  |
+| Scopes     | `repo:read`              |
+| Rate limit | `read` pool, 1 unit      |
+| Success    | `200`, a `provider_link` |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/dotfiles/provider" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"ESIh5qratFCOWTXn"
+ratelimit: "read";r=1199;t=60
+```
+
+```json
+{
+  "object": "provider_link",
+  "repo": "dana/dotfiles",
+  "provider": "github",
+  "slug": "dana-okafor/dotfiles",
+  "url": "https://github.com/dana-okafor/dotfiles",
+  "state": "syncing",
+  "problem": null,
+  "warnings": [
+    "Access is decided here: anyone who can write to this repository here can push to dana-okafor/dotfiles through Cobalt, even if GitHub would refuse them. GitHu…"
+  ],
+  "lfs": false,
+  "connection": null,
+  "adoptable": false,
+  "linked_by": "dana",
+  "last_sync_at": null,
+  "last_pull_at": "2026-11-07T10:00:00.000Z",
+  "items_imported_at": null
+}
+```
+
+### `repos.provider.adopt`
+
+`POST /repos/{owner}/{repo}/provider/adopt`
+
+**Take over the link with your own connection**
+
+For an admin of the repository, when the person whose GitLab or Codeberg account kept it in sync disconnected, lost access or was deleted. Your connection must be able to push to it there. Webhook and git credential are made again with your token.
+
+| About      |                          |
+| ---------- | ------------------------ |
+| Safety     | `write`, safe to repeat  |
+| Needs      | a token                  |
+| Scopes     | `repo:write`             |
+| Rate limit | `write` pool, 1 unit     |
+| Dry run    | `?dry_run=true`          |
+| Success    | `200`, a `provider_link` |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`invalid_state`](/docs/api/errors#invalid_state), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/adopt?dry_run=true" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+cb-dry-run: true
+ratelimit: "write";r=94;t=60
+```
+
+```json
+{
+  "object": "provider_link",
+  "repo": "dana/zine",
+  "provider": "gitlab",
+  "slug": "dana.okafor/zine",
+  "url": "https://gitlab.com/dana.okafor/zine",
+  "state": "syncing",
+  "problem": null,
+  "warnings": [
+    "Access is decided here: anyone who can write to this repository here can push to dana.okafor/zine through Cobalt, even if GitLab would refuse them. GitLab's …"
+  ],
+  "lfs": false,
+  "connection": {
+    "handle": "dana",
+    "login": "dana.okafor",
+    "state": "ok"
+  },
+  "adoptable": false,
+  "linked_by": "dana",
+  "last_sync_at": null,
+  "last_pull_at": "2026-11-07T10:00:00.000Z",
+  "items_imported_at": null
+}
+```
+
+### `repos.provider.issues.list`
+
+`GET /repos/{owner}/{repo}/provider/issues`
+
+**Issues from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks. The 200 most recently updated, newest first. Authors are people on the provider, not accounts here.
+
+| About      |                                 |
+| ---------- | ------------------------------- |
+| Safety     | `read`, safe to repeat          |
+| Needs      | a token                         |
+| Scopes     | `repo:read`                     |
+| Rate limit | `read` pool, 1 unit             |
+| Success    | `200`, a list of `remote_issue` |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/issues" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"-yzDtHfX1v170u9c"
+ratelimit: "read";r=1191;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "remote_issue",
+      "provider": "gitlab",
+      "number": 5,
+      "title": "Images are blurry in print",
+      "body": "At 300 dpi the cover image is upscaled.",
+      "state": "open",
+      "author": {
+        "object": "external_actor",
+        "provider": "gitlab",
+        "login": "tomas.r",
+        "name": "Tomás Rivera",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/5150/avatar.png",
+        "url": "https://gitlab.com/tomas.r",
+        "deleted": false
+      },
+      "labels": ["bug", "print"],
+      "comments": 1,
+      "url": "https://gitlab.com/dana.okafor/zine/-/issues/5",
+      "created_at": "2026-10-30T14:00:00.000Z",
+      "updated_at": "2026-11-02T10:00:00.000Z",
+      "closed_at": null,
+      "removed": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `repos.provider.issues.get`
+
+`GET /repos/{owner}/{repo}/provider/issues/{number}`
+
+**An issue from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `read`, safe to repeat  |
+| Needs      | a token                 |
+| Scopes     | `repo:read`             |
+| Rate limit | `read` pool, 1 unit     |
+| Success    | `200`, a `remote_issue` |
+
+**Path parameters**
+
+| Name     | Type                            | Notes |
+| -------- | ------------------------------- | ----- |
+| `owner`  | string                          |       |
+| `repo`   | string                          |       |
+| `number` | integer (min 1, max 1000000000) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/issues/5" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"zVDEFZdDEdG5el1D"
+ratelimit: "read";r=1190;t=60
+```
+
+```json
+{
+  "object": "remote_issue",
+  "provider": "gitlab",
+  "number": 5,
+  "title": "Images are blurry in print",
+  "body": "At 300 dpi the cover image is upscaled.",
+  "state": "open",
+  "author": {
+    "object": "external_actor",
+    "provider": "gitlab",
+    "login": "tomas.r",
+    "name": "Tomás Rivera",
+    "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/5150/avatar.png",
+    "url": "https://gitlab.com/tomas.r",
+    "deleted": false
+  },
+  "labels": ["bug", "print"],
+  "comments": 1,
+  "url": "https://gitlab.com/dana.okafor/zine/-/issues/5",
+  "created_at": "2026-10-30T14:00:00.000Z",
+  "updated_at": "2026-11-02T10:00:00.000Z",
+  "closed_at": null,
+  "removed": null
+}
+```
+
+### `repos.provider.issues.comments`
+
+`GET /repos/{owner}/{repo}/provider/issues/{number}/comments`
+
+**Comments on an issue from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks. Oldest first; one removed on the provider stays, marked.
+
+| About      |                                   |
+| ---------- | --------------------------------- |
+| Safety     | `read`, safe to repeat            |
+| Needs      | a token                           |
+| Scopes     | `repo:read`                       |
+| Rate limit | `read` pool, 1 unit               |
+| Success    | `200`, a list of `remote_comment` |
+
+**Path parameters**
+
+| Name     | Type                            | Notes |
+| -------- | ------------------------------- | ----- |
+| `owner`  | string                          |       |
+| `repo`   | string                          |       |
+| `number` | integer (min 1, max 1000000000) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/issues/5/comments" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"EWjKdlq5i3dUu-mN"
+ratelimit: "read";r=1189;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "remote_comment",
+      "author": {
+        "object": "external_actor",
+        "provider": "gitlab",
+        "login": "dana.okafor",
+        "name": "Dana Okafor",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/4242/avatar.png",
+        "url": "https://gitlab.com/dana.okafor",
+        "deleted": false
+      },
+      "body": "Same here with the A5 layout.",
+      "created_at": "2026-11-02T10:00:00.000Z",
+      "updated_at": "2026-11-02T10:00:00.000Z",
+      "removed": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `repos.provider.pulls.list`
+
+`GET /repos/{owner}/{repo}/provider/pulls`
+
+**Pull requests from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks. The 200 most recently updated, newest first. Authors are people on the provider, not accounts here.
+
+| About      |                                |
+| ---------- | ------------------------------ |
+| Safety     | `read`, safe to repeat         |
+| Needs      | a token                        |
+| Scopes     | `repo:read`                    |
+| Rate limit | `read` pool, 1 unit            |
+| Success    | `200`, a list of `remote_pull` |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/pulls" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"fPOGpW7FTWDftIDO"
+ratelimit: "read";r=1195;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "remote_pull",
+      "provider": "gitlab",
+      "number": 3,
+      "title": "Add a dark print stylesheet",
+      "body": "Prints on dark paper without wasting toner.",
+      "state": "open",
+      "author": {
+        "object": "external_actor",
+        "provider": "gitlab",
+        "login": "tomas.r",
+        "name": "Tomás Rivera",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/5150/avatar.png",
+        "url": "https://gitlab.com/tomas.r",
+        "deleted": false
+      },
+      "head_ref": "dark-print",
+      "head_sha": "9f2c1e0b7a6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b",
+      "base_ref": "main",
+      "from_fork": true,
+      "commits_here": false,
+      "has_patch": true,
+      "comments": 1,
+      "url": "https://gitlab.com/dana.okafor/zine/-/merge_requests/3",
+      "created_at": "2026-11-01T09:12:00.000Z",
+      "updated_at": "2026-11-02T16:40:00.000Z",
+      "closed_at": null,
+      "landed_at": null,
+      "removed": null
+    },
+    {
+      "object": "remote_pull",
+      "provider": "gitlab",
+      "number": 2,
+      "title": "Render footnotes",
+      "body": "",
+      "state": "landed",
+      "author": {
+        "object": "external_actor",
+        "provider": "gitlab",
+        "login": "dana.okafor",
+        "name": "Dana Okafor",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/4242/avatar.png",
+        "url": "https://gitlab.com/dana.okafor",
+        "deleted": false
+      },
+      "head_ref": "footnotes",
+      "head_sha": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d",
+      "base_ref": "main",
+      "from_fork": false,
+      "commits_here": false,
+      "has_patch": false,
+      "comments": 0,
+      "url": "https://gitlab.com/dana.okafor/zine/-/merge_requests/2",
+      "created_at": "2026-10-20T08:00:00.000Z",
+      "updated_at": "2026-10-21T11:00:00.000Z",
+      "closed_at": null,
+      "landed_at": "2026-10-21T11:00:00.000Z",
+      "removed": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `repos.provider.pulls.get`
+
+`GET /repos/{owner}/{repo}/provider/pulls/{number}`
+
+**A pull request from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks. States in the words of changes here: merged is landed, closed is abandoned. When its head commit is not in this repository (a fork, or a branch deleted before it synced), its patch is kept: `repos.provider.pulls.patch`.
+
+| About      |                        |
+| ---------- | ---------------------- |
+| Safety     | `read`, safe to repeat |
+| Needs      | a token                |
+| Scopes     | `repo:read`            |
+| Rate limit | `read` pool, 1 unit    |
+| Success    | `200`, a `remote_pull` |
+
+**Path parameters**
+
+| Name     | Type                            | Notes |
+| -------- | ------------------------------- | ----- |
+| `owner`  | string                          |       |
+| `repo`   | string                          |       |
+| `number` | integer (min 1, max 1000000000) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/pulls/3" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"zzU4UiH3f5BLZIgc"
+ratelimit: "read";r=1194;t=60
+```
+
+```json
+{
+  "object": "remote_pull",
+  "provider": "gitlab",
+  "number": 3,
+  "title": "Add a dark print stylesheet",
+  "body": "Prints on dark paper without wasting toner.",
+  "state": "open",
+  "author": {
+    "object": "external_actor",
+    "provider": "gitlab",
+    "login": "tomas.r",
+    "name": "Tomás Rivera",
+    "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/5150/avatar.png",
+    "url": "https://gitlab.com/tomas.r",
+    "deleted": false
+  },
+  "head_ref": "dark-print",
+  "head_sha": "9f2c1e0b7a6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b",
+  "base_ref": "main",
+  "from_fork": true,
+  "commits_here": false,
+  "has_patch": true,
+  "comments": 1,
+  "url": "https://gitlab.com/dana.okafor/zine/-/merge_requests/3",
+  "created_at": "2026-11-01T09:12:00.000Z",
+  "updated_at": "2026-11-02T16:40:00.000Z",
+  "closed_at": null,
+  "landed_at": null,
+  "removed": null
+}
+```
+
+### `repos.provider.pulls.comments`
+
+`GET /repos/{owner}/{repo}/provider/pulls/{number}/comments`
+
+**Comments on a pull request from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks. Oldest first; one removed on the provider stays, marked.
+
+| About      |                                   |
+| ---------- | --------------------------------- |
+| Safety     | `read`, safe to repeat            |
+| Needs      | a token                           |
+| Scopes     | `repo:read`                       |
+| Rate limit | `read` pool, 1 unit               |
+| Success    | `200`, a list of `remote_comment` |
+
+**Path parameters**
+
+| Name     | Type                            | Notes |
+| -------- | ------------------------------- | ----- |
+| `owner`  | string                          |       |
+| `repo`   | string                          |       |
+| `number` | integer (min 1, max 1000000000) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/pulls/3/comments" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"-T5pdBz8ghkxVSQN"
+ratelimit: "read";r=1192;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "remote_comment",
+      "author": {
+        "object": "external_actor",
+        "provider": "gitlab",
+        "login": "dana.okafor",
+        "name": "Dana Okafor",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/4242/avatar.png",
+        "url": "https://gitlab.com/dana.okafor",
+        "deleted": false
+      },
+      "body": "Looks good on my printer.",
+      "created_at": "2026-11-02T16:40:00.000Z",
+      "updated_at": "2026-11-02T16:40:00.000Z",
+      "removed": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
+}
+```
+
+### `repos.provider.pulls.patch`
+
+`GET /repos/{owner}/{repo}/provider/pulls/{number}/patch`
+
+**The kept patch of a pull request**
+
+For a pull request whose head commit is not in this repository: its patch as the provider gave it, cut at 900 KB. `not_found` when the commits are here, in which case read them from git.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `read`, safe to repeat  |
+| Needs      | a token                 |
+| Scopes     | `repo:read`             |
+| Rate limit | `read` pool, 1 unit     |
+| Success    | `200`, a `remote_patch` |
+
+**Path parameters**
+
+| Name     | Type                            | Notes |
+| -------- | ------------------------------- | ----- |
+| `owner`  | string                          |       |
+| `repo`   | string                          |       |
+| `number` | integer (min 1, max 1000000000) |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/pulls/3/patch" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"BZwLBoWIL2mtZGLk"
+ratelimit: "read";r=1193;t=60
+```
+
+```json
+{
+  "object": "remote_patch",
+  "number": 3,
+  "text": "diff --git a/styles/print.css b/styles/print.css\n--- a/styles/print.css\n+++ b/styles/print.css\n@@ -1,3 +1,4 @@\n @media print {\n-  body { color: black; }\n+  b…",
+  "truncated": false
+}
+```
+
+### `repos.provider.refresh`
+
+`POST /repos/{owner}/{repo}/provider/refresh`
+
+**Read pull requests, issues and releases again**
+
+Asks for the provider’s pull requests, issues and releases to be read again soon. Webhooks keep them current; this is for when one was missed.
+
+| About      |                          |
+| ---------- | ------------------------ |
+| Safety     | `write`, safe to repeat  |
+| Needs      | a token                  |
+| Scopes     | `repo:write`             |
+| Rate limit | `write` pool, 1 unit     |
+| Dry run    | `?dry_run=true`          |
+| Success    | `202`, a `provider_link` |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Query parameters**
+
+| Name      | Type    | Notes                                                                                                   |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `dry_run` | boolean | Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true. |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/refresh" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 202
+location: https://gitlab.com/dana.okafor/zine
+ratelimit: "write";r=95;t=60
+```
+
+```json
+{
+  "object": "provider_link",
+  "repo": "dana/zine",
+  "provider": "gitlab",
+  "slug": "dana.okafor/zine",
+  "url": "https://gitlab.com/dana.okafor/zine",
+  "state": "syncing",
+  "problem": null,
+  "warnings": [
+    "Access is decided here: anyone who can write to this repository here can push to dana.okafor/zine through Cobalt, even if GitLab would refuse them. GitLab's …"
+  ],
+  "lfs": false,
+  "connection": {
+    "handle": "dana",
+    "login": "dana.okafor",
+    "state": "ok"
+  },
+  "adoptable": false,
+  "linked_by": "dana",
+  "last_sync_at": null,
+  "last_pull_at": "2026-11-07T10:00:00.000Z",
+  "items_imported_at": null
+}
+```
+
+### `repos.provider.releases.list`
+
+`GET /repos/{owner}/{repo}/provider/releases`
+
+**Releases from the provider**
+
+Read-only: a copy of what the provider holds, kept current by its webhooks. The 200 most recently updated, newest first. Authors are people on the provider, not accounts here.
+
+| About      |                                   |
+| ---------- | --------------------------------- |
+| Safety     | `read`, safe to repeat            |
+| Needs      | a token                           |
+| Scopes     | `repo:read`                       |
+| Rate limit | `read` pool, 1 unit               |
+| Success    | `200`, a list of `remote_release` |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/zine/provider/releases" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"wb-zs-BpY1H1O62y"
+ratelimit: "read";r=1188;t=60
+```
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "remote_release",
+      "provider": "gitlab",
+      "tag": "v0.3.0",
+      "name": "Zine 0.3",
+      "body": "Footnotes, and a faster build.",
+      "draft": false,
+      "prerelease": false,
+      "author": {
+        "object": "external_actor",
+        "provider": "gitlab",
+        "login": "dana.okafor",
+        "name": "Dana Okafor",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/4242/avatar.png",
+        "url": "https://gitlab.com/dana.okafor",
+        "deleted": false
+      },
+      "url": "https://gitlab.com/dana.okafor/zine/-/releases/v0.3.0",
+      "created_at": "2026-10-22T09:00:00.000Z",
+      "published_at": "2026-10-22T09:00:00.000Z",
+      "removed": null
+    }
+  ],
+  "has_more": false,
+  "next_cursor": null
 }
 ```
 

@@ -7,7 +7,7 @@ Output is JSON when piped or with --json.
 
 Commands
   repo      list, view, create, clone
-  import    link a GitHub repository, in sync both ways
+  import    link a GitHub, GitLab or Codeberg repository, in sync both ways
   change    list, view, create, land, checkout
   issue     list, view, create, close
   env       list, set, run, pull, confirmations
@@ -93,23 +93,31 @@ export const groupHelp: Record<string, string> = {
   import: `cb import <host> <owner/name>   or   cb import <url>
 
   Makes the repository here with its whole history and keeps it in sync with
-  GitHub both ways: what is pushed here reaches GitHub and the other way
-  round, until you cb mirror remove it. It asks you to sign in with GitHub
-  (a code to type at github.com/login/device) to prove you may push to it.
+  its host both ways: what is pushed here reaches it and the other way round,
+  until you cb mirror remove it. Its pull requests, issues and releases
+  follow, read-only. Anyone who can write here can push there through cobalt;
+  the host's branch rules still apply.
 
-  host                    github
-  --github-access <proof> skip the sign-in (or set CB_GITHUB_ACCESS)
+  GitHub asks you to sign in (a code to type at github.com/login/device) to
+  prove you may push to it. GitLab and Codeberg are connected once, in the
+  browser, in the site's account settings.
+
+  host                    github, gitlab or codeberg
+  --github-access <proof> skip the GitHub sign-in (or set CB_GITHUB_ACCESS)
   --as name|owner/name    where it goes (default: its name, in the account you act as)
   --private               private here (default: public)
   list                    what you imported and how each mirror is doing
+  connections             your GitLab, Codeberg and GitHub accounts
+  batch <host> <owner/name>...   many at once, in the background (--no-wait)
+  job <id>                how a batch is going
 `,
   mirror: `cb mirror <command>
 
   list
-  sync <id>               fetch from GitHub now
+  sync <id>               fetch from its host now
   remove <id>             unlinks it. History here is untouched.
 
-  A repository is linked to GitHub when it is imported: cb import.
+  A repository is linked to its host when it is imported: cb import.
 `,
   pipeline: `cb pipeline <command>
 

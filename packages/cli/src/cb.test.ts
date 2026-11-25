@@ -601,9 +601,31 @@ describe('import', () => {
     const r = await cb('import', 'https://bitbucket.org/dana/x')
     expect(r.code).toBe(2)
     expect(JSON.parse(r.err).error.hint).toContain('cb import github')
-    const gitlab = await cb('import', 'gitlab', 'dana/zine')
-    expect(gitlab.code).toBe(2)
-    expect(JSON.parse(gitlab.err).error.hint).toContain('cb import github')
+  })
+
+  test('GitLab without a connection says where to connect it, once, in the browser', async () => {
+    const gitlab = await cb('import', 'https://gitlab.com/dana.okafor/zine')
+    expect(gitlab.code).toBe(6)
+    const e = JSON.parse(gitlab.err).error
+    expect(e.code).toBe('not_connected')
+    expect(e.hint).toContain('/settings/accounts')
+    const none = await cb('import', 'connections')
+    expect(JSON.parse(none.out)).toEqual([])
+  })
+
+  test('a batch from GitHub runs on the server and says how each went', async () => {
+    const r = await cb(
+      'import',
+      'batch',
+      'github',
+      'dana-okafor/dotfiles',
+      '--no-wait',
+    )
+    expect(r.code, r.err).toBe(0)
+    const job = JSON.parse(r.out)
+    expect(job).toMatchObject({ total: 1, state: 'running' })
+    const again = await cb('import', 'job', job.id)
+    expect(JSON.parse(again.out).items[0].slug).toBe('dana-okafor/dotfiles')
   })
 })
 

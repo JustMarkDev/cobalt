@@ -11,6 +11,9 @@ import {
   operationLifecycle,
   pipelineLifecycle,
   pipelineStepLifecycle,
+  remotePullLifecycle,
+  remotePullState,
+  remotePullTarget,
   reportStep,
   requeueJob,
   uploadLifecycle,
@@ -34,6 +37,7 @@ describe('the tables', () => {
     uploadLifecycle,
     deviceLifecycle,
     grantLifecycle,
+    remotePullLifecycle,
   ] as never
 
   test.each(all.map((m) => [m.name, m] as const))(
@@ -53,6 +57,17 @@ describe('the tables', () => {
     expect(changeTarget('land', { state: 'abandoned' })).toBeNull()
     expect(changeTarget('land', { state: 'open' })).toBe('landed')
     expect(changeTarget('ready', { state: 'open' })).toBeNull()
+  })
+
+  test('an imported pull request follows its provider, but a landed one stays landed', () => {
+    expect(remotePullState({ state: 'merged', draft: false })).toBe('landed')
+    expect(remotePullState({ state: 'closed', draft: true })).toBe('abandoned')
+    expect(remotePullState({ state: 'open', draft: true })).toBe('draft')
+    expect(remotePullTarget(null, 'open')).toBe('open')
+    expect(remotePullTarget('open', 'draft')).toBe('draft')
+    expect(remotePullTarget('abandoned', 'open')).toBe('open')
+    expect(remotePullTarget('landed', 'abandoned')).toBeNull()
+    expect(remotePullTarget('landed', 'landed')).toBe('landed')
   })
 
   test('restoring returns a change to the state it was abandoned from', () => {

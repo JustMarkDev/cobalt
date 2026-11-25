@@ -16,6 +16,8 @@ type AppApi = Pick<
 > & {
   /** Git over HTTPS. Only the real backend has it. */
   gitHttp?: (req: Request, ip?: string) => Promise<Response>
+  /** Webhook deliveries from git providers. */
+  receiveHook?: (provider: string, req: Request) => Promise<Response>
 }
 
 let current: AppApi | undefined

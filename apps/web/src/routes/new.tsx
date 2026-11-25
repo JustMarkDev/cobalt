@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useWrite } from '~/lib/forge'
 import { startGithubLink } from '~/lib/github-link'
+import { startProviderLink } from '~/lib/provider-link'
 import { CheckIcon } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import { RequireAuth } from '~/components/forge/auth'
@@ -214,34 +215,52 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
 function Import() {
   const write = useWrite()
   const [error, setError] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
+  const [busy, setBusy] = React.useState<string | null>(null)
+  const go = (host: 'github' | 'gitlab' | 'codeberg') => {
+    setBusy(host)
+    setError('')
+    const started =
+      host === 'github'
+        ? startGithubLink(write, '/new?mode=import')
+        : startProviderLink(write, host, '/new?mode=import')
+    void started.then((e) => {
+      if (e) {
+        setError(e)
+        setBusy(null)
+      }
+    })
+  }
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <SectionLabel>Import from GitHub</SectionLabel>
+        <SectionLabel>Import from GitHub, GitLab or Codeberg</SectionLabel>
         <p className="text-sm text-muted-foreground">
-          Sign in with GitHub, choose the repositories the Cobalt GitHub App may
-          see, then pick which to bring here. Each one stays in sync with GitHub
-          both ways, and you can detach it later in its settings.
+          Sign in, then pick which repositories to bring here. Each one stays in
+          sync with its host both ways, its pull requests, issues and releases
+          come along as changes, issues and releases here, and you can detach it
+          later in its settings. On GitHub, choose the repositories the Cobalt
+          GitHub App may see.
         </p>
       </div>
-      <Button
-        variant="brand"
-        size="lg"
-        disabled={busy}
-        onClick={() => {
-          setBusy(true)
-          setError('')
-          void startGithubLink(write, '/new?mode=import').then((e) => {
-            if (e) {
-              setError(e)
-              setBusy(false)
-            }
-          })
-        }}
-      >
-        {busy ? 'Opening GitHub' : 'Continue with GitHub'}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ['github', 'GitHub'],
+            ['gitlab', 'GitLab'],
+            ['codeberg', 'Codeberg'],
+          ] as const
+        ).map(([host, name]) => (
+          <Button
+            key={host}
+            variant={host === 'github' ? 'brand' : 'outline'}
+            size="lg"
+            disabled={busy !== null}
+            onClick={() => go(host)}
+          >
+            {busy === host ? `Opening ${name}` : `Continue with ${name}`}
+          </Button>
+        ))}
+      </div>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}

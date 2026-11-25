@@ -11,6 +11,10 @@ import {
 import type { MirrorRec } from '../extras'
 import type { Principal } from '../auth'
 import type { Viewer } from './records'
+import type { Prepared, SyncHost } from '../forge/sync'
+import type { ProviderId } from '../forge/types'
+import { labelOf } from '../forge/sync'
+import { forgeOps } from '../forge/ports'
 import { DomainIntegrations } from './integrations'
 
 type Host = 'github' | 'gitlab' | 'codeberg' | 'gitea'
@@ -96,6 +100,38 @@ export abstract class DomainImports extends DomainIntegrations {
     this.linkRev++
   }
 
+  private readonly forgeOps = forgeOps(
+    () => this.svc.providers,
+    (owner, name, p, need) => this.repoAccess(owner, name, p, need),
+  )
+  providerConnections = this.forgeOps.providerConnections
+  providerRepos = this.forgeOps.providerRepos
+  providerOauthStart = this.forgeOps.providerOauthStart
+  providerOauthFinish = this.forgeOps.providerOauthFinish
+  providerDisconnect = this.forgeOps.providerDisconnect
+  providerAudit = this.forgeOps.providerAudit
+  importBatch = this.forgeOps.importBatch
+  importJob = this.forgeOps.importJob
+  repoProvider = this.forgeOps.repoProvider
+  adoptProvider = this.forgeOps.adoptProvider
+  refreshProvider = this.forgeOps.refreshProvider
+  remoteList = this.forgeOps.remoteList
+  remotePull = this.forgeOps.remotePull
+  remoteIssue = this.forgeOps.remoteIssue
+  remoteComments = this.forgeOps.remoteComments
+  remotePatch = this.forgeOps.remotePatch
+
+  /** The provider links of this domain, or a refusal naming the host. */
+  protected providersFor(host: Host) {
+    const sync = this.svc.providers
+    if (host === 'gitea' || !sync?.configured(host))
+      throw apiError(
+        'invalid_request',
+        `Importing from ${host} is not supported here: ${host === 'gitea' ? 'self-hosted servers are not linked yet' : `${host} is not set up on this server`}.`,
+      )
+    return sync
+  }
+
   async importRepo(
     p: Principal,
     body: {
@@ -108,71 +144,157 @@ export abstract class DomainImports extends DomainIntegrations {
     },
     dry: boolean,
   ) {
-    if (body.host !== 'github')
-      throw apiError(
-        'invalid_request',
-        `Importing from ${body.host} is not supported: only GitHub repositories can be linked.`,
-      )
-    if (this.svc.github) {
-      if (!body.github_access)
-        throw apiError(
-          'invalid_request',
-          'Importing from GitHub needs `github_access`.',
-          {
-            hint: 'Sign in with GitHub first: POST /github/device.',
-          },
-        )
-      await this.svc.github.authorize(body.github_access, p.handle, body.slug)
-    }
-    const name = body.name ?? body.slug.split('/').pop()!
-    for (const r of this.repos.values())
+    const sync = this.providersFor(body.host)
+    const pr = await sync.prepare(
+      p,
+      body.host as ProviderId,
+      body.slug,
+      body.github_access,
+    )
+    const name = body.name ?? pr.remote.slug.split('/').pop()!
+    const held = await sync.heldBy(pr)
+    if (held) {
+      const [ho, hn] = held.repo.split('/')
       if (
-        r.upstream?.host === body.host &&
-        r.upstream.slug.toLowerCase() === body.slug.toLowerCase()
-      ) {
-        const held = `${r.owner}/${r.name}`
-        if (
-          (body.owner ?? r.owner).toLowerCase() !== r.owner.toLowerCase() ||
-          name.toLowerCase() !== r.name.toLowerCase()
+        (body.owner ?? ho).toLowerCase() !== ho.toLowerCase() ||
+        name.toLowerCase() !== hn.toLowerCase()
+      )
+        throw apiError(
+          'invalid_state',
+          `${pr.remote.slug} is already linked to ${held.repo}.`,
+          { hint: 'A provider repository feeds one repository here.' },
         )
-          throw apiError(
-            'invalid_state',
-            `${body.slug} is already linked to ${held}.`,
-            { hint: 'A GitHub repository feeds one repository here.' },
-          )
+      return {
+        repo: this.presentRepo(this.repos.get(held.repo)!),
+        created: false,
       }
+    }
+    if (dry)
+      return this.createRepo(
+        p,
+        {
+          owner: body.owner,
+          name,
+          visibility: body.visibility,
+          description: `Linked to ${pr.instance}/${pr.remote.slug}`,
+        },
+        dry,
+      )
+    const made = await this.importPrepared(p, pr, {
+      owner: body.owner ?? p.handle,
+      name,
+      visibility: body.visibility,
+    })
+    return {
+      repo: this.presentRepo(this.repos.get(made.full)!),
+      created: made.created,
+    }
+  }
+
+  /** Makes a repository here and links it to a prepared provider repository. */
+  async importPrepared(
+    p: Principal,
+    pr: Prepared,
+    o: { owner: string; name: string; visibility: 'public' | 'private' },
+  ) {
+    const sync = this.svc.providers!
     const made = await this.createRepo(
       p,
       {
-        owner: body.owner,
-        name,
-        visibility: body.visibility,
-        description: `Imported from ${body.host}:${body.slug}`,
+        owner: o.owner,
+        name: o.name,
+        visibility: o.visibility,
+        description:
+          pr.remote.description || `Linked to ${pr.instance}/${pr.remote.slug}`,
       },
-      dry,
+      false,
     )
-    if (dry) return made
     const full = `${made.repo.owner}/${made.repo.name}`
-    const rec = this.repos.get(full)!
-    if (made.created || !rec.upstream) {
-      rec.upstream = { host: body.host, slug: body.slug }
-      const x = this.memExtras.for(full)
-      if (!x.mirrors.some((m) => m.host === body.host && m.slug === body.slug))
-        x.mirrors.push({
-          id: `mir_${this.now().toString(36)}${x.mirrors.length}`
-            .padEnd(22, '0')
-            .slice(0, 22),
-          host: body.host,
-          slug: body.slug,
-          direction: 'two-way',
-          state: 'syncing',
-          lastSync: this.now(),
-          detail: 'The first sync from GitHub is running.',
-          created: this.now(),
-        })
-      rec.version++
+    if (!made.created)
+      throw apiError(
+        'invalid_state',
+        `${full} already exists and is not linked to ${labelOf(pr.provider)}.`,
+        { hint: 'Pick another name with `name`.' },
+      )
+    const link = sync.link(pr)
+    try {
+      await sync.deps.git?.provision(full, link)
+      await sync.linked(p, full, pr)
+    } catch (e) {
+      await this.deleteRepo(
+        made.repo.owner,
+        made.repo.name,
+        p,
+        full,
+        false,
+      ).catch(() => undefined)
+      throw e
     }
-    return { repo: this.presentRepo(rec), created: made.created }
+    const rec = this.repos.get(full)!
+    rec.upstream = { host: pr.provider, slug: pr.remote.slug }
+    rec.defaultBranch = pr.remote.defaultBranch
+    const x = this.memExtras.for(full)
+    x.mirrors.push({
+      id: `mir_${this.now().toString(36)}${x.mirrors.length}`
+        .padEnd(22, '0')
+        .slice(0, 22),
+      host: pr.provider,
+      slug: pr.remote.slug,
+      direction: 'two-way',
+      state: 'syncing',
+      lastSync: this.now(),
+      detail: `The first sync from ${labelOf(pr.provider)} is running.`,
+      created: this.now(),
+    })
+    rec.version++
+    return { full, created: true }
+  }
+
+  /** What `ProviderSync` needs from this domain. */
+  providerHost(): SyncHost {
+    return {
+      requireAdmin: async (p, full) => {
+        const r = this.repos.get(full)
+        if (!r || !this.canWrite(r, p))
+          throw apiError('not_found', `No repository ${full}.`)
+        const owner = this.accounts.get(r.owner)
+        const role =
+          owner?.kind === 'organization' ? owner.members.get(p.handle) : null
+        if (r.owner !== p.handle && role !== 'owner' && role !== 'admin')
+          throw apiError('forbidden', `Only an admin of ${full} can do this.`)
+      },
+      unlink: async (full) => {
+        const r = this.repos.get(full)
+        if (!r) return
+        const x = this.memExtras.for(full)
+        const i = x.mirrors.findIndex((m) => m.host === r.upstream?.host)
+        if (i >= 0) x.mirrors.splice(i, 1)
+        r.upstream = null
+        r.version++
+      },
+      mirror: async (full, state, detail) => {
+        const r = this.repos.get(full)
+        const m =
+          r &&
+          this.memExtras
+            .for(full)
+            .mirrors.find((x) => x.host === r.upstream?.host)
+        if (!m) return
+        m.state = state
+        m.detail = detail
+        if (state === 'in-sync') m.lastSync = this.now()
+      },
+      importOne: (p, pr, o) => this.importPrepared(p, pr, o),
+      setLanguages: async (full, languages) => {
+        const r = this.repos.get(full)
+        if (r) r.languages = languages
+      },
+      hasCommit: (full, sha) =>
+        this.svc.git.commit(full, sha).then(
+          () => true,
+          () => false,
+        ),
+    }
   }
 
   async listImports(p: Viewer) {
@@ -193,6 +315,7 @@ export abstract class DomainImports extends DomainIntegrations {
         slug: r.upstream.slug,
         state: m?.state ?? ('in-sync' as const),
         created_at: new Date(r.created).toISOString(),
+        warnings: (await this.svc.providers?.warningsFor(full)) ?? [],
       })
     }
     return out.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))

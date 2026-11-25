@@ -4,11 +4,11 @@ import { newId } from '@cobaltforge/api/ids'
 import { internal } from '../_generated/api'
 import { internalMutation, query } from '../_generated/server'
 import { mutation } from '../lib/functions'
-import { actorOf, signedIn } from '../lib/actor'
-import { accessStamp, resolve } from '../lib/access'
+import { actorOf, signedIn, system } from '../lib/actor'
+import { accessStamp, repoByKey, resolve } from '../lib/access'
 import { assertPushAllowed } from '../lib/plan'
 import { fail, finish, out } from '../lib/errors'
-import { actorFor, emit } from '../lib/events'
+import { actorFor, emit, externalActorFor } from '../lib/events'
 import { actorOut, iso, repoUrl, urls } from '../lib/present'
 import { notify } from './notifications'
 import type { ActorRef } from '../lib/events'
@@ -436,5 +436,98 @@ export const download = mutation({
         ? `${urls().api}/uploads/${x.uploadId}/content`
         : null,
     })
+  },
+})
+
+/** Release notes written as a bullet list keep their lines; anything else is one note. */
+function notesOf(body: string): Release['notes'] {
+  const lines = body
+    .split('\n')
+    .map((l) => /^\s*[-*]\s+(.+)$/.exec(l)?.[1]?.trim())
+    .filter((l): l is string => Boolean(l))
+  const changed = lines.length ? lines : body.trim() ? [body.trim()] : []
+  return {
+    added: [],
+    changed: changed.slice(0, 200).map((l) => l.slice(0, 5000)),
+    fixed: [],
+  }
+}
+
+/**
+ * A published release from the provider a repository is linked to, by tag.
+ * Drafts stay on the provider. Imports tell no one: a first import of dozens
+ * would notify every stargazer.
+ */
+export const importRelease = mutation({
+  args: {
+    repo: v.string(),
+    host: v.string(),
+    externalId: v.string(),
+    tag: v.string(),
+    title: v.string(),
+    body: v.string(),
+    prerelease: v.boolean(),
+    author: v.union(v.null(), v.object({ id: v.string(), login: v.string() })),
+    published: v.number(),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.repo)
+    if (!repo) fail('not_found', `No repository ${a.repo}.`)
+    const publicId = `rel_${a.host}_${a.externalId}`.slice(0, 64)
+    const had = await ctx.db
+      .query('releases')
+      .withIndex('by_repoId_and_tag', (q) =>
+        q.eq('repoId', repo._id).eq('tag', a.tag),
+      )
+      .unique()
+    if (had && had.publicId !== publicId) return out('taken')
+    const author = await externalActorFor(
+      ctx,
+      a.host,
+      a.author?.id ?? 'ghost',
+      a.author?.login ?? 'ghost',
+    )
+    const r: Release = {
+      id: publicId,
+      tag: a.tag,
+      channel: a.prerelease ? 'beta' : 'stable',
+      title: a.title.slice(0, 500),
+      notes: notesOf(a.body),
+      signed: false,
+      commit: null,
+      withdrawn: null,
+      assets: [],
+      author,
+      published: a.published,
+      version: 1,
+    }
+    if (had) {
+      const was = JSON.parse(had.json) as Release
+      if (
+        was.title === r.title &&
+        JSON.stringify(was.notes) === JSON.stringify(r.notes) &&
+        was.channel === r.channel &&
+        was.author.handle === r.author.handle
+      )
+        return out('unchanged')
+      const next = {
+        ...was,
+        title: r.title,
+        notes: r.notes,
+        channel: r.channel,
+        author: r.author,
+        version: was.version + 1,
+      }
+      await ctx.db.patch('releases', had._id, {
+        channel: next.channel,
+        json: JSON.stringify(next),
+        version: next.version,
+      })
+      return out('updated')
+    }
+    await insertRelease(ctx, repo._id, r)
+    return out('created')
   },
 })

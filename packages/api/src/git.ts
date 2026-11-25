@@ -1,5 +1,5 @@
 import { getGitRepo } from '@cobaltforge/git'
-import type { GitStores } from '@cobaltforge/git/stores'
+import type { GitStores, ProvisionOptions } from '@cobaltforge/git/stores'
 import { apiError } from './problem'
 import type { GitRepo } from '@cobaltforge/git'
 
@@ -34,15 +34,11 @@ export interface GitData {
   ) => Promise<{ sha: string; base: string | null; files: Array<GitDiffFile> }>
   setRepo?: (repo: string, storeId: string) => void
   /** Makes sure the store of a repository exists where the git data lives. */
-  provision?: (
-    storeId: string,
-    opts?: {
-      upstream?: { owner: string; name: string }
-      defaultBranch?: string
-    },
-  ) => Promise<void>
+  provision?: (storeId: string, opts?: ProvisionOptions) => Promise<void>
   pull?: (storeId: string) => Promise<void>
   detach?: (storeId: string) => Promise<void>
+  /** The rest of `GitStores`: relinking and generic-mode credentials. */
+  upstreams?: GitStores
   dropRepo?: (repo: string) => void
   storeOf?: (repo: string) => string | undefined
 }
@@ -85,12 +81,14 @@ export class StoreGit implements GitData {
       this.provision = (storeId, opts) => provisioner.provision(storeId, opts)
       this.pull = (storeId) => provisioner.pull(storeId)
       this.detach = (storeId) => provisioner.detach(storeId)
+      this.upstreams = provisioner
     }
   }
 
   provision?: GitData['provision']
   pull?: GitData['pull']
   detach?: GitData['detach']
+  upstreams?: GitStores
 
   setRepo(repo: string, storeId: string) {
     this.stores.set(repo.toLowerCase(), storeId)

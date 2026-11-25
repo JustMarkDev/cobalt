@@ -23,7 +23,7 @@ import { Modal } from '~/components/ui/dialog'
 import { SwitchRow } from '~/components/ui/switch'
 import { Select, SelectItem } from '~/components/ui/select'
 import { hostNames } from '~/lib/model/hub'
-import { useOp, useWrite } from '~/lib/forge'
+import { useOp, useOpMaybe, useWrite } from '~/lib/forge'
 import { timeAgo } from '~/lib/repo'
 
 const sections = [
@@ -465,6 +465,92 @@ function AddMirror({
   )
 }
 
+const linkState = {
+  syncing: 'First sync running',
+  linked: 'In sync both ways',
+  delayed: 'Changes there arrive late',
+  broken: 'Not syncing',
+  archived: 'Archived there',
+  gone: 'Deleted there',
+} as const
+
+/** The provider this repository is linked to, what to know, and what to do. */
+function ProviderLinkCard({ at }: { at: { owner: string; repo: string } }) {
+  const link = useOpMaybe('repos.provider.get', at)
+  const write = useWrite()
+  const [note, setNote] = React.useState('')
+  if (!link) return null
+  const name = hostNames[link.provider as Host]
+  return (
+    <section className="surface space-y-3 rounded-2xl border bg-card p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <BrandLogo id={link.provider} className="size-5" />
+          <div>
+            <a
+              href={link.url}
+              className="font-mono font-medium hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {link.slug}
+            </a>
+            <div className="text-xs text-muted-foreground">
+              {linkState[link.state]}
+              {link.last_sync_at && ` · synced ${timeAgo(link.last_sync_at)}`}
+              {link.connection
+                ? ` · through ${link.connection.handle}'s ${name} account (${link.connection.login})`
+                : link.provider === 'github'
+                  ? ' · through the Cobalt GitHub App'
+                  : ''}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              void write('repos.provider.refresh', at).then((r) =>
+                setNote(
+                  r.error
+                    ? r.error.message
+                    : `Pull requests, issues and releases will be read from ${name} again shortly.`,
+                ),
+              )
+            }
+          >
+            Read items again
+          </Button>
+          {link.adoptable && (
+            <Button
+              size="sm"
+              variant="brand"
+              onClick={() =>
+                void write('repos.provider.adopt', at).then((r) =>
+                  setNote(
+                    r.error
+                      ? r.error.message
+                      : `It syncs through your ${name} account now.`,
+                  ),
+                )
+              }
+            >
+              Keep it in sync with my account
+            </Button>
+          )}
+        </div>
+      </div>
+      <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+        {link.warnings.map((w) => (
+          <li key={w}>{w}</li>
+        ))}
+      </ul>
+      {note && <p className="text-xs">{note}</p>}
+    </section>
+  )
+}
+
 function Mirrors({ repo }: { repo: Repo }) {
   const at = { owner: repo.owner, repo: repo.name }
   const write = useWrite()
@@ -485,6 +571,7 @@ function Mirrors({ repo }: { repo: Repo }) {
   const [primary, setPrimary] = React.useState(false)
   return (
     <div className="max-w-3xl space-y-8">
+      <ProviderLinkCard at={at} />
       <div className="surface rounded-2xl border bg-card p-4 text-sm">
         <div className="flex items-start gap-3">
           <CheckCircleIcon className="mt-0.5 size-5 shrink-0 text-success" />

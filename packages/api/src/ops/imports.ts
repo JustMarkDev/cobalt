@@ -121,7 +121,7 @@ export const importRepo = defineOp({
   id: 'imports.create',
   summary: 'Import a repository from another host',
   description:
-    'Makes the repository here and links it to the GitHub repository in a two-way sync: what is pushed here reaches GitHub, and what is pushed on GitHub reaches here. Needs `github_access`, which proves you may push to it. Naturally idempotent like `repos.create`.',
+    "Makes the repository here and links it to the provider repository in a two-way sync: what is pushed here reaches the provider, and what is pushed there reaches here. GitHub needs `github_access`, which proves you may push to it; GitLab and Codeberg need a connection (`providers.oauth.start`). Anyone who can write here can then push there through Cobalt, and the provider's branch protection still applies. Pull requests, issues and releases follow, read-only. Naturally idempotent like `repos.create`.",
   tags,
   method: 'POST',
   path: '/imports',
@@ -153,7 +153,13 @@ export const importRepo = defineOp({
   }),
   response: S.Repo,
   status: 201,
-  errors: ['forbidden', 'not_found'],
+  errors: [
+    'forbidden',
+    'not_found',
+    'invalid_state',
+    'invalid_request',
+    'backend_unavailable',
+  ],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain

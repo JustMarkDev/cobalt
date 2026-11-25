@@ -33,8 +33,11 @@ import { Route as HandleIndexRouteImport } from './routes/$handle/index'
 import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
 import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as ApiSearchRouteImport } from './routes/api/search'
+import { Route as CodebergCallbackRouteImport } from './routes/codeberg/callback'
 import { Route as DocsSplatRouteImport } from './routes/docs/$'
 import { Route as GithubCallbackRouteImport } from './routes/github/callback'
+import { Route as GitlabCallbackRouteImport } from './routes/gitlab/callback'
+import { Route as HooksProviderRouteImport } from './routes/hooks/$provider'
 import { Route as OrganizationsJoinRouteImport } from './routes/organizations/join'
 import { Route as OrganizationsNewRouteImport } from './routes/organizations/new'
 import { Route as SettingsSectionRouteImport } from './routes/settings/$section'
@@ -170,6 +173,11 @@ const ApiSearchRoute = ApiSearchRouteImport.update({
   path: '/api/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CodebergCallbackRoute = CodebergCallbackRouteImport.update({
+  id: '/codeberg/callback',
+  path: '/codeberg/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocsSplatRoute = DocsSplatRouteImport.update({
   id: '/docs/$',
   path: '/docs/$',
@@ -178,6 +186,16 @@ const DocsSplatRoute = DocsSplatRouteImport.update({
 const GithubCallbackRoute = GithubCallbackRouteImport.update({
   id: '/github/callback',
   path: '/github/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GitlabCallbackRoute = GitlabCallbackRouteImport.update({
+  id: '/gitlab/callback',
+  path: '/gitlab/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HooksProviderRoute = HooksProviderRouteImport.update({
+  id: '/hooks/$provider',
+  path: '/hooks/$provider',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrganizationsJoinRoute = OrganizationsJoinRouteImport.update({
@@ -269,8 +287,11 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/search': typeof ApiSearchRoute
+  '/codeberg/callback': typeof CodebergCallbackRoute
   '/docs/$': typeof DocsSplatRoute
   '/github/callback': typeof GithubCallbackRoute
+  '/gitlab/callback': typeof GitlabCallbackRoute
+  '/hooks/$provider': typeof HooksProviderRoute
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -309,8 +330,11 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/search': typeof ApiSearchRoute
+  '/codeberg/callback': typeof CodebergCallbackRoute
   '/docs/$': typeof DocsSplatRoute
   '/github/callback': typeof GithubCallbackRoute
+  '/gitlab/callback': typeof GitlabCallbackRoute
+  '/hooks/$provider': typeof HooksProviderRoute
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -350,8 +374,11 @@ export interface FileRoutesById {
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/search': typeof ApiSearchRoute
+  '/codeberg/callback': typeof CodebergCallbackRoute
   '/docs/$': typeof DocsSplatRoute
   '/github/callback': typeof GithubCallbackRoute
+  '/gitlab/callback': typeof GitlabCallbackRoute
+  '/hooks/$provider': typeof HooksProviderRoute
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
@@ -392,8 +419,11 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/search'
+    | '/codeberg/callback'
     | '/docs/$'
     | '/github/callback'
+    | '/gitlab/callback'
+    | '/hooks/$provider'
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
@@ -432,8 +462,11 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/search'
+    | '/codeberg/callback'
     | '/docs/$'
     | '/github/callback'
+    | '/gitlab/callback'
+    | '/hooks/$provider'
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
@@ -472,8 +505,11 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/search'
+    | '/codeberg/callback'
     | '/docs/$'
     | '/github/callback'
+    | '/gitlab/callback'
+    | '/hooks/$provider'
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
@@ -513,8 +549,11 @@ export interface RootRouteChildren {
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
   ApiSearchRoute: typeof ApiSearchRoute
+  CodebergCallbackRoute: typeof CodebergCallbackRoute
   DocsSplatRoute: typeof DocsSplatRoute
   GithubCallbackRoute: typeof GithubCallbackRoute
+  GitlabCallbackRoute: typeof GitlabCallbackRoute
+  HooksProviderRoute: typeof HooksProviderRoute
   OrganizationsJoinRoute: typeof OrganizationsJoinRoute
   OrganizationsNewRoute: typeof OrganizationsNewRoute
   SettingsSectionRoute: typeof SettingsSectionRoute
@@ -700,6 +739,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/codeberg/callback': {
+      id: '/codeberg/callback'
+      path: '/codeberg/callback'
+      fullPath: '/codeberg/callback'
+      preLoaderRoute: typeof CodebergCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs/$': {
       id: '/docs/$'
       path: '/docs/$'
@@ -712,6 +758,20 @@ declare module '@tanstack/react-router' {
       path: '/github/callback'
       fullPath: '/github/callback'
       preLoaderRoute: typeof GithubCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gitlab/callback': {
+      id: '/gitlab/callback'
+      path: '/gitlab/callback'
+      fullPath: '/gitlab/callback'
+      preLoaderRoute: typeof GitlabCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hooks/$provider': {
+      id: '/hooks/$provider'
+      path: '/hooks/$provider'
+      fullPath: '/hooks/$provider'
+      preLoaderRoute: typeof HooksProviderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/organizations/join': {
@@ -827,8 +887,11 @@ const rootRouteChildren: RootRouteChildren = {
   DotwellKnownOauthProtectedResourceRoute:
     DotwellKnownOauthProtectedResourceRoute,
   ApiSearchRoute: ApiSearchRoute,
+  CodebergCallbackRoute: CodebergCallbackRoute,
   DocsSplatRoute: DocsSplatRoute,
   GithubCallbackRoute: GithubCallbackRoute,
+  GitlabCallbackRoute: GitlabCallbackRoute,
+  HooksProviderRoute: HooksProviderRoute,
   OrganizationsJoinRoute: OrganizationsJoinRoute,
   OrganizationsNewRoute: OrganizationsNewRoute,
   SettingsSectionRoute: SettingsSectionRoute,

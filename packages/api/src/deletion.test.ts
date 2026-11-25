@@ -388,6 +388,60 @@ describe('the erasure', () => {
         at: START,
       })
       await ctx.db.insert('accountPrefs', { handle: 'alice', prefs: '{}' })
+      // Bob's repository syncs with GitLab through Alice's connection.
+      const conn = await ctx.db.insert('providerConnections', {
+        handle: 'alice',
+        provider: 'gitlab',
+        instance: 'gitlab.com',
+        externalId: '77',
+        login: 'alice-gl',
+        token: 'tv1.k1.sealed-token',
+        refresh: 'tv1.k1.sealed-refresh',
+        keyId: 'k1',
+        expiresAt: START + DAY,
+        scopes: ['api'],
+        state: 'ok',
+        problem: null,
+        refreshLease: null,
+        created: START,
+        updated: START,
+      })
+      await ctx.db.insert('remoteRepos', {
+        provider: 'gitlab',
+        instance: 'gitlab.com',
+        externalId: '501',
+        fullName: 'team-gl/theirs',
+        repoId: bobRepo!._id,
+        connectionId: conn,
+        by: 'alice',
+        state: 'linked',
+        problem: null,
+        installation: null,
+        webhookId: '900',
+        credentialId: 'cred_1',
+        lfs: false,
+        meta: {
+          private: false,
+          archived: false,
+          defaultBranch: 'main',
+          description: '',
+          stars: 0,
+          forks: 0,
+          license: null,
+          website: null,
+        },
+        lastPull: START,
+        lastSync: START,
+        at: START,
+      })
+      await ctx.db.insert('providerAudit', {
+        handle: 'alice',
+        provider: 'gitlab',
+        action: 'connected',
+        repo: null,
+        detail: 'alice-gl',
+        at: START,
+      })
       await ctx.db.insert('uploads', {
         publicId: 'upl_alice1',
         owner: 'alice',
@@ -504,10 +558,56 @@ describe('the erasure', () => {
 
   test('her git store and her files are queued for deletion, by opaque id only', async () => {
     const { t } = await erased()
-    const rows = await t.run((ctx) => ctx.db.query('sweeps').collect())
+    const rows = (
+      await t.run((ctx) => ctx.db.query('sweeps').collect())
+    ).filter((r) => r.kind !== 'provider')
     expect(rows.map((r) => r.kind).sort()).toEqual(['blob', 'git'])
     expect(rows.find((r) => r.kind === 'blob')?.key).toBe('upl_alice1')
     expect(JSON.stringify(rows)).not.toContain('alice/')
+  })
+
+  test('her provider token is queued for revoking; a repository that synced through it stays, broken, for an admin to adopt', async () => {
+    const { t } = await erased()
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query('providerConnections').collect()).toEqual([])
+      expect(await ctx.db.query('providerAudit').collect()).toEqual([])
+      const [link] = await ctx.db.query('remoteRepos').collect()
+      expect(link).toMatchObject({
+        connectionId: null,
+        webhookId: null,
+        credentialId: null,
+        state: 'broken',
+      })
+      expect(link.problem).toContain('An admin can reconnect it')
+      const [sweep] = await ctx.db
+        .query('sweeps')
+        .withIndex('by_kind_and_lease', (q) => q.eq('kind', 'provider'))
+        .collect()
+      const job = JSON.parse(sweep.key)
+      expect(job).toMatchObject({
+        kind: 'disconnect',
+        provider: 'gitlab',
+        token: 'tv1.k1.sealed-token',
+        repos: [
+          { slug: 'team-gl/theirs', webhookId: '900', credentialId: 'cred_1' },
+        ],
+      })
+      // The store worker of git and blobs never claims it.
+    })
+    const claimed = await t
+      .mutation(api.storeWorker.claim, {
+        secret: process.env.API_STORE_SECRET ?? 'x'.repeat(32),
+        kinds: ['git', 'blob'],
+        measure: false,
+        max: 50,
+      })
+      .catch(() => null)
+    if (claimed)
+      expect(
+        (claimed as { sweeps: Array<{ kind: string }> }).sweeps.map(
+          (x) => x.kind,
+        ),
+      ).not.toContain('provider')
   })
 
   test('the sign-in user goes too', async () => {

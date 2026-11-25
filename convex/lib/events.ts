@@ -115,3 +115,49 @@ export async function emit(
   await ctx.scheduler.runAfter(0, internal.forge.events.sequence, {})
   return record
 }
+
+/**
+ * Someone on a git provider, as the author of something imported from there:
+ * a row in `actors` keyed by provider and their id there, with a handle such
+ * as `octocat@github` that no account here can have. Never an account.
+ */
+export async function externalActorFor(
+  ctx: MutationCtx,
+  provider: string,
+  externalId: string,
+  login: string,
+): Promise<ActorRef> {
+  // Someone who proved here that this login is theirs is themselves.
+  const linked = await ctx.db
+    .query('links')
+    .withIndex('by_host_and_login', (q) =>
+      q.eq('host', provider).eq('login', login),
+    )
+    .take(5)
+  for (const l of linked)
+    if (l.verified) {
+      const account = await accountByHandle(ctx, l.handle)
+      if (account) return { id: account.publicId, handle: account.handle }
+    }
+  const key = `${provider}:${externalId}`
+  const handle = `${login}@${provider}`
+  const own = await actorRow(ctx, key)
+  if (own) {
+    if (own.handle !== handle) await ctx.db.patch('actors', own._id, { handle })
+    return { id: own.publicId, handle }
+  }
+  const publicId = seededId('account', now(), key)
+  await ctx.db.insert('actors', { key, publicId, handle })
+  return { id: publicId, handle }
+}
+
+/** Numbers taken by imports: what is made here next comes after them. */
+export async function reserveNumber(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  n: number,
+) {
+  const c = await counters(ctx, repo)
+  if (c.nextNumber <= n)
+    await ctx.db.patch('repoCounters', c._id, { nextNumber: n + 1 })
+}

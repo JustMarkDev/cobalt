@@ -4,7 +4,14 @@ import { contributingFor, licenseFor, readmeFor } from './sample-docs'
 import { createReadCache } from './cached'
 import { guarded } from './guarded'
 import { GitError } from './types'
+import { CredentialExists } from './stores'
 import type { CommitInfo, FileDiff, GitRepo } from './types'
+import type {
+  GitCredential,
+  GitStores,
+  ProvisionOptions,
+  Upstream,
+} from './stores'
 
 type FixtureCommit = {
   message: string
@@ -457,4 +464,121 @@ export const fakeReadCache = createReadCache()
 
 export function getFakeGitRepo(id: string): GitRepo {
   return fakeReadCache.wrap(id, guarded(fakeRepo(id)))
+}
+
+/**
+ * Stores in memory, shaped like Code Storage: what tests and the sample run
+ * on. It keeps what each store is linked to and its credential, and can be
+ * told to fail the next call of a kind with a Code Storage error code.
+ */
+export type FakeStore = {
+  upstream: Upstream | null
+  defaultBranch: string | null
+  credential: { id: string; username: string; password: string } | null
+  pulls: number
+}
+
+export class FakeStores implements GitStores {
+  readonly stores = new Map<string, FakeStore>()
+  private failures = new Map<string, { status: number; code: string }>()
+  private seq = 0
+
+  /** The next call named `what` throws a Code Storage error with this code. */
+  failNext(what: string, status: number, problem: string) {
+    this.failures.set(what, { status, code: problem })
+  }
+
+  private check(what: string) {
+    const f = this.failures.get(what)
+    if (!f) return
+    this.failures.delete(what)
+    throw Object.assign(new Error(`${f.status} ${f.code}`), f)
+  }
+
+  private need(storeId: string) {
+    const s = this.stores.get(storeId)
+    if (!s)
+      throw Object.assign(new Error('404 repository_not_found'), {
+        status: 404,
+        code: 'repository_not_found',
+      })
+    return s
+  }
+
+  async provision(storeId: string, opts?: ProvisionOptions) {
+    this.check('provision')
+    const had = this.stores.get(storeId)
+    const upstream = opts?.upstream ?? null
+    if (had) {
+      const same =
+        !upstream ||
+        !had.upstream ||
+        JSON.stringify(had.upstream) === JSON.stringify(upstream)
+      if (!same)
+        throw Object.assign(new Error('409 upstream_already_configured'), {
+          status: 409,
+          code: 'upstream_already_configured',
+        })
+      had.upstream ??= upstream
+      return
+    }
+    this.stores.set(storeId, {
+      upstream,
+      defaultBranch: opts?.defaultBranch ?? null,
+      credential: null,
+      pulls: 0,
+    })
+  }
+
+  async pull(storeId: string) {
+    this.check('pull')
+    const s = this.need(storeId)
+    if (!s.upstream)
+      throw Object.assign(new Error('412 no_upstream'), {
+        status: 412,
+        code: 'no_upstream',
+      })
+    s.pulls++
+  }
+
+  async detach(storeId: string) {
+    this.check('detach')
+    this.need(storeId).upstream = null
+  }
+
+  async relink(storeId: string, upstream: Upstream, defaultBranch: string) {
+    this.check('relink')
+    const s = this.need(storeId)
+    s.upstream = upstream
+    s.defaultBranch = defaultBranch
+  }
+
+  async setCredential(storeId: string, cred: GitCredential) {
+    this.check('setCredential')
+    const s = this.need(storeId)
+    if (s.credential) throw new CredentialExists(storeId)
+    s.credential = { id: `cred_${++this.seq}`, ...cred }
+    return s.credential.id
+  }
+
+  async updateCredential(
+    storeId: string,
+    credentialId: string,
+    cred: GitCredential,
+  ) {
+    this.check('updateCredential')
+    const s = this.need(storeId)
+    if (s.credential?.id !== credentialId)
+      throw Object.assign(new Error('404 not_found'), {
+        status: 404,
+        code: 'not_found',
+      })
+    s.credential = { id: credentialId, ...cred }
+  }
+
+  async deleteCredential(storeId: string, credentialId: string) {
+    this.check('deleteCredential')
+    const s = this.stores.get(storeId)
+    if (s?.credential?.id === credentialId) s.credential = null
+  }
 }

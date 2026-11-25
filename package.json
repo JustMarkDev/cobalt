@@ -22,10 +22,11 @@
     "prepare": "vp config"
   },
   "dependencies": {
+    "@cobaltforge/api": "workspace:*",
     "@convex-dev/better-auth": "^0.13.1",
+    "@convex-dev/migrations": "^0.3.9",
     "@convex-dev/presence": "^0.4.0",
     "@noble/hashes": "^2.4.0",
-    "@cobaltforge/api": "workspace:*",
     "better-auth": "~1.7.27",
     "convex": "^1.51.0",
     "jose": "^6.2.18"

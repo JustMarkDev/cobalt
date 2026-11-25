@@ -2,6 +2,20 @@ import { receiptFor } from '../receipt'
 import { runsOnOf } from '../workflow'
 import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
 import type { NeedsFacts } from '../inbox'
+import type { Upstream } from '@cobaltforge/git/stores'
+import { labelOf } from '../forge/sync'
+import { forgeOps } from '../forge/ports'
+import { declareSecrets } from '../forge/secrets'
+import { extrasScope } from '../stores/convex-extras'
+
+/**
+ * Extras are written at the end of a scope; work outside a request (the
+ * provider worker, webhooks) opens its own.
+ */
+const scoped = <T>(fn: () => Promise<T>): Promise<T> =>
+  extrasScope.getStore() ? fn() : extrasScope.run(new Set(), fn)
+import type { Prepared, SyncHost } from '../forge/sync'
+import type { ProviderId } from '../forge/types'
 import { ConvexError } from 'convex/values'
 import { apiError } from '../problem'
 import { Pre } from '../registry'
@@ -96,20 +110,26 @@ export async function run<T>(
   }
 }
 
-/** What went wrong at Code Storage while linking GitHub, as the API says it. */
+/** What went wrong at Code Storage while linking a provider, as the API says it. */
 function upstreamProblem(
   e: unknown,
-  upstream?: { owner: string; name: string },
+  upstream?: { owner: string; name: string; provider?: string } | string,
 ) {
   const err = e as { status?: number; code?: string; message?: string }
+  const provider =
+    typeof upstream === 'string' ? upstream : (upstream?.provider ?? 'github')
+  const label = labelOf(provider)
+  const where =
+    upstream && typeof upstream !== 'string'
+      ? `${provider === 'github' ? 'github.com' : label}/${upstream.owner}/${upstream.name}`
+      : `the ${label} repository`
   if (err.code === 'github_repository_inaccessible' || err.status === 412)
-    return apiError(
-      'forbidden',
-      upstream
-        ? `Code Storage cannot reach github.com/${upstream.owner}/${upstream.name}.`
-        : 'Code Storage cannot reach the GitHub repository.',
-      { hint: 'Install the Cobalt GitHub App on that repository.' },
-    )
+    return apiError('forbidden', `Code Storage cannot reach ${where}.`, {
+      hint:
+        provider === 'github'
+          ? 'Install the Cobalt GitHub App on that repository.'
+          : `Connect ${label} again: the stored token may have expired.`,
+    })
   if (e instanceof Error && e.name === 'GitNotConfigured')
     return apiError('backend_unavailable', e.message)
   return apiError(
@@ -295,7 +315,7 @@ export class ConvexDomain implements DomainPort {
     p: Principal,
     input: Parameters<Port['createRepo']>[1],
     dry: boolean,
-    link?: { upstream: { owner: string; name: string }; defaultBranch: string },
+    link?: { upstream: Upstream; defaultBranch: string },
   ) {
     const r = await this.m<Awaited<ReturnType<Port['createRepo']>>>(
       'repos:create',
@@ -1302,76 +1322,109 @@ export class ConvexDomain implements DomainPort {
     this.m('integrations:link', { handle, host, ...body }, p)
   unlinkAccount: Port['unlinkAccount'] = (handle, host, p) =>
     this.m('integrations:unlink', { handle, host }, p)
+  private readonly forgeOps = forgeOps(
+    () => this.svc.providers,
+    (owner, name, p, need) => this.repoAccess(owner, name, p, need),
+  )
+  providerConnections = this.forgeOps.providerConnections
+  providerRepos = this.forgeOps.providerRepos
+  providerOauthStart = this.forgeOps.providerOauthStart
+  providerOauthFinish = this.forgeOps.providerOauthFinish
+  providerDisconnect = this.forgeOps.providerDisconnect
+  providerAudit = this.forgeOps.providerAudit
+  importBatch = this.forgeOps.importBatch
+  importJob = this.forgeOps.importJob
+  repoProvider = this.forgeOps.repoProvider
+  adoptProvider = this.forgeOps.adoptProvider
+  refreshProvider = this.forgeOps.refreshProvider
+  remoteList = this.forgeOps.remoteList
+  remotePull = this.forgeOps.remotePull
+  remoteIssue = this.forgeOps.remoteIssue
+  remoteComments = this.forgeOps.remoteComments
+  remotePatch = this.forgeOps.remotePatch
+
+  /** The provider links of this domain, or a refusal naming the host. */
+  private providersFor(host: string) {
+    const sync = this.svc.providers
+    if (host === 'gitea' || !sync?.configured(host as ProviderId))
+      throw apiError(
+        'invalid_request',
+        `Importing from ${host} is not supported here: ${host === 'gitea' ? 'self-hosted servers are not linked yet' : `${host} is not set up on this server`}.`,
+      )
+    return sync
+  }
+
   importRepo: Port['importRepo'] = async (p, body, dry) => {
-    if (body.host !== 'github')
-      throw apiError(
-        'invalid_request',
-        `Importing from ${body.host} is not supported: only GitHub repositories can be linked.`,
-      )
-    if (!body.github_access)
-      throw apiError(
-        'invalid_request',
-        'Importing from GitHub needs `github_access`.',
-        {
-          hint: 'Sign in with GitHub first: POST /github/device, then poll /github/device/poll.',
-        },
-      )
-    const ref = await needGithub(this.svc.github).authorize(
-      body.github_access,
-      p.handle,
+    const sync = this.providersFor(body.host)
+    const pr = await sync.prepare(
+      p,
+      body.host as ProviderId,
       body.slug,
+      body.github_access,
     )
-    const name = body.name ?? ref.slug.split('/')[1]
-    const held = (
-      await this.q<Record<string, string>>(
-        'integrations:githubClaims',
-        { ids: [ref.id] },
-        'system',
-      )
-    )[String(ref.id)]
+    const name = body.name ?? pr.remote.slug.split('/').pop()!
+    const held = await sync.heldBy(pr)
     if (held) {
-      const [ho, hn] = held.split('/')
+      const [ho, hn] = held.repo.split('/')
       if (
         (body.owner ?? ho).toLowerCase() !== ho.toLowerCase() ||
         name.toLowerCase() !== hn.toLowerCase()
       )
         throw apiError(
           'invalid_state',
-          `${ref.slug} is already linked to ${held}.`,
-          { hint: 'A GitHub repository feeds one repository here.' },
+          `${pr.remote.slug} is already linked to ${held.repo}.`,
+          { hint: 'A provider repository feeds one repository here.' },
         )
       return { repo: await this.getRepo(ho, hn, p), created: false }
     }
-    const [owner, repo] = ref.slug.split('/')
+    if (dry)
+      return this.createRepoWith(
+        p,
+        {
+          owner: body.owner,
+          name,
+          visibility: body.visibility,
+          description: `Linked to ${pr.instance}/${pr.remote.slug}`,
+        },
+        true,
+        sync.link(pr),
+      )
+    const made = await this.importPrepared(p, pr, {
+      owner: body.owner ?? p.handle,
+      name,
+      visibility: body.visibility,
+    })
+    const [o, n] = made.full.split('/')
+    return { repo: await this.getRepo(o, n, p), created: made.created }
+  }
+
+  /** Makes a repository here and links it to a prepared provider repository. */
+  async importPrepared(
+    p: Principal,
+    pr: Prepared,
+    o: { owner: string; name: string; visibility: 'public' | 'private' },
+  ) {
+    const sync = this.svc.providers!
     const made = await this.createRepoWith(
       p,
       {
-        owner: body.owner,
-        name,
-        visibility: body.visibility,
-        description: `Linked to github.com/${ref.slug}`,
+        owner: o.owner,
+        name: o.name,
+        visibility: o.visibility,
+        description:
+          pr.remote.description || `Linked to ${pr.instance}/${pr.remote.slug}`,
       },
-      dry,
-      { upstream: { owner, name: repo }, defaultBranch: ref.defaultBranch },
+      false,
+      sync.link(pr),
     )
-    if (dry) return made
     if (!made.created)
       throw apiError(
         'invalid_state',
-        `${made.repo.full_name} already exists and is not linked to GitHub.`,
+        `${made.repo.full_name} already exists and is not linked to ${labelOf(pr.provider)}.`,
         { hint: 'Pick another name with `name`.' },
       )
     try {
-      await this.m(
-        'integrations:claimGithub',
-        {
-          full: made.repo.full_name,
-          githubId: ref.id,
-          slug: ref.slug,
-          by: p.handle,
-        },
-        'system',
-      )
+      await sync.linked(p, made.repo.full_name, pr)
     } catch (e) {
       await this.deleteRepo(
         made.repo.owner,
@@ -1382,32 +1435,113 @@ export class ConvexDomain implements DomainPort {
       ).catch(() => undefined)
       throw e
     }
-    const linked = await this.m<Awaited<ReturnType<Port['getRepo']>>>(
+    await this.m<Awaited<ReturnType<Port['getRepo']>>>(
       'integrations:markImported',
       {
         owner: made.repo.owner,
         name: made.repo.name,
-        host: 'github',
-        slug: ref.slug,
+        host: pr.provider,
+        slug: pr.remote.slug,
         at: this.now(),
-        defaultBranch: ref.defaultBranch,
+        defaultBranch: pr.remote.defaultBranch,
       },
       p,
     )
     const x = await this.svc.extras.open(made.repo.full_name)
     x.mirrors.push({
       id: `mir_${this.now().toString(36)}0`.padEnd(22, '0').slice(0, 22),
-      host: 'github',
-      slug: ref.slug,
+      host: pr.provider,
+      slug: pr.remote.slug,
       direction: 'two-way',
       state: 'syncing',
       lastSync: this.now(),
-      detail: 'The first sync from GitHub is running.',
+      detail: `The first sync from ${labelOf(pr.provider)} is running.`,
       created: this.now(),
     })
     await this.svc.extras.flush?.()
-    return { repo: linked, created: true }
+    return { full: made.repo.full_name, created: true }
   }
+
+  /** What `ProviderSync` needs from this domain. */
+  providerHost(): SyncHost {
+    return {
+      requireAdmin: async (p, full) => {
+        const [o, n] = full.split('/')
+        await this.q('providers:requireAdmin', { owner: o, name: n }, p)
+      },
+      unlink: (full) =>
+        scoped(async () => {
+          await this.m('integrations:unlinkGithub', { full }, 'system').catch(
+            () => undefined,
+          )
+          const x = await this.svc.extras.open(full)
+          x.mirrors.splice(0, x.mirrors.length)
+          await this.svc.extras.flush?.()
+        }),
+      mirror: (full, state, detail) =>
+        scoped(async () => {
+          const x = await this.svc.extras.open(full)
+          let m = x.mirrors.at(0)
+          if (!m) {
+            // A mirror lost by an earlier write outside a scope comes back.
+            const link = await this.svc.providers?.store.remoteOfRepo(full)
+            if (!link) return
+            m = {
+              id: `mir_${this.now().toString(36)}0`
+                .padEnd(22, '0')
+                .slice(0, 22),
+              host: link.provider,
+              slug: link.fullName,
+              direction: 'two-way',
+              state,
+              lastSync: this.now(),
+              detail,
+              created: link.at,
+            }
+            x.mirrors.push(m)
+          }
+          m.state = state
+          m.detail = detail
+          if (state === 'in-sync') m.lastSync = this.now()
+          await this.svc.extras.flush?.()
+        }),
+      importOne: (p, pr, o) => scoped(() => this.importPrepared(p, pr, o)),
+      setLanguages: async (full, languages) => {
+        await this.m(
+          'providers:setLanguages',
+          { repo: full, languages },
+          'system',
+        )
+      },
+      hasCommit: (full, sha) =>
+        this.svc.git.commit(full, sha).then(
+          () => true,
+          () => false,
+        ),
+      materialize: async (full, item) => {
+        if (item.kind === 'secrets') {
+          const names = item.names
+          return scoped(async () => {
+            const x = await this.svc.extras.open(full)
+            const added = declareSecrets(x.env, item.host, names)
+            if (added) await this.svc.extras.flush?.()
+            return `${added} declared`
+          })
+        }
+        const { kind, ...rest } = item
+        const fn =
+          kind === 'pull'
+            ? 'changes:importPull'
+            : kind === 'checks'
+              ? 'changes:importChecks'
+              : kind === 'issue'
+                ? 'issues:importIssue'
+                : 'releases:importRelease'
+        return this.m<string>(fn, { repo: full, ...rest }, 'system')
+      },
+    }
+  }
+
   githubDeviceStart: Port['githubDeviceStart'] = () =>
     deviceStart(this.svc.github)
 
@@ -1437,13 +1571,14 @@ export class ConvexDomain implements DomainPort {
 
   githubRepos: Port['githubRepos'] = async (p, access) => {
     const refs = await needGithub(this.svc.github).repos(access, p.handle)
-    const held = refs.length
-      ? await this.q<Record<string, string>>(
-          'integrations:githubClaims',
-          { ids: refs.map((r) => r.id) },
-          'system',
-        )
-      : {}
+    const held =
+      refs.length && this.svc.providers
+        ? await this.svc.providers.store.claims(
+            'github',
+            'github.com',
+            refs.map((r) => String(r.id)),
+          )
+        : {}
     return refs.map((r) => presentGithubRepo(r, held[String(r.id)] ?? null))
   }
 
@@ -1495,15 +1630,16 @@ export class ConvexDomain implements DomainPort {
   syncMirror: Port['syncMirror'] = async (p, owner, name, mirror, dry) => {
     const { full, x, m } = await this.mirrorOf(p, owner, name, mirror)
     if (!dry) {
+      const remote = await this.svc.providers?.store.remoteOfRepo(full)
       const store = await this.storeIdOf(full)
-      if (store)
-        try {
-          await this.svc.git.pull?.(store)
-        } catch (e) {
-          // One sync is already running: that is what was asked for.
-          if ((e as { code?: string }).code !== 'sync_in_progress')
-            throw upstreamProblem(e)
-        }
+      try {
+        if (remote) await this.svc.providers!.pull(remote)
+        else if (store) await this.svc.git.pull?.(store)
+      } catch (e) {
+        // One sync is already running: that is what was asked for.
+        if ((e as { code?: string }).code !== 'sync_in_progress')
+          throw upstreamProblem(e, remote?.provider)
+      }
       m.state = 'syncing'
       m.detail = null
       await this.svc.extras.flush?.()
@@ -1530,6 +1666,7 @@ export class ConvexDomain implements DomainPort {
   deleteMirror: Port['deleteMirror'] = async (p, owner, name, mirror, dry) => {
     const { full, x, m } = await this.mirrorOf(p, owner, name, mirror)
     if (dry) return
+    if (await this.svc.providers?.unlinkRepo(p, full)) return
     const store = await this.storeIdOf(full)
     if (store)
       try {
@@ -1551,17 +1688,19 @@ export class ConvexDomain implements DomainPort {
       const m = (await this.svc.extras.open(r.repo)).mirrors.find(
         (x) => x.host === r.host && x.slug === r.slug,
       )
-      shown.push({ r, m })
+      const warnings = (await this.svc.providers?.warningsFor(r.repo)) ?? []
+      shown.push({ r, m, warnings })
     }
     return shown
-      .map(({ r, m }) => {
+      .map(({ r, m, warnings }) => {
         return {
           object: 'import' as const,
           repo: r.repo,
-          host: r.host as 'github',
+          host: r.host as 'github' | 'gitlab' | 'codeberg',
           slug: r.slug,
           state: m?.state ?? ('in-sync' as const),
           created_at: new Date(r.created).toISOString(),
+          warnings,
         }
       })
       .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))

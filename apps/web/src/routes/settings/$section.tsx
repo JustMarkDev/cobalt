@@ -30,6 +30,7 @@ import { Button } from '~/components/ui/button'
 import { Badge } from '~/components/ui/badge'
 import { authClient } from '~/lib/auth/client'
 import { startGithubLink } from '~/lib/github-link'
+import { startProviderLink } from '~/lib/provider-link'
 
 const sections = [
   ['profile', 'Profile', UserIcon],
@@ -383,6 +384,8 @@ function Accounts() {
   const handle = me?.handle ?? ''
   const links = useOpMaybe('links.list', { handle }, !!me)?.data ?? []
   const imports = useOpMaybe('imports.list', {}, !!me)?.data ?? []
+  const connections = useOpMaybe('providers.list', {}, !!me)?.data ?? []
+  const audit = useOpMaybe('providers.audit', {}, !!me)?.data ?? []
   const session = authClient.useSession().data
   const write = useWrite()
   const [dialog, setDialog] = React.useState<(typeof hosts)[number] | null>(
@@ -454,6 +457,13 @@ function Accounts() {
                   >
                     Link
                   </Button>
+                ) : p.id === 'gitlab' || p.id === 'codeberg' ? (
+                  <ProviderControls
+                    provider={p.id}
+                    name={p.name}
+                    connection={connections.find((c) => c.provider === p.id)}
+                    onError={setError}
+                  />
                 ) : (
                   <Badge>Planned</Badge>
                 )}
@@ -550,7 +560,10 @@ function Accounts() {
             >
               <span className="flex-1 font-mono">{i.repo}</span>
               <SourceBadge source={i.host} />
-              <span className="w-32 text-right text-xs text-muted-foreground">
+              <span
+                className="w-32 text-right text-xs text-muted-foreground"
+                title={i.warnings.join('\n\n')}
+              >
                 {i.state === 'in-sync' ? 'In sync' : i.state}
               </span>
             </li>
@@ -569,6 +582,29 @@ function Accounts() {
           Import projects
         </Link>
       </Card>
+
+      {audit.length > 0 && (
+        <Card className="mt-6">
+          <SectionLabel>Recent activity with providers</SectionLabel>
+          <ul className="divide-y overflow-hidden rounded-xl border text-sm">
+            {audit.slice(0, 12).map((a, i) => (
+              <li key={i} className="flex items-center gap-3 px-3 py-2">
+                <SourceBadge source={a.provider} />
+                <span className="flex-1">
+                  {auditText[a.action]}
+                  {a.repo && <span className="font-mono"> {a.repo}</span>}
+                  {a.detail && (
+                    <span className="text-muted-foreground"> · {a.detail}</span>
+                  )}
+                </span>
+                <time className="text-xs text-muted-foreground">
+                  {new Date(a.at).toLocaleDateString()}
+                </time>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Dialog.Root open={dialog !== null} onOpenChange={(o) => !o && close()}>
         <Dialog.Portal>
@@ -632,6 +668,95 @@ function Accounts() {
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
+    </div>
+  )
+}
+
+const auditText = {
+  connected: 'Connected',
+  reconnected: 'Connected again',
+  disconnected: 'Disconnected',
+  imported: 'Imported',
+  adopted: 'Took over the link of',
+  unlinked: 'Unlinked',
+  relinked: 'Followed a rename of',
+  needs_reconnect: 'The provider refused the token',
+} as const
+
+/** Connect, reconnect or disconnect GitLab or Codeberg. */
+function ProviderControls({
+  provider,
+  name,
+  connection,
+  onError,
+}: {
+  provider: 'gitlab' | 'codeberg'
+  name: string
+  connection:
+    | {
+        login: string
+        state: 'ok' | 'needs_reconnect'
+        repos: number
+        problem: string | null
+      }
+    | undefined
+  onError: (e: string) => void
+}) {
+  const write = useWrite()
+  const [confirm, setConfirm] = React.useState(false)
+  const connect = () =>
+    void startProviderLink(write, provider, '/settings/accounts').then(
+      (e) => e && onError(e),
+    )
+  if (!connection) return <Button onClick={connect}>Connect</Button>
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="font-mono">{connection.login}</span>
+      {connection.state === 'ok' ? (
+        <Chip tone="success">
+          {connection.repos === 1
+            ? '1 repository syncs through it'
+            : `${connection.repos} repositories sync through it`}
+        </Chip>
+      ) : (
+        <span title={connection.problem ?? undefined}>
+          <Chip tone="warning">Needs reconnecting</Chip>
+        </span>
+      )}
+      <Button variant="outline" size="sm" onClick={connect}>
+        {connection.state === 'ok' ? 'Bring repositories' : 'Reconnect'}
+      </Button>
+      {confirm ? (
+        <span className="flex items-center gap-2">
+          <span className="text-muted-foreground">
+            Unlinks {connection.repos} from {name}; their history here stays.
+          </span>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() =>
+              void write('providers.disconnect', { provider }).then((r) => {
+                if (r.error) onError(r.error.message)
+                setConfirm(false)
+              })
+            }
+          >
+            Disconnect
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setConfirm(false)}>
+            Cancel
+          </Button>
+        </span>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={() => setConfirm(true)}
+        >
+          Disconnect
+        </Button>
+      )}
     </div>
   )
 }

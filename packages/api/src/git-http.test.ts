@@ -1,10 +1,11 @@
 import { expect, test } from 'bun:test'
 import { createGitHttp } from './git-http'
+import { apiError } from './problem'
 import { sampleTokens } from './sample'
 import { harness } from './testing'
 import type { GitRemotes } from '@cobaltforge/git/remote'
 
-function setup() {
+function setup(beforeGit?: (full: string, write: boolean) => Promise<void>) {
   const h = harness()
   const opened: Array<{ storeId: string; write: boolean; subject: string }> = []
   const remotes: GitRemotes = {
@@ -21,6 +22,7 @@ function setup() {
     verifyToken: h.api.verifyToken,
     domain: h.api.port,
     remotes,
+    ...(beforeGit ? { beforeGit } : {}),
     fetch: ((url: string, init?: RequestInit) => {
       sent.push({
         url,
@@ -94,4 +96,35 @@ test('a repository you cannot see does not exist, and pushing needs write', asyn
     sampleTokens.hollis,
   )
   expect([403, 404]).toContain(others.status)
+})
+
+test('a linked repository is checked before git starts: a broken link refuses a push with a reason', async () => {
+  const seen: Array<[string, boolean]> = []
+  const g = setup((full, write) => {
+    seen.push([full, write])
+    return write
+      ? Promise.reject(
+          apiError('invalid_state', 'dana/gitfs is not syncing with GitLab.', {
+            hint: 'An admin can take the link over.',
+          }),
+        )
+      : Promise.resolve()
+  })
+  const read = await g.call('GET', refs, sampleTokens.dana)
+  expect(read.status).toBe(200)
+  const push = await g.call(
+    'GET',
+    '/dana/gitfs.git/info/refs?service=git-receive-pack',
+    sampleTokens.dana,
+  )
+  expect(push.status).toBe(403)
+  expect(await push.text()).toBe(
+    'dana/gitfs is not syncing with GitLab.\nAn admin can take the link over.\n',
+  )
+  // Checked once per operation, at its first request.
+  await g.call('POST', '/dana/gitfs.git/git-upload-pack', sampleTokens.dana)
+  expect(seen).toEqual([
+    ['dana/gitfs', false],
+    ['dana/gitfs', true],
+  ])
 })

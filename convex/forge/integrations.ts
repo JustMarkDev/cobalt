@@ -383,60 +383,6 @@ export const markVerified = mutation({
   },
 })
 
-export const githubClaims = query({
-  args: { ids: v.array(v.number()) },
-  returns: v.string(),
-  handler: async (ctx, { ids }) => {
-    await system(ctx)
-    const held: Record<string, string> = {}
-    for (const id of ids.slice(0, 500)) {
-      const c = await ctx.db
-        .query('githubLinks')
-        .withIndex('by_githubId', (q) => q.eq('githubId', id))
-        .unique()
-      const repo = c && (await ctx.db.get('repos', c.repoId))
-      if (repo) held[String(id)] = `${repo.owner}/${repo.name}`
-    }
-    return out(held)
-  },
-})
-
-export const claimGithub = mutation({
-  args: {
-    full: v.string(),
-    githubId: v.number(),
-    slug: v.string(),
-    by: v.string(),
-  },
-  returns: v.string(),
-  handler: async (ctx, a) => {
-    await system(ctx)
-    const repo = await repoByKey(ctx, a.full)
-    if (!repo) fail('not_found', `No repository ${a.full}.`)
-    const held = await ctx.db
-      .query('githubLinks')
-      .withIndex('by_githubId', (q) => q.eq('githubId', a.githubId))
-      .unique()
-    if (held && held.repoId !== repo._id) {
-      const other = await ctx.db.get('repos', held.repoId)
-      fail(
-        'invalid_state',
-        `${a.slug} is already linked to ${other ? `${other.owner}/${other.name}` : 'another repository'}.`,
-        { hint: 'A GitHub repository feeds one repository here.' },
-      )
-    }
-    if (!held)
-      await ctx.db.insert('githubLinks', {
-        githubId: a.githubId,
-        slug: a.slug,
-        repoId: repo._id,
-        by: a.by,
-        at: Date.now(),
-      })
-    return out(null)
-  },
-})
-
 export const unlinkGithub = mutation({
   args: { full: v.string() },
   returns: v.string(),
