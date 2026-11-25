@@ -34,7 +34,19 @@ export const TABLES: Record<TableNames, string> = {
   repos: 'wipe: owned repositories, with everything in them',
   repoCounters: 'wipe: with its repository',
   repoAliases: 'wipe: with its repository',
-  githubLinks: 'wipe: with its repository',
+  githubLinks: 'wipe: with its repository (deprecated table)',
+  providerConnections:
+    'wipe: by handle; the API server revokes the token and removes what it made at the provider',
+  remoteRepos:
+    'wipe: with its repository; repositories that synced through a deleted person stay, marked broken, for an admin to adopt',
+  externalActors: 'none: snapshots of people on other hosts',
+  remoteItems: 'wipe: with its repository',
+  remoteComments: 'wipe: with its item',
+  remotePatches: 'wipe: with its item',
+  importJobs: 'wipe: by handle',
+  importItems: 'wipe: with its job',
+  hookDeliveries: 'none: expire on their own',
+  providerAudit: 'wipe: by handle',
   deletedRepos: 'none: names only',
   stars: 'wipe: by handle, and with its repository',
   teams: 'none: belong to organizations',
@@ -330,6 +342,7 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
         .take(BATCH),
     ),
   )
+  await add(dropProviderLinks(ctx, h))
   await add(
     drop(
       ctx,
@@ -507,6 +520,106 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
   return more
 }
 
+/**
+ * A deleted person's provider accounts: the API server revokes each token and
+ * removes the webhooks and git credentials it made with it; the repositories
+ * that synced through it stay, marked broken, until an admin adopts them.
+ */
+async function dropProviderLinks(ctx: MutationCtx, handle: string) {
+  const conns = await ctx.db
+    .query('providerConnections')
+    .withIndex('by_handle_and_provider_and_instance', (q) =>
+      q.eq('handle', handle),
+    )
+    .take(20)
+  for (const c of conns) {
+    const linked = await ctx.db
+      .query('remoteRepos')
+      .withIndex('by_connectionId', (q) => q.eq('connectionId', c._id))
+      .take(BATCH)
+    const repos = []
+    for (const r of linked) {
+      const repo = await ctx.db.get('repos', r.repoId)
+      repos.push({
+        storeId: repo?.storeId ?? null,
+        slug: r.fullName,
+        webhookId: r.webhookId,
+        credentialId: r.credentialId,
+      })
+      await ctx.db.patch('remoteRepos', r._id, {
+        connectionId: null,
+        webhookId: null,
+        credentialId: null,
+        state: 'broken',
+        problem:
+          'The account that kept this repository in sync was deleted. An admin can reconnect it.',
+      })
+    }
+    await queueSweep(
+      ctx,
+      'provider',
+      JSON.stringify({
+        kind: 'disconnect',
+        connectionId: c._id,
+        provider: c.provider,
+        instance: c.instance,
+        token: c.token,
+        refresh: c.refresh,
+        repos,
+      }),
+    )
+    if (linked.length < BATCH) await ctx.db.delete('providerConnections', c._id)
+  }
+  let more = conns.length >= 20
+  const jobs = await ctx.db
+    .query('importJobs')
+    .withIndex('by_handle_and_created', (q) => q.eq('handle', handle))
+    .take(10)
+  for (const j of jobs) {
+    const items = await ctx.db
+      .query('importItems')
+      .withIndex('by_jobId', (q) => q.eq('jobId', j._id))
+      .take(BATCH)
+    if (await drop(ctx, 'importItems', items)) more = true
+    else await ctx.db.delete('importJobs', j._id)
+  }
+  if (jobs.length >= 10) more = true
+  if (
+    await drop(
+      ctx,
+      'providerAudit',
+      await ctx.db
+        .query('providerAudit')
+        .withIndex('by_handle_and_at', (q) => q.eq('handle', handle))
+        .take(BATCH),
+    )
+  )
+    more = true
+  return more
+}
+
+/** Read-only copies of a linked repository's pull requests, issues and releases. */
+async function dropRemoteItems(ctx: MutationCtx, repoId: Doc<'repos'>['_id']) {
+  const items = await ctx.db
+    .query('remoteItems')
+    .withIndex('by_repoId_and_kind_and_key', (q) => q.eq('repoId', repoId))
+    .take(20)
+  for (const it of items) {
+    for (const c of await ctx.db
+      .query('remoteComments')
+      .withIndex('by_itemId_and_externalId', (q) => q.eq('itemId', it._id))
+      .take(500))
+      await ctx.db.delete('remoteComments', c._id)
+    for (const p of await ctx.db
+      .query('remotePatches')
+      .withIndex('by_itemId', (q) => q.eq('itemId', it._id))
+      .take(5))
+      await ctx.db.delete('remotePatches', p._id)
+    await ctx.db.delete('remoteItems', it._id)
+  }
+  return items.length >= 20
+}
+
 async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
   const id = repo._id
   let more = false
@@ -514,6 +627,7 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
     if (await p) more = true
   }
   await dropRepoHooks(ctx, id)
+  if (await dropRemoteItems(ctx, id)) more = true
   await add(
     drop(
       ctx,
@@ -816,6 +930,26 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
     .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
     .take(10))
     await ctx.db.delete('githubLinks', l._id)
+  for (const r of await ctx.db
+    .query('remoteRepos')
+    .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+    .take(10)) {
+    // The store goes with the git sweep, and its credential with it; the
+    // webhook on the provider is removed by the API server.
+    if (r.webhookId && r.connectionId)
+      await queueSweep(
+        ctx,
+        'provider',
+        JSON.stringify({
+          kind: 'unhook',
+          connectionId: r.connectionId,
+          provider: r.provider,
+          slug: r.fullName,
+          webhookId: r.webhookId,
+        }),
+      )
+    await ctx.db.delete('remoteRepos', r._id)
+  }
   await queueSweep(ctx, 'git', repo.storeId)
   await ctx.db.delete('repos', id)
   await syncGrants(ctx, id)

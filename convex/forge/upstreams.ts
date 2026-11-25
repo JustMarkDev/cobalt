@@ -9,7 +9,8 @@ type Mirror = {
 }
 
 /**
- * Code Storage says how a sync of a linked repository went. The mirror of the
+ * Code Storage says how a sync of a linked repository went, whichever
+ * provider it is linked to. The link and the mirror of the
  * repository shows it. Deliveries can arrive out of order, so an older event
  * never overwrites what a later one said.
  */
@@ -31,13 +32,41 @@ export const recordSync = internalMutation({
       .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
       .unique()
     if (!repo) return 'unknown_repository'
+    const link = await ctx.db
+      .query('remoteRepos')
+      .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+      .first()
+    if (link && a.event !== 'started') {
+      const ok = a.event === 'succeeded'
+      if (ok || a.at >= (link.lastSync ?? 0))
+        await ctx.db.patch('remoteRepos', link._id, {
+          ...(ok ? { lastSync: Math.max(link.lastSync ?? 0, a.at) } : {}),
+          // The first good sync settles a fresh link; a failure marks it.
+          ...(ok && link.state === 'syncing'
+            ? {
+                state:
+                  link.webhookId || link.provider === 'github'
+                    ? ('linked' as const)
+                    : ('delayed' as const),
+              }
+            : {}),
+          ...(!ok && link.state !== 'gone'
+            ? { problem: (a.error ?? 'The sync failed.').slice(0, 500) }
+            : {}),
+          ...(ok && link.problem && link.state !== 'delayed'
+            ? { problem: null }
+            : {}),
+        })
+    }
     const doc = await ctx.db
       .query('repoExtras')
       .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
       .unique()
     if (!doc) return 'no_mirror'
     const extras = JSON.parse(doc.json) as { mirrors: Array<Mirror> }
-    const m = extras.mirrors.find((x) => x.host === 'github')
+    // The mirror of the provider the repository is linked to, whichever it is.
+    const host = repo.upstream?.host ?? link?.provider ?? 'github'
+    const m = extras.mirrors.find((x) => x.host === host)
     if (!m) return 'no_mirror'
     if (a.event === 'started') {
       if (a.at < m.lastSync) return 'stale'

@@ -93,8 +93,20 @@ const SHAPE_PATHS: Record<string, string> = {
   'triggers.list': `${REPO}/triggers`,
   'runners.list': '/runners',
   'access_rules.list': `${REPO}/access-rules`,
+  'providers.list': '/providers',
+  'providers.audit': '/providers/audit',
 }
 const SHAPE_DYNAMIC = [
+  'imports.jobs.get',
+  'repos.provider.get',
+  'repos.provider.pulls.list',
+  'repos.provider.pulls.get',
+  'repos.provider.pulls.patch',
+  'repos.provider.pulls.comments',
+  'repos.provider.issues.list',
+  'repos.provider.issues.get',
+  'repos.provider.issues.comments',
+  'repos.provider.releases.list',
   'webhooks.get',
   'webhooks.deliveries.list',
   'webhooks.deliveries.get',
@@ -203,6 +215,54 @@ describe('shape', () => {
       })
       dynamic['pipelines.get'] = `${REPO}/pipelines/${job.run}`
     }
+    // A repository linked to the scripted gitlab.com, with its items read.
+    const redirect_uri = 'https://cobaltforge.dev/gitlab/callback'
+    const gl = await h.call('POST', '/providers/gitlab/oauth', {
+      body: { redirect_uri },
+    })
+    await h.call('POST', '/providers/gitlab/oauth/finish', {
+      body: {
+        code: 'c',
+        state: new URL(gl.json.url).searchParams.get('state'),
+        redirect_uri,
+      },
+    })
+    await h.call('POST', '/imports', {
+      body: { host: 'gitlab', slug: 'dana.okafor/zine' },
+    })
+    await (
+      h.api.port as unknown as {
+        svc: { providers: { tick: () => Promise<unknown> } }
+      }
+    ).svc.providers.tick()
+    const Z = '/repos/dana/zine/provider'
+    Object.assign(dynamic, {
+      'repos.provider.get': Z,
+      'repos.provider.pulls.list': `${Z}/pulls`,
+      'repos.provider.pulls.get': `${Z}/pulls/3`,
+      'repos.provider.pulls.patch': `${Z}/pulls/3/patch`,
+      'repos.provider.pulls.comments': `${Z}/pulls/3/comments`,
+      'repos.provider.issues.list': `${Z}/issues`,
+      'repos.provider.issues.get': `${Z}/issues/5`,
+      'repos.provider.issues.comments': `${Z}/issues/5/comments`,
+      'repos.provider.releases.list': `${Z}/releases`,
+    })
+    const signIn = (
+      await h.call('POST', '/github/device/poll', {
+        body: {
+          device_code: (await h.call('POST', '/github/device')).json
+            .device_code,
+        },
+      })
+    ).json.access
+    const batch = await h.call('POST', '/imports/batch', {
+      body: {
+        provider: 'github',
+        slugs: ['dana-okafor/notes'],
+        github_access: signIn,
+      },
+    })
+    dynamic['imports.jobs.get'] = `/imports/jobs/${batch.json.id}`
     Object.assign(paths, dynamic)
     for (const op of h.api.ops.filter(
       (o) => o.method === 'GET' && o.id in paths,

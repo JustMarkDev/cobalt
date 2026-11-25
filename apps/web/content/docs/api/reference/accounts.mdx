@@ -641,14 +641,14 @@ ratelimit: "read";r=1127;t=60
   "data": [
     {
       "object": "invitation",
-      "id": "inv_01m6tq6r8098qn1153",
+      "id": "inv_01m6tq6r80x530vkt1",
       "account": "harbor-tools",
       "email": "yuki@example.com",
       "role": "member",
       "invited_by": "dana",
       "created_at": "2026-11-07T10:00:00.000Z",
       "expires_at": "2026-11-14T10:00:00.000Z",
-      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r8098qn1153"
+      "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80x530vkt1"
     }
   ],
   "has_more": false,
@@ -714,14 +714,14 @@ ratelimit: "write";r=27;t=60
 ```json
 {
   "object": "invitation",
-  "id": "inv_01m6tq6r8098qn1153",
+  "id": "inv_01m6tq6r80x530vkt1",
   "account": "harbor-tools",
   "email": "yuki@example.com",
   "role": "member",
   "invited_by": "dana",
   "created_at": "2026-11-07T10:00:00.000Z",
   "expires_at": "2026-11-14T10:00:00.000Z",
-  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r8098qn1153"
+  "url": "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80x530vkt1"
 }
 ```
 
@@ -762,7 +762,7 @@ Owners and admins only. Its link stops working. Revoking one that is gone change
 **Example**
 
 ```bash
-curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r8098qn1153" \
+curl -X DELETE "https://api.cobaltforge.dev/v1/accounts/harbor-tools/invitations/inv_01m6tq6r80x530vkt1" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
@@ -1259,7 +1259,7 @@ curl "https://api.cobaltforge.dev/v1/accounts/northwind/teams" \
 
 ```http
 HTTP/1.1 200
-etag: W/"qxs7Nw1g7cQ9dsKw"
+etag: W/"LS7C6LBDM1TB_zxm"
 ratelimit: "read";r=1126;t=60
 ```
 
@@ -1269,7 +1269,7 @@ ratelimit: "read";r=1126;t=60
   "data": [
     {
       "object": "team",
-      "id": "tem_01m6tq6r80pgay4h0y",
+      "id": "tem_01m6tq6r80vzv82bdp",
       "org": "northwind",
       "slug": "support",
       "name": "Support",
@@ -1347,7 +1347,7 @@ ratelimit: "write";r=23;t=60
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80pgay4h0y",
+  "id": "tem_01m6tq6r80vzv82bdp",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1443,14 +1443,14 @@ curl "https://api.cobaltforge.dev/v1/accounts/northwind/teams/support" \
 
 ```http
 HTTP/1.1 200
-etag: W/"tem_01m6tq6r80pgay4h0y.1-IdiBhiRqyEgMjrlC"
+etag: W/"tem_01m6tq6r80vzv82bdp.1-IdiBhiRqyEgMjrlC"
 ratelimit: "read";r=1125;t=60
 ```
 
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80pgay4h0y",
+  "id": "tem_01m6tq6r80vzv82bdp",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1522,7 +1522,7 @@ ratelimit: "write";r=22;t=60
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80pgay4h0y",
+  "id": "tem_01m6tq6r80vzv82bdp",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1631,7 +1631,7 @@ ratelimit: "write";r=21;t=60
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80pgay4h0y",
+  "id": "tem_01m6tq6r80vzv82bdp",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -1750,7 +1750,7 @@ ratelimit: "write";r=20;t=60
 ```json
 {
   "object": "team",
-  "id": "tem_01m6tq6r80pgay4h0y",
+  "id": "tem_01m6tq6r80vzv82bdp",
   "org": "northwind",
   "slug": "support",
   "name": "Support",
@@ -2059,7 +2059,7 @@ Send the token from the link in the email. You join with the role the invitation
 curl -X POST "https://api.cobaltforge.dev/v1/invitations/accept" \
   -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"token":"cbi_kdaOyu38j21AGBkoVgkJDzn5J5PY83YN"}'
+  -d '{"token":"cbi_GBkoVgkJDzn5J5PY83YNaUgX9WFBBeNm"}'
 ```
 
 ```http

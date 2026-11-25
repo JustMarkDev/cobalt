@@ -6,10 +6,22 @@ import { newId } from '@cobaltforge/api/ids'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { bodyOf } from '../lib/input'
-import { actorOf, signedIn } from '../lib/actor'
-import { accessStamp, assertMatch, canWrite, resolve } from '../lib/access'
+import { actorOf, signedIn, system } from '../lib/actor'
+import {
+  accessStamp,
+  assertMatch,
+  canWrite,
+  repoByKey,
+  resolve,
+} from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
-import { actorFor, counters, emit } from '../lib/events'
+import {
+  actorFor,
+  counters,
+  emit,
+  externalActorFor,
+  reserveNumber,
+} from '../lib/events'
 import { keysetPage } from '../lib/paginate'
 import { actorOut, iso, urls } from '../lib/present'
 import { assignable, issueOf, presentIssue, recountLabels } from '../lib/issues'
@@ -760,5 +772,156 @@ export const listEvidence = query({
         shown: presentIssueEvidence(i, e),
       })),
     )
+  },
+})
+
+const importedActor = v.union(
+  v.null(),
+  v.object({ id: v.string(), login: v.string() }),
+)
+
+/**
+ * An issue from the provider a repository is linked to, with the same number
+ * and its comments. The provider is the authority for title, body and state;
+ * comments written here stay. Imports send no events.
+ */
+export const importIssue = mutation({
+  args: {
+    repo: v.string(),
+    host: v.string(),
+    number: v.number(),
+    title: v.string(),
+    body: v.string(),
+    state: v.union(v.literal('open'), v.literal('closed')),
+    author: importedActor,
+    labels: v.array(v.string()),
+    created: v.number(),
+    updated: v.number(),
+    closed: v.union(v.null(), v.number()),
+    comments: v.array(
+      v.object({
+        id: v.string(),
+        author: importedActor,
+        body: v.string(),
+        created: v.number(),
+        updated: v.number(),
+      }),
+    ),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.repo)
+    if (!repo) fail('not_found', `No repository ${a.repo}.`)
+    const who = (x: { id: string; login: string } | null) =>
+      externalActorFor(ctx, a.host, x?.id ?? 'ghost', x?.login ?? 'ghost')
+    const author = await who(a.author)
+    const publicId = `iss_${a.host}_${a.number}`
+    const had = await ctx.db
+      .query('issues')
+      .withIndex('by_repoId_and_number', (q) =>
+        q.eq('repoId', repo._id).eq('number', a.number),
+      )
+      .unique()
+    if (had && had.publicId !== publicId) return out('taken')
+    if (!had) {
+      const change = await ctx.db
+        .query('changes')
+        .withIndex('by_repoId_and_number', (q) =>
+          q.eq('repoId', repo._id).eq('number', a.number),
+        )
+        .unique()
+      if (change) return out('taken')
+    }
+    const fields = {
+      title: a.title.slice(0, 1000),
+      body: a.body.slice(0, 200_000),
+      text: `${a.title}\n${a.body}`.slice(0, 200_000),
+      state: a.state,
+      labels: a.labels.slice(0, 50),
+      updated: Math.max(a.updated, had?.updated ?? 0),
+      closed: a.closed,
+    }
+    let issueId = had?._id
+    let outcome = 'unchanged'
+    if (had) {
+      const same =
+        had.author.handle === author.handle &&
+        had.title === fields.title &&
+        had.body === fields.body &&
+        had.state === fields.state &&
+        JSON.stringify(had.labels) === JSON.stringify(fields.labels)
+      if (!same) {
+        await ctx.db.patch('issues', had._id, {
+          ...fields,
+          author,
+          version: had.version + 1,
+        })
+        await recountLabels(ctx, repo._id, had, fields)
+        await bumpIssues(
+          ctx,
+          repo,
+          (fields.state === 'open' ? 1 : 0) - (had.state === 'open' ? 1 : 0),
+        )
+        outcome = 'updated'
+      }
+    } else {
+      await tally(ctx, 'issue.created')
+      issueId = await ctx.db.insert('issues', {
+        repoId: repo._id,
+        publicId,
+        number: a.number,
+        ...fields,
+        author,
+        assignees: [],
+        commentCount: 0,
+        created: a.created,
+        version: 1,
+      })
+      await reserveNumber(ctx, repo, a.number)
+      await recountLabels(ctx, repo._id, null, fields)
+      await bumpIssues(ctx, repo, fields.state === 'open' ? 1 : 0)
+      outcome = 'created'
+    }
+    let added = 0
+    for (const c of a.comments.slice(0, 1000)) {
+      const cid = `cmt_${a.host}_${c.id}`.slice(0, 64)
+      const old = await ctx.db
+        .query('issueComments')
+        .withIndex('by_repoId_and_publicId', (q) =>
+          q.eq('repoId', repo._id).eq('publicId', cid),
+        )
+        .unique()
+      if (old) {
+        if (old.updated !== c.updated)
+          await ctx.db.patch('issueComments', old._id, {
+            body: c.body.slice(0, 100_000),
+            updated: c.updated,
+            version: old.version + 1,
+          })
+        continue
+      }
+      await ctx.db.insert('issueComments', {
+        issueId: issueId!,
+        repoId: repo._id,
+        publicId: cid,
+        author: await who(c.author),
+        body: c.body.slice(0, 100_000),
+        created: c.created,
+        updated: c.updated,
+        version: 1,
+      })
+      added++
+    }
+    if (added) {
+      const i = (await ctx.db.get('issues', issueId!))!
+      await ctx.db.patch('issues', i._id, {
+        commentCount: i.commentCount + added,
+        version: i.version + 1,
+      })
+      if (outcome === 'unchanged') outcome = 'updated'
+    }
+    if (outcome !== 'unchanged') await bumpIssues(ctx, repo)
+    return out(outcome)
   },
 })

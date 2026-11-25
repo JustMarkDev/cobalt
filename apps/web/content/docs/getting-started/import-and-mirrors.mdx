@@ -6,17 +6,45 @@ description: Import from another host, mirror back to it, and leave it whenever 
 
 cobalt is designed so that no other host is a dependency. This page explains how history gets here, how copies stay elsewhere, and what happens when a host goes away.
 
-## Bring a repository in from GitHub
+## Bring repositories in
 
-Open **New repository, Import existing** and sign in with GitHub. You get a code to enter on github.com; cobalt never stores the GitHub token it receives, only a proof that you may push to the repositories you pick, which lasts ten minutes.
+A repository here can be linked to one repository on **GitHub**, **GitLab** (gitlab.com) or **Codeberg**. It stays in sync with it both ways: what you push here reaches the host, and what is pushed there reaches here. The host stays the authority for branches and tags. One repository there feeds one repository here, and a repository here is linked to one host only.
 
-Install the **cobalt GitHub App** on the repositories you want first. Only repositories where the app is installed and where you may push are offered. Each one becomes a repository here and stays in sync with GitHub in both directions: what you push here reaches GitHub, and what is pushed there reaches here. One GitHub repository feeds one repository here.
+Open **New repository, Import existing**, pick the host, and choose what to bring: search, select all, and leave out forks or archived repositories. The import runs in the background and the page follows each repository as it arrives. Large repositories take longer; the full history of git itself arrives in about fifteen seconds.
+
+### GitHub
+
+Install the **Cobalt GitHub App** on the repositories you want, then sign in with GitHub. You get a code to enter on github.com; cobalt never stores the GitHub token it receives, only a proof that you may push to the repositories you pick, which lasts ten minutes. Every repository the app is installed on and you may push to is offered.
+
+The app tells cobalt when something is pushed on GitHub, and when a repository is renamed, moved, archived or deleted. A rename or a move is followed on its own.
+
+### GitLab and Codeberg
+
+Connect your account once, in **Settings, Linked accounts**. cobalt keeps the token sealed and renews it when it is about to expire; you are asked again only if the host refuses it. GitLab asks for the `api` scope, which lets cobalt add a webhook to each repository you import: the token can do a great deal, so it is revoked when you disconnect.
+
+Adding the webhook needs the Maintainer role on GitLab, or admin rights on Codeberg. Without it the repository still syncs, but changes made there arrive late: when someone here fetches, or within a few hours. Git LFS objects do not travel between cobalt and GitLab or Codeberg.
 
 ```bash
 cb import github dana-okafor/dotfiles
+cb import https://gitlab.com/dana/zine
+cb import batch codeberg dana/notes dana/recipes
 ```
 
-`cb import` shows the same code and waits for you to approve it. From code, `signInWithGitHub` in the SDK does the same.
+`cb import` shows the GitHub code and waits for you to approve it. GitLab and Codeberg are connected in the browser; `cb import` tells you when that is still to do.
+
+### Who can push
+
+Access is decided here. Anyone who can write to an imported repository here can push to it on the host through cobalt, even if the host would refuse them. The host's **branch protection rules still apply** to those pushes, and a refused push shows the host's own message. Set up the same rules here before you invite people.
+
+### Pull requests, issues and releases
+
+They come along with the same numbers: pull requests as changes in **Changes**, issues with their comments in **Issues**, published releases in **Releases**. Comments on a pull request show as its reviews. Their authors are shown as people on that host, such as `octocat@github`, never as accounts here, and an import notifies no one. Everything cobalt does with changes and issues works on them, and what is made here next takes the next free number.
+
+The host stays the authority for their title, text and state, and its webhooks keep them current. A pull request whose commits are not in the repository, because it came from a fork or its branch was deleted before it synced, keeps its patch as the host gave it (`repos.provider.pulls.patch`).
+
+### When the link breaks
+
+**Settings, Mirrors and sync** shows how the link is doing and whose account keeps it in sync. If that person disconnects, loses access or deletes their account, the repository and its history stay; pushes to the host are refused with the reason, and an admin of the repository with their own connection can take the link over with **Keep it in sync with my account**.
 
 <Callout title="Public pages never name the origin">
   A repository imported from another host looks like any other project to

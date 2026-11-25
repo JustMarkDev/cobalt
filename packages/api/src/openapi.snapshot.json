@@ -4488,6 +4488,220 @@
         "x-cb-secret-request": false
       }
     },
+    "/imports/batch": {
+      "post": {
+        "operationId": "imports.batch",
+        "summary": "Import many repositories at once",
+        "description": "Checks that you can push to every one (on GitHub, in one pass over your installations), then imports them a few at a time in the background. Each becomes a repository here linked two ways to its provider, named as it is there. Follow it with `imports.jobs.get`.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "github",
+                      "gitlab",
+                      "codeberg"
+                    ],
+                    "description": "The git provider"
+                  },
+                  "slugs": {
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9._-]+(\\/[A-Za-z0-9._-]+)+$"
+                    }
+                  },
+                  "owner": {
+                    "description": "Default: the account you act as",
+                    "type": "string"
+                  },
+                  "visibility": {
+                    "description": "Default: as each is on the provider",
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "private"
+                    ]
+                  },
+                  "github_access": {
+                    "description": "For GitHub: the `access` from signing in with GitHub (`github.device.poll`)",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "provider",
+                  "slugs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJob"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": false,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 10,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/imports/jobs/{id}": {
+      "get": {
+        "operationId": "imports.jobs.get",
+        "summary": "How a bulk import is going",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportJob"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
     "/imports": {
       "get": {
         "operationId": "imports.list",
@@ -4588,7 +4802,7 @@
       "post": {
         "operationId": "imports.create",
         "summary": "Import a repository from another host",
-        "description": "Makes the repository here and links it to the GitHub repository in a two-way sync: what is pushed here reaches GitHub, and what is pushed on GitHub reaches here. Needs `github_access`, which proves you may push to it. Naturally idempotent like `repos.create`.",
+        "description": "Makes the repository here and links it to the provider repository in a two-way sync: what is pushed here reaches the provider, and what is pushed there reaches here. GitHub needs `github_access`, which proves you may push to it; GitLab and Codeberg need a connection (`providers.oauth.start`). Anyone who can write here can then push there through Cobalt, and the provider's branch protection still applies. Pull requests, issues and releases follow, read-only. Naturally idempotent like `repos.create`.",
         "tags": [
           "imports"
         ],
@@ -4707,6 +4921,7 @@
           "insufficient_scope",
           "internal",
           "invalid_request",
+          "invalid_state",
           "not_found",
           "payload_too_large",
           "rate_limited",
@@ -5812,6 +6027,668 @@
           "token_expired",
           "token_invalid",
           "token_revoked",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/providers/{provider}/oauth/finish": {
+      "post": {
+        "operationId": "providers.oauth.finish",
+        "summary": "Finish connecting GitLab or Codeberg",
+        "description": "Trades the `code` the provider sent back for a token, which is kept sealed here and refreshed when it is about to expire. Connecting again replaces the token and resumes repositories that had stopped syncing.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "gitlab",
+                "codeberg"
+              ],
+              "description": "GitHub signs in with `github.oauth.start` instead"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri",
+                    "description": "Where the provider sends the person back: this site's /gitlab/callback or /codeberg/callback"
+                  }
+                },
+                "required": [
+                  "code",
+                  "state",
+                  "redirect_uri"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderOauthResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": false,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/providers/{provider}/oauth": {
+      "post": {
+        "operationId": "providers.oauth.start",
+        "summary": "Start connecting GitLab or Codeberg",
+        "description": "Gives the address to send the person to. The provider sends them back to `redirect_uri` with a `code` and the `state`, which go to `providers.oauth.finish` within ten minutes. GitLab asks for the `api` scope, which repository webhooks need: the token is sealed at rest and revoked when you disconnect.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "gitlab",
+                "codeberg"
+              ],
+              "description": "GitHub signs in with `github.oauth.start` instead"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "redirect_uri": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri",
+                    "description": "Where the provider sends the person back: this site's /gitlab/callback or /codeberg/callback"
+                  },
+                  "return_to": {
+                    "description": "A path on this site to come back to afterwards",
+                    "type": "string",
+                    "maxLength": 500,
+                    "pattern": "^\\/(?!\\/)"
+                  }
+                },
+                "required": [
+                  "redirect_uri"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderOauth"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": false,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/providers/{provider}/repos": {
+      "post": {
+        "operationId": "providers.repos.list",
+        "summary": "The repositories you can import from a provider",
+        "description": "A page of the repositories your account there can see, with whether you can push to each and whether one here already holds it. On GitHub, the repositories the Cobalt GitHub App is installed on, every page of every installation. Filter by text with `q`, and leave out forks or archived ones. Sent as a POST because `github_access` is a secret.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "gitlab",
+                "codeberg"
+              ],
+              "description": "The git provider"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "github_access": {
+                    "description": "For GitHub: the `access` from signing in with GitHub (`github.device.poll`)",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "cursor": {
+                    "description": "`next_cursor` from the previous page",
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "q": {
+                    "description": "Text in the name or description",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "forks": {
+                    "description": "Default true; false leaves forks out",
+                    "type": "boolean"
+                  },
+                  "archived": {
+                    "description": "Default true; false leaves archived repositories out",
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderRepoPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/providers/{provider}": {
+      "delete": {
+        "operationId": "providers.disconnect",
+        "summary": "Disconnect a provider account",
+        "description": "Revokes the token at the provider, removes the webhooks and git credentials Cobalt made with it, and unlinks the repositories that synced through it. Their history here stays.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "gitlab",
+                "codeberg"
+              ],
+              "description": "The git provider"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "destructive",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": true,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/providers/audit": {
+      "get": {
+        "operationId": "providers.audit",
+        "summary": "What you connected, imported and unlinked",
+        "description": "The last hundred connections, imports, adoptions, relinks and disconnections you made, newest first.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProviderAudit"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "internal",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/providers": {
+      "get": {
+        "operationId": "providers.list",
+        "summary": "Your accounts on git providers",
+        "description": "The GitLab and Codeberg accounts you connected with OAuth, and the GitHub account you signed in with. Each says how many repositories here sync through it.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProviderConnection"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "internal",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
           "unsupported_version"
         ],
         "x-cb-async": false,
@@ -19993,6 +20870,1288 @@
         "x-cb-secret-request": false
       }
     },
+    "/repos/{owner}/{repo}/provider/adopt": {
+      "post": {
+        "operationId": "repos.provider.adopt",
+        "summary": "Take over the link with your own connection",
+        "description": "For an admin of the repository, when the person whose GitLab or Codeberg account kept it in sync disconnected, lost access or was deleted. Your connection must be able to push to it there. Webhook and git credential are made again with your token.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderLink"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": true,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "invalid_state",
+          "not_found",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/issues/{number}/comments": {
+      "get": {
+        "operationId": "repos.provider.issues.comments",
+        "summary": "Comments on an issue from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks. Oldest first; one removed on the provider stays, marked.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RemoteComment"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/issues/{number}": {
+      "get": {
+        "operationId": "repos.provider.issues.get",
+        "summary": "An issue from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteIssue"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/issues": {
+      "get": {
+        "operationId": "repos.provider.issues.list",
+        "summary": "Issues from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks. The 200 most recently updated, newest first. Authors are people on the provider, not accounts here.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RemoteIssue"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/pulls/{number}/comments": {
+      "get": {
+        "operationId": "repos.provider.pulls.comments",
+        "summary": "Comments on a pull request from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks. Oldest first; one removed on the provider stays, marked.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RemoteComment"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/pulls/{number}/patch": {
+      "get": {
+        "operationId": "repos.provider.pulls.patch",
+        "summary": "The kept patch of a pull request",
+        "description": "For a pull request whose head commit is not in this repository: its patch as the provider gave it, cut at 900 KB. `not_found` when the commits are here, in which case read them from git.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemotePatch"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/pulls/{number}": {
+      "get": {
+        "operationId": "repos.provider.pulls.get",
+        "summary": "A pull request from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks. States in the words of changes here: merged is landed, closed is abandoned. When its head commit is not in this repository (a fork, or a branch deleted before it synced), its patch is kept: `repos.provider.pulls.patch`.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemotePull"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/pulls": {
+      "get": {
+        "operationId": "repos.provider.pulls.list",
+        "summary": "Pull requests from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks. The 200 most recently updated, newest first. Authors are people on the provider, not accounts here.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RemotePull"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/refresh": {
+      "post": {
+        "operationId": "repos.provider.refresh",
+        "summary": "Read pull requests, issues and releases again",
+        "description": "Asks for the provider’s pull requests, issues and releases to be read again soon. Webhooks keep them current; this is for when one was missed.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "description": "Run every check and change nothing. The answer is what would have been returned, with Cb-Dry-Run: true.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderLink"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": true,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider/releases": {
+      "get": {
+        "operationId": "repos.provider.releases.list",
+        "summary": "Releases from the provider",
+        "description": "Read-only: a copy of what the provider holds, kept current by its webhooks. The 200 most recently updated, newest first. Authors are people on the provider, not accounts here.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RemoteRelease"
+                      }
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "data",
+                    "has_more",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/provider": {
+      "get": {
+        "operationId": "repos.provider.get",
+        "summary": "The provider a repository is linked to",
+        "description": "How the link is doing, who keeps it in sync, and what to know: anyone who can write here can push there through Cobalt, the provider still applies its branch protection, Git LFS objects do not travel outside GitHub.",
+        "tags": [
+          "imports"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderLink"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "read",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
     "/repos/{owner}/{repo}/releases/{tag}/assets/{asset}/download": {
       "post": {
         "operationId": "releases.download",
@@ -28084,6 +30243,123 @@
           "size_bytes"
         ]
       },
+      "ImportJob": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "import_job"
+          },
+          "id": {
+            "type": "string",
+            "description": "Starts with imj_"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Where the repositories are made"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "cancelled"
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "done": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Imported or skipped"
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "done",
+                    "failed",
+                    "skipped"
+                  ]
+                },
+                "repo": {
+                  "description": "The repository here, once made",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "attempts": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "slug",
+                "state",
+                "repo",
+                "error",
+                "attempts"
+              ]
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "provider",
+          "owner",
+          "state",
+          "total",
+          "done",
+          "failed",
+          "items",
+          "created_at",
+          "updated_at"
+        ]
+      },
       "Import": {
         "type": "object",
         "properties": {
@@ -28120,6 +30396,13 @@
           "created_at": {
             "type": "string",
             "description": "RFC 3339 time, UTC"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What to know about the link: who may push through it, Git LFS, a missing webhook"
           }
         },
         "required": [
@@ -28128,7 +30411,8 @@
           "host",
           "slug",
           "state",
-          "created_at"
+          "created_at",
+          "warnings"
         ]
       },
       "Repo": {
@@ -29039,6 +31323,278 @@
           "languages",
           "html_url",
           "viewer_follows"
+        ]
+      },
+      "ProviderOauthResult": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "provider_oauth_result"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/ProviderConnection"
+          },
+          "return_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "connection",
+          "return_to"
+        ]
+      },
+      "ProviderConnection": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "provider_connection"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "instance": {
+            "type": "string",
+            "description": "The provider host, `gitlab.com`"
+          },
+          "login": {
+            "type": "string",
+            "description": "Who you are there"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "needs_reconnect"
+            ],
+            "description": "`needs_reconnect`: the provider refused the stored token; connect again"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Repositories here that sync through it"
+          },
+          "connected_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "instance",
+          "login",
+          "state",
+          "problem",
+          "scopes",
+          "repos",
+          "connected_at"
+        ]
+      },
+      "ProviderOauth": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "provider_oauth"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "url": {
+            "type": "string",
+            "description": "Send the person here to sign in"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "url"
+        ]
+      },
+      "ProviderRepoPage": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderRepo"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "description": "Send it back as `cursor` for the next page",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "ProviderRepo": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "provider_repo"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "slug": {
+            "type": "string",
+            "description": "`owner/name` there"
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "fork": {
+            "type": "boolean"
+          },
+          "default_branch": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "can_push": {
+            "description": "Whether you can push to it there, when the provider says",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "linked": {
+            "description": "The repository here that already holds it, if any",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "slug",
+          "private",
+          "archived",
+          "fork",
+          "default_branch",
+          "description",
+          "size_bytes",
+          "can_push",
+          "linked"
+        ]
+      },
+      "ProviderAudit": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "provider_audit"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "reconnected",
+              "disconnected",
+              "imported",
+              "adopted",
+              "unlinked",
+              "relinked",
+              "needs_reconnect"
+            ]
+          },
+          "repo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "action",
+          "repo",
+          "detail",
+          "at"
         ]
       },
       "AccessRule": {
@@ -33271,6 +35827,695 @@
           "change",
           "patch_set",
           "via"
+        ]
+      },
+      "ProviderLink": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "provider_link"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "slug": {
+            "type": "string",
+            "description": "`owner/name` on the provider today"
+          },
+          "url": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "syncing",
+              "linked",
+              "delayed",
+              "broken",
+              "archived",
+              "gone"
+            ],
+            "description": "`delayed`: no webhook, changes there arrive on fetch or within hours; `broken`: the connection that kept it in sync stopped working"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lfs": {
+            "type": "boolean",
+            "description": "Whether `.gitattributes` uses Git LFS"
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "handle": {
+                    "type": "string"
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "ok",
+                      "needs_reconnect"
+                    ]
+                  }
+                },
+                "required": [
+                  "handle",
+                  "login",
+                  "state"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whose provider account keeps it in sync; null on GitHub, where the Cobalt GitHub App does"
+          },
+          "adoptable": {
+            "type": "boolean",
+            "description": "Whether you can take the link over with your own connection (POST .../provider/adopt)"
+          },
+          "linked_by": {
+            "type": "string"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_pull_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items_imported_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When pull requests, issues and releases were last read from the provider"
+          }
+        },
+        "required": [
+          "object",
+          "repo",
+          "provider",
+          "slug",
+          "url",
+          "state",
+          "problem",
+          "warnings",
+          "lfs",
+          "connection",
+          "adoptable",
+          "linked_by",
+          "last_sync_at",
+          "last_pull_at",
+          "items_imported_at"
+        ]
+      },
+      "RemoteComment": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "remote_comment"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalActor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "removed": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "description": "RFC 3339 time, UTC"
+                  },
+                  "by": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/ExternalActor"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Who removed it, when the provider said"
+                  }
+                },
+                "required": [
+                  "at",
+                  "by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when it was removed on the provider; it stays here, marked"
+          }
+        },
+        "required": [
+          "object",
+          "author",
+          "body",
+          "created_at",
+          "updated_at",
+          "removed"
+        ]
+      },
+      "ExternalActor": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "external_actor"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "login": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "description": "Their profile on the provider"
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "login",
+          "name",
+          "avatar_url",
+          "url",
+          "deleted"
+        ]
+      },
+      "RemoteIssue": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "remote_issue"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalActor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "comments": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "removed": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "description": "RFC 3339 time, UTC"
+                  },
+                  "by": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/ExternalActor"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Who removed it, when the provider said"
+                  }
+                },
+                "required": [
+                  "at",
+                  "by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when it was removed on the provider; it stays here, marked"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "number",
+          "title",
+          "body",
+          "state",
+          "author",
+          "labels",
+          "comments",
+          "url",
+          "created_at",
+          "updated_at",
+          "closed_at",
+          "removed"
+        ]
+      },
+      "RemotePatch": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "remote_patch"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "text": {
+            "type": "string",
+            "description": "The patch as the provider gave it, as `git apply` reads it"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Cut at 900 KB"
+          }
+        },
+        "required": [
+          "object",
+          "number",
+          "text",
+          "truncated"
+        ]
+      },
+      "RemotePull": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "remote_pull"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "open",
+              "landed",
+              "abandoned"
+            ],
+            "description": "In the words of changes here: merged is landed, closed is abandoned"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalActor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "head_ref": {
+            "type": "string"
+          },
+          "head_sha": {
+            "type": "string"
+          },
+          "base_ref": {
+            "type": "string"
+          },
+          "from_fork": {
+            "type": "boolean"
+          },
+          "commits_here": {
+            "description": "Whether its head commit is in this repository; when not, the patch is kept with it",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "has_patch": {
+            "type": "boolean"
+          },
+          "comments": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "landed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "removed": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "description": "RFC 3339 time, UTC"
+                  },
+                  "by": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/ExternalActor"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Who removed it, when the provider said"
+                  }
+                },
+                "required": [
+                  "at",
+                  "by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when it was removed on the provider; it stays here, marked"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "number",
+          "title",
+          "body",
+          "state",
+          "author",
+          "head_ref",
+          "head_sha",
+          "base_ref",
+          "from_fork",
+          "commits_here",
+          "has_patch",
+          "comments",
+          "url",
+          "created_at",
+          "updated_at",
+          "closed_at",
+          "landed_at",
+          "removed"
+        ]
+      },
+      "RemoteRelease": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "remote_release"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "github",
+              "gitlab",
+              "codeberg"
+            ],
+            "description": "A git provider a repository here can be linked to"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "prerelease": {
+            "type": "boolean"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalActor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "RFC 3339 time, UTC"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "RFC 3339 time, UTC"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "removed": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "description": "RFC 3339 time, UTC"
+                  },
+                  "by": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/ExternalActor"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Who removed it, when the provider said"
+                  }
+                },
+                "required": [
+                  "at",
+                  "by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when it was removed on the provider; it stays here, marked"
+          }
+        },
+        "required": [
+          "object",
+          "provider",
+          "tag",
+          "name",
+          "body",
+          "draft",
+          "prerelease",
+          "author",
+          "url",
+          "created_at",
+          "published_at",
+          "removed"
         ]
       },
       "Download": {

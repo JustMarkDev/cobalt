@@ -107,7 +107,11 @@ export default defineConfig({
         rules: { 'typescript/await-thenable': 'off' },
       },
       {
-        files: ['packages/api/src/domain/**', 'packages/git/src/fake.ts'],
+        files: [
+          'packages/api/src/domain/**',
+          'packages/api/src/forge/store.ts',
+          'packages/git/src/fake.ts',
+        ],
         rules: { 'typescript/require-await': 'off' },
       },
       {

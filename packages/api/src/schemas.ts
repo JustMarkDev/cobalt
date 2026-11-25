@@ -1257,6 +1257,294 @@ export const Import = named(
     slug: z.string().describe('Where it came from on that host'),
     state: z.enum(['in-sync', 'syncing', 'behind', 'failing']),
     created_at: ts,
+    warnings: z
+      .array(z.string())
+      .describe(
+        'What to know about the link: who may push through it, Git LFS, a missing webhook',
+      ),
+  }),
+)
+
+const providerEnum = z
+  .enum(['github', 'gitlab', 'codeberg'])
+  .describe('A git provider a repository here can be linked to')
+
+export const ProviderConnection = named(
+  'ProviderConnection',
+  obj({
+    object: z.literal('provider_connection'),
+    provider: providerEnum,
+    instance: z.string().describe('The provider host, `gitlab.com`'),
+    login: z.string().describe('Who you are there'),
+    state: z
+      .enum(['ok', 'needs_reconnect'])
+      .describe(
+        '`needs_reconnect`: the provider refused the stored token; connect again',
+      ),
+    problem: z.string().nullable(),
+    scopes: z.array(z.string()),
+    repos: z.number().int().describe('Repositories here that sync through it'),
+    connected_at: ts,
+  }),
+)
+
+export const ProviderOauth = named(
+  'ProviderOauth',
+  obj({
+    object: z.literal('provider_oauth'),
+    provider: providerEnum,
+    url: z.string().describe('Send the person here to sign in'),
+  }),
+)
+
+export const ProviderOauthResult = named(
+  'ProviderOauthResult',
+  obj({
+    object: z.literal('provider_oauth_result'),
+    connection: ProviderConnection,
+    return_to: z.string().nullable(),
+  }),
+)
+
+export const ProviderRepo = named(
+  'ProviderRepo',
+  obj({
+    object: z.literal('provider_repo'),
+    provider: providerEnum,
+    slug: z.string().describe('`owner/name` there'),
+    private: z.boolean(),
+    archived: z.boolean(),
+    fork: z.boolean(),
+    default_branch: z.string(),
+    description: z.string(),
+    size_bytes: z.number().int(),
+    can_push: z
+      .boolean()
+      .nullable()
+      .describe('Whether you can push to it there, when the provider says'),
+    linked: z
+      .string()
+      .nullable()
+      .describe('The repository here that already holds it, if any'),
+  }),
+)
+
+export const ProviderRepoPage = named(
+  'ProviderRepoPage',
+  obj({
+    object: z.literal('list'),
+    data: z.array(ProviderRepo),
+    has_more: z.boolean(),
+    next_cursor: z
+      .string()
+      .nullable()
+      .describe('Send it back as `cursor` for the next page'),
+  }),
+)
+
+export const ImportJob = named(
+  'ImportJob',
+  obj({
+    object: z.literal('import_job'),
+    id: id('imj'),
+    provider: providerEnum,
+    owner: z.string().describe('Where the repositories are made'),
+    state: z.enum(['running', 'done', 'cancelled']),
+    total: z.number().int(),
+    done: z.number().int().describe('Imported or skipped'),
+    failed: z.number().int(),
+    items: z.array(
+      obj({
+        slug: z.string(),
+        state: z.enum(['queued', 'running', 'done', 'failed', 'skipped']),
+        repo: z.string().nullable().describe('The repository here, once made'),
+        error: z.string().nullable(),
+        attempts: z.number().int(),
+      }),
+    ),
+    created_at: ts,
+    updated_at: ts,
+  }),
+)
+
+export const ProviderLink = named(
+  'ProviderLink',
+  obj({
+    object: z.literal('provider_link'),
+    repo: z.string(),
+    provider: providerEnum,
+    slug: z.string().describe('`owner/name` on the provider today'),
+    url: z.string(),
+    state: z
+      .enum(['syncing', 'linked', 'delayed', 'broken', 'archived', 'gone'])
+      .describe(
+        '`delayed`: no webhook, changes there arrive on fetch or within hours; `broken`: the connection that kept it in sync stopped working',
+      ),
+    problem: z.string().nullable(),
+    warnings: z.array(z.string()),
+    lfs: z.boolean().describe('Whether `.gitattributes` uses Git LFS'),
+    connection: obj({
+      handle: z.string(),
+      login: z.string(),
+      state: z.enum(['ok', 'needs_reconnect']),
+    })
+      .nullable()
+      .describe(
+        'Whose provider account keeps it in sync; null on GitHub, where the Cobalt GitHub App does',
+      ),
+    adoptable: z
+      .boolean()
+      .describe(
+        'Whether you can take the link over with your own connection (POST .../provider/adopt)',
+      ),
+    linked_by: z.string(),
+    last_sync_at: ts.nullable(),
+    last_pull_at: ts.nullable(),
+    items_imported_at: ts
+      .nullable()
+      .describe(
+        'When pull requests, issues and releases were last read from the provider',
+      ),
+  }),
+)
+
+export const ProviderAudit = named(
+  'ProviderAudit',
+  obj({
+    object: z.literal('provider_audit'),
+    provider: providerEnum,
+    action: z.enum([
+      'connected',
+      'reconnected',
+      'disconnected',
+      'imported',
+      'adopted',
+      'unlinked',
+      'relinked',
+      'needs_reconnect',
+    ]),
+    repo: z.string().nullable(),
+    detail: z.string().nullable(),
+    at: ts,
+  }),
+)
+
+export const ExternalActor = named(
+  'ExternalActor',
+  obj({
+    object: z.literal('external_actor'),
+    provider: providerEnum,
+    login: z.string(),
+    name: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+    url: z.string().describe('Their profile on the provider'),
+    deleted: z.boolean(),
+  }),
+)
+
+const removed = obj({
+  at: ts,
+  by: ExternalActor.nullable().describe(
+    'Who removed it, when the provider said',
+  ),
+})
+  .nullable()
+  .describe('Set when it was removed on the provider; it stays here, marked')
+
+export const RemotePull = named(
+  'RemotePull',
+  obj({
+    object: z.literal('remote_pull'),
+    provider: providerEnum,
+    number: z.number().int(),
+    title: z.string(),
+    body: z.string(),
+    state: z
+      .enum(['draft', 'open', 'landed', 'abandoned'])
+      .describe(
+        'In the words of changes here: merged is landed, closed is abandoned',
+      ),
+    author: ExternalActor.nullable(),
+    head_ref: z.string(),
+    head_sha: z.string(),
+    base_ref: z.string(),
+    from_fork: z.boolean(),
+    commits_here: z
+      .boolean()
+      .nullable()
+      .describe(
+        'Whether its head commit is in this repository; when not, the patch is kept with it',
+      ),
+    has_patch: z.boolean(),
+    comments: z.number().int(),
+    url: z.string(),
+    created_at: ts,
+    updated_at: ts,
+    closed_at: ts.nullable(),
+    landed_at: ts.nullable(),
+    removed,
+  }),
+)
+
+export const RemoteIssue = named(
+  'RemoteIssue',
+  obj({
+    object: z.literal('remote_issue'),
+    provider: providerEnum,
+    number: z.number().int(),
+    title: z.string(),
+    body: z.string(),
+    state: z.enum(['open', 'closed']),
+    author: ExternalActor.nullable(),
+    labels: z.array(z.string()),
+    comments: z.number().int(),
+    url: z.string(),
+    created_at: ts,
+    updated_at: ts,
+    closed_at: ts.nullable(),
+    removed,
+  }),
+)
+
+export const RemoteRelease = named(
+  'RemoteRelease',
+  obj({
+    object: z.literal('remote_release'),
+    provider: providerEnum,
+    tag: z.string(),
+    name: z.string(),
+    body: z.string(),
+    draft: z.boolean(),
+    prerelease: z.boolean(),
+    author: ExternalActor.nullable(),
+    url: z.string(),
+    created_at: ts,
+    published_at: ts.nullable(),
+    removed,
+  }),
+)
+
+export const RemoteComment = named(
+  'RemoteComment',
+  obj({
+    object: z.literal('remote_comment'),
+    author: ExternalActor.nullable(),
+    body: z.string(),
+    created_at: ts,
+    updated_at: ts,
+    removed,
+  }),
+)
+
+export const RemotePatch = named(
+  'RemotePatch',
+  obj({
+    object: z.literal('remote_patch'),
+    number: z.number().int(),
+    text: z
+      .string()
+      .describe('The patch as the provider gave it, as `git apply` reads it'),
+    truncated: z.boolean().describe('Cut at 900 KB'),
   }),
 )
 

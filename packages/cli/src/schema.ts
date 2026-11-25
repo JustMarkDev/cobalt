@@ -85,7 +85,7 @@ export const schema: Array<CommandSpec> = [
     args: '<host> <owner/name> | <url> [--as name|owner/name] [--private]',
     mutates: true,
     idempotent: true,
-    exits: [2, 3],
+    exits: [2, 3, 6],
     example: 'cb import github dana/notes',
   },
   {
@@ -97,6 +97,35 @@ export const schema: Array<CommandSpec> = [
     idempotent: true,
     exits: [],
     example: 'cb import list',
+  },
+  {
+    command: 'import connections',
+    summary:
+      'Your GitLab, Codeberg and GitHub accounts, and how many repositories sync through each. GitLab and Codeberg are connected once, in the browser.',
+    args: '',
+    mutates: false,
+    idempotent: true,
+    exits: [],
+    example: 'cb import connections',
+  },
+  {
+    command: 'import batch',
+    summary:
+      'Import many repositories from one host at once. The server runs it; cb waits and reports each, unless --no-wait.',
+    args: '<host> <owner/name>... [--as owner] [--private] [--no-wait]',
+    mutates: true,
+    idempotent: false,
+    exits: [1, 2, 3, 6],
+    example: 'cb import batch gitlab dana/notes dana/zine',
+  },
+  {
+    command: 'import job',
+    summary: 'How a batch import is going.',
+    args: '<id>',
+    mutates: false,
+    idempotent: true,
+    exits: [3],
+    example: 'cb import job imj_x7k2',
   },
   {
     command: 'repo clone',

@@ -2,7 +2,7 @@ import { assertMayTouch, hiddenChangeNumbers } from '../lib/accessRules'
 import { pathRefusal, touchedFiles } from '@cobaltforge/api/paths'
 import { attachUpload, evidenceFits, evidenceUpload } from '../lib/uploads'
 import { tally } from '../lib/stats'
-import { changeTarget } from '@cobaltforge/api/lifecycles'
+import { changeTarget, remotePullTarget } from '@cobaltforge/api/lifecycles'
 import { v } from 'convex/values'
 import { assertMayContribute } from '../lib/contribute'
 import { contributionRefusal } from '@cobaltforge/api/via'
@@ -25,7 +25,14 @@ import {
   resolve,
 } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
-import { actorFor, counters, emit, viaOf } from '../lib/events'
+import {
+  actorFor,
+  counters,
+  emit,
+  externalActorFor,
+  reserveNumber,
+  viaOf,
+} from '../lib/events'
 import { keysetPage } from '../lib/paginate'
 import { changeBlame } from '@cobaltforge/api/provenance'
 import { lineCounts } from '@cobaltforge/api/lines'
@@ -2403,5 +2410,238 @@ export const putGuide = mutation({
         iso,
       ),
     )
+  },
+})
+
+const importedActor = v.union(
+  v.null(),
+  v.object({ id: v.string(), login: v.string() }),
+)
+
+/**
+ * A pull request from the provider a repository is linked to, as a change
+ * here with the same number. The provider is the authority for its state,
+ * which moves by remotePullLifecycle; reviews and comments made here stay.
+ * Imports send no events: a first import of hundreds would flood feeds.
+ */
+export const importPull = mutation({
+  args: {
+    repo: v.string(),
+    host: v.string(),
+    number: v.number(),
+    title: v.string(),
+    description: v.string(),
+    state: v.union(
+      v.literal('draft'),
+      v.literal('open'),
+      v.literal('landed'),
+      v.literal('abandoned'),
+    ),
+    author: importedActor,
+    base: v.string(),
+    branch: v.string(),
+    headSha: v.string(),
+    created: v.number(),
+    updated: v.number(),
+    landed: v.union(v.null(), v.number()),
+    files: v.union(
+      v.null(),
+      v.record(v.string(), v.object({ add: v.number(), del: v.number() })),
+    ),
+    comments: v.array(
+      v.object({
+        id: v.string(),
+        author: importedActor,
+        body: v.string(),
+        created: v.number(),
+      }),
+    ),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.repo)
+    if (!repo) fail('not_found', `No repository ${a.repo}.`)
+    const who = (x: { id: string; login: string } | null) =>
+      externalActorFor(ctx, a.host, x?.id ?? 'ghost', x?.login ?? 'ghost')
+    const author = await who(a.author)
+    const files = Object.fromEntries(
+      Object.entries(a.files ?? {})
+        .slice(0, 3000)
+        .map(([path, f]) => [
+          path,
+          { hash: a.headSha.slice(0, 6), add: f.add, del: f.del },
+        ]),
+    )
+    const reviews = []
+    for (const c of a.comments.slice(0, 500))
+      reviews.push({
+        id: `rev_${a.host}_${c.id}`.slice(0, 64),
+        actor: await who(c.author),
+        state: 'commented' as const,
+        patchSet: 1,
+        carries: false,
+        body: c.body.slice(0, 60_000),
+        created: c.created,
+      })
+    const doc = await findChange(ctx, repo, String(a.number))
+    if (doc) {
+      const l = await hydrate(ctx, doc)
+      const c = l.rec
+      if (!c.mirrors.some((m) => m.host === a.host && m.origin === 'there'))
+        return out('taken')
+      const was = c.state
+      const to = remotePullTarget(c.state, a.state) ?? c.state
+      const head = c.patchSets[c.patchSets.length - 1]
+      const known = new Set(c.reviews.map((r) => r.id))
+      const fresh = reviews.filter((r) => !known.has(r.id))
+      const same =
+        c.author.handle === author.handle &&
+        c.title === a.title &&
+        c.description === a.description &&
+        to === was &&
+        head.sha === a.headSha &&
+        c.base === a.base &&
+        !fresh.length
+      if (same) return out('unchanged')
+      c.author = author
+      c.title = a.title
+      c.description = a.description
+      if (to !== was) {
+        if (to === 'abandoned')
+          c.abandonedFrom = was === 'draft' ? 'draft' : 'open'
+        c.state = to
+      }
+      c.base = a.base
+      c.branch = a.branch
+      if (head.sha !== a.headSha)
+        c.patchSets.push({
+          n: head.n + 1,
+          sha: a.headSha,
+          tree: a.headSha.slice(0, 7),
+          note: 'Updated on the provider',
+          author,
+          created: a.updated,
+          files,
+          kind: 'update',
+        })
+      for (const r of fresh)
+        c.reviews.push({
+          ...r,
+          patchSet: c.patchSets[c.patchSets.length - 1].n,
+        })
+      c.landed = a.landed ?? c.landed
+      c.updated = Math.max(c.updated, a.updated)
+      c.version++
+      await commit(ctx, repo, l, was, null)
+      return out('updated')
+    }
+    const issue = await ctx.db
+      .query('issues')
+      .withIndex('by_repoId_and_number', (q) =>
+        q.eq('repoId', repo._id).eq('number', a.number),
+      )
+      .unique()
+    if (issue) return out('taken')
+    const rec: ChangeRec = {
+      id: newId('change', a.created),
+      number: a.number,
+      title: a.title,
+      description: a.description,
+      state: a.state,
+      ...(a.state === 'abandoned' ? { abandonedFrom: 'open' as const } : {}),
+      author,
+      base: a.base,
+      branch: a.branch,
+      patchSets: [
+        {
+          n: 1,
+          sha: a.headSha,
+          tree: a.headSha.slice(0, 7),
+          note: 'Imported from the provider',
+          author,
+          created: a.created,
+          files,
+          kind: 'initial',
+        },
+      ],
+      reviews,
+      findings: [],
+      checks: [],
+      stackId: null,
+      labels: [],
+      mirrors: [{ host: a.host, number: a.number, origin: 'there' }],
+      evidence: [],
+      comments: [],
+      commentRev: 0,
+      created: a.created,
+      updated: a.updated,
+      landed: a.landed,
+      version: 1,
+    }
+    await reserveNumber(ctx, repo, a.number)
+    const l = { rec, parts: new Map() } as unknown as Loaded
+    await commit(ctx, repo, l, null, null)
+    return out('created')
+  },
+})
+
+/**
+ * The provider's CI results on an imported pull request, as checks on its
+ * change. Checks reported here by runners stay; only the provider's own are
+ * replaced.
+ */
+export const importChecks = mutation({
+  args: {
+    repo: v.string(),
+    host: v.string(),
+    number: v.number(),
+    checks: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        state: v.union(
+          v.literal('pending'),
+          v.literal('pass'),
+          v.literal('fail'),
+        ),
+        url: v.union(v.null(), v.string()),
+        created: v.number(),
+        updated: v.number(),
+      }),
+    ),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.repo)
+    if (!repo) fail('not_found', `No repository ${a.repo}.`)
+    const doc = await findChange(ctx, repo, String(a.number))
+    if (!doc) return out('missing')
+    const l = await hydrate(ctx, doc)
+    const c = l.rec
+    if (!c.mirrors.some((m) => m.host === a.host && m.origin === 'there'))
+      return out('taken')
+    const prefix = `chk_${a.host}_`
+    const head = c.patchSets[c.patchSets.length - 1]
+    const theirs = a.checks.slice(0, 200).map((x) => ({
+      id: `${prefix}${x.id}`.slice(0, 64),
+      key: `${a.host}:${x.name}`,
+      name: x.name,
+      state: x.state,
+      tree: head.tree,
+      detailsUrl: x.url,
+      created: x.created,
+      updated: x.updated,
+    }))
+    const mine = c.checks.filter((x) => !x.id.startsWith(prefix))
+    const before = JSON.stringify(
+      c.checks.filter((x) => x.id.startsWith(prefix)),
+    )
+    if (before === JSON.stringify(theirs)) return out('unchanged')
+    c.checks = [...mine, ...theirs]
+    c.version++
+    await commit(ctx, repo, l, c.state, null)
+    return out('updated')
   },
 })

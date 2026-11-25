@@ -33,6 +33,12 @@ export type GitHttpOptions = {
   >
   domain: Pick<DomainPort, 'gitAccess'>
   remotes: GitRemotes
+  /**
+   * Before a fetch or push of a linked repository starts: refresh its provider
+   * credential, pull when the last pull is old, refuse a push whose link is
+   * broken. Throws an ApiError to refuse.
+   */
+  beforeGit?: (full: string, write: boolean) => Promise<void>
   fetch?: typeof fetch
   /** One line per request: who, which repository, what, and the answer. */
   log?: (line: Record<string, unknown>) => void
@@ -122,6 +128,19 @@ export function createGitHttp(o: GitHttpOptions) {
         })
       throw e
     }
+
+    if (o.beforeGit && route.path.startsWith('info/refs'))
+      try {
+        await o.beforeGit(`${route.owner}/${route.name}`, need === 'write')
+      } catch (e) {
+        if (!(e instanceof ApiError)) throw e
+        // git prints a plain-text body of a refused request.
+        const hint = e.hint ? `\n${e.hint}` : ''
+        return new Response(`${e.detail}${hint}\n`, {
+          status: 403,
+          headers: { 'content-type': 'text/plain' },
+        })
+      }
 
     const remote = await o.remotes.open(access.storeId, {
       write: need === 'write',

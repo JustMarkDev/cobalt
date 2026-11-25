@@ -26,6 +26,7 @@ import {
 import { blobStoreFromEnv } from './stores/blobs'
 import { StoreWorker } from './stores/store-worker'
 import { githubFromEnv } from './github'
+import { providersFromEnv } from './forge/env'
 import { createGitHttp } from './git-http'
 import { codeStorageAdmin } from '@cobaltforge/git/admin'
 import { codeStorageStores } from '@cobaltforge/git/stores'
@@ -83,7 +84,17 @@ export function createConvexApi(o: ConvexApiOptions) {
     mail: mailerFromEnv(),
     github: githubFromEnv(env, o.storeSecret ?? env.CB_SECRETS_KEY),
   } as unknown as Attached
+  const providers = providersFromEnv(env, {
+    call,
+    github: svc.github ?? null,
+    git: (svc.git as StoreGit).upstreams,
+    hookBase: `${o.htmlBase}/hooks`,
+    stateKey: o.storeSecret ?? env.CB_SECRETS_KEY ?? null,
+    now,
+  })
+  svc.providers = providers
   const d = new ConvexDomain(urls, call, events, svc, now)
+  providers.attach(d.providerHost())
   ;(svc.git as StoreGit).resolveStore = (full) => d.storeIdOf(full)
   svc.search = new SearchIndex(() => d.searchDocs(), events)
   const domain = Object.assign(d, {
@@ -122,6 +133,7 @@ export function createConvexApi(o: ConvexApiOptions) {
         onError: (e) => console.error('[store-worker]', e),
       }).start()
     }
+    providers.start()
     await feed.start()
     await d.refreshSearch()
     svc.search.ensure()
@@ -203,16 +215,22 @@ export function createConvexApi(o: ConvexApiOptions) {
     verifyToken: api.verifyToken,
     domain,
     remotes: o.gitRemotes ?? codeStorageRemotes(),
+    beforeGit: (full, write) => providers.beforeGit(full, write),
     log: (line) => console.log('[git]', JSON.stringify(line)),
   })
   const serveGit = async (req: Request, ip?: string) => {
     await ready
     return gitHttp(req, ip)
   }
+  const receiveHook = async (provider: string, req: Request) => {
+    await ready
+    return providers.receiveRequest(provider, req)
+  }
   return {
     ...api,
     fetch,
     fetchAs,
+    receiveHook,
     gitHttp: serveGit,
     domain,
     port: domain,

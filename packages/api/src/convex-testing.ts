@@ -3,6 +3,7 @@ import { convexTest } from 'convex-test'
 import { makeFunctionReference } from 'convex/server'
 import schema from '../../../convex/schema'
 import { load } from '../../../convex/seed'
+import { ConvexProviderStore } from './forge/convex-store'
 import { ConvexDomain, claimsOf } from './domain/convex'
 import { exportWorld } from './seed-export'
 import { ConvexOAuthState, ConvexTokens } from './stores/convex-tokens'
@@ -143,8 +144,18 @@ export const convexFactory: DomainFactory = ({
       scheduler: hookOptions.scheduler,
       allowPrivate: hookOptions.allowPrivate,
     }),
+    providers:
+      memory.svc.providers?.with({ store: new ConvexProviderStore(call) }) ??
+      null,
+  }
+  // Stores of linked repositories come from the same fake as the provider
+  // links, so an import provisions where the link then writes credentials.
+  const stores = svc.providers?.deps.git
+  if (stores) {
+    svc.git.provision = (id, o) => stores.provision(id, o)
   }
   const d = new ConvexDomain(urls, call, events, svc, now)
+  svc.providers?.attach(d.providerHost())
   svc.search = new SearchIndex(() => d.searchDocs(), events)
   const indexed = ready.then(async () => {
     await d.refreshSearch(locked)

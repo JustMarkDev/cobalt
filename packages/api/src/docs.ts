@@ -117,21 +117,23 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
   randomSource.bytes = seededRandom()
   const now = () => T0 + 3_600_000
   const mail = new MemoryMailer()
-  const api = createSampleApi({
-    ephemeralSecrets: true,
-    mail,
-    mount: '/v1',
-    base: BASE,
-    now,
-    seed: (d) => {
-      seedStack(d)
-      d.stepDelayMs = 2
-    },
-    pools: undefined,
-    transport: {
-      send: () => Promise.resolve({ status: 200, error: null, ms: 38 }),
-    },
-  })
+  const fresh = () =>
+    createSampleApi({
+      ephemeralSecrets: true,
+      mail,
+      mount: '/v1',
+      base: BASE,
+      now,
+      seed: (d) => {
+        seedStack(d)
+        d.stepDelayMs = 2
+      },
+      pools: undefined,
+      transport: {
+        send: () => Promise.resolve({ status: 200, error: null, ms: 38 }),
+      },
+    })
+  let api = fresh()
   const out = new Map<string, Recorded>()
   const t = sampleTokens
   const call = async (
@@ -1001,6 +1003,91 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     const op = started.json as Json
     await new Promise((r) => setTimeout(r, 60))
     await call('operations.get', 'GET', `/operations/${op.id}`)
+    // Git providers last, on a fresh instance: the examples above spent the
+    // write pool.
+    await api.dispose()
+    api = fresh()
+    await call(null, 'POST', '/imports', {
+      body: {
+        host: 'github',
+        slug: 'dana-okafor/dotfiles',
+        github_access: access,
+      },
+    })
+    await call('repos.provider.get', 'GET', '/repos/dana/dotfiles/provider')
+    await call('imports.batch', 'POST', '/imports/batch', {
+      body: {
+        provider: 'github',
+        slugs: ['dana-okafor/notes'],
+        github_access: access,
+      },
+    })
+    const providers = api.domain.svc.providers!
+    await providers.tick()
+    const batch = await call(null, 'POST', '/imports/batch', {
+      body: {
+        provider: 'github',
+        slugs: ['dana-okafor/notes'],
+        github_access: access,
+      },
+    })
+    await call(
+      'imports.jobs.get',
+      'GET',
+      `/imports/jobs/${(batch.json as Json).id as string}`,
+    )
+    const gitlabCallback = 'https://cobaltforge.dev/gitlab/callback'
+    const gl = await call(
+      'providers.oauth.start',
+      'POST',
+      '/providers/gitlab/oauth',
+      {
+        body: { redirect_uri: gitlabCallback, return_to: '/new' },
+      },
+    )
+    await call(
+      'providers.oauth.finish',
+      'POST',
+      '/providers/gitlab/oauth/finish',
+      {
+        body: {
+          code: 'c0de',
+          state: new URL((gl.json as Json).url as string).searchParams.get(
+            'state',
+          )!,
+          redirect_uri: gitlabCallback,
+        },
+      },
+    )
+    await call('providers.list', 'GET', '/providers')
+    await call('providers.repos.list', 'POST', '/providers/gitlab/repos', {
+      body: { q: 'zine', forks: false },
+    })
+    await call(null, 'POST', '/imports', {
+      body: { host: 'gitlab', slug: 'dana.okafor/zine' },
+    })
+    await providers.tick()
+    const Z = '/repos/dana/zine/provider'
+    await call('repos.provider.refresh', 'POST', `${Z}/refresh`)
+    await call('repos.provider.adopt', 'POST', `${Z}/adopt?dry_run=true`)
+    await call('repos.provider.pulls.list', 'GET', `${Z}/pulls`)
+    await call('repos.provider.pulls.get', 'GET', `${Z}/pulls/3`)
+    await call('repos.provider.pulls.patch', 'GET', `${Z}/pulls/3/patch`)
+    await call('repos.provider.pulls.comments', 'GET', `${Z}/pulls/3/comments`)
+    await call('repos.provider.issues.list', 'GET', `${Z}/issues`)
+    await call('repos.provider.issues.get', 'GET', `${Z}/issues/5`)
+    await call(
+      'repos.provider.issues.comments',
+      'GET',
+      `${Z}/issues/5/comments`,
+    )
+    await call('repos.provider.releases.list', 'GET', `${Z}/releases`)
+    await call('providers.audit', 'GET', '/providers/audit')
+    await call(
+      'providers.disconnect',
+      'DELETE',
+      '/providers/gitlab?dry_run=true',
+    )
   } finally {
     randomSource.bytes = original
     await api.dispose()
@@ -1190,10 +1277,12 @@ const pages: Array<{
     file: 'repositories',
     title: 'Repositories',
     description:
-      'The repositories you can see, creating, changing, transferring and importing one, stars, releases and the one-call context for starting work.',
+      'The repositories you can see, creating, changing, transferring and importing one, accounts on git providers and what is linked to them, stars, releases and the one-call context for starting work.',
     icon: 'FolderIcon',
     match: (id) =>
-      /^(repos|stars|releases|imports|github|access_rules)\./.test(id),
+      /^(repos|stars|releases|imports|github|providers|access_rules)\./.test(
+        id,
+      ),
   },
   {
     file: 'pipelines',

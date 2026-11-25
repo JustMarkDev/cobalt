@@ -34,6 +34,7 @@ import type * as forge_people from "../forge/people.js";
 import type * as forge_pipelines from "../forge/pipelines.js";
 import type * as forge_policy from "../forge/policy.js";
 import type * as forge_presence from "../forge/presence.js";
+import type * as forge_providers from "../forge/providers.js";
 import type * as forge_pushes from "../forge/pushes.js";
 import type * as forge_releases from "../forge/releases.js";
 import type * as forge_repos from "../forge/repos.js";
@@ -78,6 +79,7 @@ import type * as lib_triggerFile from "../lib/triggerFile.js";
 import type * as lib_uploads from "../lib/uploads.js";
 import type * as lib_usage from "../lib/usage.js";
 import type * as mail from "../mail.js";
+import type * as migrations from "../migrations.js";
 import type * as plans from "../plans.js";
 import type * as profiles from "../profiles.js";
 import type * as seed from "../seed.js";
@@ -116,6 +118,7 @@ declare const fullApi: ApiFromModules<{
   "forge/pipelines": typeof forge_pipelines;
   "forge/policy": typeof forge_policy;
   "forge/presence": typeof forge_presence;
+  "forge/providers": typeof forge_providers;
   "forge/pushes": typeof forge_pushes;
   "forge/releases": typeof forge_releases;
   "forge/repos": typeof forge_repos;
@@ -160,6 +163,7 @@ declare const fullApi: ApiFromModules<{
   "lib/uploads": typeof lib_uploads;
   "lib/usage": typeof lib_usage;
   mail: typeof mail;
+  migrations: typeof migrations;
   plans: typeof plans;
   profiles: typeof profiles;
   seed: typeof seed;
@@ -195,4 +199,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
   presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
 };

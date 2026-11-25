@@ -10,6 +10,7 @@ import type { HookPort } from '../webhooks'
 import type { SearchIndex } from '../search'
 import type { GitData } from '../git'
 import type { Github } from '../github'
+import type { ProviderSync } from '../forge/sync'
 import type { Mailer } from '../mail'
 import type { Health } from '../health'
 import type { UploadPort } from '../uploads'
@@ -408,6 +409,8 @@ export type Attached = {
   mail: Mailer
   /** The platform's GitHub App; null where it is not set up. */
   github?: Github | null
+  /** Links to git providers: imports, sync, webhooks. */
+  providers?: ProviderSync | null
   health?: Health
 }
 

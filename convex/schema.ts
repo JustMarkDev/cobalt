@@ -17,6 +17,12 @@ export const viaRef = v.object({
   model: v.union(v.null(), v.string()),
 })
 
+export const provider = v.union(
+  v.literal('github'),
+  v.literal('gitlab'),
+  v.literal('codeberg'),
+)
+
 export const actorRef = v.object({
   id: v.string(),
   handle: v.string(),
@@ -99,7 +105,9 @@ export default defineSchema({
   }).index('by_accountId_and_month', ['accountId', 'month']),
 
   sweeps: defineTable({
-    kind: v.union(v.literal('git'), v.literal('blob')),
+    // `provider`: a JSON job for the API server, which holds the provider
+    // secrets: revoke a token, remove a webhook, delete a git credential.
+    kind: v.union(v.literal('git'), v.literal('blob'), v.literal('provider')),
     key: v.string(),
     created: v.number(),
     lease: v.number(),
@@ -628,10 +636,12 @@ export default defineSchema({
     instance: v.union(v.null(), v.string()),
     linked: v.number(),
     verified: v.optional(v.boolean()),
-  }).index('by_handle_and_host', ['handle', 'host']),
+  })
+    .index('by_handle_and_host', ['handle', 'host'])
+    .index('by_host_and_login', ['host', 'login']),
 
-  // A GitHub repository can feed one repository here, and no more: whoever
-  // links it first holds it until that repository is deleted or unlinked.
+  // Deprecated: replaced by remoteRepos. Nothing writes it any more; the
+  // `remoteRepos` migration copies what it holds, and a later deploy drops it.
   githubLinks: defineTable({
     githubId: v.number(),
     slug: v.string(),
@@ -641,6 +651,246 @@ export default defineSchema({
   })
     .index('by_githubId', ['githubId'])
     .index('by_repoId', ['repoId']),
+
+  // A person's account on a git provider, signed in once with OAuth. Tokens
+  // are sealed by the web process (TokenVault) and never readable here.
+  providerConnections: defineTable({
+    handle: v.string(),
+    provider: provider,
+    instance: v.string(),
+    externalId: v.string(),
+    login: v.string(),
+    token: v.union(v.null(), v.string()),
+    refresh: v.union(v.null(), v.string()),
+    keyId: v.union(v.null(), v.string()),
+    expiresAt: v.union(v.null(), v.number()),
+    scopes: v.array(v.string()),
+    state: v.union(v.literal('ok'), v.literal('needs_reconnect')),
+    problem: v.union(v.null(), v.string()),
+    /** Held while one process refreshes the token; refreshes are serialized. */
+    refreshLease: v.union(v.null(), v.number()),
+    created: v.number(),
+    updated: v.number(),
+  })
+    .index('by_handle_and_provider_and_instance', [
+      'handle',
+      'provider',
+      'instance',
+    ])
+    .index('by_provider_and_instance_and_externalId', [
+      'provider',
+      'instance',
+      'externalId',
+    ])
+    .index('by_state_and_expiresAt', ['state', 'expiresAt']),
+
+  // A provider repository linked to one repository here. A provider
+  // repository feeds one repository, and no more.
+  remoteRepos: defineTable({
+    provider: provider,
+    instance: v.string(),
+    externalId: v.string(),
+    fullName: v.string(),
+    repoId: v.id('repos'),
+    /** Whose connection keeps it in sync; null for GitHub (the App does). */
+    connectionId: v.union(v.null(), v.id('providerConnections')),
+    by: v.string(),
+    state: v.union(
+      v.literal('syncing'),
+      v.literal('linked'),
+      v.literal('delayed'),
+      v.literal('broken'),
+      v.literal('archived'),
+      v.literal('gone'),
+    ),
+    problem: v.union(v.null(), v.string()),
+    installation: v.union(v.null(), v.number()),
+    webhookId: v.union(v.null(), v.string()),
+    credentialId: v.union(v.null(), v.string()),
+    lfs: v.boolean(),
+    meta: v.object({
+      private: v.boolean(),
+      archived: v.boolean(),
+      defaultBranch: v.string(),
+      description: v.string(),
+      stars: v.number(),
+      forks: v.number(),
+      license: v.union(v.null(), v.string()),
+      website: v.union(v.null(), v.string()),
+    }),
+    lastPull: v.number(),
+    lastSync: v.union(v.null(), v.number()),
+    /** Conditional-request state of the read-only import, per list. */
+    etags: v.optional(v.record(v.string(), v.string())),
+    importedAt: v.optional(v.number()),
+    /** When its pull requests, issues and releases should be read again. */
+    itemsDue: v.optional(v.number()),
+    at: v.number(),
+  })
+    .index('by_provider_and_instance_and_externalId', [
+      'provider',
+      'instance',
+      'externalId',
+    ])
+    .index('by_repoId', ['repoId'])
+    .index('by_connectionId', ['connectionId'])
+    .index('by_installation', ['installation'])
+    .index('by_lastPull', ['lastPull'])
+    .index('by_itemsDue', ['itemsDue']),
+
+  // Pull requests, issues and releases of a linked repository, read-only
+  // copies of what the provider holds. Pull request states use the words of
+  // changes here (remotePullLifecycle). Never written by people here.
+  remoteItems: defineTable({
+    repoId: v.id('repos'),
+    kind: v.union(v.literal('pull'), v.literal('issue'), v.literal('release')),
+    /** The number of a pull request or issue; 0 for a release. */
+    number: v.number(),
+    /** The provider's id of a release; the number as text otherwise. */
+    key: v.string(),
+    title: v.string(),
+    body: v.string(),
+    state: v.string(),
+    authorId: v.union(v.null(), v.id('externalActors')),
+    labels: v.array(v.string()),
+    url: v.string(),
+    created: v.number(),
+    updated: v.number(),
+    closed: v.union(v.null(), v.number()),
+    merged: v.union(v.null(), v.number()),
+    head: v.optional(
+      v.object({
+        ref: v.string(),
+        sha: v.string(),
+        base: v.string(),
+        fromFork: v.boolean(),
+        commitsHere: v.union(v.null(), v.boolean()),
+      }),
+    ),
+    flags: v.optional(
+      v.object({ draft: v.boolean(), prerelease: v.boolean() }),
+    ),
+    hasPatch: v.boolean(),
+    comments: v.number(),
+    removed: v.union(
+      v.null(),
+      v.object({
+        at: v.number(),
+        byId: v.union(v.null(), v.id('externalActors')),
+      }),
+    ),
+  })
+    .index('by_repoId_and_kind_and_key', ['repoId', 'kind', 'key'])
+    .index('by_repoId_and_kind_and_updated', ['repoId', 'kind', 'updated']),
+
+  remoteComments: defineTable({
+    itemId: v.id('remoteItems'),
+    externalId: v.string(),
+    body: v.string(),
+    authorId: v.union(v.null(), v.id('externalActors')),
+    created: v.number(),
+    updated: v.number(),
+    removed: v.union(v.null(), v.number()),
+  }).index('by_itemId_and_externalId', ['itemId', 'externalId']),
+
+  // The patch of a pull request whose commits are not in the repository (a
+  // fork, or a branch deleted before it was ever synced), as the provider gave it.
+  remotePatches: defineTable({
+    itemId: v.id('remoteItems'),
+    text: v.string(),
+    truncated: v.boolean(),
+  }).index('by_itemId', ['itemId']),
+
+  // Someone on a provider, as a snapshot: authors of imported pull requests,
+  // issues, comments and releases. Never an account here.
+  externalActors: defineTable({
+    provider: provider,
+    instance: v.string(),
+    externalId: v.string(),
+    login: v.string(),
+    name: v.union(v.null(), v.string()),
+    avatar: v.union(v.null(), v.string()),
+    deleted: v.boolean(),
+    updated: v.number(),
+  }).index('by_provider_and_instance_and_externalId', [
+    'provider',
+    'instance',
+    'externalId',
+  ]),
+
+  // A bulk import: one job, one item per provider repository. The web process
+  // claims items with a lease and runs a few at a time.
+  importJobs: defineTable({
+    handle: v.string(),
+    owner: v.string(),
+    provider: provider,
+    instance: v.string(),
+    connectionId: v.union(v.null(), v.id('providerConnections')),
+    state: v.union(
+      v.literal('running'),
+      v.literal('done'),
+      v.literal('cancelled'),
+    ),
+    total: v.number(),
+    done: v.number(),
+    failed: v.number(),
+    created: v.number(),
+    updated: v.number(),
+  }).index('by_handle_and_created', ['handle', 'created']),
+
+  importItems: defineTable({
+    jobId: v.id('importJobs'),
+    externalId: v.string(),
+    slug: v.string(),
+    name: v.string(),
+    visibility: v.union(v.literal('public'), v.literal('private')),
+    defaultBranch: v.string(),
+    installation: v.union(v.null(), v.number()),
+    state: v.union(
+      v.literal('queued'),
+      v.literal('running'),
+      v.literal('done'),
+      v.literal('failed'),
+      v.literal('skipped'),
+    ),
+    attempts: v.number(),
+    lease: v.number(),
+    error: v.union(v.null(), v.string()),
+    repo: v.union(v.null(), v.string()),
+    updated: v.number(),
+  })
+    .index('by_jobId', ['jobId'])
+    .index('by_state_and_lease', ['state', 'lease']),
+
+  // Webhook deliveries already handled, so a redelivery does nothing.
+  hookDeliveries: defineTable({
+    provider: provider,
+    deliveryId: v.string(),
+    at: v.number(),
+  })
+    .index('by_provider_and_deliveryId', ['provider', 'deliveryId'])
+    .index('by_at', ['at']),
+
+  // Who connected, adopted, disconnected or unlinked what, and when.
+  providerAudit: defineTable({
+    handle: v.string(),
+    provider: provider,
+    action: v.union(
+      v.literal('connected'),
+      v.literal('reconnected'),
+      v.literal('disconnected'),
+      v.literal('imported'),
+      v.literal('adopted'),
+      v.literal('unlinked'),
+      v.literal('relinked'),
+      v.literal('needs_reconnect'),
+    ),
+    repo: v.union(v.null(), v.string()),
+    detail: v.union(v.null(), v.string()),
+    at: v.number(),
+  })
+    .index('by_handle_and_at', ['handle', 'at'])
+    .index('by_repo_and_at', ['repo', 'at']),
 
   integrationRev: defineTable({ account: v.string(), rev: v.number() }).index(
     'by_account',
