@@ -1,5 +1,7 @@
 import * as React from 'react'
 import Markdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import {
   CheckIcon,
@@ -9,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { cn } from 'cn'
 import { LicenseView } from './license-view'
-import type { Components } from 'react-markdown'
+import type { Components, Options } from 'react-markdown'
 import type { ReactNode } from 'react'
 import type { Repo } from '~/lib/model/data'
 import { Button } from '~/components/ui/button'
@@ -32,11 +34,37 @@ const textOf = (node: ReactNode): string =>
         ? textOf(node.props.children)
         : ''
 
+// READMEs and imported issues are often written in HTML (`<p align="center">`,
+// `<img width>`, `<details>`, `<picture>` for dark-mode logos). Parse it and
+// keep what GitHub keeps; everything else (scripts, styles, event handlers) is
+// stripped. `rehype-raw` must run before `rehype-sanitize`.
+const schema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    source: [...(defaultSchema.attributes?.source ?? []), 'media', 'type'],
+  },
+}
+const rehypePlugins: Options['rehypePlugins'] = [
+  rehypeRaw,
+  [rehypeSanitize, schema],
+]
+
+type Align = 'left' | 'center' | 'right' | 'justify'
+const alignOf = (props: object): Align | undefined => {
+  const a = (props as { align?: unknown }).align
+  return a === 'left' || a === 'center' || a === 'right' || a === 'justify'
+    ? a
+    : undefined
+}
+
 function Heading({
   level,
+  align,
   children,
 }: {
-  level: 1 | 2 | 3
+  level: 1 | 2 | 3 | 4
+  align?: Align
   children?: ReactNode
 }) {
   const id = slug(textOf(children))
@@ -45,10 +73,16 @@ function Heading({
       ? 'mt-0 text-3xl font-semibold tracking-tight'
       : level === 2
         ? 'mt-10 border-b pb-2 text-xl font-semibold tracking-tight'
-        : 'mt-7 text-base font-semibold'
-  const Tag = (['h2', 'h3', 'h4'] as const)[level - 1]
+        : level === 3
+          ? 'mt-7 text-base font-semibold'
+          : 'mt-6 text-sm font-semibold'
+  const Tag = (['h2', 'h3', 'h4', 'h5'] as const)[level - 1]
   return (
-    <Tag id={id} className={cn('group scroll-mt-header', size)}>
+    <Tag
+      id={id}
+      style={align ? { textAlign: align } : undefined}
+      className={cn('group scroll-mt-header', size)}
+    >
       {children}
       {level > 1 && (
         <a
@@ -97,15 +131,66 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
 }
 
 const components: Components = {
-  h1: ({ children }) => <Heading level={1}>{children}</Heading>,
-  h2: ({ children }) => <Heading level={2}>{children}</Heading>,
-  h3: ({ children }) => <Heading level={3}>{children}</Heading>,
-  p: ({ children }) => (
-    <p className="my-4 leading-[1.75] text-foreground/85">{children}</p>
+  h1: ({ children, ...p }) => (
+    <Heading level={1} align={alignOf(p)}>
+      {children}
+    </Heading>
+  ),
+  h2: ({ children, ...p }) => (
+    <Heading level={2} align={alignOf(p)}>
+      {children}
+    </Heading>
+  ),
+  h3: ({ children, ...p }) => (
+    <Heading level={3} align={alignOf(p)}>
+      {children}
+    </Heading>
+  ),
+  h4: ({ children, ...p }) => (
+    <Heading level={4} align={alignOf(p)}>
+      {children}
+    </Heading>
+  ),
+  p: ({ children, ...p }) => (
+    <p
+      style={alignOf(p) ? { textAlign: alignOf(p) } : undefined}
+      className="my-4 leading-[1.75] text-foreground/85"
+    >
+      {children}
+    </p>
+  ),
+  div: ({ children, ...p }) => (
+    <div style={alignOf(p) ? { textAlign: alignOf(p) } : undefined}>
+      {children}
+    </div>
+  ),
+  img: ({ src, alt, width, height }) => (
+    <img
+      src={typeof src === 'string' ? src : undefined}
+      alt={alt ?? ''}
+      width={width}
+      height={height}
+      loading="lazy"
+      className="inline-block h-auto max-w-full align-middle"
+    />
+  ),
+  details: ({ children }) => (
+    <details className="my-4 rounded-xl border px-4 py-2 [&[open]>summary]:mb-2">
+      {children}
+    </details>
+  ),
+  summary: ({ children }) => (
+    <summary className="cursor-pointer font-medium">{children}</summary>
+  ),
+  kbd: ({ children }) => (
+    <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[0.85em]">
+      {children}
+    </kbd>
   ),
   a: ({ href, children }) => (
     <a
       href={href}
+      rel="nofollow ugc noopener"
       className="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground"
     >
       {children}
@@ -199,13 +284,28 @@ export function headingsOf(
 export function MarkdownBody({
   source,
   className,
+  compact = false,
 }: {
   source: string
   className?: string
+  /** Smaller type and no outer margins, for issue and comment bodies. */
+  compact?: boolean
 }) {
   return (
-    <div className={cn('text-[15.5px]', className)}>
-      <Markdown remarkPlugins={[remarkGfm]} components={components}>
+    <div
+      className={cn(
+        compact
+          ? 'text-sm [&>:first-child]:mt-0 [&>:last-child]:mb-0'
+          : 'text-[15.5px]',
+        'break-words',
+        className,
+      )}
+    >
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={rehypePlugins}
+        components={components}
+      >
         {source}
       </Markdown>
     </div>
