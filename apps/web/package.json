@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@cobaltforge/api": "workspace:*",
+    "@cobaltforge/cli": "workspace:*",
+    "@cobaltforge/sdk": "workspace:*",
     "@convex-dev/better-auth": "^0.13.1",
     "@convex-dev/react-query": "^0.1.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
@@ -20,9 +23,6 @@
     "@modelcontextprotocol/server": "^2.4.0",
     "@pierre/diffs": "^1.6.4",
     "@pierre/trees": "^1.0.0",
-    "@cobaltforge/api": "workspace:*",
-    "@cobaltforge/cli": "workspace:*",
-    "@cobaltforge/sdk": "workspace:*",
     "@tanstack/react-query": "^5.108.2",
     "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-router-ssr-query": "^1.167.3",
@@ -41,6 +41,8 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
+    "rehype-raw": "7",
+    "rehype-sanitize": "6",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {

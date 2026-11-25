@@ -23,6 +23,7 @@ import { manages, useAccount, useMe } from '~/lib/auth/accounts'
 import { timeAgo } from '~/lib/repo'
 import { ShareBar, TrendChart } from '~/components/charts'
 import { Button } from '~/components/ui/button'
+import { MarkdownBody } from './markdown'
 import { field, fieldShell } from '~/components/ui/input'
 
 type LabelColor = Label['color']
@@ -367,7 +368,7 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
               <span className="text-muted-foreground">{timeAgo(c.when)}</span>
             </div>
             <div className="px-4 py-3">
-              <p className="text-sm whitespace-pre-wrap">{c.text}</p>
+              <MarkdownBody source={c.text} compact />
             </div>
           </Panel>
         ))}
