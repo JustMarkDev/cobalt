@@ -1,4 +1,3 @@
-// The public shape of provider links, the same from both stores.
 import { ACCESS_WARNING, LFS_WARNING, labelOf } from './labels'
 import type { z } from 'zod'
 import type * as S from '../schemas'
@@ -74,7 +73,6 @@ export function presentJob(j: {
   }
 }
 
-/** What someone who can write to a linked repository should know about it. */
 export function warningsOf(
   r: RemoteRec,
   forge: ForgeProvider | undefined,

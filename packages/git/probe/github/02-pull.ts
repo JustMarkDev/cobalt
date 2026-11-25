@@ -1,5 +1,3 @@
-// 2. GitHub to Code Storage: does a commit arrive by itself, and how fast does
-// it arrive after upstream.pull?
 import type { Scenario } from '../lib'
 
 const UNPROMPTED_WAIT = 45_000

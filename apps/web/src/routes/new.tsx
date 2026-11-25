@@ -211,7 +211,6 @@ function Create({ owner, picker }: { owner: Owner; picker: React.ReactNode }) {
   )
 }
 
-/** Sends the person to GitHub; /github/callback shows what to bring. */
 function Import() {
   const write = useWrite()
   const [error, setError] = React.useState('')

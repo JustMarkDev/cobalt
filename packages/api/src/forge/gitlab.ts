@@ -1,10 +1,3 @@
-// gitlab.com, in Code Storage's generic mode: Code Storage reaches GitLab with
-// the person's OAuth token as the git password (`oauth2:<token>`). The token
-// needs the `api` scope to make project webhooks, so it can do a great deal:
-// it is sealed at rest and revoked on disconnect.
-//
-// Not verified against gitlab.com (no account for the probe): built from the
-// GitLab REST API v4 reference and tested against a scripted GitLab.
 import { call, toMs } from './http'
 import { sameText } from './vault'
 import { ProviderError } from './types'
@@ -26,7 +19,6 @@ import type {
 export type GitlabConfig = {
   clientId: string
   clientSecret: string
-  /** Default gitlab.com. Self-hosted instances are out of v1. */
   host?: string
   fetch?: Fetch
   now?: () => number
@@ -68,7 +60,6 @@ const actor = (u: GlUser | null | undefined): ExternalActor | null =>
       }
     : null
 
-/** Developer (30) can push; Maintainer (40) can make webhooks. */
 const level = (p: GlProject) =>
   Math.max(
     p.permissions?.project_access?.access_level ?? 0,
@@ -227,7 +218,6 @@ export function createGitlab(cfg: GitlabConfig): {
         auth,
         `/projects/${enc(slug)}?license=true&statistics=true`,
       ).catch(async (e: unknown) => {
-        // statistics needs Reporter; ask again without it.
         if (e instanceof ProviderError && e.status === 403)
           return get<GlProject>(auth, `/projects/${enc(slug)}?license=true`)
         throw e
@@ -240,7 +230,6 @@ export function createGitlab(cfg: GitlabConfig): {
         auth,
         `/projects/${enc(slug)}/languages`,
       )
-      // GitLab gives percentages; scale them so they sort and sum like bytes.
       return Object.entries(r.body)
         .map(([k, pct]): [string, number] => [k, Math.round(pct * 1000)])
         .sort((a, b) => b[1] - a[1])
@@ -301,7 +290,6 @@ export function createGitlab(cfg: GitlabConfig): {
       }
     },
 
-    // GitLab sends the secret back as is, in X-Gitlab-Token.
     verifyWebhook: (h, _body, secret) =>
       Promise.resolve(sameText(h.get('x-gitlab-token') ?? '', secret)),
 
@@ -516,7 +504,6 @@ type GlNote = {
   updated_at: string
 }
 
-/** A GitLab delivery, read into the shared shape. */
 export function gitlabEvent(kind: string, body: string): WebhookEvent {
   let e: {
     object_kind?: string

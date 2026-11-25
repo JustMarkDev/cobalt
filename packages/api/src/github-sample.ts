@@ -32,7 +32,6 @@ const sampleRepos = [
   },
 ]
 
-/** The fetch behind the sample GitHub: github.com and api.github.com, scripted. */
 export function sampleGithubFetch(url: string): Promise<Response> {
   const json = (v: unknown) => Promise.resolve(Response.json(v))
   if (url === 'https://github.com/login/device/code')
@@ -65,7 +64,6 @@ export function sampleGithubFetch(url: string): Promise<Response> {
   return Promise.resolve(new Response('not found', { status: 404 }))
 }
 
-/** The GitHub adapter of the sample, reaching the scripted repositories as installation 1. */
 export function sampleGithubForge(): GithubForge {
   return createGithubForge({
     fetch: (u) => sampleGithubFetch(u),
@@ -73,10 +71,6 @@ export function sampleGithubForge(): GithubForge {
   })
 }
 
-/**
- * A GitHub that answers from a script: for the sample API, the documentation's
- * examples and tests. The running product talks to github.com.
- */
 export function sampleGithub(o: { now?: () => number } = {}): Github {
   const fetch = (url: string) => sampleGithubFetch(url)
   return createGithub(

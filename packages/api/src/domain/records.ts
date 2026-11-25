@@ -407,9 +407,7 @@ export type Attached = {
   secrets: Promise<SecretBox | null>
   git: GitData
   mail: Mailer
-  /** The platform's GitHub App; null where it is not set up. */
   github?: Github | null
-  /** Links to git providers: imports, sync, webhooks. */
   providers?: ProviderSync | null
   health?: Health
 }

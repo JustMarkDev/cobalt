@@ -2418,12 +2418,6 @@ const importedActor = v.union(
   v.object({ id: v.string(), login: v.string() }),
 )
 
-/**
- * A pull request from the provider a repository is linked to, as a change
- * here with the same number. The provider is the authority for its state,
- * which moves by remotePullLifecycle; reviews and comments made here stay.
- * Imports send no events: a first import of hundreds would flood feeds.
- */
 export const importPull = mutation({
   args: {
     repo: v.string(),
@@ -2586,11 +2580,6 @@ export const importPull = mutation({
   },
 })
 
-/**
- * The provider's CI results on an imported pull request, as checks on its
- * change. Checks reported here by runners stay; only the provider's own are
- * replaced.
- */
 export const importChecks = mutation({
   args: {
     repo: v.string(),

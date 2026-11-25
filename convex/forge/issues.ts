@@ -780,11 +780,6 @@ const importedActor = v.union(
   v.object({ id: v.string(), login: v.string() }),
 )
 
-/**
- * An issue from the provider a repository is linked to, with the same number
- * and its comments. The provider is the authority for title, body and state;
- * comments written here stay. Imports send no events.
- */
 export const importIssue = mutation({
   args: {
     repo: v.string(),

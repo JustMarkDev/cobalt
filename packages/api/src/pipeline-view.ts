@@ -1,5 +1,3 @@
-// How a pipeline run is shown and copied. Pure, so the memory domain and
-// `convex/` give the same objects from the same records.
 import { jobWait } from './lifecycles'
 import type { PipelineWait } from './lifecycles'
 import { waitingForLabels } from './runners'
@@ -19,11 +17,6 @@ const presentWait = (w: PipelineWait | null | undefined) =>
       }
     : null
 
-/**
- * A run as the API shows it. `repoUrl` is the repository's API url; jobs are
- * shown only with `detail`. `lineCount` overrides a step's line count when
- * its lines were not loaded.
- */
 export function presentPipelineRun(a: {
   run: PipelineRunRec
   repo: { owner: string; name: string }
@@ -87,7 +80,6 @@ export function presentPipelineRun(a: {
   }
 }
 
-/** The job a runner just claimed, with what it needs to run it. */
 export function presentClaimedJob(
   repoUrl: string,
   r: PipelineRunRec,
@@ -111,7 +103,6 @@ export function presentClaimedJob(
   }
 }
 
-/** A manual rerun of `from`: the same jobs and steps, all queued again. */
 export function queuedCopy(
   from: PipelineRunRec,
   a: { number: number; actor: string; at: number },

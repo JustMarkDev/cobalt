@@ -49,7 +49,6 @@ type Progress = {
   }>
 }
 
-/** Sizes as on the pricing page: decimal, 250 MB, 4 GB. */
 export const size = (n: number) =>
   n < 1e6
     ? `${Math.max(1, Math.round(n / 1e3))} KB`
@@ -88,11 +87,6 @@ function useJob(id: string | null): Progress | null {
   }, [raw])
 }
 
-/**
- * Pick repositories on a provider and bring them here, all at once: search,
- * select everything shown, leave out forks or archived ones. The import runs
- * in the background and this page follows it live.
- */
 export function ProviderPicker({
   provider,
   githubAccess,
@@ -103,9 +97,7 @@ export function ProviderPicker({
   provider: ProviderId
   githubAccess?: string
   returnTo: string | null
-  /** Shown when the provider lists nothing. */
   empty?: React.ReactNode
-  /** Buttons next to refresh, like opening the GitHub App's settings. */
   actions?: React.ReactNode
 }) {
   const write = useWrite()
@@ -153,7 +145,6 @@ export function ProviderPicker({
 
   React.useEffect(() => {
     void page(null)
-    // Coming back from the provider (installing the App, say): list again.
     const again = () => {
       if (document.visibilityState === 'visible') void page(null)
     }

@@ -1,5 +1,3 @@
-// The stored shape of a change. Most records are the domain's own; only the
-// ones Convex stores differently are declared here.
 import type {
   ActorRec,
   CheckRec,

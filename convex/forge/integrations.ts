@@ -356,7 +356,6 @@ export const link = mutation({
   },
 })
 
-// The platform proved, with GitHub's own answer, who this person is there.
 export const markVerified = mutation({
   args: { handle: v.string(), login: v.string() },
   returns: v.null(),

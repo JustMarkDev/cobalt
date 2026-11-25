@@ -8,7 +8,6 @@ export interface GitAdmin {
   ) => Promise<Array<{ storeId: string; bytes: number }>>
 }
 
-/** `storeId` is the repository name in Code Storage. */
 export function codeStorageAdmin(o: {
   org: string
   privateKey: string

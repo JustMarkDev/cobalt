@@ -1,11 +1,3 @@
-// The provider links of the running app, from its environment:
-//
-//   GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
-//       the Cobalt GitHub App (Code Storage holds its key too)
-//   GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET      an OAuth app on gitlab.com
-//   CODEBERG_CLIENT_ID, CODEBERG_CLIENT_SECRET  an OAuth app on codeberg.org
-//   CB_TOKEN_KEYS     keys that seal provider tokens at rest (see vault.ts)
-//   CB_HOOK_SECRET    master secret per-repository webhook secrets derive from
 import { ConvexProviderStore } from './convex-store'
 import { createGithubForge, githubAppFromEnv } from './github'
 import { createGitlab } from './gitlab'

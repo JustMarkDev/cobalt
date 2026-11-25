@@ -13,7 +13,6 @@ import type { OAuthProvider } from '~/lib/provider-link'
 
 type Connected = { login: string; returnTo: string | null }
 
-/** Where GitLab or Codeberg sends the person back: finish connecting, then pick. */
 export function ProviderCallback({
   provider,
   code,
@@ -31,7 +30,6 @@ export function ProviderCallback({
   const [error, setError] = React.useState<string | null>(
     denied ? `Connecting ${label} was cancelled.` : null,
   )
-  // A code works once: React may run this effect twice in development.
   const traded = React.useRef(false)
 
   React.useEffect(() => {
@@ -46,7 +44,6 @@ export function ProviderCallback({
         login: r.data.connection.login,
         returnTo: safeRedirect(r.data.return_to) ?? null,
       })
-      // Keep the code out of the history and out of any copied link.
       window.history.replaceState(null, '', `/${provider}/callback`)
     })
   }, [code, state, write, provider])

@@ -1,11 +1,3 @@
-// Smoke test for the GitHub App sync through Code Storage. Run with the app's
-// variables from Railway, which injects them without writing them to disk:
-//
-//   railway run -- bun packages/git/probe/smoke.ts
-//
-// It makes one private GitHub repository named `cobalt-probe-smoke-<time>`,
-// links a Code Storage repository to it, waits for the first sync, and deletes
-// both. It only ever deletes names that start with `cobalt-probe-`.
 import { Pierre } from '@pierre/sdk'
 
 const PREFIX = 'cobalt-probe-'

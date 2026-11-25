@@ -1,7 +1,6 @@
 import { ProviderError } from './types'
 import type { Etag, Fetch, ProviderId } from './types'
 
-/** The next page's URL from a `Link` header (GitHub, GitLab and Forgejo all send one). */
 export function nextLink(link: string | null): string | null {
   if (!link) return null
   for (const part of link.split(',')) {
@@ -18,10 +17,6 @@ export type Answer<T> = {
   notModified: boolean
 }
 
-/**
- * One JSON request to a provider. A 304 answers `notModified` with no body;
- * anything else that is not a success becomes a `ProviderError`.
- */
 export async function call<T>(
   provider: ProviderId,
   f: Fetch,

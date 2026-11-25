@@ -1,9 +1,3 @@
-// What every probe scenario shares: the Code Storage client, GitHub through
-// `gh`, git against both remotes, polling, and the guard that only ever lets a
-// probe delete a repository whose name starts with `cobalt-probe-`.
-//
-// Nothing here prints a secret. Code Storage tokens are passed to git through
-// `GIT_CONFIG_*` variables, never on the command line, and are never logged.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -11,18 +5,14 @@ import { Pierre } from '@pierre/sdk'
 import { createToken } from '@pierre/sdk/auth'
 
 export const PREFIX = 'cobalt-probe-'
-/** The only GitHub account a probe may create or delete repositories on. */
 export const GITHUB_OWNER = 'JustMarkDev'
 
 export type Outcome = 'pass' | 'fail' | 'finding' | 'skipped'
 
 export type Report = {
   outcome: Outcome
-  /** One line: what the scenario found. */
   summary: string
-  /** What it means for the row of the risk table, and for the later phases. */
   consequence: string
-  /** The risk-table row this answers, by its first words. */
   risk?: string
 }
 
@@ -31,9 +21,6 @@ export type Scenario = {
   title: string
   run: (ctx: Ctx) => Promise<Report>
 }
-
-// ---------------------------------------------------------------------------
-// Errors and logging
 
 export const errorOf = (e: unknown): string => {
   const x = e as
@@ -68,9 +55,6 @@ export class Log {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shell
-
 export type Ran = { ok: boolean; code: number; out: string; ms: number }
 
 export function sh(
@@ -91,7 +75,6 @@ export function sh(
   }
 }
 
-/** The text of a git or gh answer, with lines that only report progress removed. */
 export const clean = (out: string) =>
   out
     .split('\n')
@@ -103,9 +86,6 @@ export const clean = (out: string) =>
     )
     .join('\n')
     .trim()
-
-// ---------------------------------------------------------------------------
-// Polling
 
 export async function until<T>(
   check: () =>
@@ -133,9 +113,6 @@ export async function until<T>(
   return { value: undefined, ms: Date.now() - t, last }
 }
 
-// ---------------------------------------------------------------------------
-// Context
-
 export class Ctx {
   readonly pierre: Pierre
   readonly gitHost: string
@@ -158,7 +135,6 @@ export class Ctx {
     this.stamp = `${Date.now().toString(36)}`
   }
 
-  /** A fresh name for a probe repository. */
   name(tag: string) {
     return `${PREFIX}${this.stamp}-${tag}`
   }
@@ -189,9 +165,6 @@ export class Ctx {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Code Storage
-
   async storeCreate(
     name: string,
     upstream: {
@@ -201,8 +174,6 @@ export class Ctx {
       provider?: string
       host?: string
     },
-    // Without it, a GitHub upstream answers 412 github_repository_inaccessible
-    // (see github-01-create), so the probe always names it.
     defaultBranch: string | null = 'main',
   ) {
     assertProbeName(name)
@@ -247,7 +218,6 @@ export class Ctx {
     return { ms: Date.now() - t, message: r.message }
   }
 
-  /** Pulls, retrying while the store answers 409 sync_in_progress. */
   async storePullSettled(name: string, timeout = 60_000) {
     const t = Date.now()
     let busy = 0
@@ -266,7 +236,6 @@ export class Ctx {
     }
   }
 
-  /** Waits until the store's branch points at `sha` (or is gone, for `null`). */
   async storeWaitFor(
     name: string,
     branch: string,
@@ -291,7 +260,6 @@ export class Ctx {
     })
   }
 
-  /** git against the Code Storage remote of `name`, with a fresh token. */
   async gitStore(name: string, cwd: string, args: Array<string>) {
     const token = await this.remoteToken(name)
     return sh(['git', ...args], {
@@ -310,7 +278,6 @@ export class Ctx {
     return `https://${this.gitHost}/${name}.git`
   }
 
-  /** A clone of the Code Storage repository in a new folder. */
   async cloneStore(name: string): Promise<string> {
     const dir = join(this.tmp(), 'store')
     const r = await this.gitStore(name, dirname(dir), [
@@ -322,9 +289,6 @@ export class Ctx {
     if (!r.ok) throw new Error(`clone of the store failed: ${clean(r.out)}`)
     return dir
   }
-
-  // -------------------------------------------------------------------------
-  // GitHub
 
   ghCreate(name: string, o: { public?: boolean } = {}) {
     assertProbeName(name)
@@ -340,13 +304,11 @@ export class Ctx {
     this.onCleanup(`GitHub ${name}`, () => ghDelete(name))
   }
 
-  /** Deletes a GitHub repository made outside ghCreate (a fork) at the end. */
   ghOwned(name: string) {
     assertProbeName(name)
     this.onCleanup(`GitHub ${name}`, () => ghDelete(name))
   }
 
-  /** Re-points the GitHub cleanup after a rename. */
   ghRenamed(from: string, to: string) {
     assertProbeName(to)
     const i = this.cleanups.findIndex((c) => c.what === `GitHub ${from}`)
@@ -386,7 +348,6 @@ export class Ctx {
     }
   }
 
-  /** A commit made on GitHub through the contents API. Returns its sha. */
   ghCommit(repo: string, path: string, text: string, branch = 'main'): string {
     let sha: string | undefined
     try {
@@ -421,7 +382,6 @@ export class Ctx {
     )
   }
 
-  /** git against GitHub, with gh as the credential helper. */
   gitGithub(cwd: string, args: Array<string>) {
     return sh(['git', ...args], {
       cwd,
@@ -449,7 +409,6 @@ export class Ctx {
     return dir
   }
 
-  /** A GitHub repository with a README and a Code Storage repository synced from it. */
   async pair(tag: string, o: { public?: boolean } = {}) {
     const name = this.name(tag)
     this.ghCreate(name, o)
@@ -491,7 +450,6 @@ export function ghDelete(name: string) {
   if (!r.ok) throw new Error(r.out)
 }
 
-/** Writes a file inside a clone and commits it. Returns the new sha. */
 export function commitFile(
   dir: string,
   path: string,

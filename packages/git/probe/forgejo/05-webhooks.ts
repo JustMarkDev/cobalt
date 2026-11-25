@@ -1,5 +1,3 @@
-// Forgejo 5. User- and organization-level webhooks: do they fire for every
-// repository (also ones made after the hook)? Signature (HMAC) and delivery id.
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { until } from '../lib'
 import { USER, commit, createRepo, forgejo } from './env'

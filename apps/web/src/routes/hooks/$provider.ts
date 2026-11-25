@@ -1,14 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getApi } from '~/lib/api/instance'
 
-/** Providers send bodies of a few hundred kilobytes at most. */
 const MAX_BODY = 5 * 1024 * 1024
 
-/**
- * Webhook deliveries from the git providers: the Cobalt GitHub App's one
- * webhook, and one per imported repository on GitLab and Codeberg. They are
- * answered here, in the web process, because it holds the provider secrets.
- */
 export const Route = createFileRoute('/hooks/$provider')({
   server: {
     handlers: {

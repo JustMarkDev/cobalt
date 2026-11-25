@@ -121,7 +121,6 @@ export abstract class DomainImports extends DomainIntegrations {
   remoteComments = this.forgeOps.remoteComments
   remotePatch = this.forgeOps.remotePatch
 
-  /** The provider links of this domain, or a refusal naming the host. */
   protected providersFor(host: Host) {
     const sync = this.svc.providers
     if (host === 'gitea' || !sync?.configured(host))
@@ -191,7 +190,6 @@ export abstract class DomainImports extends DomainIntegrations {
     }
   }
 
-  /** Makes a repository here and links it to a prepared provider repository. */
   async importPrepared(
     p: Principal,
     pr: Prepared,
@@ -250,7 +248,6 @@ export abstract class DomainImports extends DomainIntegrations {
     return { full, created: true }
   }
 
-  /** What `ProviderSync` needs from this domain. */
   providerHost(): SyncHost {
     return {
       requireAdmin: async (p, full) => {

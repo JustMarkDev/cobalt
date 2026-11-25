@@ -148,8 +148,6 @@ export const convexFactory: DomainFactory = ({
       memory.svc.providers?.with({ store: new ConvexProviderStore(call) }) ??
       null,
   }
-  // Stores of linked repositories come from the same fake as the provider
-  // links, so an import provisions where the link then writes credentials.
   const stores = svc.providers?.deps.git
   if (stores) {
     svc.git.provision = (id, o) => stores.provision(id, o)

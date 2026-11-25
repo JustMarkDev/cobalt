@@ -1,13 +1,3 @@
-// Provider tokens at rest. Each value is sealed with AES-GCM under one of
-// several keys, and the sealed text names the key, so a new key can be added
-// and the old one dropped after every value is sealed again (`reseal`).
-//
-//   CB_TOKEN_KEYS="k2:<base64url 32 bytes>,k1:<base64url 32 bytes>"
-//
-// The first key seals; every listed key opens. The additional data binds a
-// value to its slot (a connection and a field), so a sealed token copied into
-// another row does not open.
-
 const enc = new TextEncoder()
 const dec = new TextDecoder()
 
@@ -61,7 +51,6 @@ export class TokenVault {
     return new TokenVault(keys, current!)
   }
 
-  /** A vault with a fresh random key, for tests and the sample. */
   static async ephemeral(id = 'test') {
     const raw = b64.enc(crypto.getRandomValues(new Uint8Array(32)))
     return (await TokenVault.fromEnv(`${id}:${raw}`))!
@@ -79,7 +68,6 @@ export class TokenVault {
     return `tv1.${this.current}.${b64.enc(iv)}.${b64.enc(ct)}`
   }
 
-  /** The key a sealed value uses, without opening it. */
   static keyOf(sealed: string) {
     return sealed.split('.')[1] ?? null
   }
@@ -103,17 +91,12 @@ export class TokenVault {
     }
   }
 
-  /** Seals again under the current key; unchanged when it already uses it. */
   async reseal(slot: VaultSlot, sealed: string): Promise<string> {
     if (TokenVault.keyOf(sealed) === this.current) return sealed
     return this.seal(slot, await this.open(slot, sealed))
   }
 }
 
-/**
- * The secret of one repository's webhook: an HMAC of a master secret with the
- * repository's id, so nothing per repository needs storing.
- */
 export async function webhookSecret(master: string, remoteRepoId: string) {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -132,7 +115,6 @@ export async function webhookSecret(master: string, remoteRepoId: string) {
   return b64.enc(mac)
 }
 
-/** Compares two strings in time that does not depend on where they differ. */
 export function sameText(a: string, b: string) {
   const x = enc.encode(a)
   const y = enc.encode(b)
@@ -142,7 +124,6 @@ export function sameText(a: string, b: string) {
   return d === 0
 }
 
-/** Hex HMAC-SHA256 of a body. */
 export async function hmacHex(secret: string, body: string) {
   const key = await crypto.subtle.importKey(
     'raw',

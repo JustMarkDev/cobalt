@@ -87,7 +87,6 @@ describe('imports', () => {
     expect(again.status).toBe(200)
     const mine = (await h.call('GET', '/imports')).json.data
     expect(mine.map((i: { repo: string }) => i.repo)).toContain('dana/dotfiles')
-    // The same GitHub repository cannot feed a second repository here.
     const twice = await h.call('POST', '/imports', {
       body: { ...body, name: 'dotfiles-again' },
     })

@@ -1,5 +1,3 @@
-// 1. Create with an upstream: how long the first sync takes, and what the
-// other calls answer while it runs.
 import { GITHUB_OWNER, codeOf, errorOf } from '../lib'
 import type { Scenario } from '../lib'
 
@@ -12,7 +10,6 @@ export const create: Scenario = {
     const main = ctx.ghHead(name)
     ctx.log.line(`GitHub main ${main}`)
 
-    // Without default_branch first: the docs say it is taken from GitHub.
     let withoutDefault = 'accepted'
     try {
       await ctx.pierre.repos.create({
@@ -31,8 +28,6 @@ export const create: Scenario = {
     const accepted = await ctx.storeCreate(name, { owner: GITHUB_OWNER, name })
     ctx.log.line(`repos.create accepted in ${accepted} ms`)
 
-    // Ask everything we will ask in production while the first sync runs, and
-    // write down each distinct answer.
     const answers = new Map<string, number>()
     const note = (what: string, a: string) => {
       const key = `${what}: ${a}`
@@ -72,7 +67,6 @@ export const create: Scenario = {
       await Bun.sleep(250)
     }
 
-    // A second create of the same name with the same upstream, then with another.
     try {
       await ctx.pierre.repos.create({
         repo_name: name,

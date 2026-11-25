@@ -14,9 +14,7 @@ type AppApi = Pick<
   ReturnType<typeof createSampleApi>,
   'fetch' | 'fetchAs' | 'ops' | 'port' | 'oauth' | 'verifyToken'
 > & {
-  /** Git over HTTPS. Only the real backend has it. */
   gitHttp?: (req: Request, ip?: string) => Promise<Response>
-  /** Webhook deliveries from git providers. */
   receiveHook?: (provider: string, req: Request) => Promise<Response>
 }
 
@@ -83,8 +81,6 @@ export function getApi(requestUrl: string) {
     current = onConvex
     return current
   }
-  // The in-memory sample is only for working on the app on your own machine.
-  // A deployment never serves made-up data in place of the real backend.
   if (!live)
     throw new Error(
       'CONVEX_URL and API_JWT_PRIVATE_KEY are required: the API does not serve sample data outside local development.',

@@ -67,11 +67,9 @@ test('the device flow ends in a sealed access that is bound to the person', asyn
   const done = await gh.devicePoll('dc', 'dana')
   if (done.status !== 'authorized') throw new Error('not authorized')
   expect(done.login).toBe('dana')
-  // The token never leaves the sealed blob, and the blob is not readable.
   expect(done.access).not.toContain('gho_user')
   const opened = await openAccess(cfg.sealKey, done.access, 'dana', 1000)
   expect(opened.token).toBe('gho_user')
-  // Someone else cannot use it, nor can it be used after ten minutes.
   await expect(
     openAccess(cfg.sealKey, done.access, 'mallory', 1000),
   ).rejects.toMatchObject({ code: 'forbidden' })

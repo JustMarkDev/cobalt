@@ -1,6 +1,3 @@
-// How a change is judged and shown: the policy it is held to, what the viewer
-// may do with it and its public objects. Pure, so the memory domain and
-// `convex/` give the same answers from the same records.
 import type { z } from 'zod'
 import type * as S from './schemas'
 import { globMatcher } from './glob'
@@ -30,7 +27,6 @@ import type {
 export type Requirement = z.infer<typeof S.Requirement>
 export type PolicyState = 'met' | 'blocked' | 'pending'
 
-/** The parts of a change these functions read; both stores' records fit. */
 type Change = {
   id: string
   number: number
@@ -64,7 +60,6 @@ export const presentActor = (a: ActorRec) => ({
 export const headOf = (c: Pick<Change, 'patchSets'>) =>
   c.patchSets[c.patchSets.length - 1]
 
-/** Each reviewer's last review, in the order they first reviewed. */
 export function latestReviews(reviews: ReadonlyArray<ReviewRec>) {
   const map = new Map<string, ReviewRec>()
   for (const r of reviews) map.set(r.actor.id, r)
@@ -92,7 +87,6 @@ export function checksSummary(c: Change): z.infer<typeof S.Change>['checks'] {
   }
 }
 
-/** A repository's policy, as stored. */
 export type PolicyConfig = {
   modes?: ReadonlyMap<string, RuleMode>
   exceptions?: ReadonlyArray<PolicyExceptionRec>
@@ -110,7 +104,6 @@ const exceptionFor = (cfg: PolicyConfig, rule: string, who: string) =>
     (e) => e.rule === rule && e.who === who && e.expires > cfg.now,
   )
 
-/** Every requirement as its rule's mode shows it: off is left out, a dry run never blocks. */
 export function evaluatePolicy(
   cfg: PolicyConfig,
   c: Change,
@@ -134,7 +127,6 @@ export function evaluatePolicy(
   return out
 }
 
-/** Every requirement as if enforced, exceptions applied. `reviews` is each reviewer's latest. */
 export function evaluateRules(
   cfg: PolicyConfig,
   c: Change,
@@ -297,7 +289,6 @@ export function policyState(reqs: ReadonlyArray<Requirement>): PolicyState {
 export const unmetCount = (reqs: ReadonlyArray<Requirement>) =>
   reqs.filter((r) => r.state === 'fail' || r.state === 'pending').length
 
-/** What the viewer may do with a change, and why not. */
 export function changeActions(a: {
   change: Change
   viewer: { scopes: ReadonlySet<string> } | null
@@ -337,7 +328,6 @@ export function changeActions(a: {
   }
 }
 
-/** `repoUrl` is the repository's API url. */
 export function presentChange(a: {
   change: Change
   repoUrl: string

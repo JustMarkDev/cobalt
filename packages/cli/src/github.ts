@@ -13,11 +13,6 @@ type Status = {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
-/**
- * Signs in with GitHub on the device flow and returns the proof (`access`)
- * that `cb import` hands to the server. Nothing is kept on this machine: the
- * proof is good for ten minutes and nobody can use it for another person.
- */
 export async function githubAccess(
   ctx: Ctx,
   api: ApiClient,

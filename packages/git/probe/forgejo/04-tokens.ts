@@ -1,6 +1,3 @@
-// Forgejo 4. Tokens as git passwords: a PAT and an OAuth access token; what
-// happens when the OAuth token expires; refreshing it and updating the stored
-// credential with gitCredentials.update while a sync runs; refresh-token reuse.
 import { clean, commitFile, errorOf, until } from '../lib'
 import { pairForgejo } from './common'
 import {
@@ -15,7 +12,6 @@ import {
 import { authorize, oauthApp, refresh } from './oauth'
 import type { Scenario } from '../lib'
 
-/** Can git read a Forgejo repository with this username and password? */
 async function gitReads(repo: string, username: string, password: string) {
   const r = await fetch(
     `${LOCAL}/${USER}/${repo}.git/info/refs?service=git-upload-pack`,
@@ -57,7 +53,6 @@ export const forgejoTokens: Scenario = {
     )
     ctx.log.line(`store synced with the OAuth token as password: ${p.synced}`)
 
-    // Wait past expiry, then try both directions.
     const wait = issued + (ACCESS_TOKEN_TTL + 15) * 1000 - Date.now()
     ctx.log.line(
       `waiting ${Math.round(wait / 1000)} s for the access token to expire`,
@@ -91,7 +86,6 @@ export const forgejoTokens: Scenario = {
       `push with the expired credential exit ${pushExpired.code}:\n${clean(pushExpired.out)}`,
     )
 
-    // Refresh, then update the credential right after a pull starts.
     const next = await refresh(app, first.tokens.refresh_token)
     if (!next.ok) throw new Error(`refresh: ${next.error}`)
     const reuse = await refresh(app, first.tokens.refresh_token)

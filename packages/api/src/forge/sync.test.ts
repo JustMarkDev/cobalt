@@ -210,8 +210,6 @@ describe.skipIf(onConvex)('GitHub through the App', () => {
     ;(h.now as ReturnType<typeof clock>).advance(10_000)
     await sync(h).tick()
     const done = (await h.call('GET', `/imports/jobs/${job.json.id}`)).json
-    // dana/notes exists here already (the sample has one): that item fails
-    // with a reason, and the rest of the job goes on.
     expect(done).toMatchObject({ state: 'done', done: 1, failed: 1 })
     expect(done.items).toMatchObject([
       {
@@ -311,7 +309,6 @@ describe.skipIf(onConvex)('GitLab in generic mode', () => {
     const rel = (await h.call('GET', '/repos/dana/zine/provider/releases')).json
       .data
     expect(rel[0]).toMatchObject({ tag: 'v0.3.0', name: 'Zine 0.3' })
-    // Read-only: nothing here writes them.
     expect(
       (
         await h.call('POST', '/repos/dana/zine/provider/issues/5/comments', {

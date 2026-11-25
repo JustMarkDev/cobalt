@@ -215,7 +215,6 @@ describe('shape', () => {
       })
       dynamic['pipelines.get'] = `${REPO}/pipelines/${job.run}`
     }
-    // A repository linked to the scripted gitlab.com, with its items read.
     const redirect_uri = 'https://cobaltforge.dev/gitlab/callback'
     const gl = await h.call('POST', '/providers/gitlab/oauth', {
       body: { redirect_uri },

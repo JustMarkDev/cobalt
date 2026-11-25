@@ -745,7 +745,6 @@ export const idOf = query({
   },
 })
 
-/** Where the git data of a repository is, once the caller may read or push to it. */
 export const gitAccess = query({
   args: {
     owner: v.string(),

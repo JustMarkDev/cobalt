@@ -1,5 +1,3 @@
-// The OAuth authorization-code flow against the probe Forgejo, done the way a
-// browser would (login form, grant form) so no step is manual.
 import { LOCAL, PASSWORD, USER } from './env'
 import type { Forgejo } from './env'
 
@@ -58,7 +56,6 @@ export async function oauthApp(f: Forgejo) {
   return r.body
 }
 
-/** Runs the whole authorization-code flow and returns the first tokens. */
 export async function authorize(app: {
   client_id: string
   client_secret: string

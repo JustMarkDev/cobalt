@@ -27,7 +27,6 @@ type Item = {
   updated: number
 }
 
-/** What search indexes about a repository, its changes and its issues. */
 export const repoSearchDoc = (
   r: {
     id: string

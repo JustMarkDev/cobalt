@@ -194,10 +194,6 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.Member>>
   repoVersion: (owner: string, name: string, p: Viewer) => Promise<string>
-  /**
-   * Where the git data of a repository is, when `p` may read it (or push to
-   * it). Answers not_found for what they cannot see.
-   */
   gitAccess: (
     owner: string,
     name: string,
@@ -788,8 +784,6 @@ export interface DomainPort {
   ) => Promise<{ repo: Out<typeof S.Repo>; created: boolean }>
   listImports: (p: Viewer) => Promise<Array<Out<typeof S.Import>>>
 
-  // Git providers: connections, listing, bulk import, the link of a
-  // repository, and what was copied from it read-only (forge/ports.ts).
   providerConnections: ForgeOps['providerConnections']
   providerRepos: ForgeOps['providerRepos']
   providerOauthStart: ForgeOps['providerOauthStart']

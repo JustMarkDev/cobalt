@@ -1,5 +1,3 @@
-// The provider store on Convex: every call goes to `convex/forge/providers.ts`
-// as the API server itself.
 import { run } from '../domain/convex'
 import type { ConvexCall } from '../domain/convex'
 import type {
@@ -149,7 +147,6 @@ export class ConvexProviderStore implements ProviderStore {
   upsertActor = (a: ActorRec, now: number) =>
     this.m<string>('upsertActor', { a, now })
 
-  /** Provider work queued by deletions. */
   claimSweeps = (now: number, max: number) =>
     this.m<Array<{ id: string; key: string }>>('claimSweeps', { now, max })
   sweepDeliveries = async (before: number) => {

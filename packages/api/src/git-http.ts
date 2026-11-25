@@ -6,7 +6,6 @@ import type { DomainPort } from './domain/port'
 
 type Access = 'read' | 'write'
 
-/** The four requests git makes over HTTPS, and what each needs. */
 const routes = new Map<string, Access>([
   ['GET info/refs?service=git-upload-pack', 'read'],
   ['POST git-upload-pack', 'read'],
@@ -33,14 +32,8 @@ export type GitHttpOptions = {
   >
   domain: Pick<DomainPort, 'gitAccess'>
   remotes: GitRemotes
-  /**
-   * Before a fetch or push of a linked repository starts: refresh its provider
-   * credential, pull when the last pull is old, refuse a push whose link is
-   * broken. Throws an ApiError to refuse.
-   */
   beforeGit?: (full: string, write: boolean) => Promise<void>
   fetch?: typeof fetch
-  /** One line per request: who, which repository, what, and the answer. */
   log?: (line: Record<string, unknown>) => void
 }
 
@@ -59,7 +52,6 @@ const challenge = () =>
     },
   })
 
-/** `git` sends the token as the Basic password; a Bearer header works too. */
 function tokenOf(req: Request): string | null {
   const header = req.headers.get('authorization')
   if (!header) return null
@@ -84,11 +76,6 @@ function matchRoute(url: URL) {
   return { owner, name, path, access: routes.get(path) }
 }
 
-/**
- * Git over HTTPS on this domain: sign in with a cobalt token, then the
- * request goes on to Code Storage with a token of its own for that one
- * repository. A person never holds a Code Storage credential.
- */
 export function createGitHttp(o: GitHttpOptions) {
   const send = o.fetch ?? fetch
   const log = o.log ?? (() => undefined)
@@ -106,7 +93,6 @@ export function createGitHttp(o: GitHttpOptions) {
     if (!found.ok) return challenge()
     const principal: Principal = principalOf(found.record)
     const scope = need === 'write' ? 'repo:write' : 'repo:read'
-    // A token limited to some paths cannot hand out whole-repository access.
     if (!principal.scopes.has(scope) || principal.paths) return notFound()
 
     let access: { storeId: string; defaultBranch: string }
@@ -119,7 +105,6 @@ export function createGitHttp(o: GitHttpOptions) {
       )
     } catch (e) {
       const code = e instanceof ApiError ? e.code : null
-      // A repository someone cannot see does not exist for them.
       if (code === 'not_found' || code === 'moved') return notFound()
       if (code === 'forbidden')
         return new Response('You can read this repository but not push.\n', {
@@ -134,7 +119,6 @@ export function createGitHttp(o: GitHttpOptions) {
         await o.beforeGit(`${route.owner}/${route.name}`, need === 'write')
       } catch (e) {
         if (!(e instanceof ApiError)) throw e
-        // git prints a plain-text body of a refused request.
         const hint = e.hint ? `\n${e.hint}` : ''
         return new Response(`${e.detail}${hint}\n`, {
           status: 403,

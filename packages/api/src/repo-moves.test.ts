@@ -55,7 +55,6 @@ describe('transferring a repository', () => {
 })
 
 describe('pausing a mirror', () => {
-  // A link to GitHub cannot be paused, so this holds only for the sample.
   test.skipIf(onConvex)(
     'a paused mirror refuses to sync until it is resumed',
     async () => {

@@ -1,8 +1,3 @@
-// Pull requests, issues and releases of a linked repository, copied read-only
-// from its provider. The first read takes everything (up to a cap), later
-// ones only what changed since, with conditional requests; webhooks say when
-// to read again. Authors are kept as snapshots of people there, never as
-// accounts here.
 import { apiError } from '../problem'
 import { remotePullState, remotePullTarget } from '../lifecycles'
 import { ProviderError } from './types'
@@ -26,9 +21,7 @@ import type {
   WebhookEvent,
 } from './types'
 
-/** Pages read on a first import, per kind: 3000 items at 100 a page. */
 const FIRST_PAGES = 30
-/** After a rate limit, wait this long before reading again. */
 const BACKOFF_MS = 15 * 60_000
 
 const iso = (t: number) => new Date(t).toISOString()
@@ -121,16 +114,11 @@ export function presentComment(c: CommentRec) {
   }
 }
 
-/** Someone on the provider, as the import into this repository's own tables names them. */
 const who = (a: ExternalActor | null) =>
   a ? { id: a.id, login: a.login } : null
 
 type Who = ReturnType<typeof who>
 
-/**
- * Pull requests, issues and releases written into the repository's own
- * changes, issues and releases, with the provider's numbers and authors.
- */
 export type Materialize = (
   full: string,
   item:
@@ -203,7 +191,6 @@ export type Materialize = (
 export class RemoteItems {
   constructor(
     private readonly sync: ProviderSync,
-    /** Whether a commit is in the repository here (for the patch decision). */
     private readonly hasCommit: (full: string, sha: string) => Promise<boolean>,
     private readonly materialize?: Materialize,
   ) {}
@@ -217,9 +204,6 @@ export class RemoteItems {
     if (!r) throw apiError('not_found', `${full} is not linked to a provider.`)
     return r
   }
-
-  // ---------------------------------------------------------------------------
-  // Reading what was copied
 
   async list(full: string, kind: ItemKind) {
     const r = await this.linkOf(full)
@@ -286,9 +270,6 @@ export class RemoteItems {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Copying from the provider
-
   private async actor(
     r: RemoteRec,
     a: ExternalActor | null,
@@ -325,10 +306,6 @@ export class RemoteItems {
     await this.store.putComments(itemId, out, this.sync.now())
   }
 
-  /**
-   * Reads one linked repository's items from its provider. Answers how many
-   * items changed. A rate limit puts the next read off.
-   */
   async syncRepo(r: RemoteRec, o: { full?: boolean } = {}) {
     const forge = this.sync.forge(r.provider)
     const auth = await this.sync.authOf(r).catch(() => null)
@@ -367,8 +344,6 @@ export class RemoteItems {
       }
       throw e
     }
-    // The store's sync events can be missed (they go to one deployment):
-    // a default branch in the store settles a first sync just as well.
     const settled =
       r.state === 'syncing' &&
       (await this.hasCommit(r.repo, r.meta.defaultBranch).catch(() => false))
@@ -485,7 +460,6 @@ export class RemoteItems {
         },
         flags: { draft: p.draft, prerelease: false },
       })
-      // A full read writes everything again, changed or not.
       const id =
         put ??
         (o.full
@@ -493,8 +467,6 @@ export class RemoteItems {
           : null)
       if (!id) continue
       changed++
-      // The patch is kept only where the commits are not here: a fork, or a
-      // branch deleted before it was ever synced (github-10-closed-pr).
       if (commitsHere === false) {
         const text = await forge
           .pullPatch(auth, r.fullName, p.number)
@@ -572,7 +544,6 @@ export class RemoteItems {
         head: null,
         flags: null,
       })
-      // A full read writes everything again, changed or not.
       const id =
         put ??
         (o.full
@@ -674,10 +645,6 @@ export class RemoteItems {
     return changed
   }
 
-  /**
-   * The CI results of open pull requests, read every time: a check changing
-   * does not make the pull request itself look updated.
-   */
   private async checks(r: RemoteRec, forge: ForgeProvider, auth: ProviderAuth) {
     if (!forge.checksOf || !this.materialize) return
     const open = (await this.store.itemsOf(r.repo, 'pull', 200)).filter(
@@ -697,7 +664,6 @@ export class RemoteItems {
     }
   }
 
-  /** A webhook said items changed: note deletions now, read the rest soon. */
   async onEvent(
     r: RemoteRec,
     ev: Extract<
@@ -726,7 +692,6 @@ export class RemoteItems {
           await this.actor(r, ev.actor),
         )
     }
-    // A deleted release or comment is noticed by the next full read.
     if (ev.action === 'deleted')
       await this.store.patchRemote(r.id, { importedAt: null })
     await this.store.setItemsDue(r.repo, this.sync.now())

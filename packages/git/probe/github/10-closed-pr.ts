@@ -1,6 +1,3 @@
-// 10. A pull request closed with its branch deleted: is its head in Code
-// Storage? If not, can its patch from the GitHub API be rebuilt on an
-// ephemeral branch with createFromDiff?
 import { GITHUB_OWNER, errorOf, sh } from '../lib'
 import type { Ctx, Scenario } from '../lib'
 
@@ -53,7 +50,6 @@ export const closedPr: Scenario = {
   async run(ctx) {
     const { name, main } = await ctx.pair('closed-pr')
 
-    // A: the branch was synced before it was deleted.
     const a = openPr(ctx, name, 'synced', main, 'synced.txt')
     await ctx.storePullSettled(name)
     await ctx.storeWaitFor(name, 'synced', a.head, 60_000)
@@ -65,7 +61,6 @@ export const closedPr: Scenario = {
       `A: PR #${a.number} head ${a.head.slice(0, 7)}, synced then deleted: ${aState}`,
     )
 
-    // B: the branch lived and died between two pulls.
     const b = openPr(ctx, name, 'never-synced', main, 'never.txt')
     closeAndDelete(ctx, name, 'never-synced', b.number)
     await ctx.storePullSettled(name)
@@ -75,7 +70,6 @@ export const closedPr: Scenario = {
       `B: PR #${b.number} head ${b.head.slice(0, 7)}, never synced: ${bState}`,
     )
 
-    // The patch of B from GitHub, rebuilt on an ephemeral branch.
     const diff = sh([
       'gh',
       'api',

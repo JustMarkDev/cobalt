@@ -1,5 +1,3 @@
-// 3. Code Storage to GitHub: a push to the Code Storage remote, when does it
-// show up on GitHub?
 import { clean, commitFile } from '../lib'
 import type { Scenario } from '../lib'
 

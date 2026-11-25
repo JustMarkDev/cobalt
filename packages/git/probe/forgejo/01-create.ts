@@ -1,5 +1,3 @@
-// Forgejo 1. Generic mode: create with an upstream plus gitCredentials.create,
-// the first sync, and what happens without a credential or with a second one.
 import { errorOf } from '../lib'
 import { pairForgejo } from './common'
 import { USER, createRepo, forgejo, head, pat } from './env'
@@ -26,7 +24,6 @@ export const forgejoCreate: Scenario = {
     }
     ctx.log.line(`a second gitCredentials.create: ${second}`)
 
-    // A private repository with no credential at all.
     const bare = ctx.name('fj-nocred')
     await createRepo(f, bare)
     ctx.onCleanup(`Forgejo ${bare}`, async () => {
@@ -59,7 +56,6 @@ export const forgejoCreate: Scenario = {
     ctx.log.line(
       `no credential: create ${bareCreate}; 10 s later ${bareState}; pull ${barePull}`,
     )
-    // Adding the credential afterwards: does a pull then sync it?
     await ctx.pierre.repos.gitCredentials.create({
       repo_name: bare,
       username: USER,

@@ -1,6 +1,3 @@
-// A person's public profile, from the contributions the viewer may see.
-// Pure, so the memory domain and `convex/` give the same object.
-
 export const DAY = 86_400_000
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -31,12 +28,9 @@ export function presentProfile<
     show_activity: boolean
     private_totals: boolean
   }
-  /** Contributions in the last year the viewer may see, and how many they may not. */
   shown: Array<Contribution<R, K>>
   hidden: number
-  /** The repositories the person owns that the viewer may see. */
   owned: ReadonlyArray<R>
-  /** Identifies a repository across `shown` and `owned`. */
   keyOf: (r: R) => unknown
   releases: number
   downloads: number

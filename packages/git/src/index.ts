@@ -15,7 +15,6 @@ export { GitNotConfigured } from './pierre'
 
 export const readCache = createReadCache()
 
-/** The repository in Code Storage named `id`. Throws when it is not configured. */
 export function getGitRepo(id: string): GitRepo {
   return readCache.wrap(id, guarded(pierreRepo(pierreFromEnv(), id)))
 }

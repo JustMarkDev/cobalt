@@ -683,7 +683,6 @@ const auditText = {
   needs_reconnect: 'The provider refused the token',
 } as const
 
-/** Connect, reconnect or disconnect GitLab or Codeberg. */
 function ProviderControls({
   provider,
   name,

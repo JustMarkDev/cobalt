@@ -67,7 +67,7 @@ test('reads map the Code Storage shapes to the forge shapes', async () => {
   expect(commits[0].date).toEqual(new Date('2026-11-24T10:00:00Z'))
   expect((await repo.getCommit({ sha: 's1' })).commit.authorName).toBe('a')
   const diff = await repo.getCommitDiff({ sha: 's1' })
-  expect(diff.baseSha).toBe('p') // the parent of the commit
+  expect(diff.baseSha).toBe('p')
   expect(diff.files.map((f) => f.state)).toEqual([
     'added',
     'modified',

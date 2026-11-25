@@ -116,18 +116,12 @@ export async function emit(
   return record
 }
 
-/**
- * Someone on a git provider, as the author of something imported from there:
- * a row in `actors` keyed by provider and their id there, with a handle such
- * as `octocat@github` that no account here can have. Never an account.
- */
 export async function externalActorFor(
   ctx: MutationCtx,
   provider: string,
   externalId: string,
   login: string,
 ): Promise<ActorRef> {
-  // Someone who proved here that this login is theirs is themselves.
   const linked = await ctx.db
     .query('links')
     .withIndex('by_host_and_login', (q) =>
@@ -151,7 +145,6 @@ export async function externalActorFor(
   return { id: publicId, handle }
 }
 
-/** Numbers taken by imports: what is made here next comes after them. */
 export async function reserveNumber(
   ctx: MutationCtx,
   repo: Doc<'repos'>,

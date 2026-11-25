@@ -319,7 +319,6 @@ export function dashboardNeeds(items: Array<Need>) {
     }))
 }
 
-/** The steps of `run` paused until `me` resumes them. */
 export function stepsWaitingOn(
   repo: string,
   run: PipelineRunRec,
@@ -348,7 +347,6 @@ export function stepsWaitingOn(
   return out
 }
 
-/** The first queued job of `run` that none of `runners` can take. */
 export function queuedWithoutRunner(
   repo: { owner: string; name: string },
   run: PipelineRunRec,

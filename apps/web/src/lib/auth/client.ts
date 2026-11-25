@@ -223,7 +223,6 @@ export const authClient = {
   },
 }
 
-/** Where the confirmation link lands: back in onboarding, marked as confirmed. */
 export function verifiedUrl(redirect?: string): string {
   const q = new URLSearchParams({ verified: '1' })
   if (redirect) q.set('redirect', redirect)

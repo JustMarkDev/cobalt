@@ -6,7 +6,6 @@ export const hostLabel: Record<ProviderId, string> = {
   codeberg: 'Codeberg',
 }
 
-/** GitHub, GitLab, Codeberg; anything else as given. */
 export const labelOf = (p: string): string =>
   (hostLabel as Partial<Record<string, string>>)[p] ?? p
 

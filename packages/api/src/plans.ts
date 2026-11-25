@@ -42,7 +42,6 @@ export type Subscription = {
 
 export type Grant = {
   plan: PaidPlanId
-  /** Absent for a standing grant: the operator's own account, which has no limits. */
   expires?: number | null
   revoked?: number | null
 }
@@ -52,7 +51,6 @@ export type Effective = {
   source: 'subscription' | 'grant' | 'free'
   until: number | null
   lapsedAt: number | null
-  /** A standing grant: no storage, transfer or push limits apply. */
   unlimited: boolean
 }
 

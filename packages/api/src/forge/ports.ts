@@ -1,6 +1,3 @@
-// The provider operations of the API, written once over `ProviderSync`. Each
-// domain gives its own access check and delegates here, so both stores answer
-// the same.
 import { apiError } from '../problem'
 import type { Principal } from '../auth'
 import type { Viewer } from '../domain/records'

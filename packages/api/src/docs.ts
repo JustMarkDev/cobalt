@@ -1003,8 +1003,6 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
     const op = started.json as Json
     await new Promise((r) => setTimeout(r, 60))
     await call('operations.get', 'GET', `/operations/${op.id}`)
-    // Git providers last, on a fresh instance: the examples above spent the
-    // write pool.
     await api.dispose()
     api = fresh()
     await call(null, 'POST', '/imports', {

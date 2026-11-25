@@ -439,7 +439,6 @@ export const download = mutation({
   },
 })
 
-/** Release notes written as a bullet list keep their lines; anything else is one note. */
 function notesOf(body: string): Release['notes'] {
   const lines = body
     .split('\n')
@@ -453,11 +452,6 @@ function notesOf(body: string): Release['notes'] {
   }
 }
 
-/**
- * A published release from the provider a repository is linked to, by tag.
- * Drafts stay on the provider. Imports tell no one: a first import of dozens
- * would notify every stargazer.
- */
 export const importRelease = mutation({
   args: {
     repo: v.string(),

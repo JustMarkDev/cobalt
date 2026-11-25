@@ -1,7 +1,6 @@
 import { expect, test } from 'bun:test'
 import { harness, onConvex } from '../testing'
 
-// Only Convex writes imported items into the repository's own tables.
 test.skipIf(!onConvex)(
   'imported pull requests, issues and releases appear in Changes, Issues and Releases',
   async () => {
@@ -50,12 +49,10 @@ test.skipIf(!onConvex)(
     expect(comments[0].body).toBe('Same here with the A5 layout.')
     const rel = (await h.call('GET', '/repos/dana/zine/releases')).json.data
     expect(rel[0]).toMatchObject({ tag: 'v0.3.0', title: 'Zine 0.3' })
-    // What is made here next does not take an imported number.
     const made = await h.call('POST', '/repos/dana/zine/issues', {
       body: { title: 'Ours' },
     })
     expect(made.json.number).toBe(6)
-    // A second read changes nothing.
     await sync.tick()
     expect(
       (await h.call('GET', '/repos/dana/zine/changes?state=all')).json.data,

@@ -121,7 +121,6 @@ test('a linked repository is checked before git starts: a broken link refuses a 
   expect(await push.text()).toBe(
     'dana/gitfs is not syncing with GitLab.\nAn admin can take the link over.\n',
   )
-  // Checked once per operation, at its first request.
   await g.call('POST', '/dana/gitfs.git/git-upload-pack', sampleTokens.dana)
   expect(seen).toEqual([
     ['dana/gitfs', false],

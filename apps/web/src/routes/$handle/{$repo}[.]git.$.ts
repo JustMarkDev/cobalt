@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getApi } from '~/lib/api/instance'
 
-/** `git clone` and `git push` over HTTPS, as `/<owner>/<repo>.git/...`. */
 const handle = async ({ request }: { request: Request }) => {
   const api = getApi(request.url)
   if (!api.gitHttp) return new Response('Not found\n', { status: 404 })

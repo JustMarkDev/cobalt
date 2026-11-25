@@ -1,4 +1,3 @@
-// Forgejo 3. Forwarded push, divergence, force push and deletion in generic mode.
 import { clean, commitFile, sh, until } from '../lib'
 import { pairForgejo } from './common'
 import { commit, forgejo, head, pat } from './env'
@@ -13,7 +12,6 @@ export const forgejoPush: Scenario = {
     const dir = await ctx.cloneStore(p.name)
     const notes: Array<string> = []
 
-    // Plain push.
     const a = commitFile(dir, 'a.txt', 'a\n')
     const r1 = await ctx.gitStore(p.name, dir, ['push', 'origin', 'HEAD:main'])
     const t1 = Date.now()
@@ -35,7 +33,6 @@ export const forgejoPush: Scenario = {
         : `push NOT forwarded: ${clean(r1.out)}`,
     )
 
-    // Divergence.
     const theirs = await commit(f, p.name, 'theirs.txt', 'x\n')
     const ours = commitFile(dir, 'ours.txt', 'y\n')
     const r2 = await ctx.gitStore(p.name, dir, ['push', 'origin', 'HEAD:main'])
@@ -56,7 +53,6 @@ export const forgejoPush: Scenario = {
             .join(' | ')}`,
     )
 
-    // Force push from the store.
     sh(['git', 'reset', '--quiet', '--hard', 'HEAD~1'], { cwd: dir })
     const forced = commitFile(dir, 'forced.txt', 'z\n')
     const r3 = await ctx.gitStore(p.name, dir, [
@@ -83,7 +79,6 @@ export const forgejoPush: Scenario = {
         : `force push not forwarded (${clean(r3.out)})`,
     )
 
-    // Branch created and deleted through the store.
     const r4 = await ctx.gitStore(p.name, dir, [
       'push',
       'origin',
@@ -116,7 +111,6 @@ export const forgejoPush: Scenario = {
     ctx.log.line(
       `branch via store: created on Forgejo ${sideThere}, deleted on Forgejo ${sideGone}`,
     )
-    // Branch deleted on Forgejo, then pulled.
     await f.api('POST', `/repos/probe/${p.name}/branches`, {
       new_branch_name: 'fj-side',
       old_ref_name: 'main',

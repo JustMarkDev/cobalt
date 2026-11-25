@@ -1,5 +1,3 @@
-// Forgejo 2. A push on the provider with no webhook: does it arrive by itself,
-// and how fast after upstream.pull?
 import { pairForgejo } from './common'
 import { commit, forgejo, pat } from './env'
 import type { Scenario } from '../lib'

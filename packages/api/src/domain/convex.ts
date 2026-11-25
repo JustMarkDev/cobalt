@@ -8,10 +8,6 @@ import { forgeOps } from '../forge/ports'
 import { declareSecrets } from '../forge/secrets'
 import { extrasScope } from '../stores/convex-extras'
 
-/**
- * Extras are written at the end of a scope; work outside a request (the
- * provider worker, webhooks) opens its own.
- */
 const scoped = <T>(fn: () => Promise<T>): Promise<T> =>
   extrasScope.getStore() ? fn() : extrasScope.run(new Set(), fn)
 import type { Prepared, SyncHost } from '../forge/sync'
@@ -110,7 +106,6 @@ export async function run<T>(
   }
 }
 
-/** What went wrong at Code Storage while linking a provider, as the API says it. */
 function upstreamProblem(
   e: unknown,
   upstream?: { owner: string; name: string; provider?: string } | string,
@@ -323,8 +318,6 @@ export class ConvexDomain implements DomainPort {
       p,
     )
     if (dry) return r
-    // Code Storage creates idempotently on the name, so asking again after a
-    // failure heals a repository that has no store yet.
     if (!link || r.created)
       try {
         await this.svc.git.provision?.(r.repo.id, link)
@@ -1343,7 +1336,6 @@ export class ConvexDomain implements DomainPort {
   remoteComments = this.forgeOps.remoteComments
   remotePatch = this.forgeOps.remotePatch
 
-  /** The provider links of this domain, or a refusal naming the host. */
   private providersFor(host: string) {
     const sync = this.svc.providers
     if (host === 'gitea' || !sync?.configured(host as ProviderId))
@@ -1398,7 +1390,6 @@ export class ConvexDomain implements DomainPort {
     return { repo: await this.getRepo(o, n, p), created: made.created }
   }
 
-  /** Makes a repository here and links it to a prepared provider repository. */
   async importPrepared(
     p: Principal,
     pr: Prepared,
@@ -1462,7 +1453,6 @@ export class ConvexDomain implements DomainPort {
     return { full: made.repo.full_name, created: true }
   }
 
-  /** What `ProviderSync` needs from this domain. */
   providerHost(): SyncHost {
     return {
       requireAdmin: async (p, full) => {
@@ -1483,7 +1473,6 @@ export class ConvexDomain implements DomainPort {
           const x = await this.svc.extras.open(full)
           let m = x.mirrors.at(0)
           if (!m) {
-            // A mirror lost by an earlier write outside a scope comes back.
             const link = await this.svc.providers?.store.remoteOfRepo(full)
             if (!link) return
             m = {
@@ -1582,7 +1571,6 @@ export class ConvexDomain implements DomainPort {
     return refs.map((r) => presentGithubRepo(r, held[String(r.id)] ?? null))
   }
 
-  /** The name of the store that holds a repository, as Code Storage knows it. */
   async storeIdOf(full: string) {
     return (
       this.svc.git.storeOf?.(full) ??
@@ -1636,7 +1624,6 @@ export class ConvexDomain implements DomainPort {
         if (remote) await this.svc.providers!.pull(remote)
         else if (store) await this.svc.git.pull?.(store)
       } catch (e) {
-        // One sync is already running: that is what was asked for.
         if ((e as { code?: string }).code !== 'sync_in_progress')
           throw upstreamProblem(e, remote?.provider)
       }

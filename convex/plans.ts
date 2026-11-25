@@ -67,9 +67,7 @@ export const grant = internalMutation({
   args: {
     handle: v.string(),
     plan: paid,
-    /** Leave out with `standing: true` for a grant that never ends. */
     days: v.optional(v.number()),
-    /** No end and no limits: for the operator's own accounts only. */
     standing: v.optional(v.boolean()),
     reason: v.string(),
     by: v.optional(v.string()),

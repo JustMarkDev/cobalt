@@ -76,7 +76,6 @@ export default defineSchema({
     reason: v.string(),
     grantedBy: v.string(),
     created: v.number(),
-    /** Absent for a standing grant, which never ends and lifts every limit. */
     expires: v.optional(v.number()),
     revoked: v.optional(v.number()),
   }).index('by_accountId', ['accountId']),
@@ -105,8 +104,6 @@ export default defineSchema({
   }).index('by_accountId_and_month', ['accountId', 'month']),
 
   sweeps: defineTable({
-    // `provider`: a JSON job for the API server, which holds the provider
-    // secrets: revoke a token, remove a webhook, delete a git credential.
     kind: v.union(v.literal('git'), v.literal('blob'), v.literal('provider')),
     key: v.string(),
     created: v.number(),
@@ -640,8 +637,6 @@ export default defineSchema({
     .index('by_handle_and_host', ['handle', 'host'])
     .index('by_host_and_login', ['host', 'login']),
 
-  // Deprecated: replaced by remoteRepos. Nothing writes it any more; the
-  // `remoteRepos` migration copies what it holds, and a later deploy drops it.
   githubLinks: defineTable({
     githubId: v.number(),
     slug: v.string(),
@@ -652,8 +647,6 @@ export default defineSchema({
     .index('by_githubId', ['githubId'])
     .index('by_repoId', ['repoId']),
 
-  // A person's account on a git provider, signed in once with OAuth. Tokens
-  // are sealed by the web process (TokenVault) and never readable here.
   providerConnections: defineTable({
     handle: v.string(),
     provider: provider,
@@ -667,7 +660,6 @@ export default defineSchema({
     scopes: v.array(v.string()),
     state: v.union(v.literal('ok'), v.literal('needs_reconnect')),
     problem: v.union(v.null(), v.string()),
-    /** Held while one process refreshes the token; refreshes are serialized. */
     refreshLease: v.union(v.null(), v.number()),
     created: v.number(),
     updated: v.number(),
@@ -684,15 +676,12 @@ export default defineSchema({
     ])
     .index('by_state_and_expiresAt', ['state', 'expiresAt']),
 
-  // A provider repository linked to one repository here. A provider
-  // repository feeds one repository, and no more.
   remoteRepos: defineTable({
     provider: provider,
     instance: v.string(),
     externalId: v.string(),
     fullName: v.string(),
     repoId: v.id('repos'),
-    /** Whose connection keeps it in sync; null for GitHub (the App does). */
     connectionId: v.union(v.null(), v.id('providerConnections')),
     by: v.string(),
     state: v.union(
@@ -720,10 +709,8 @@ export default defineSchema({
     }),
     lastPull: v.number(),
     lastSync: v.union(v.null(), v.number()),
-    /** Conditional-request state of the read-only import, per list. */
     etags: v.optional(v.record(v.string(), v.string())),
     importedAt: v.optional(v.number()),
-    /** When its pull requests, issues and releases should be read again. */
     itemsDue: v.optional(v.number()),
     at: v.number(),
   })
@@ -738,15 +725,10 @@ export default defineSchema({
     .index('by_lastPull', ['lastPull'])
     .index('by_itemsDue', ['itemsDue']),
 
-  // Pull requests, issues and releases of a linked repository, read-only
-  // copies of what the provider holds. Pull request states use the words of
-  // changes here (remotePullLifecycle). Never written by people here.
   remoteItems: defineTable({
     repoId: v.id('repos'),
     kind: v.union(v.literal('pull'), v.literal('issue'), v.literal('release')),
-    /** The number of a pull request or issue; 0 for a release. */
     number: v.number(),
-    /** The provider's id of a release; the number as text otherwise. */
     key: v.string(),
     title: v.string(),
     body: v.string(),
@@ -793,16 +775,12 @@ export default defineSchema({
     removed: v.union(v.null(), v.number()),
   }).index('by_itemId_and_externalId', ['itemId', 'externalId']),
 
-  // The patch of a pull request whose commits are not in the repository (a
-  // fork, or a branch deleted before it was ever synced), as the provider gave it.
   remotePatches: defineTable({
     itemId: v.id('remoteItems'),
     text: v.string(),
     truncated: v.boolean(),
   }).index('by_itemId', ['itemId']),
 
-  // Someone on a provider, as a snapshot: authors of imported pull requests,
-  // issues, comments and releases. Never an account here.
   externalActors: defineTable({
     provider: provider,
     instance: v.string(),
@@ -818,8 +796,6 @@ export default defineSchema({
     'externalId',
   ]),
 
-  // A bulk import: one job, one item per provider repository. The web process
-  // claims items with a lease and runs a few at a time.
   importJobs: defineTable({
     handle: v.string(),
     owner: v.string(),
@@ -862,7 +838,6 @@ export default defineSchema({
     .index('by_jobId', ['jobId'])
     .index('by_state_and_lease', ['state', 'lease']),
 
-  // Webhook deliveries already handled, so a redelivery does nothing.
   hookDeliveries: defineTable({
     provider: provider,
     deliveryId: v.string(),
@@ -871,7 +846,6 @@ export default defineSchema({
     .index('by_provider_and_deliveryId', ['provider', 'deliveryId'])
     .index('by_at', ['at']),
 
-  // Who connected, adopted, disconnected or unlinked what, and when.
   providerAudit: defineTable({
     handle: v.string(),
     provider: provider,

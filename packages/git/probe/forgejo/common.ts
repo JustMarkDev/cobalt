@@ -2,7 +2,6 @@ import { USER, createRepo, forgejo, head } from './env'
 import type { Ctx } from '../lib'
 import type { Forgejo } from './env'
 
-/** A Forgejo repository and a Code Storage store synced from it in generic mode. */
 export async function pairForgejo(
   ctx: Ctx,
   tag: string,

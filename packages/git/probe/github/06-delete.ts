@@ -1,4 +1,3 @@
-// 6. Deleting branches and tags, in both directions.
 import { GITHUB_OWNER, clean, until } from '../lib'
 import type { Scenario } from '../lib'
 
@@ -9,7 +8,6 @@ export const deletion: Scenario = {
     const { name, main } = await ctx.pair('delete')
     const found: Record<string, boolean> = {}
 
-    // GitHub -> Code Storage
     ctx.gh(['-X', 'POST', `repos/${GITHUB_OWNER}/${name}/git/refs`], {
       ref: 'refs/heads/gh-branch',
       sha: main,
@@ -53,7 +51,6 @@ export const deletion: Scenario = {
       `after deleting on GitHub and a pull: branch gone ${found.storeBranchGone}, tag gone ${found.storeTagGone} (${gone.ms} ms)`,
     )
 
-    // Code Storage -> GitHub
     const dir = await ctx.cloneStore(name)
     const p = await ctx.gitStore(name, dir, [
       'push',

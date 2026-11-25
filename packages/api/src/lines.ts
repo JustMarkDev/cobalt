@@ -95,7 +95,6 @@ export function findQuote(
   return best?.at ?? null
 }
 
-/** Lines added and removed between two versions of a file (null = absent). */
 export function lineCounts(before: string | null, after: string | null) {
   const a = before === null ? [] : before.split('\n')
   const b = after === null ? [] : after.split('\n')

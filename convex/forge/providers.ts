@@ -1,7 +1,3 @@
-// The storage of provider links: connections, linked repositories, bulk
-// import jobs, handled webhook deliveries, the audit trail and external
-// actors. Only the API server calls these (`system`); it holds the provider
-// secrets and the TokenVault, and decides. See packages/api/src/forge/.
 import { v } from 'convex/values'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
@@ -58,9 +54,6 @@ const connId = (ctx: QueryCtx, id: string) =>
   ctx.db.normalizeId('providerConnections', id)
 const remoteId = (ctx: QueryCtx, id: string) =>
   ctx.db.normalizeId('remoteRepos', id)
-
-// ---------------------------------------------------------------------------
-// Connections
 
 export const connection = query({
   args: { handle: v.string(), provider, instance: v.string() },
@@ -193,7 +186,6 @@ export const deleteConnection = mutation({
   },
 })
 
-/** One process at a time refreshes a token: GitLab and Forgejo spend the old refresh token. */
 export const leaseRefresh = mutation({
   args: { id: v.string(), now: v.number(), ms: v.number() },
   returns: v.string(),
@@ -209,9 +201,6 @@ export const leaseRefresh = mutation({
     return out(conn({ ...c, refreshLease: a.now + a.ms }))
   },
 })
-
-// ---------------------------------------------------------------------------
-// Linked repositories
 
 export const remoteByExternal = query({
   args: { provider, instance: v.string(), externalId: v.string() },
@@ -397,7 +386,6 @@ export const patchRemote = mutation({
   },
 })
 
-/** The provider's description and counts, shown on the repository here. */
 async function mirrorMeta(
   ctx: MutationCtx,
   repoId: Id<'repos'>,
@@ -472,9 +460,6 @@ export const stale = query({
   },
 })
 
-// ---------------------------------------------------------------------------
-// Webhook deliveries
-
 export const seen = mutation({
   args: { provider, deliveryId: v.string(), now: v.number() },
   returns: v.string(),
@@ -496,7 +481,6 @@ export const seen = mutation({
   },
 })
 
-/** Deliveries are kept a week: providers redeliver within hours. */
 export const sweepDeliveries = mutation({
   args: { before: v.number() },
   returns: v.string(),
@@ -510,9 +494,6 @@ export const sweepDeliveries = mutation({
     return out(old.length)
   },
 })
-
-// ---------------------------------------------------------------------------
-// Bulk import jobs
 
 function jobOf(j: Doc<'importJobs'>) {
   const { _id, _creationTime, connectionId, ...rest } = j
@@ -687,9 +668,6 @@ export const finishItem = mutation({
   },
 })
 
-// ---------------------------------------------------------------------------
-// Audit and external actors
-
 const auditAction = v.union(
   v.literal('connected'),
   v.literal('reconnected'),
@@ -773,9 +751,6 @@ export const upsertActor = mutation({
   },
 })
 
-// ---------------------------------------------------------------------------
-// Work at the provider, queued by deletions (see convex/deletion.ts)
-
 const SWEEP_LEASE_MS = 5 * 60_000
 
 export const claimSweeps = mutation({
@@ -809,7 +784,6 @@ export const doneSweeps = mutation({
   },
 })
 
-/** Throws unless the caller administers the repository. */
 export const requireAdmin = query({
   args: { owner: v.string(), name: v.string() },
   returns: v.string(),
@@ -832,9 +806,6 @@ export const requireAdmin = query({
     return out(null)
   },
 })
-
-// ---------------------------------------------------------------------------
-// Pull requests, issues and releases copied read-only from the provider
 
 const itemKind = v.union(
   v.literal('pull'),
@@ -968,7 +939,6 @@ export const putItem = mutation({
       authorId,
       head: item.head ?? undefined,
       flags: item.flags ?? undefined,
-      // Cut to stay well inside a document.
       body: item.body.slice(0, 200_000),
       title: item.title.slice(0, 1000),
     }
@@ -1109,7 +1079,6 @@ export const putComments = mutation({
         await ctx.db.patch('remoteComments', old._id, doc)
       byId.delete(c.externalId)
     }
-    // What the provider no longer lists was removed there.
     for (const gone of byId.values())
       if (gone.removed === null)
         await ctx.db.patch('remoteComments', gone._id, { removed: a.now })
@@ -1183,10 +1152,6 @@ export const patchOf = query({
   },
 })
 
-/**
- * How a bulk import is going, for the page that started it: a live query, so
- * the page follows each repository as the API server imports it.
- */
 export const jobProgress = query({
   args: { id: v.string() },
   returns: v.string(),

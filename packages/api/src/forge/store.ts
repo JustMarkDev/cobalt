@@ -1,8 +1,3 @@
-// Where provider links live: connections, linked repositories, import jobs,
-// webhook deliveries already handled, and the audit trail. Two stores behind
-// one interface, like the domain: memory for the sample and the fast tests,
-// Convex (`convex/forge/providers.ts`) for the app. Nothing here judges
-// anything; `sync.ts` does, the same for both.
 import { apiError } from '../problem'
 import { randomSource } from '../ids'
 import type { ProviderId } from './types'
@@ -14,7 +9,6 @@ export type ConnectionRec = {
   instance: string
   externalId: string
   login: string
-  /** Sealed by the TokenVault; null for GitHub, where the App does the work. */
   token: string | null
   refresh: string | null
   keyId: string | null
@@ -52,7 +46,6 @@ export type RemoteRec = {
   instance: string
   externalId: string
   fullName: string
-  /** `owner/name` of the repository here. */
   repo: string
   storeId: string
   connectionId: string | null
@@ -136,7 +129,6 @@ export type ActorRec = {
 
 export type ItemKind = 'pull' | 'issue' | 'release'
 
-/** A pull request, issue or release copied read-only from a provider. */
 export type ItemRec = {
   id: string
   repo: string
@@ -188,7 +180,6 @@ export interface ProviderStore {
   ) => Promise<ConnectionRec | null>
   connectionById: (id: string) => Promise<ConnectionRec | null>
   connections: (handle: string) => Promise<Array<ConnectionRec>>
-  /** Inserts, or replaces the person's connection to that provider. */
   saveConnection: (
     c: Omit<ConnectionRec, 'id' | 'created' | 'updated' | 'refreshLease'>,
     now: number,
@@ -211,10 +202,6 @@ export interface ProviderStore {
     now: number,
   ) => Promise<void>
   deleteConnection: (id: string) => Promise<void>
-  /**
-   * Takes the right to refresh a connection's token. Null when another
-   * process holds it: that one will store the new token.
-   */
   leaseRefresh: (
     id: string,
     now: number,
@@ -227,7 +214,6 @@ export interface ProviderStore {
     externalId: string,
   ) => Promise<RemoteRec | null>
   remoteOfRepo: (repo: string) => Promise<RemoteRec | null>
-  /** Which repository here holds each provider repository, by its id. */
   claims: (
     provider: ProviderId,
     instance: string,
@@ -235,10 +221,6 @@ export interface ProviderStore {
   ) => Promise<Record<string, string>>
   remotesOfConnection: (connectionId: string) => Promise<Array<RemoteRec>>
   remotesOfInstallation: (installation: number) => Promise<Array<RemoteRec>>
-  /**
-   * Links a provider repository to a repository here. Refuses with
-   * `invalid_state` when another repository holds it.
-   */
   claimRemote: (
     r: Omit<RemoteRec, 'id' | 'storeId' | 'etags' | 'importedAt'>,
   ) => Promise<RemoteRec>
@@ -265,10 +247,8 @@ export interface ProviderStore {
     >,
   ) => Promise<void>
   dropRemote: (id: string) => Promise<void>
-  /** Linked repositories not pulled since `before`, oldest first. */
   stale: (before: number, max: number) => Promise<Array<RemoteRec>>
 
-  /** Records a delivery; true when it was seen before. */
   seen: (
     provider: ProviderId,
     deliveryId: string,
@@ -290,7 +270,6 @@ export interface ProviderStore {
     >,
   ) => Promise<string>
   job: (id: string) => Promise<{ job: JobRec; items: Array<JobItem> } | null>
-  /** Leases up to `max` queued items (or ones whose lease ran out). */
   claimItems: (
     now: number,
     leaseMs: number,
@@ -309,10 +288,8 @@ export interface ProviderStore {
     now: number,
   ) => Promise<void>
 
-  /** Linked repositories whose items are due to be read again. */
   itemsDue: (now: number, max: number) => Promise<Array<RemoteRec>>
   setItemsDue: (repo: string, at: number | null) => Promise<void>
-  /** Inserts or updates an item by kind and key; null when nothing changed. */
   putItem: (repo: string, item: ItemWrite) => Promise<string | null>
   itemsOf: (
     repo: string,
@@ -327,7 +304,6 @@ export interface ProviderStore {
     at: number,
     byId: string | null,
   ) => Promise<void>
-  /** Replaces the comments of an item with what the provider has now. */
   putComments: (
     itemId: string,
     comments: Array<
@@ -346,14 +322,12 @@ export interface ProviderStore {
   upsertActor: (a: ActorRec, now: number) => Promise<string>
 }
 
-/** Ids from the API's random source, which the documentation examples seed. */
 const nextId = (p: string) =>
   `${p}_${Buffer.from(randomSource.bytes(9))
     .toString('base64url')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '0')}`
 
-/** The in-memory store; `storeOf` resolves a repository's store id. */
 export class MemoryProviderStore implements ProviderStore {
   readonly conns = new Map<string, ConnectionRec>()
   readonly remotes = new Map<string, RemoteRec>()

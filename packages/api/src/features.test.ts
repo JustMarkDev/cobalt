@@ -1202,7 +1202,6 @@ describe('mirrors', () => {
     const failing = list[1]
     let added: string | undefined
     if (onConvex) {
-      // Linked repositories are GitHub ones, made by importing.
       const add = await h.call('POST', R, {
         body: { host: 'codeberg', slug: 'dana/gitfs', direction: 'push' },
       })

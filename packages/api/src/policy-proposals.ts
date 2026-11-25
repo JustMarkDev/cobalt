@@ -141,7 +141,6 @@ export function proposalTitle(
   return `Policy: ${what}`
 }
 
-/** The change that proposes a new policy file: one patch set, open. */
 export function proposalChange(a: {
   id: string
   number: number

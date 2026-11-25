@@ -2,19 +2,10 @@ import { apiError } from './problem'
 import { createGithubForge } from './forge/github'
 import { ProviderError } from './forge/types'
 
-/**
- * The platform's GitHub App, for proving that someone may push to a GitHub
- * repository before it is linked. Nothing here stores a GitHub token: a token
- * lives only inside a sealed `access` blob that the caller holds for minutes.
- */
-
 export type GithubConfig = {
   clientId: string
-  /** For the web sign-in, which trades a code for a token. The device flow needs none. */
   clientSecret?: string | null
-  /** The secret that seals `access` blobs. */
   sealKey: string
-  /** The app's public name in its install URL, `github.com/apps/<slug>`. */
   slug: string | null
 }
 
@@ -24,7 +15,6 @@ export type GithubRepoRef = {
   private: boolean
   defaultBranch: string
   installation: number
-  /** What GitHub reports for the repository, in bytes. */
   sizeBytes: number
 }
 
@@ -70,27 +60,19 @@ export function githubConfigFromEnv(
 export interface Github {
   deviceStart: () => Promise<DeviceStart>
   devicePoll: (deviceCode: string, handle: string) => Promise<DevicePoll>
-  /** The repositories this person may push to through the app. */
   repos: (access: string, handle: string) => Promise<Array<GithubRepoRef>>
-  /**
-   * Where to send the person to sign in on GitHub in the browser. `state`
-   * binds the answer to them and to `redirectUri`, for ten minutes.
-   */
   oauthStart: (
     handle: string,
     redirectUri: string,
     returnTo: string | null,
   ) => Promise<OauthStart>
-  /** Trades the code GitHub sent back for a sealed `access`. */
   oauthFinish: (
     handle: string,
     code: string,
     state: string,
     redirectUri: string,
   ) => Promise<OauthFinish>
-  /** The person's GitHub token inside a sealed `access`, for one batch of work. */
   token: (access: string, handle: string) => Promise<string>
-  /** Throws `forbidden` unless the person may push to `slug` through the app. */
   authorize: (
     access: string,
     handle: string,
@@ -239,7 +221,6 @@ export function createGithub(
   o: {
     fetch?: Fetch
     now?: () => number
-    /** A fixed source for the sealing nonce, for examples that must repeat. */
     nonce?: () => Uint8Array
   } = {},
 ): Github {
@@ -280,8 +261,6 @@ export function createGithub(
     return (await res.json()) as T
   }
 
-  // Through the forge adapter, which follows every page of every
-  // installation (there used to be a ten-page limit here).
   const forge = createGithubForge({ fetch: f })
   async function all(token: string): Promise<Array<GithubRepoRef>> {
     try {
@@ -381,8 +360,6 @@ export function createGithub(
       })
       return {
         url: `https://github.com/login/oauth/authorize?${q}`,
-        // Installing asks for the repositories and, with "request user
-        // authorization during installation" on, signs in in the same step.
         installUrl: cfg.slug
           ? `https://github.com/apps/${cfg.slug}/installations/new?${new URLSearchParams({ state })}`
           : null,
@@ -396,8 +373,6 @@ export function createGithub(
           'Signing in with GitHub in the browser is not set up on this server.',
           { hint: 'The operator must set GITHUB_APP_CLIENT_SECRET.' },
         )
-      // No redirect_uri: after an installation GitHub sends the code to the
-      // app's first callback address, which may not be the one this page is on.
       const d = await form('https://github.com/login/oauth/access_token', {
         client_id: cfg.clientId,
         client_secret: cfg.clientSecret,

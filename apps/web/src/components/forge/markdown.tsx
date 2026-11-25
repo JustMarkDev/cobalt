@@ -34,10 +34,6 @@ const textOf = (node: ReactNode): string =>
         ? textOf(node.props.children)
         : ''
 
-// READMEs and imported issues are often written in HTML (`<p align="center">`,
-// `<img width>`, `<details>`, `<picture>` for dark-mode logos). Parse it and
-// keep what GitHub keeps; everything else (scripts, styles, event handlers) is
-// stripped. `rehype-raw` must run before `rehype-sanitize`.
 const schema = {
   ...defaultSchema,
   attributes: {
@@ -288,7 +284,6 @@ export function MarkdownBody({
 }: {
   source: string
   className?: string
-  /** Smaller type and no outer margins, for issue and comment bodies. */
   compact?: boolean
 }) {
   return (

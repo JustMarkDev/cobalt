@@ -1,17 +1,5 @@
-// The Code Storage probe. Each scenario answers one open risk of the provider
-// sync plan (docs/plans/provider-sync.md) and writes what it saw, with exact
-// errors and timings, into docs/plans/probe-results.md.
-//
-//   railway run -- bun packages/git/probe/run.ts --only github
-//   railway run -- bun packages/git/probe/run.ts --scenario github-04-divergence
-//   ... --keep      keep the probe repositories instead of deleting them
-//
-// Railway injects PIERRE_ORG and PIERRE_PRIVATE_KEY without writing them to
-// disk. Every repository a scenario makes is named `cobalt-probe-<time>-<tag>`,
-// on the GitHub account JustMarkDev and in the Code Storage org, and is deleted
-// when the scenario ends, failed or not. Nothing else is ever deleted.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { Ctx, GITHUB_OWNER, errorOf, pierreFromEnv, sh } from './lib'
 import { forgejoScenarios, stopForgejo } from './forgejo'
 import { githubScenarios } from './github'
@@ -91,10 +79,6 @@ for (const scenario of chosen) {
 
 stopForgejo()
 
-// ---------------------------------------------------------------------------
-// docs/plans/probe-results.md keeps one section per scenario. A run replaces
-// the sections of the scenarios it ran and keeps the others.
-
 const HEAD = `# Code Storage probe: results
 
 Written by \`packages/git/probe/run.ts\`. Each section is the last run of one
@@ -132,7 +116,6 @@ for (const r of results) {
     doc = doc.slice(0, a) + s + doc.slice(b + end(r.scenario.id).length)
   else doc = `${doc.trimEnd()}\n\n${s}\n`
 }
-// Keep the sections in scenario order.
 const order = Object.values(families)
   .flat()
   .map((s) => s.id)
@@ -145,6 +128,7 @@ const parts = order
   .filter(Boolean)
 const firstSection = doc.indexOf('<!-- probe:')
 const prefix = firstSection >= 0 ? doc.slice(0, firstSection) : doc
+mkdirSync(dirname(RESULTS), { recursive: true })
 writeFileSync(RESULTS, `${prefix.trimEnd()}\n\n${parts.join('\n\n')}\n`)
 console.log(`\nWrote ${RESULTS}`)
 

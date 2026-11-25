@@ -426,7 +426,6 @@ export function createClient(options: ClientOptions = {}): Client {
 }
 `
 
-/** Written by hand: the device login for GitHub, on top of the generated operations. */
 const GITHUB_SIGN_IN = `
 // ----- Signing in with GitHub
 

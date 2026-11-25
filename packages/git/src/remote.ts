@@ -2,11 +2,8 @@ import { createToken } from '@pierre/sdk/auth'
 import { pierreFromEnv } from './pierre'
 import type { Pierre } from '@pierre/sdk'
 
-/** How to reach the git data of one repository for one request. */
 export type GitRemote = {
-  /** `https://<host>/<store>.git`, with no credentials in it. */
   url: string
-  /** The `Authorization` header that Code Storage wants. */
   authorization: string
 }
 
@@ -15,15 +12,12 @@ export interface GitRemotes {
     storeId: string,
     o: {
       write: boolean
-      /** Whom the request is for, as Code Storage shows it in its logs. */
       subject: string
-      /** The branch no push may rewrite. */
       protect?: string
     },
   ) => Promise<GitRemote>
 }
 
-/** Tokens live five minutes: they only need to be valid when the request starts. */
 const TTL = 300
 
 export function codeStorageRemotes(

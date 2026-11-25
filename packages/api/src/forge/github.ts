@@ -1,7 +1,3 @@
-// GitHub through the Cobalt GitHub App. Code Storage reaches GitHub itself
-// with the App's key (app mode), so this adapter only reads GitHub: listing
-// through the App's installations, repository metadata, webhooks sent to
-// Cobalt, and the read-only import of pull requests, issues and releases.
 import { SignJWT, importPKCS8 } from 'jose'
 import { createPrivateKey } from 'node:crypto'
 import type { KeyObject } from 'node:crypto'
@@ -32,7 +28,6 @@ const base = {
 
 export type GithubAppConfig = {
   appId: string
-  /** PEM, PKCS#1 or PKCS#8; `\n` escapes are read as newlines. */
   privateKey: string
   webhookSecret: string | null
 }
@@ -48,10 +43,6 @@ export function githubAppFromEnv(
   }
 }
 
-/**
- * Installation tokens of the App: a JWT signed with its key is traded for a
- * token that lasts an hour. Each is kept until five minutes before it ends.
- */
 export class AppTokens {
   private key: Promise<CryptoKey | KeyObject> | undefined
   private readonly cache = new Map<number, { token: string; until: number }>()
@@ -66,7 +57,6 @@ export class AppTokens {
   private signingKey() {
     this.key ??= (async () => {
       const pem = this.cfg.privateKey.replace(/\\n/g, '\n')
-      // GitHub hands out PKCS#1 keys; jose reads PKCS#8, node reads both.
       return pem.includes('BEGIN PRIVATE KEY')
         ? importPKCS8(pem, 'RS256')
         : createPrivateKey(pem)
@@ -107,7 +97,6 @@ export class AppTokens {
     return p
   }
 
-  /** The installation that reaches a repository, or null when there is none. */
   async installationOf(slug: string): Promise<number | null> {
     try {
       const r = await call<{ id: number }>(
@@ -182,12 +171,7 @@ export function repoOfGithub(r: GhRepo, installation?: number): RemoteRepo {
 
 export type GithubForge = ForgeProvider & {
   readonly tokens: AppTokens | null
-  /** The App installations a person's token can see. */
   userInstallations: (token: string) => Promise<Array<number>>
-  /**
-   * Every repository a person can push to through the App, with no page
-   * limit: one pass over their installations, for checking a whole batch.
-   */
   pushable: (token: string) => Promise<Map<string, RemoteRepo>>
 }
 
@@ -196,7 +180,6 @@ export function createGithubForge(
     app?: GithubAppConfig | null
     fetch?: Fetch
     now?: () => number
-    /** For tests and the sample: installation tokens without an App key. */
     installationToken?: (installation: number) => Promise<string>
   } = {},
 ): GithubForge {
@@ -244,7 +227,6 @@ export function createGithubForge(
     return out
   }
 
-  // A cursor over several installations: which one, and the next page of it.
   type Cursor = { i: number; url: string | null; ids: Array<number> }
   const enc = (c: Cursor) =>
     Buffer.from(JSON.stringify(c)).toString('base64url')
@@ -498,7 +480,6 @@ export function createGithubForge(
           updated_at: string
         }>
       }>(auth, `/repos/${slug}/commits/${sha}/status`)
-      // The combined status lists the latest of each context.
       for (const c of st.body.statuses)
         out.push({
           id: `status_${c.context}`,
@@ -543,7 +524,6 @@ export function createGithubForge(
       const out: Record<string, { add: number; del: number }> = {}
       let url: string | null =
         `/repos/${slug}/pulls/${number}/files?per_page=100`
-      // GitHub lists at most 3000 files of a pull request.
       for (let page = 0; url && page < 30; page++) {
         const r: Awaited<
           ReturnType<
@@ -678,7 +658,6 @@ type GhComment = {
   updated_at: string
 }
 
-/** A GitHub delivery, read into the shared shape. */
 export function githubEvent(kind: string, body: string): WebhookEvent {
   let e: {
     action?: string

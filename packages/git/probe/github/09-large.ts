@@ -1,13 +1,9 @@
-// 9. A large repository: how long the first sync takes. git/git (about 75k
-// commits), once in public mode and once in App mode through a fork on the
-// probe account.
 import { GITHUB_OWNER, codeOf, errorOf, sh, until } from '../lib'
 
 const during = new Set<string>()
 import type { Ctx, Scenario } from '../lib'
 
 const TIMEOUT = 20 * 60_000
-/** The first commit of git. */
 const ROOT = 'e83c5163316f89bfbde7d9ab23ca2e25604af290'
 
 async function firstSync(
@@ -17,7 +13,6 @@ async function firstSync(
   label: string,
 ) {
   const t = Date.now()
-  // While it syncs, ask what production will ask, and note each new answer.
   const seen = new Set<string>()
   const note = (what: string, answer: string) => {
     const key = `${what}: ${answer.split(' body=')[0]}`
@@ -71,7 +66,6 @@ export const large: Scenario = {
     const pub = ctx.name('large-public')
     const fork = ctx.name('large-app')
 
-    // Public mode: no installation needed.
     let publicAnswer = ''
     try {
       const ms = await ctx.storeCreate(
@@ -85,7 +79,6 @@ export const large: Scenario = {
     }
     ctx.log.line(`public mode git/git: ${publicAnswer}`)
 
-    // App mode: a fork on the probe account, default branch only.
     const forked = sh([
       'gh',
       'repo',
@@ -118,8 +111,6 @@ export const large: Scenario = {
         : undefined,
       firstSync(ctx, fork, 'master', 'App mode'),
     ])
-    // A branch can appear before the history is complete: ask for the first
-    // commit of git, and for a file at it.
     let history = 'not checked'
     if (appSync !== undefined) {
       const c = await ctx.pierre.repos.commits.list({

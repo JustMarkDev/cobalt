@@ -474,7 +474,6 @@ const linkState = {
   gone: 'Deleted there',
 } as const
 
-/** The provider this repository is linked to, what to know, and what to do. */
 function ProviderLinkCard({ at }: { at: { owner: string; repo: string } }) {
   const link = useOpMaybe('repos.provider.get', at)
   const write = useWrite()

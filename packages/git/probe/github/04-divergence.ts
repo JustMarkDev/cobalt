@@ -1,9 +1,6 @@
-// 4. Divergence: GitHub moves, and then someone pushes to Code Storage from the
-// old tip without a pull in between. Refused, or overwritten?
 import { clean, commitFile } from '../lib'
 import type { Ctx, Scenario } from '../lib'
 
-/** Whether `ancestor` is in the history of `head` on GitHub. */
 function contains(ctx: Ctx, repo: string, head: string, ancestor: string) {
   if (head === ancestor) return true
   const c = ctx.gh<{ status: string }>([
@@ -47,14 +44,12 @@ export const divergence: Scenario = {
       `10 s later: GitHub main ${ghMain.slice(0, 7)} (GitHub commit kept: ${theirsKept}, pushed commit there: ${oursOnGithub}); store main ${storeMain?.slice(0, 7)}`,
     )
 
-    // What a pull does now.
     const p = await ctx.storePullSettled(name)
     ctx.log.line(`upstream.pull: "${p.message}"`)
     await Bun.sleep(5000)
     const storeAfterPull = await ctx.storeHead(name)
     ctx.log.line(`store main after the pull: ${storeAfterPull?.slice(0, 7)}`)
 
-    // The same push again, after the pull: does git now say non-fast-forward?
     const again = await ctx.gitStore(name, dir, ['push', 'origin', 'HEAD:main'])
     ctx.log.line(
       `same push after the pull, exit ${again.code}:\n${clean(again.out)}`,

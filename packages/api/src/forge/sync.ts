@@ -1,7 +1,3 @@
-// What happens between a repository here and its provider, decided once for
-// both stores. The domain makes and removes repositories; this links them,
-// keeps their credentials fresh, answers webhooks, pulls, runs bulk imports,
-// and disconnects. Facts this rests on are in docs/plans/probe-results.md.
 import { apiError } from '../problem'
 import { openState, signState } from '../github'
 import { CredentialExists } from '@cobaltforge/git/stores'
@@ -40,28 +36,21 @@ import type {
   WebhookEvent,
 } from './types'
 
-/** A fetch or clone pulls first when the last pull is older than this. */
 export const PULL_TTL_MS = 60_000
-/** The slow sweep pulls linked repositories not pulled for this long. */
 export const STALE_MS = 6 * 60 * 60_000
-/** A token this close to its end is refreshed before use. */
 const REFRESH_MARGIN_MS = 2 * 60_000
 const REFRESH_LEASE_MS = 30_000
 const ITEM_LEASE_MS = 10 * 60_000
 const ITEM_ATTEMPTS = 6
 
 export type SyncHost = {
-  /** Throws unless `p` may administer the repository here. */
   requireAdmin: (p: Principal, full: string) => Promise<void>
-  /** Cuts the link on the repository here: no upstream, no mirror. */
   unlink: (full: string) => Promise<void>
-  /** What the repository's mirror shows. */
   mirror: (
     full: string,
     state: 'in-sync' | 'syncing' | 'behind' | 'failing',
     detail: string | null,
   ) => Promise<void>
-  /** Makes and links one repository of a bulk import, as `p`. */
   importOne: (
     p: Principal,
     prepared: Prepared,
@@ -71,9 +60,7 @@ export type SyncHost = {
     full: string,
     languages: Array<[string, number]>,
   ) => Promise<void>
-  /** Whether a commit is in the repository here. */
   hasCommit?: (full: string, sha: string) => Promise<boolean>
-  /** Writes an imported item into the repository's changes, issues or releases. */
   materialize?: Materialize
 }
 
@@ -84,24 +71,17 @@ export type SyncDeps = {
       max: number,
     ) => Promise<Array<{ id: string; key: string }>>
     doneSweeps?: (ids: Array<string>) => Promise<void>
-    /** Forgets handled deliveries older than `before`. */
     sweepDeliveries?: (before: number) => Promise<void>
   }
   forges: Partial<Record<ProviderId, ForgeProvider>>
   oauth: Partial<Record<ProviderId, ProviderOAuth>>
   vault: TokenVault | null | Promise<TokenVault | null>
   git?: GitStores
-  /** Master secret per-repository webhook secrets derive from. */
   hookSecret: string | null
-  /** The GitHub App's webhook secret. */
   githubHookSecret: string | null
-  /** Where providers send webhooks: `${hookBase}/<provider>`. */
   hookBase: string
-  /** Signs OAuth `state`. */
   stateKey: string | null
-  /** GitHub: the person's token inside a sealed `github_access`. */
   githubToken?: (access: string, handle: string) => Promise<string>
-  /** GitHub: proves `p` may push to `slug` through the App. */
   githubAuthorize?: (
     access: string,
     handle: string,
@@ -111,7 +91,6 @@ export type SyncDeps = {
   log?: (line: Record<string, unknown>) => void
 }
 
-/** Everything known about a provider repository before it is linked. */
 export type Prepared = {
   provider: ProviderId
   instance: string
@@ -131,10 +110,8 @@ const metaOf = (r: RemoteRepo): RemoteMeta => ({
   website: r.website,
 })
 
-/** The upstream Code Storage keeps a store in sync with. */
 export const upstreamOf = (provider: ProviderId, slug: string): Upstream => {
   const i = slug.indexOf('/')
-  // GitLab namespaces nest: everything before the last segment is the owner.
   const j = slug.lastIndexOf('/')
   return {
     provider,
@@ -143,7 +120,6 @@ export const upstreamOf = (provider: ProviderId, slug: string): Upstream => {
   }
 }
 
-/** Bytes per language as percentages with one decimal, largest first, as repositories show them. */
 export function percents(
   bytes: Array<[string, number]>,
 ): Array<[string, number]> {
@@ -158,7 +134,6 @@ export function percents(
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code
 const statusOf = (e: unknown) => (e as { status?: number } | null)?.status
 
-/** A principal that acts for `handle` in a bulk import, with write on repositories only. */
 export function delegated(handle: string, now: number): Principal {
   return {
     tokenId: 'tok_import_worker',
@@ -190,7 +165,6 @@ export class ProviderSync {
 
   private remoteItems: RemoteItems | null = null
 
-  /** The domain this serves; set once it is built. */
   attach(host: SyncHost) {
     this.host = host
     this.remoteItems = new RemoteItems(
@@ -200,18 +174,15 @@ export class ProviderSync {
     )
   }
 
-  /** Pull requests, issues and releases copied from the provider. */
   get items(): RemoteItems {
     if (!this.remoteItems)
       throw new Error('ProviderSync is not attached to a domain.')
     return this.remoteItems
   }
 
-  /** Reads a linked repository's items again, `delay` ms from now. */
   async scheduleItems(full: string, delay: number) {
     const r = await this.store.remoteOfRepo(full)
     if (!r) throw apiError('not_found', `${full} is not linked to a provider.`)
-    // Asked for by a person: read everything again, not only what changed.
     if (delay === 0) await this.store.patchRemote(r.id, { importedAt: null })
     await this.store.setItemsDue(full, this.now() + delay)
   }
@@ -267,9 +238,6 @@ export class ProviderSync {
   private slot(c: { id: string }, field: 'token' | 'refresh') {
     return { kind: 'providerConnection', id: c.id, field }
   }
-
-  // -------------------------------------------------------------------------
-  // Connections
 
   async connectStart(
     p: Principal,
@@ -345,7 +313,6 @@ export class ProviderSync {
       },
       this.now(),
     )
-    // Sealed after the row exists: the seal binds a value to its row.
     const v = await this.vault()
     await this.store.patchConnection(
       saved.id,
@@ -366,7 +333,6 @@ export class ProviderSync {
       detail: who.login,
       at: this.now(),
     })
-    // Repositories that stopped syncing with the old token resume.
     const fresh = (await this.store.connectionById(saved.id))!
     for (const r of await this.store.remotesOfConnection(saved.id))
       if (r.state === 'broken' || r.state === 'delayed')
@@ -380,7 +346,6 @@ export class ProviderSync {
     return { connection: fresh, returnTo: s.t }
   }
 
-  /** GitHub sign-in proves who someone is; the connection holds no token. */
   async rememberGithub(handle: string, login: string) {
     const had = await this.store.connection(handle, 'github', 'github.com')
     if (had?.login === login) return
@@ -411,7 +376,6 @@ export class ProviderSync {
     })
   }
 
-  /** The token of a connection, refreshed first when it is about to end. */
   async userAuth(c: ConnectionRec): Promise<ProviderAuth> {
     const fresh = await this.fresh(c)
     if (!fresh.token)
@@ -438,11 +402,6 @@ export class ProviderSync {
     )
   }
 
-  /**
-   * A connection with a usable token. Refreshes are serialized: GitLab and
-   * Forgejo spend the refresh token on use (forgejo-04-tokens), so two at once
-   * would leave one holding a dead token.
-   */
   async fresh(c: ConnectionRec): Promise<ConnectionRec> {
     if (c.state === 'needs_reconnect') throw this.needsReconnect(c)
     if (c.expiresAt === null || c.expiresAt - this.now() > REFRESH_MARGIN_MS)
@@ -461,7 +420,6 @@ export class ProviderSync {
       REFRESH_LEASE_MS,
     )
     if (!leased) {
-      // Another process is refreshing it: wait for its answer.
       const t = this.now()
       while (this.now() - t < REFRESH_LEASE_MS) {
         await new Promise((r) => setTimeout(r, 500))
@@ -515,7 +473,6 @@ export class ProviderSync {
         `the provider refused the refresh token (${e instanceof Error ? e.message : String(e)})`,
       )
     }
-    // Stored before anything uses it: the old refresh token is spent.
     const patch = {
       token: await v.seal(this.slot(leased, 'token'), tokens.access),
       refresh: tokens.refresh
@@ -573,7 +530,6 @@ export class ProviderSync {
     })
   }
 
-  /** Unlinks one repository, as someone who may write to it. Its history stays. */
   async unlinkRepo(p: Principal, full: string) {
     const r = await this.store.remoteOfRepo(full)
     if (!r) return false
@@ -590,12 +546,10 @@ export class ProviderSync {
     return true
   }
 
-  /** A copy with other dependencies: the same decisions over another store. */
   with(over: Partial<SyncDeps>) {
     return new ProviderSync({ ...this.deps, ...over })
   }
 
-  /** Undoes a link at the provider and in Code Storage, and on the repository here. */
   private async cut(r: RemoteRec, auth: ProviderAuth | null) {
     const forge = this.deps.forges[r.provider]
     if (forge && auth && r.webhookId)
@@ -612,9 +566,6 @@ export class ProviderSync {
     await this.store.dropRemote(r.id)
     await this.need().unlink(r.repo)
   }
-
-  // -------------------------------------------------------------------------
-  // Import
 
   async prepare(
     p: Principal,
@@ -709,7 +660,6 @@ export class ProviderSync {
     return e
   }
 
-  /** The upstream and default branch to provision a store with. */
   link(pr: Prepared) {
     return {
       upstream: upstreamOf(pr.provider, pr.remote.slug),
@@ -717,16 +667,10 @@ export class ProviderSync {
     }
   }
 
-  /** A held link: where the provider repository already feeds a repository here. */
   async heldBy(pr: Prepared) {
     return this.store.remoteByExternal(pr.provider, pr.instance, pr.remote.id)
   }
 
-  /**
-   * Records the link of a repository just made with `link(pr)`, and finishes
-   * what the provider needs: the git credential and the webhook in generic
-   * mode. Returns the warnings to show.
-   */
   async linked(p: Principal, full: string, pr: Prepared) {
     const forge = this.forge(pr.provider)
     const rec = await this.store.claimRemote({
@@ -767,7 +711,6 @@ export class ProviderSync {
       }
     }
     await this.store.patchRemote(rec.id, patch)
-    // Pull requests, issues and releases follow, read by the worker.
     await this.store.setItemsDue(full, this.now())
     const host = this.need()
     if (host.setLanguages)
@@ -828,7 +771,6 @@ export class ProviderSync {
     }
   }
 
-  /** Puts a link back after its connection came back or changed hands. */
   private async healRemote(r: RemoteRec, c: ConnectionRec) {
     const forge = this.forge(r.provider)
     const auth = await this.userAuth(c)
@@ -854,11 +796,6 @@ export class ProviderSync {
     await this.pull({ ...r, ...patch }).catch(() => undefined)
   }
 
-  /**
-   * Takes over the link of a repository whose connection is gone or broken,
-   * with `p`'s own connection. `p` must administer the repository here and be
-   * able to push to it on the provider.
-   */
   async adopt(p: Principal, full: string) {
     await this.need().requireAdmin(p, full)
     const r = await this.store.remoteOfRepo(full)
@@ -889,7 +826,6 @@ export class ProviderSync {
         'invalid_state',
         `${r.fullName} on ${hostLabel[r.provider]} is no longer the repository this one was linked to.`,
       )
-    // The old webhook was made with the old token; remove it if that still works.
     const old = r.connectionId
       ? await this.store.connectionById(r.connectionId)
       : null
@@ -914,13 +850,6 @@ export class ProviderSync {
     return (await this.store.remoteOfRepo(full))!
   }
 
-  // -------------------------------------------------------------------------
-  // Keeping in sync
-
-  /**
-   * Before git serves a repository: a forwarded push needs a live credential,
-   * and a fetch pulls first when the last pull is older than the TTL.
-   */
   async beforeGit(full: string, write: boolean) {
     const r = await this.store.remoteOfRepo(full)
     if (!r || r.state === 'gone') return
@@ -946,7 +875,6 @@ export class ProviderSync {
       )
   }
 
-  /** Makes sure Code Storage holds a live token for a generic-mode repository. */
   private async credential(r: RemoteRec) {
     if (!r.connectionId || !this.deps.git) return
     const c = await this.store.connectionById(r.connectionId)
@@ -990,7 +918,6 @@ export class ProviderSync {
     await this.store.patchRemote(r.id, { credentialId: id, etags: r.etags })
   }
 
-  /** Asks Code Storage to fetch from the provider now. */
   async pull(r: RemoteRec) {
     if (!this.deps.git) return
     await this.credential(r)
@@ -1002,10 +929,6 @@ export class ProviderSync {
     await this.store.patchRemote(r.id, { lastPull: this.now() })
   }
 
-  // -------------------------------------------------------------------------
-  // Webhooks
-
-  /** Answers a webhook delivery as an HTTP response. */
   async receiveRequest(provider: string, req: Request): Promise<Response> {
     if (!(PROVIDERS as ReadonlyArray<string>).includes(provider))
       return new Response('No such provider.', { status: 404 })
@@ -1019,7 +942,6 @@ export class ProviderSync {
     })
   }
 
-  /** Answers a webhook delivery. */
   async receive(
     provider: ProviderId,
     headers: Headers,
@@ -1145,8 +1067,6 @@ export class ProviderSync {
       return 'gone'
     }
     if (ev.action === 'renamed' || ev.action === 'transferred') {
-      // Pushes through the old name fail with 403 "GitHub App not installed
-      // or repo not found" (github-08-rename): relink the store to the new name.
       if (ev.slug !== r.fullName && this.deps.git)
         await this.deps.git.relink(
           r.storeId,
@@ -1178,7 +1098,6 @@ export class ProviderSync {
     return ev.action
   }
 
-  /** Reads the provider's description, counts, license and languages again. */
   async refreshMeta(r: RemoteRec) {
     const forge = this.forge(r.provider)
     const auth = await this.authOf(r)
@@ -1196,7 +1115,6 @@ export class ProviderSync {
         .catch(() => undefined)
   }
 
-  /** How to read a linked repository on its provider. */
   async authOf(r: RemoteRec): Promise<ProviderAuth | null> {
     if (r.provider === 'github') {
       if (r.installation)
@@ -1212,9 +1130,6 @@ export class ProviderSync {
     return c ? this.userAuth(c) : null
   }
 
-  // -------------------------------------------------------------------------
-  // What the API shows
-
   async listConnections(p: Principal) {
     const out = []
     for (const c of await this.store.connections(p.handle))
@@ -1227,7 +1142,6 @@ export class ProviderSync {
     return out
   }
 
-  /** A page of the provider repositories `p` can import, with search and filters. */
   async listRepos(
     p: Principal,
     provider: ProviderId,
@@ -1312,7 +1226,6 @@ export class ProviderSync {
     }
   }
 
-  /** The link of a repository here, for someone who can write to it. */
   async linkOf(p: Principal | null, full: string) {
     const r = await this.store.remoteOfRepo(full)
     if (!r) throw apiError('not_found', `${full} is not linked to a provider.`)
@@ -1353,13 +1266,6 @@ export class ProviderSync {
     return presentJob(await this.job(p, id))
   }
 
-  // -------------------------------------------------------------------------
-  // Bulk import
-
-  /**
-   * Starts importing many repositories at once. GitHub checks push access for
-   * the whole batch in one pass over the person's installations.
-   */
   async startBatch(
     p: Principal,
     body: {
@@ -1456,7 +1362,6 @@ export class ProviderSync {
     return j
   }
 
-  /** Runs one item of a bulk import. */
   async runItem(item: JobItem, job: JobRec) {
     const forge = this.forge(job.provider)
     const p = delegated(job.handle, this.now())
@@ -1549,14 +1454,10 @@ export class ProviderSync {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // The worker
-
   private timer: ReturnType<typeof setInterval> | null = null
   private ticking = false
   private lastSweep = 0
 
-  /** One pass: import items (a few at a time), stale pulls, deletion sweeps. */
   async tick(o: { concurrency?: number; staleEvery?: number } = {}) {
     if (this.ticking) return { items: 0, pulled: 0, swept: 0 }
     this.ticking = true
@@ -1592,7 +1493,6 @@ export class ProviderSync {
           )
         }
         swept = await this.sweep()
-        // Providers redeliver within hours; a week of ids is plenty.
         await this.store.sweepDeliveries?.(this.now() - 7 * 86_400_000)
       }
       return { items: claimed.length, pulled, swept }
@@ -1616,7 +1516,6 @@ export class ProviderSync {
     this.timer = null
   }
 
-  /** Provider work left by deletions: revoke tokens, remove webhooks and credentials. */
   async sweep() {
     const s = this.store
     if (!s.claimSweeps || !s.doneSweeps) return 0
@@ -1645,7 +1544,6 @@ export class ProviderSync {
           .catch(() => undefined)
       return
     }
-    // A deleted person's connection: the row is gone, the sealed token came along.
     const token =
       job.token && vault
         ? await vault

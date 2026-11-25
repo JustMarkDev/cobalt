@@ -14,7 +14,6 @@ const commitOf = (c: Commit): CommitInfo => ({
   date: new Date(c.date),
 })
 
-// Git status codes: A added, D deleted; M, R, C and T all read as a change.
 const stateOf = (code: string): FileDiff['state'] =>
   code === 'A' ? 'added' : code === 'D' ? 'deleted' : 'modified'
 
@@ -37,7 +36,6 @@ export class GitNotConfigured extends Error {
 
 let shared: Pierre | undefined
 
-/** The Code Storage client of this process, from `PIERRE_ORG` and `PIERRE_PRIVATE_KEY`. */
 export function pierreFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): Pierre {
@@ -61,7 +59,6 @@ const wrap = async <T>(call: () => Promise<T>): Promise<T> => {
   }
 }
 
-/** A repository in Code Storage; `storeId` is its name there. */
 export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
   return {
     listFiles: (opts) =>
@@ -88,8 +85,6 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
           ...(opts.ref ? { ref: opts.ref } : {}),
         })
       } catch (e) {
-        // A missing file is an answer, as it is for a plain HTTP read; a
-        // missing repository is not.
         if (e instanceof NotFoundError && e.code === 'not_found')
           return new Response('not found', { status: 404 })
         return wrap(() => Promise.reject(e))
@@ -128,7 +123,6 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
           repo_name: storeId,
           ref: opts.sha,
         })
-        // Against the parent the answer names no base, so name it here.
         const base =
           d.base_sha ??
           (await pierre.repos.commits.get({ repo_name: storeId, ref: d.sha }))

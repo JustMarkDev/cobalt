@@ -520,11 +520,6 @@ async function wipe(ctx: MutationCtx, account: Doc<'accounts'>) {
   return more
 }
 
-/**
- * A deleted person's provider accounts: the API server revokes each token and
- * removes the webhooks and git credentials it made with it; the repositories
- * that synced through it stay, marked broken, until an admin adopts them.
- */
 async function dropProviderLinks(ctx: MutationCtx, handle: string) {
   const conns = await ctx.db
     .query('providerConnections')
@@ -598,7 +593,6 @@ async function dropProviderLinks(ctx: MutationCtx, handle: string) {
   return more
 }
 
-/** Read-only copies of a linked repository's pull requests, issues and releases. */
 async function dropRemoteItems(ctx: MutationCtx, repoId: Doc<'repos'>['_id']) {
   const items = await ctx.db
     .query('remoteItems')
@@ -934,8 +928,6 @@ async function wipeRepo(ctx: MutationCtx, repo: Doc<'repos'>) {
     .query('remoteRepos')
     .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
     .take(10)) {
-    // The store goes with the git sweep, and its credential with it; the
-    // webhook on the provider is removed by the API server.
     if (r.webhookId && r.connectionId)
       await queueSweep(
         ctx,

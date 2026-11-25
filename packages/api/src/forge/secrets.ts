@@ -1,9 +1,6 @@
-// The names of a provider's secrets, brought in as secret variables with no
-// value: providers never give values out, so the person sets them here once.
 import type { EnvVarRec, Environment } from '../extras'
 import { labelOf } from './labels'
 
-/** A provider environment's name, as one of the three here, when it reads as one. */
 export function environmentOf(name: string): Environment | null {
   const n = name.toLowerCase()
   if (/^(prod|production|live|main)$/.test(n)) return 'production'
@@ -12,10 +9,6 @@ export function environmentOf(name: string): Environment | null {
   return null
 }
 
-/**
- * Adds a variable for every secret name not declared yet. Answers how many
- * were added. Values are never set: `set` stays empty.
- */
 export function declareSecrets(
   env: Array<EnvVarRec>,
   provider: string,

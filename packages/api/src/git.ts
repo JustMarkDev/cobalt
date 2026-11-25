@@ -33,11 +33,9 @@ export interface GitData {
     sha: string,
   ) => Promise<{ sha: string; base: string | null; files: Array<GitDiffFile> }>
   setRepo?: (repo: string, storeId: string) => void
-  /** Makes sure the store of a repository exists where the git data lives. */
   provision?: (storeId: string, opts?: ProvisionOptions) => Promise<void>
   pull?: (storeId: string) => Promise<void>
   detach?: (storeId: string) => Promise<void>
-  /** The rest of `GitStores`: relinking and generic-mode credentials. */
   upstreams?: GitStores
   dropRepo?: (repo: string) => void
   storeOf?: (repo: string) => string | undefined
@@ -102,10 +100,6 @@ export class StoreGit implements GitData {
     return this.stores.get(repo.toLowerCase())
   }
 
-  /**
-   * Where the store of a repository is named, when the server does not know it
-   * yet. A server that sets it never guesses a store from the repository name.
-   */
   resolveStore?: (full: string) => Promise<string | null>
 
   private async repo(full: string) {

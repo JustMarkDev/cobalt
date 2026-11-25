@@ -42,7 +42,6 @@ function Callback() {
   const [error, setError] = React.useState<string | null>(
     denied ? 'GitHub sign-in was cancelled.' : null,
   )
-  // A code works once: React may run this effect twice in development.
   const traded = React.useRef(false)
   const elsewhere = callbackElsewhere(state)
 
@@ -62,7 +61,6 @@ function Callback() {
         login: r.data.login,
         returnTo: safeRedirect(r.data.return_to) ?? null,
       })
-      // Keep the code out of the history and out of any copied link.
       window.history.replaceState(null, '', '/github/callback')
     })
   }, [code, state, write, elsewhere])
@@ -119,8 +117,6 @@ function Picker({ signed }: { signed: Signed }) {
       }).then((e) => e && setError(e)),
     [signed.returnTo, write],
   )
-  // The app sees nothing yet: go and install it, once per visit, so someone
-  // who gives it no repository is not sent round in a circle.
   const empty = (
     <EmptyApp
       onMount={() => {
@@ -190,7 +186,5 @@ const installTried = () => {
 const markInstallTried = () => {
   try {
     sessionStorage.setItem(TRIED, String(Date.now()))
-  } catch {
-    // Without storage the empty list stays, with its button.
-  }
+  } catch {}
 }

@@ -388,7 +388,6 @@ describe('the erasure', () => {
         at: START,
       })
       await ctx.db.insert('accountPrefs', { handle: 'alice', prefs: '{}' })
-      // Bob's repository syncs with GitLab through Alice's connection.
       const conn = await ctx.db.insert('providerConnections', {
         handle: 'alice',
         provider: 'gitlab',
@@ -592,7 +591,6 @@ describe('the erasure', () => {
           { slug: 'team-gl/theirs', webhookId: '900', credentialId: 'cred_1' },
         ],
       })
-      // The store worker of git and blobs never claims it.
     })
     const claimed = await t
       .mutation(api.storeWorker.claim, {

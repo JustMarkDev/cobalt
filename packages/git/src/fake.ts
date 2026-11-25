@@ -459,18 +459,12 @@ export function fakeRepo(id: string): GitRepo {
   }
 }
 
-/** A fixture repository for tests and the in-memory sample. Never used by the running product. */
 export const fakeReadCache = createReadCache()
 
 export function getFakeGitRepo(id: string): GitRepo {
   return fakeReadCache.wrap(id, guarded(fakeRepo(id)))
 }
 
-/**
- * Stores in memory, shaped like Code Storage: what tests and the sample run
- * on. It keeps what each store is linked to and its credential, and can be
- * told to fail the next call of a kind with a Code Storage error code.
- */
 export type FakeStore = {
   upstream: Upstream | null
   defaultBranch: string | null
@@ -483,7 +477,6 @@ export class FakeStores implements GitStores {
   private failures = new Map<string, { status: number; code: string }>()
   private seq = 0
 
-  /** The next call named `what` throws a Code Storage error with this code. */
   failNext(what: string, status: number, problem: string) {
     this.failures.set(what, { status, code: problem })
   }

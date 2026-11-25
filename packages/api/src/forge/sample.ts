@@ -1,5 +1,3 @@
-// Provider links for the sample API and the tests: the scripted GitHub, a
-// scripted gitlab.com, git stores in memory, and a vault with a throwaway key.
 import { FakeStores } from '@cobaltforge/git/fake'
 import { sampleGithubForge } from '../github-sample'
 import { createGitlab } from './gitlab'
@@ -108,7 +106,6 @@ const note = (id: number, body: string, author: typeof dana, at: string) => ({
   updated_at: at,
 })
 
-/** gitlab.com as the sample sees it: one person, one project, a few items. */
 export function sampleGitlabFetch(now: () => number) {
   return (url: string, init?: RequestInit): Promise<Response> => {
     const json = (v: unknown, status = 200) =>

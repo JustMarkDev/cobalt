@@ -69,8 +69,6 @@ http.route({
       pushed_at?: unknown
       head_commit?: { message?: unknown }
     }
-    // The documented payload names the repository by `repo_name`; `id` is the
-    // older shape.
     const storeId =
       typeof p.repository?.repo_name === 'string'
         ? p.repository.repo_name

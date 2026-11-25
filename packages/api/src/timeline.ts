@@ -1,6 +1,3 @@
-// The entries of a change's timeline that come from the change itself.
-// Pure, so the memory domain and `convex/` list the same entries; each store
-// adds the state changes it records and sorts.
 import type { z } from 'zod'
 import type * as S from './schemas'
 import {
@@ -76,9 +73,7 @@ export function changeEntries<E extends Evidence>(
   a: {
     repoUrl: string
     apiUrl: string
-    /** Who a finding's label belongs to. */
     findingActor: (by: string) => ActorRec | null
-    /** The upload behind a piece of evidence; null leaves it out. */
     upload: (e: E) => Upload | null
   },
 ): Array<TimelineEntry> {

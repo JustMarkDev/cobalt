@@ -2,7 +2,6 @@ import { outsidePaths, touchedFiles } from './paths'
 import type { RuleMode } from './policy-file'
 import type { CustomRuleRec } from './domain/records'
 
-/** Changes past this many lines are flagged as large. */
 export const BIG_CHANGE = 400
 
 export const policyRules: ReadonlyArray<{
@@ -109,7 +108,6 @@ export function allowedPathsRequirement(
   }
 }
 
-/** What a custom rule applies to and requires, as the policy page shows it. */
 export function describeCustomRule(r: CustomRuleRec) {
   if (r.kind === 'required_check')
     return {

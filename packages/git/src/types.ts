@@ -30,7 +30,6 @@ export type ListCommitsOptions = {
   path?: string
 }
 
-/** The slice of Code Storage that the forge reads. */
 export interface GitRepo {
   listFiles: (opts?: ListFilesOptions) => Promise<{
     ref: string
@@ -52,7 +51,6 @@ export interface GitRepo {
   }>
 }
 
-/** A failed read. `status` is the HTTP status of Code Storage's answer. */
 export class GitError extends Error {
   readonly status: number
   constructor(message: string, status: number) {

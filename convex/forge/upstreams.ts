@@ -8,12 +8,6 @@ type Mirror = {
   host: string
 }
 
-/**
- * Code Storage says how a sync of a linked repository went, whichever
- * provider it is linked to. The link and the mirror of the
- * repository shows it. Deliveries can arrive out of order, so an older event
- * never overwrites what a later one said.
- */
 export const recordSync = internalMutation({
   args: {
     storeId: v.string(),
@@ -41,7 +35,6 @@ export const recordSync = internalMutation({
       if (ok || a.at >= (link.lastSync ?? 0))
         await ctx.db.patch('remoteRepos', link._id, {
           ...(ok ? { lastSync: Math.max(link.lastSync ?? 0, a.at) } : {}),
-          // The first good sync settles a fresh link; a failure marks it.
           ...(ok && link.state === 'syncing'
             ? {
                 state:
@@ -64,7 +57,6 @@ export const recordSync = internalMutation({
       .unique()
     if (!doc) return 'no_mirror'
     const extras = JSON.parse(doc.json) as { mirrors: Array<Mirror> }
-    // The mirror of the provider the repository is linked to, whichever it is.
     const host = repo.upstream?.host ?? link?.provider ?? 'github'
     const m = extras.mirrors.find((x) => x.host === host)
     if (!m) return 'no_mirror'

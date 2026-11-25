@@ -1,5 +1,3 @@
-// 8. Renaming the repository on GitHub: do pull and push still work through
-// the old owner/name, and can the same store be relinked to the new name?
 import { GITHUB_OWNER, clean, commitFile, errorOf, sh } from '../lib'
 import type { Ctx, Scenario } from '../lib'
 
@@ -48,8 +46,6 @@ export const rename: Scenario = {
     ctx.ghRenamed(name, to)
     ctx.log.line(`renamed on GitHub to ${to}`)
 
-    // Right after the rename, then again later: the first run of this
-    // scenario saw a 403 on a push four seconds after the rename.
     const early = await tryPush(ctx, name, to, dir, 'right-after-rename')
 
     const sha = ctx.ghCommit(to, 'after-rename.txt', 'x\n')
@@ -75,7 +71,6 @@ export const rename: Scenario = {
     await Bun.sleep(30_000)
     const late = await tryPush(ctx, name, to, dir, 'thirty-seconds-later')
 
-    // Plan B, checked every time: relink the same store to the new name.
     let relink: string
     try {
       await ctx.pierre.repos.upstream.delete({ repo_name: name })

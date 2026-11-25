@@ -1,6 +1,3 @@
-// 11. LFS in App mode: upload an LFS object to Code Storage, push its pointer,
-// and see whether GitHub has the object. git-lfs is not installed here, so the
-// probe speaks the LFS batch API itself (it is plain HTTP).
 import { createHash, randomBytes } from 'node:crypto'
 import { GITHUB_OWNER, clean, commitFile, sh } from '../lib'
 import type { Scenario } from '../lib'
@@ -41,7 +38,6 @@ async function batch(
   return { status: r.status, body, text: text.slice(0, 300) }
 }
 
-/** The batch answer without hrefs or headers, which carry signed URLs. */
 const shape = (b: Batch) =>
   JSON.stringify(
     (b.objects ?? []).map((o) => ({
@@ -109,7 +105,6 @@ export const lfs: Scenario = {
       : { value: undefined, ms: 0 }
     ctx.log.line(`pointer commit on GitHub: ${Boolean(arrived.value)}`)
 
-    // Does GitHub have the object? Ask its LFS batch API for a download.
     const ghToken = sh(['gh', 'auth', 'token']).out
     const gh = { found: false, answer: '' }
     const t = Date.now()

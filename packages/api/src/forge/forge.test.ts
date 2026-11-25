@@ -13,7 +13,6 @@ import type { EnvVarRec } from '../extras'
 
 const user = { kind: 'user' as const, token: 'tok' }
 
-/** A fetch that answers from a table of `METHOD path` to JSON, and records calls. */
 function scripted(
   routes: Partial<
     Record<string, (req: { url: string; init?: RequestInit }) => Response>

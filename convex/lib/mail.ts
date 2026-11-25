@@ -18,7 +18,6 @@ export async function sendMail(
   opts: {
     idempotencyKey?: string
     html?: string
-    /** `team` for mail people may answer; auth mail stays on the no-reply sender. */
     sender?: 'team'
   } = {},
 ) {

@@ -1,5 +1,3 @@
-// 7. A GitHub branch protection rule against a push forwarded by Code Storage.
-// Free private repositories have no protection, so this one is public.
 import { GITHUB_OWNER, clean, commitFile } from '../lib'
 import type { Scenario } from '../lib'
 
@@ -34,7 +32,6 @@ export const protection: Scenario = {
       `GitHub main ${ghMain?.slice(0, 7)}, store main ${storeMain?.slice(0, 7)}`,
     )
 
-    // A branch the rule does not cover still goes through.
     const side = await ctx.gitStore(name, dir, [
       'push',
       'origin',

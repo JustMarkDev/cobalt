@@ -66,7 +66,6 @@ export const expandSchema = (allowed: ReadonlyArray<string>) =>
       { message: `Use a comma list of: ${allowed.join(', ')}.` },
     )
 
-/** The event topic of a repository: by id when known, so it survives renames. */
 export const repoTopic = async (
   p: { owner: string; repo: string },
   d?: {

@@ -1,9 +1,3 @@
-// Forgejo (codeberg.org runs it), in Code Storage's generic mode. Verified
-// against a local Forgejo 17 (docs/plans/probe-results.md, forgejo-*): the
-// OAuth access token works as the git password with any username, a refresh
-// token is single-use, and deliveries carry an HMAC-SHA256 hex signature in
-// x-forgejo-signature and a UUID in x-forgejo-delivery. Not verified against
-// codeberg.org itself.
 import { call, toMs } from './http'
 import { hmacHex, sameText } from './vault'
 import { ProviderError } from './types'
@@ -28,7 +22,6 @@ export type ForgejoConfig = {
   host: string
   clientId: string
   clientSecret: string
-  /** Where the API and sign-in are; default `https://<host>`. */
   base?: string
   fetch?: Fetch
   now?: () => number
@@ -173,8 +166,6 @@ export function createForgejo(cfg: ForgejoConfig): {
       }),
     refresh: (refreshToken) =>
       token({ grant_type: 'refresh_token', refresh_token: refreshToken }),
-    // Forgejo has no endpoint to revoke an OAuth token: it lapses when it
-    // expires, and the person can revoke the grant in their settings there.
     revoke: () => Promise.resolve(),
     async whoami(t) {
       const r = await get<FjUser>({ kind: 'user', token: t }, '/user')
@@ -465,7 +456,6 @@ type FjComment = {
   updated_at: string
 }
 
-/** A Forgejo or Gitea delivery, read into the shared shape. */
 export function forgejoEvent(kind: string, body: string): WebhookEvent {
   let e: {
     action?: string

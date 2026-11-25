@@ -1,4 +1,3 @@
-// 5. Force push on either side: does the other side follow?
 import { clean, commitFile, sh } from '../lib'
 import type { Scenario } from '../lib'
 
@@ -9,7 +8,6 @@ export const force: Scenario = {
     const { name } = await ctx.pair('force')
     const notes: Array<string> = []
 
-    // A: force push on GitHub, then pull.
     const a1 = ctx.ghCommit(name, 'a.txt', 'a1\n')
     await ctx.storePullSettled(name)
     const s1 = await ctx.storeWaitFor(name, 'main', a1, 60_000)
@@ -36,7 +34,6 @@ export const force: Scenario = {
         : 'GitHub force push NOT followed by the store',
     )
 
-    // B: force push on Code Storage.
     const sdir = await ctx.cloneStore(name)
     sh(['git', 'reset', '--quiet', '--hard', 'HEAD~1'], { cwd: sdir })
     const forced = commitFile(sdir, 'b.txt', 'rewritten through Code Storage\n')

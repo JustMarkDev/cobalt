@@ -1,7 +1,3 @@
-// A throwaway Forgejo (the software behind Codeberg) for the generic-mode
-// scenarios: a fresh instance in a temporary folder, reachable by Code Storage
-// through a Cloudflare quick tunnel (no account). It needs `forgejo` and
-// `cloudflared` on the PATH. Processes are stopped by their own pid only.
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,11 +8,9 @@ export const USER = 'probe'
 export const PASSWORD = 'probe-Passw0rd!'
 const PORT = 3300
 export const LOCAL = `http://127.0.0.1:${PORT}`
-/** Short on purpose: scenario 4 waits for an OAuth token to expire. */
 export const ACCESS_TOKEN_TTL = 120
 
 export type Forgejo = {
-  /** The public https URL of the tunnel. */
   url: string
   host: string
   dir: string
@@ -166,7 +160,6 @@ export function stopForgejo() {
   running?.stop()
 }
 
-/** A personal access token of the probe user. */
 export async function pat(
   f: Forgejo,
   scopes = ['write:repository', 'write:user'],
@@ -203,7 +196,6 @@ export async function head(
   return r.status === 200 ? r.body.commit.id : undefined
 }
 
-/** A commit made on Forgejo through the contents API. Returns its sha. */
 export async function commit(
   f: Forgejo,
   repo: string,
@@ -230,7 +222,6 @@ export async function commit(
   return r.body.commit.sha
 }
 
-/** git against Forgejo with the admin password. */
 export function gitForgejo(cwd: string, args: Array<string>) {
   return sh(['git', ...args], {
     cwd,

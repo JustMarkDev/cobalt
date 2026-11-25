@@ -51,10 +51,6 @@ const names: Record<string, string> = {
   codeberg: 'Codeberg',
 }
 
-/**
- * GitLab and Codeberg are connected once, in the browser: their sign-in comes
- * back to the site, which cb cannot receive. cb checks and says where to go.
- */
 async function needConnection(
   ctx: Parameters<Command>[1],
   host: 'gitlab' | 'codeberg',
@@ -137,7 +133,6 @@ export const importCommand: Command = async ({ rest, flags }, ctx) => {
       },
     })
     let job = started.json as Job
-    // It runs on the server; wait for it unless asked not to.
     const until = Date.now() + 10 * 60_000
     while (
       !has(flags, 'no-wait') &&

@@ -86,7 +86,6 @@ function Stat({
   )
 }
 
-/** Plan sizes are decimal, as on the pricing page: 250 MB, 4 GB. */
 const bytes = (n: number) =>
   n < 1e9
     ? `${Math.round(n / 1e6)} MB`

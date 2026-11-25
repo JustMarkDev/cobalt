@@ -1,9 +1,3 @@
-// Data migrations, run once per deployment:
-//
-//   npx convex run migrations:run '{"fn": "migrations:githubLinksToRemoteRepos"}'
-//
-// The component remembers where each one got to, so running it again resumes
-// or does nothing.
 import { Migrations } from '@convex-dev/migrations'
 import { components, internal } from './_generated/api'
 import { internalMutation } from './_generated/server'
@@ -15,12 +9,6 @@ export const migrations = new Migrations<DataModel>(components.migrations, {
 
 export const run = migrations.runner()
 
-/**
- * `githubLinks` held which GitHub repository feeds which repository here.
- * `remoteRepos` holds the same for every provider, with more. Each link
- * becomes a linked repository; the mirror and the upstream of the repository
- * are unchanged. After it has run everywhere, a later deploy drops the table.
- */
 export const githubLinksToRemoteRepos = migrations.define({
   table: 'githubLinks',
   migrateOne: async (ctx, l) => {

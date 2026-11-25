@@ -111,7 +111,6 @@ describe('the status report', () => {
     expect(s.counts.repositories).toBeGreaterThan(0)
   })
 
-  // A link to GitHub cannot be paused, so this holds only for the sample.
   test.skipIf(onConvex)('a paused mirror is not an outage', async () => {
     const h = harness()
     for (const m of (await h.call('GET', `${R}/mirrors`)).json.data)
