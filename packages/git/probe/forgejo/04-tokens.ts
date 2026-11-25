@@ -42,14 +42,18 @@ export const forgejoTokens: Scenario = {
 
     const p = await pairForgejo(ctx, 'fj-oauth', first.tokens.access_token)
     const patStatus = await gitReads(p.name, USER, await pat(f))
-    const oauthAsUser = await gitReads(p.name, USER, first.tokens.access_token)
-    const oauthAsOauth2 = await gitReads(
+    const ownNameStatus = await gitReads(
+      p.name,
+      USER,
+      first.tokens.access_token,
+    )
+    const fixedNameStatus = await gitReads(
       p.name,
       'oauth2',
       first.tokens.access_token,
     )
     ctx.log.line(
-      `git info/refs: PAT ${patStatus}; OAuth token with username ${USER} ${oauthAsUser}, with "oauth2" ${oauthAsOauth2}`,
+      `git info/refs: PAT ${patStatus}; OAuth token with username ${USER} ${ownNameStatus}, with "oauth2" ${fixedNameStatus}`,
     )
     ctx.log.line(`store synced with the OAuth token as password: ${p.synced}`)
 
@@ -146,10 +150,10 @@ export const forgejoTokens: Scenario = {
       `push after the update exit ${pushAfter.code}, on Forgejo ${pushed}`,
     )
 
-    const oauthWorks = p.synced && oauthAsUser === 200
+    const gitAccessWorks = p.synced && ownNameStatus === 200
     return {
-      outcome: oauthWorks && healed.value && pushed ? 'pass' : 'finding',
-      summary: `OAuth access token as git password: ${oauthWorks ? 'works' : 'does not work'} (info/refs ${oauthAsUser}; with username "oauth2" ${oauthAsOauth2}; PAT ${patStatus}). After expiry: info/refs ${expiredStatus}, upstream.pull answers "${pullAnswer}" and nothing arrives (${arrived.value ? 'wrong: it arrived' : 'silently'}), a push fails: ${clean(
+      outcome: gitAccessWorks && healed.value && pushed ? 'pass' : 'finding',
+      summary: `OAuth access token as git password: ${gitAccessWorks ? 'works' : 'does not work'} (info/refs ${ownNameStatus}; with username "oauth2" ${fixedNameStatus}; PAT ${patStatus}). After expiry: info/refs ${expiredStatus}, upstream.pull answers "${pullAnswer}" and nothing arrives (${arrived.value ? 'wrong: it arrived' : 'silently'}), a push fails: ${clean(
         pushExpired.out,
       )
         .split('\n')

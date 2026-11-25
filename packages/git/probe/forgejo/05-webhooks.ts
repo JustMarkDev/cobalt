@@ -1,6 +1,6 @@
 // Forgejo 5. User- and organization-level webhooks: do they fire for every
 // repository (also ones made after the hook)? Signature (HMAC) and delivery id.
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { until } from '../lib'
 import { USER, commit, createRepo, forgejo } from './env'
 import type { Scenario } from '../lib'
@@ -12,7 +12,7 @@ export const forgejoWebhooks: Scenario = {
   title: 'User and organization webhooks: coverage, HMAC, delivery id',
   async run(ctx) {
     const f = await forgejo()
-    const secret = `probe-${Math.random().toString(36).slice(2)}`
+    const secret = `probe-${randomBytes(16).toString('hex')}`
     const got: Array<Delivery> = []
     const server = Bun.serve({
       port: 0,
