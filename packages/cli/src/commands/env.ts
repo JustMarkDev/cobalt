@@ -207,6 +207,7 @@ export const env: Command = async (
       only: str(flags, 'only')?.split(','),
       command,
       dryRun: dry,
+      noValidate: has(flags, 'no-validate'),
     })
     print(ctx, { ...result, dryRun: dry }, () =>
       [

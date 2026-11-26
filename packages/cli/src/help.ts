@@ -82,6 +82,8 @@ export const groupHelp: Record<string, string> = {
   list                    names, kinds and whether each has a value. Never values.
   set <NAME> -            set a value from stdin; the server seals it. Team only.
   run -- <command>        run with values injected into that process only; output is scrubbed
+                          with a .env.schema, Varlock checks the values first
+                          (required, types) and redacts sensitive ones (--no-validate)
   pull --plaintext        write .env.local (0600). Prefer run: a file is what leaks.
   confirmations           your production confirmations, and where to confirm one
   commit [files] [--staged] .env files into cobalt, not into git: each value

@@ -4,6 +4,10 @@
 // as soon as its line is merged.
 import type { EnvVarRec, Environment } from './extras'
 import { ENVIRONMENTS } from './extras'
+import {
+  ParsedEnvSpecFunctionCall,
+  parseEnvSpecDotEnvFile,
+} from '@env-spec/parser'
 
 export type SchemaVar = {
   name: string
@@ -13,67 +17,63 @@ export type SchemaVar = {
   description: string
 }
 
-const decorators = (line: string) => {
-  const out = new Map<string, string | true>()
-  for (const m of line.matchAll(
-    /@([A-Za-z][\w]*)(?:=((?:\([^)]*\)|[^\s])+))?/g,
-  )) {
-    const value: string | undefined = m.at(2)
-    out.set(m[1], value ?? true)
+type Decorated = { name: string; args: unknown } | string | number | boolean
+
+const decoratorsOf = (
+  d: Record<string, { value?: unknown }> | undefined,
+): Map<string, Decorated | true> => {
+  const out = new Map<string, Decorated | true>()
+  for (const [k, v] of Object.entries(d ?? {})) {
+    const value = v.value
+    if (value instanceof ParsedEnvSpecFunctionCall)
+      out.set(k, { name: value.name, args: value.simplifiedArgs })
+    else {
+      const raw = (value as { value?: unknown } | undefined)?.value
+      out.set(
+        k,
+        raw === undefined || raw === null
+          ? true
+          : (raw as string | number | boolean),
+      )
+    }
   }
   return out
 }
 
-const truthy = (v: string | true | undefined) =>
+const truthy = (v: Decorated | true | undefined) =>
   v === true || v === 'true' || v === undefined
 
-function requiredOf(v: string | true | undefined): Array<Environment> {
-  if (v === undefined || v === 'false') return []
-  const only = typeof v === 'string' ? /^forEnv\(([^)]*)\)$/.exec(v) : null
-  if (only)
-    return only[1]
-      .split(',')
-      .map((e) => e.trim().replace(/^['"]|['"]$/g, ''))
+function requiredOf(v: Decorated | true | undefined): Array<Environment> {
+  if (v === undefined || v === false || v === 'false') return []
+  if (typeof v === 'object' && v.name === 'forEnv') {
+    const args = Array.isArray(v.args) ? v.args : [v.args]
+    return args
+      .map((e) => String(e))
       .filter((e): e is Environment =>
         (ENVIRONMENTS as ReadonlyArray<string>).includes(e),
       )
+  }
   return [...ENVIRONMENTS]
 }
 
-/** Every variable the schema names, with what its decorators say. */
+/**
+ * Every variable the schema names, with what its decorators say, read with
+ * Varlock's own parser (@env-spec/parser).
+ */
 export function parseEnvSchema(text: string): Array<SchemaVar> {
-  const lines = text.split(/\r?\n/)
-  // The header, up to `# ---`, sets defaults for every variable.
-  const dash = lines.findIndex((l) => /^#\s*-{3,}\s*$/.test(l))
-  const header = dash >= 0 ? lines.slice(0, dash) : []
-  const root = decorators(header.join(' '))
+  let doc: ReturnType<typeof parseEnvSpecDotEnvFile>
+  try {
+    doc = parseEnvSpecDotEnvFile(text)
+  } catch {
+    return []
+  }
+  const root = decoratorsOf(doc.header?.decoratorsObject)
   const sensitiveByDefault = truthy(root.get('defaultSensitive') ?? 'true')
   const requiredByDefault = root.get('defaultRequired')
-  const out: Array<SchemaVar> = []
-  let pending: Array<string> = []
-  for (const line of dash >= 0 ? lines.slice(dash + 1) : lines) {
-    const t = line.trim()
-    if (!t) {
-      pending = []
-      continue
-    }
-    if (t.startsWith('#')) {
-      pending.push(t.replace(/^#\s?/, ''))
-      continue
-    }
-    const m = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(t)
-    if (!m) {
-      pending = []
-      continue
-    }
-    const d = decorators(pending.join(' '))
-    const said = pending
-      .map((p) =>
-        p.replace(/@[A-Za-z][\w]*(?:=(?:\([^)]*\)|[^\s])+)?/g, '').trim(),
-      )
-      .filter(Boolean)
-      .join(' ')
-    const value = m[2].trim()
+  return doc.configItems.map((it) => {
+    const d = decoratorsOf(it.decoratorsObject)
+    const value = (it.value as { value?: unknown } | undefined)?.value
+    const hasValue = value !== undefined && value !== null && value !== ''
     const secret = d.has('public')
       ? false
       : d.has('sensitive')
@@ -85,23 +85,23 @@ export function parseEnvSchema(text: string): Array<SchemaVar> {
         ? []
         : requiredByDefault === true || requiredByDefault === 'true'
           ? [...ENVIRONMENTS]
-          : requiredByDefault === 'infer'
-            ? value
-              ? []
-              : [...ENVIRONMENTS]
+          : requiredByDefault === 'infer' && !hasValue
+            ? [...ENVIRONMENTS]
             : []
     const type = d.get('type')
-    out.push({
-      name: m[1],
+    return {
+      name: it.key,
       kind:
-        typeof type === 'string' ? (type.split('(')[0] ?? 'string') : 'string',
+        typeof type === 'object'
+          ? type.name
+          : typeof type === 'string'
+            ? type
+            : 'string',
       secret,
       required,
-      description: said,
-    })
-    pending = []
-  }
-  return out
+      description: it.description.trim(),
+    }
+  })
 }
 
 /**
