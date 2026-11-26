@@ -682,6 +682,7 @@ const auditText = {
   adopted: 'Took over the link of',
   unlinked: 'Unlinked',
   relinked: 'Followed a rename of',
+  published: 'Published to GitHub',
   needs_reconnect: 'The provider refused the token',
 } as const
 

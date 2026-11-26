@@ -1,3 +1,5 @@
+import { codeStorageRemotes } from '@cobaltforge/git/remote'
+import { copyHistory } from '@cobaltforge/git/transfer'
 import { groupAuthors } from '../contributors'
 import { receiptFor } from '../receipt'
 import { runsOnOf } from '../workflow'
@@ -14,7 +16,7 @@ const scoped = <T>(fn: () => Promise<T>): Promise<T> =>
 import type { Prepared, SyncHost } from '../forge/sync'
 import type { ProviderId } from '../forge/types'
 import { ConvexError } from 'convex/values'
-import { apiError } from '../problem'
+import { ApiError, apiError } from '../problem'
 import { Pre } from '../registry'
 import { pageSorted } from '../cursor'
 import { heldKey } from '../idempotency'
@@ -1673,7 +1675,7 @@ export class ConvexDomain implements DomainPort {
     return { full, x, m }
   }
 
-  createMirror: Port['createMirror'] = async (p, owner, name, body) => {
+  createMirror: Port['createMirror'] = async (p, owner, name, body, dry) => {
     if (body.host !== 'github')
       throw apiError(
         'invalid_request',
@@ -1690,11 +1692,93 @@ export class ConvexDomain implements DomainPort {
         mirror: presentMirror(this.urls.api, full, same),
         created: false,
       }
-    throw apiError(
-      'invalid_state',
-      'A repository is linked to GitHub when it is imported, not afterwards.',
-      { hint: 'Import it with POST /imports and a `github_access`.' },
-    )
+    if (!body.github_access)
+      throw apiError(
+        'invalid_request',
+        'Linking a repository to GitHub needs `github_access`.',
+        {
+          hint: 'Sign in with GitHub first: POST /github/device, then poll /github/device/poll.',
+        },
+      )
+    const sync = this.providersFor('github')
+    const [o, n] = full.split('/')
+    const repo = await this.q<{
+      visibility: string
+      description: string
+      default_branch: string
+    }>('repos:get', { owner: o, name: n, at: this.now() }, p)
+    const storeId = await this.storeIdOf(full)
+    if (!storeId) throw apiError('not_found', `${full} has no git storage.`)
+    if (dry)
+      return {
+        mirror: presentMirror(this.urls.api, full, {
+          id: 'mir_dry_run_00000000000',
+          host: 'github',
+          slug: body.slug,
+          direction: 'two-way',
+          state: 'syncing',
+          lastSync: this.now(),
+          detail: null,
+          created: this.now(),
+        }),
+        created: true,
+      }
+    const x = await this.svc.extras.open(full)
+    const m = {
+      id: `mir_${this.now().toString(36)}0`.padEnd(22, '0').slice(0, 22),
+      host: 'github',
+      slug: body.slug,
+      direction: 'two-way' as const,
+      state: 'syncing' as 'syncing' | 'failing' | 'in-sync',
+      lastSync: this.now(),
+      detail: `Sending the history to ${body.slug} on GitHub.` as string | null,
+      created: this.now(),
+    }
+    x.mirrors.push(m)
+    await this.svc.extras.flush?.()
+    // Copying the history and linking outlast a request: the mirror says how
+    // it went, as an import's job does.
+    const settle = async (patch: Partial<typeof m>) =>
+      scoped(async () => {
+        const y = await this.svc.extras.open(full)
+        const mine = y.mirrors.find((z) => z.id === m.id)
+        if (!mine) return
+        Object.assign(mine, patch, { lastSync: this.now() })
+        await this.svc.extras.flush?.()
+      })
+    void sync
+      .publish(p, full, {
+        storeId,
+        slug: body.slug,
+        githubAccess: body.github_access,
+        private: repo.visibility !== 'public',
+        description: repo.description,
+        defaultBranch: repo.default_branch,
+        sendHistory: async (target) => {
+          const source = await codeStorageRemotes().open(storeId, {
+            write: false,
+            subject: p.handle,
+          })
+          await copyHistory(source, target, {
+            first: `refs/heads/${repo.default_branch}`,
+          })
+        },
+      })
+      .then((done) =>
+        settle({
+          slug: done.slug,
+          detail: done.made
+            ? `Made ${done.slug} on GitHub and sent it the history.`
+            : `Sent the history to ${done.slug} on GitHub and linked it.`,
+        }),
+      )
+      .catch((e: unknown) =>
+        settle({
+          state: 'failing',
+          detail: e instanceof ApiError ? e.detail : String(e),
+        }),
+      )
+    return { mirror: presentMirror(this.urls.api, full, m), created: true }
   }
 
   syncMirror: Port['syncMirror'] = async (p, owner, name, mirror, dry) => {

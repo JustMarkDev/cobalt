@@ -106,6 +106,7 @@ export type AuditAction =
   | 'adopted'
   | 'unlinked'
   | 'relinked'
+  | 'published'
   | 'needs_reconnect'
 
 export type AuditRec = {

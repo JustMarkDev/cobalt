@@ -709,6 +709,7 @@ const auditAction = v.union(
   v.literal('adopted'),
   v.literal('unlinked'),
   v.literal('relinked'),
+  v.literal('published'),
   v.literal('needs_reconnect'),
 )
 

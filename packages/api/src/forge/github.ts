@@ -328,6 +328,28 @@ export function createGithubForge(
       tokens ? tokens.installationOf(slug) : Promise.resolve(null),
     gitCredential: () => null,
 
+    async createRepo(auth, repo) {
+      const me = await get<{ login: string }>(auth, '/user')
+      const mine = me.body.login.toLowerCase() === repo.owner.toLowerCase()
+      const r = await call<GhRepo>(
+        'github',
+        f,
+        mine ? `${API}/user/repos` : `${API}/orgs/${repo.owner}/repos`,
+        {
+          method: 'POST',
+          headers: await headers(auth),
+          body: {
+            name: repo.name,
+            private: repo.private,
+            description: repo.description,
+            auto_init: false,
+            has_wiki: false,
+          },
+        },
+      )
+      return repoOfGithub(r.body)
+    },
+
     async createWebhook(auth, slug, hook) {
       const r = await call<{ id: number }>(
         'github',

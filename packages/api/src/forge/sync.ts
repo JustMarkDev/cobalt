@@ -805,6 +805,117 @@ export class ProviderSync {
     await this.pull({ ...r, ...patch }).catch(() => undefined)
   }
 
+  /**
+   * Link a repository made here to GitHub, making the GitHub repository when
+   * there is none, so it syncs both ways as an import does. The GitHub one
+   * must be empty: its history comes from here.
+   */
+  async publish(
+    p: Principal,
+    full: string,
+    o: {
+      storeId: string
+      slug: string
+      githubAccess: string
+      private: boolean
+      description: string
+      defaultBranch: string
+      /**
+       * Sends the history here to `target`. Linking makes the store follow
+       * GitHub, so GitHub must have the history first or it is lost here.
+       */
+      sendHistory: (target: {
+        url: string
+        authorization: string
+      }) => Promise<void>
+    },
+  ) {
+    if (await this.store.remoteOfRepo(full))
+      throw apiError('invalid_state', `${full} is already linked to a host.`)
+    const forge = this.forge('github')
+    if (!this.deps.githubToken || !this.deps.git)
+      throw apiError(
+        'backend_unavailable',
+        'Signing in with GitHub is not set up on this server.',
+      )
+    const token = await this.deps.githubToken(o.githubAccess, p.handle)
+    const auth: ProviderAuth = { kind: 'user', token }
+    const found = await forge.getRepo(auth, o.slug).catch((e: unknown) => {
+      if (e instanceof ProviderError && e.status === 404) return null
+      throw this.providerProblem(e)
+    })
+    if (found && found.sizeBytes > 0)
+      throw apiError(
+        'invalid_state',
+        `${o.slug} on GitHub already has history.`,
+        {
+          hint: 'Link an empty repository, or import that one instead with POST /imports.',
+        },
+      )
+    if (!found) {
+      if (!forge.createRepo)
+        throw apiError(
+          'invalid_request',
+          'GitHub repositories cannot be made from here.',
+        )
+      const [owner, name] = o.slug.split('/')
+      await forge
+        .createRepo(auth, {
+          owner,
+          name,
+          private: o.private,
+          description: o.description,
+        })
+        .catch((e: unknown) => {
+          if (e instanceof ProviderError && [403, 404, 422].includes(e.status))
+            throw apiError(
+              'forbidden',
+              `GitHub did not let cobalt make ${o.slug}: ${e.message}`,
+              {
+                hint: 'Make an empty repository with that name on GitHub and link it again, or give the Cobalt GitHub App the Administration permission so it can make them.',
+              },
+            )
+          throw this.providerProblem(e)
+        })
+    }
+    const pr = await this.prepare(p, 'github', o.slug, o.githubAccess)
+    const held = await this.heldBy(pr)
+    if (held)
+      throw apiError(
+        'invalid_state',
+        `${o.slug} is already linked to ${held.repo}.`,
+      )
+    await o
+      .sendHistory({
+        url: `https://github.com/${pr.remote.slug}.git`,
+        authorization: `Basic ${btoa(`x-access-token:${token}`)}`,
+      })
+      .catch((e: unknown) => {
+        throw apiError(
+          'backend_unavailable',
+          `The history did not reach ${pr.remote.slug} on GitHub, so nothing was linked: ${String(e)}`,
+        )
+      })
+    await this.deps.git
+      .relink(o.storeId, upstreamOf('github', pr.remote.slug), o.defaultBranch)
+      .catch((e: unknown) => {
+        throw apiError(
+          'backend_unavailable',
+          `Git storage did not take the GitHub link: ${String(e)}`,
+        )
+      })
+    const done = await this.linked(p, full, pr)
+    await this.store.audit({
+      handle: p.handle,
+      provider: 'github',
+      action: 'published',
+      repo: full,
+      detail: pr.remote.slug,
+      at: this.now(),
+    })
+    return { ...done, slug: pr.remote.slug, made: !found }
+  }
+
   async adopt(p: Principal, full: string) {
     await this.need().requireAdmin(p, full)
     const r = await this.store.remoteOfRepo(full)

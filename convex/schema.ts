@@ -865,6 +865,7 @@ export default defineSchema({
       v.literal('adopted'),
       v.literal('unlinked'),
       v.literal('relinked'),
+      v.literal('published'),
       v.literal('needs_reconnect'),
     ),
     repo: v.union(v.null(), v.string()),

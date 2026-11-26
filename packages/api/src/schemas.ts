@@ -1451,6 +1451,7 @@ export const ProviderAudit = named(
       'adopted',
       'unlinked',
       'relinked',
+      'published',
       'needs_reconnect',
     ]),
     repo: z.string().nullable(),

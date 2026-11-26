@@ -1544,6 +1544,7 @@ export type ProviderAudit = {
     | 'adopted'
     | 'unlinked'
     | 'relinked'
+    | 'published'
     | 'needs_reconnect'
   repo: string | null
   detail: string | null

@@ -135,7 +135,10 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
           // Lock files and large files come without a patch; keep them listed.
           files: [
             ...d.files.map(diffOf),
-            ...d.filtered_files.map((f): FileDiff => ({
+            // Older answers leave `filtered_files` out.
+            ...(
+              (d.filtered_files as typeof d.filtered_files | undefined) ?? []
+            ).map((f): FileDiff => ({
               path: f.path,
               state: stateOf(f.state),
               additions: 0,

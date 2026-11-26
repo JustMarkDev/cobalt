@@ -31568,6 +31568,7 @@
               "adopted",
               "unlinked",
               "relinked",
+              "published",
               "needs_reconnect"
             ]
           },

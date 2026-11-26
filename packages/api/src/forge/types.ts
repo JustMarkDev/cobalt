@@ -234,6 +234,14 @@ export interface ForgeProvider {
   installationOf?: (slug: string) => Promise<number | null>
   gitCredential: (auth: ProviderAuth, login: string) => GitCredential | null
 
+  /**
+   * Make an empty repository `owner/name` as the signed-in user, under their
+   * own account or an organization of theirs. Only with a user token.
+   */
+  createRepo?: (
+    auth: ProviderAuth,
+    o: { owner: string; name: string; private: boolean; description: string },
+  ) => Promise<RemoteRepo>
   createWebhook: (
     auth: ProviderAuth,
     slug: string,
