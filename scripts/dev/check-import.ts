@@ -3,6 +3,7 @@
 //
 //   bun scripts/dev/check-import.ts mark/music-companion
 //   bun scripts/dev/check-import.ts mark/music-companion --github JustMarkDev/music-companion
+//   bun scripts/dev/check-import.ts mark/music-companion --sync   # pull from GitHub first
 //
 // Needs the local app on CB_API (default http://localhost:3000/api/v1), `gh`
 // signed in, and a token: CB_TOKEN, or minted with scripts/dev/token.ts.
@@ -63,6 +64,23 @@ async function ghAll(path: string): Promise<Array<Json>> {
   return JSON.parse(`[${text.replace(/\]\s*\[/g, '],[')}]`).flat()
 }
 
+// --sync: fetch from GitHub first. Locally GitHub's webhooks cannot reach the
+// app, so without it the mirror lags behind until its next scheduled pull.
+if (process.argv.includes('--sync')) {
+  const mirrors = (await cb(`/repos/${full}/mirrors`)).data as Array<{
+    id: string
+  }>
+  for (const m of mirrors)
+    await fetch(`${API}/repos/${full}/mirrors/${m.id}/sync`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+    })
+  await fetch(`${API}/repos/${full}/provider/refresh`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+  })
+  await Bun.sleep(45_000)
+}
 const repo = await cb(`/repos/${full}`)
 const slug = flag('github') ?? repo.upstream?.slug
 if (!slug) {
