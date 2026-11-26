@@ -260,6 +260,21 @@ export interface ForgeProvider {
     slug: string,
     o: { cursor?: string | null; etag?: Etag },
   ) => Promise<Listed<RemotePull> & { next: string | null }>
+  /**
+   * Open a pull request for `head`, or answer the open one there already is
+   * for it.
+   */
+  createPull?: (
+    auth: ProviderAuth,
+    slug: string,
+    pr: {
+      head: string
+      base: string
+      title: string
+      body: string
+      draft: boolean
+    },
+  ) => Promise<RemotePull>
   /** Open an issue there (as the app, on GitHub). */
   createIssue?: (
     auth: ProviderAuth,

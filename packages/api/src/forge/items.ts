@@ -22,6 +22,7 @@ import type {
   RemoteComment,
   RemoteIssue,
   RemoteLabel,
+  RemotePull,
   WebhookEvent,
 } from './types'
 
@@ -488,99 +489,7 @@ export class RemoteItems {
     let changed = 0
     for (const p of got.items) {
       if (!o.full && p.updated < o.since) continue
-      const key = String(p.number)
-      const prev = await this.store.item(r.repo, 'pull', key)
-      const next = remotePullState(p)
-      const state =
-        remotePullTarget(
-          (prev?.state as ChangeState | undefined) ?? null,
-          next,
-        ) ?? (prev?.state as ChangeState)
-      const commitsHere = await this.hasCommit(r.repo, p.head.sha).catch(
-        () => null,
-      )
-      const put = await this.store.putItem(r.repo, {
-        kind: 'pull',
-        number: p.number,
-        key,
-        title: p.title,
-        body: p.body,
-        state,
-        authorId: await this.actor(r, p.author),
-        labels: p.labels ?? [],
-        url: p.url,
-        created: p.created,
-        updated: p.updated,
-        closed: p.closed,
-        merged: p.merged,
-        head: {
-          ref: p.head.ref,
-          sha: p.head.sha,
-          base: p.base.ref,
-          fromFork: p.head.fromFork,
-          commitsHere,
-        },
-        flags: { draft: p.draft, prerelease: false },
-      })
-      const id =
-        put ??
-        (o.full
-          ? ((await this.store.item(r.repo, 'pull', key))?.id ?? null)
-          : null)
-      if (!id) continue
-      changed++
-      if (commitsHere === false) {
-        const text = await forge
-          .pullPatch(auth, r.fullName, p.number)
-          .catch(() => null)
-        if (text) await this.store.putPatch(id, text)
-      }
-      const comments = await forge.listComments(
-        auth,
-        r.fullName,
-        p.number,
-        'pull',
-      )
-      await this.comments_(r, id, comments)
-      await this.materialize?.(r.repo, {
-        kind: 'pull',
-        host: r.provider,
-        number: p.number,
-        title: p.title,
-        description: p.body,
-        state,
-        author: who(p.author),
-        base: p.base.ref,
-        branch: p.head.ref,
-        headSha: p.head.sha,
-        created: p.created,
-        updated: p.updated,
-        landed: p.merged,
-        files: forge.pullFiles
-          ? await forge.pullFiles(auth, r.fullName, p.number).catch(() => null)
-          : null,
-        comments: comments.map((c) => ({
-          id: c.id,
-          author: who(c.author),
-          body: c.body,
-          created: c.created,
-        })),
-        labels: p.labels ?? [],
-        reviews: forge.listReviews
-          ? (
-              await forge
-                .listReviews(auth, r.fullName, p.number)
-                .catch(() => [])
-            ).map((x) => ({ ...x, author: who(x.author) }))
-          : [],
-        lineComments: forge.listReviewComments
-          ? (
-              await forge
-                .listReviewComments(auth, r.fullName, p.number)
-                .catch(() => [])
-            ).map((x) => ({ ...x, author: who(x.author) }))
-          : [],
-      })
+      if (await this.pullIn(r, forge, auth, p, o.full)) changed++
     }
     if (o.full && got.complete)
       await this.removeMissing(
@@ -613,6 +522,135 @@ export class RemoteItems {
         new Set(got.items.map((i) => String(i.number))),
       )
     return changed
+  }
+
+  /** One pull request from the provider into Changes here. */
+  private async pullIn(
+    r: RemoteRec,
+    forge: ForgeProvider,
+    auth: ProviderAuth,
+    p: RemotePull,
+    full: boolean,
+  ) {
+    const key = String(p.number)
+    const prev = await this.store.item(r.repo, 'pull', key)
+    const next = remotePullState(p)
+    const state =
+      remotePullTarget(
+        (prev?.state as ChangeState | undefined) ?? null,
+        next,
+      ) ?? (prev?.state as ChangeState)
+    const commitsHere = await this.hasCommit(r.repo, p.head.sha).catch(
+      () => null,
+    )
+    const put = await this.store.putItem(r.repo, {
+      kind: 'pull',
+      number: p.number,
+      key,
+      title: p.title,
+      body: p.body,
+      state,
+      authorId: await this.actor(r, p.author),
+      labels: p.labels ?? [],
+      url: p.url,
+      created: p.created,
+      updated: p.updated,
+      closed: p.closed,
+      merged: p.merged,
+      head: {
+        ref: p.head.ref,
+        sha: p.head.sha,
+        base: p.base.ref,
+        fromFork: p.head.fromFork,
+        commitsHere,
+      },
+      flags: { draft: p.draft, prerelease: false },
+    })
+    const id =
+      put ??
+      (full ? ((await this.store.item(r.repo, 'pull', key))?.id ?? null) : null)
+    if (!id) return false
+    if (commitsHere === false) {
+      const text = await forge
+        .pullPatch(auth, r.fullName, p.number)
+        .catch(() => null)
+      if (text) await this.store.putPatch(id, text)
+    }
+    const comments = await forge.listComments(
+      auth,
+      r.fullName,
+      p.number,
+      'pull',
+    )
+    await this.comments_(r, id, comments)
+    await this.materialize?.(r.repo, {
+      kind: 'pull',
+      host: r.provider,
+      number: p.number,
+      title: p.title,
+      description: p.body,
+      state,
+      author: who(p.author),
+      base: p.base.ref,
+      branch: p.head.ref,
+      headSha: p.head.sha,
+      created: p.created,
+      updated: p.updated,
+      landed: p.merged,
+      files: forge.pullFiles
+        ? await forge.pullFiles(auth, r.fullName, p.number).catch(() => null)
+        : null,
+      comments: comments.map((c) => ({
+        id: c.id,
+        author: who(c.author),
+        body: c.body,
+        created: c.created,
+      })),
+      labels: p.labels ?? [],
+      reviews: forge.listReviews
+        ? (
+            await forge.listReviews(auth, r.fullName, p.number).catch(() => [])
+          ).map((x) => ({ ...x, author: who(x.author) }))
+        : [],
+      lineComments: forge.listReviewComments
+        ? (
+            await forge
+              .listReviewComments(auth, r.fullName, p.number)
+              .catch(() => [])
+          ).map((x) => ({ ...x, author: who(x.author) }))
+        : [],
+    })
+    return true
+  }
+
+  /**
+   * Open a pull request on the provider of a linked repository for a branch
+   * pushed here, and bring it in as a change with the provider's number.
+   * Null when the repository is not linked to a provider that can.
+   */
+  async createPull(
+    full: string,
+    pr: {
+      head: string
+      base: string
+      title: string
+      body: string
+      draft: boolean
+    },
+    by: string,
+  ): Promise<number | null> {
+    const w = await this.writable(full, by)
+    if (!w?.forge.createPull) return null
+    const made = await w.forge.createPull(w.write, w.r.fullName, {
+      ...pr,
+      body: w.asPerson
+        ? pr.body
+        : `${pr.body}${pr.body ? '\n\n' : ''}<sub>Opened on cobalt by @${by}.</sub>`,
+    })
+    await this.pullIn(w.r, w.forge, w.write, made, true).catch(() =>
+      this.store.setItemsDue(w.r.repo, this.sync.now()),
+    )
+    return made.number
   }
 
   /** One issue from the provider into Issues here, with its comments. */

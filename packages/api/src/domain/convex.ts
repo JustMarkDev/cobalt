@@ -746,8 +746,53 @@ export class ConvexDomain implements DomainPort {
     )
   provenance: Port['provenance'] = (owner, name, p, q) =>
     this.q('changes:provenance', { owner, name, ...q, at: this.now() }, p)
-  createChange: Port['createChange'] = (owner, name, p, body) => {
+  createChange: Port['createChange'] = async (owner, name, p, body) => {
     const { dry_run, ...rest } = body
+    // A repository linked to GitHub opens the pull request there first, so
+    // the change has GitHub's number (issues and pull requests share them).
+    if (!dry_run && p && this.svc.providers && !body.sha) {
+      const full = await this.repoAccess(owner, name, p, 'write')
+      const link = await this.svc.providers.store.remoteOfRepo(full)
+      if (link?.provider === 'github') {
+        const repo = await this.q<{ default_branch: string }>(
+          'repos:get',
+          { owner, name, at: this.now() },
+          p,
+        )
+        const n = await this.svc.providers.items
+          .createPull(
+            full,
+            {
+              head: body.branch,
+              base: body.base ?? repo.default_branch,
+              title: body.title ?? body.branch,
+              body: body.description ?? '',
+              draft: body.draft ?? false,
+            },
+            p.handle,
+          )
+          .catch((e: unknown) => {
+            throw this.svc.providers!.providerProblem(e)
+          })
+        if (n !== null) {
+          const change = await this.q<z.infer<typeof S.Change>>(
+            'changes:get',
+            { owner, name, ref: String(n), expand: [], at: this.now() },
+            p,
+          ).catch(() => {
+            throw apiError(
+              'backend_unavailable',
+              `Opened on GitHub as #${n}; it shows here once GitHub answers again.`,
+              {
+                retryAfter: 60,
+                hint: 'Sending it again is safe: the branch has one pull request.',
+              },
+            )
+          })
+          return { change, outcome: 'created' }
+        }
+      }
+    }
     return this.m('changes:create', { owner, name, ...rest, dry: dry_run }, p)
   }
   updateChange: Port['updateChange'] = (

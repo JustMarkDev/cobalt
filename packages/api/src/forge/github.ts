@@ -444,6 +444,21 @@ export function createGithubForge(
       }
     },
 
+    async createPull(auth, slug, pr) {
+      const owner = slug.split('/')[0]
+      const open = await get<Array<GhPull>>(
+        auth,
+        `/repos/${slug}/pulls?${new URLSearchParams({ head: `${owner}:${pr.head}`, state: 'open' })}`,
+      )
+      if (open.body[0]) return pullOf(open.body[0])
+      const r = await call<GhPull>('github', f, `${API}/repos/${slug}/pulls`, {
+        method: 'POST',
+        headers: await headers(auth),
+        body: pr,
+      })
+      return pullOf(r.body)
+    },
+
     async createIssue(auth, slug, issue) {
       const r = await call<GhIssue>(
         'github',
