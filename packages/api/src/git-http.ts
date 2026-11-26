@@ -1,5 +1,12 @@
 import { principalOf } from './auth'
 import { ApiError } from './problem'
+import {
+  acceptedOf,
+  commandsOf,
+  readAll,
+  readHead,
+} from '@cobaltforge/git/receive'
+import type { RefUpdate } from '@cobaltforge/git/receive'
 import type { GitRemotes } from '@cobaltforge/git/remote'
 import type { Principal } from './auth'
 import type { DomainPort } from './domain/port'
@@ -33,6 +40,14 @@ export type GitHttpOptions = {
   domain: Pick<DomainPort, 'gitAccess'>
   remotes: GitRemotes
   beforeGit?: (full: string, write: boolean) => Promise<void>
+  /**
+   * After a push through here: the refs the server took. Code Storage's
+   * webhook says the same later; recording is idempotent per ref and commit.
+   */
+  afterPush?: (
+    at: { full: string; storeId: string; by: string },
+    updates: Array<RefUpdate>,
+  ) => Promise<void>
   fetch?: typeof fetch
   log?: (line: Record<string, unknown>) => void
 }
@@ -136,12 +151,46 @@ export function createGitHttp(o: GitHttpOptions) {
       const value = req.headers.get(name)
       if (value) headers.set(name, value)
     }
+    const pushing =
+      req.method === 'POST' &&
+      route.path === 'git-receive-pack' &&
+      o.afterPush &&
+      req.body
+    let body = req.method === 'GET' ? null : req.body
+    let asked: Promise<Array<RefUpdate> | null> = Promise.resolve(null)
+    if (pushing && body && !req.headers.get('content-encoding')) {
+      const [up, look] = body.tee()
+      body = up
+      asked = readHead(look, (b) => commandsOf(b) !== null).then(commandsOf)
+    }
     const res = await send(`${remote.url}/${route.path}`, {
       method: req.method,
       headers,
-      body: req.method === 'GET' ? undefined : req.body,
+      body: body ?? undefined,
       ...(req.method === 'GET' ? {} : { duplex: 'half' }),
     })
+    let answer = res.body
+    if (pushing && res.ok && answer) {
+      const [down, look] = answer.tee()
+      answer = down
+      void Promise.all([asked, readAll(look)])
+        .then(async ([updates, report]) => {
+          const took = acceptedOf(report)
+          const done = (updates ?? []).filter((u) => took?.has(u.ref))
+          if (done.length)
+            await o.afterPush!(
+              {
+                full: `${route.owner}/${route.name}`,
+                storeId: access.storeId,
+                by: principal.handle,
+              },
+              done,
+            )
+        })
+        .catch((e: unknown) =>
+          log({ msg: 'push not recorded', error: String(e) }),
+        )
+    }
     const out = new Headers()
     for (const name of responseHeaders) {
       const value = res.headers.get(name)
@@ -154,6 +203,6 @@ export function createGitHttp(o: GitHttpOptions) {
       path: route.path,
       status: res.status,
     })
-    return new Response(res.body, { status: res.status, headers: out })
+    return new Response(answer, { status: res.status, headers: out })
   }
 }

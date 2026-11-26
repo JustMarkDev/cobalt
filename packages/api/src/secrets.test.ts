@@ -558,3 +558,14 @@ test('a signed-in page cannot make itself a token that reads values', async () =
   })
   expect(ok.status).toBe(201)
 })
+
+test('CB_SECRETS_KEY is read as base64 or as hex, and nothing else', async () => {
+  const { SecretBox } = await import('./secret-box')
+  const hex = 'ab'.repeat(32)
+  const b64 = Buffer.from(hex, 'hex').toString('base64url')
+  const a = await SecretBox.fromBase64(hex)
+  const b = await SecretBox.fromBase64(b64)
+  expect(a).not.toBeNull()
+  expect(b).not.toBeNull()
+  expect(await SecretBox.fromBase64('ab'.repeat(24))).toBeNull()
+})

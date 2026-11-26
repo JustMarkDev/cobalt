@@ -738,3 +738,20 @@ describe('runners', () => {
     expect(r.code).toBe(2)
   })
 })
+
+describe('remotes', () => {
+  test('a clone of the public site or of the server cb talks to', async () => {
+    const { slugOfRemote } = await import('./repo')
+    const hosts = ['cobaltforge.dev', 'localhost:3000', 'git.example.com']
+    for (const [url, slug] of [
+      ['https://cobaltforge.dev/dana/gitfs.git', 'dana/gitfs'],
+      ['git@cobaltforge.dev:dana/gitfs.git', 'dana/gitfs'],
+      ['http://x:cbp_secret@localhost:3000/mark/notes.git', 'mark/notes'],
+      ['http://localhost:3000/mark/notes', 'mark/notes'],
+      ['https://git.example.com/team/app.git/', 'team/app'],
+      ['https://github.com/dana/gitfs.git', undefined],
+      ['http://localhost:30001/mark/notes.git', undefined],
+    ] as const)
+      expect(slugOfRemote(url, hosts)).toBe(slug)
+  })
+})

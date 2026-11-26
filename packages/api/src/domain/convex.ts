@@ -1381,6 +1381,36 @@ export class ConvexDomain implements DomainPort {
     dry,
   ) =>
     this.m('integrations:setRepoIntegration', { owner, name, id, on, dry }, p)
+  /** Pushes that went through the API's git endpoint, with their messages. */
+  async recordPushes(
+    at: { full: string; storeId: string },
+    updates: ReadonlyArray<{ ref: string; before: string; after: string }>,
+  ) {
+    for (const u of updates) {
+      const deleted = /^0+$/.test(u.after)
+      const message = deleted
+        ? undefined
+        : await this.svc.git
+            .commit(at.full, u.after)
+            .then((c) => c.message.slice(0, 65536))
+            .catch(() => undefined)
+      await run(
+        this.call,
+        'mutation',
+        'forge/pushes:recordPushFromApi',
+        {
+          storeId: at.storeId,
+          ref: u.ref,
+          before: u.before,
+          after: u.after,
+          pushedAt: this.now(),
+          ...(message === undefined ? {} : { message }),
+        },
+        'system',
+      )
+    }
+  }
+
   handlesOfLogins: Port['handlesOfLogins'] = (host, logins) =>
     logins.length
       ? this.q(

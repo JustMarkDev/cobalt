@@ -7,9 +7,9 @@ Output is JSON when piped or with --json.
 
 Commands
   repo      list, view, create, clone
-  import    link a GitHub, GitLab or Codeberg repository, in sync both ways
-  change    list, view, create, land, checkout
-  issue     list, view, create, close
+  import    link a GitHub repository, in sync both ways
+  change    list, view, create, ready, land, checkout
+  issue     list, view, create, attach, close
   env       list, set, run, pull, confirmations
   policy    check, explain
   mirror    list, add, sync, remove
@@ -53,6 +53,7 @@ export const groupHelp: Record<string, string> = {
                           --here [--path f] says you are; --leave that you left
   guide [number]          what it does and the order to read its files in
                           --set '{"summary":…,"order":[{"path","why","risk"}]}'
+  ready [number]          a draft is ready for review (and can land)
   land [number]           land exactly the tree it just read, if policy allows
   checkout <number>       print the git command to switch to its branch
 `,
@@ -117,10 +118,14 @@ export const groupHelp: Record<string, string> = {
   mirror: `cb mirror <command>
 
   list
+  add github <owner/name> publish this repository to GitHub and keep the two
+                          in sync both ways. The GitHub repository must be
+                          empty, or not exist yet (cobalt makes it when its
+                          GitHub App may). Signs in with GitHub like import.
   sync <id>               fetch from its host now
   remove <id>             unlinks it. History here is untouched.
 
-  A repository is linked to its host when it is imported: cb import.
+  A repository from another host is linked when it is imported: cb import.
 `,
   pipeline: `cb pipeline <command>
 

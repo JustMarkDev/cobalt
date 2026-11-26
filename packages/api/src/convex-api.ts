@@ -216,6 +216,7 @@ export function createConvexApi(o: ConvexApiOptions) {
     domain,
     remotes: o.gitRemotes ?? codeStorageRemotes(),
     beforeGit: (full, write) => providers.beforeGit(full, write),
+    afterPush: (at, updates) => d.recordPushes(at, updates),
     log: (line) => console.log('[git]', JSON.stringify(line)),
   })
   const serveGit = async (req: Request, ip?: string) => {

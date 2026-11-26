@@ -9,6 +9,7 @@ import { Domain, defineOp, reply } from '../registry'
 import { iso } from '../domain'
 import * as S from '../schemas'
 import { repoParams } from './common'
+import { applyEnvSchema, parseEnvSchema } from '../env-schema'
 import type { ConfirmationRec, Environment, RepoExtras } from '../extras'
 import type { Principal } from '../auth'
 import type { DomainPort } from '../domain'
@@ -302,6 +303,21 @@ const whoOf = (p: Principal) => {
   return `${p.handle} on ${r.machine ?? 'an unnamed machine'}${r.tool ? ` via ${r.tool}` : ''}${r.model ? ` (${r.model})` : ''}`
 }
 
+/**
+ * The repository's extras with its variables read again from `.env.schema`
+ * on the default branch, so a variable exists as soon as its line is merged.
+ */
+async function withSchema(d: DomainPort, full: string) {
+  const x = await d.svc.extras.open(full)
+  const bytes = await d.svc.git.blob(full, '.env.schema').catch(() => null)
+  if (
+    bytes &&
+    applyEnvSchema(x.env, parseEnvSchema(new TextDecoder().decode(bytes)))
+  )
+    await d.svc.extras.flush?.()
+  return x
+}
+
 async function boxOf(d: DomainPort) {
   const box = await d.svc.secrets
   if (!box)
@@ -407,7 +423,7 @@ export const listEnv = defineOp({
           ctx.principal,
           'read',
         )
-        return (await d.svc.extras.open(full)).env.map((v) => ({
+        return (await withSchema(d, full)).env.map((v) => ({
           object: 'env_var' as const,
           name: v.name,
           kind: v.kind,
@@ -473,7 +489,7 @@ export const setEnv = defineOp({
         )
         const box = await boxOf(d)
         const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
-        const x = await d.svc.extras.open(full)
+        const x = await withSchema(d, full)
         const v = x.env.find((e) => e.name === ctx.params.name)
         if (!v)
           throw apiError(
@@ -602,7 +618,7 @@ export const envValues = defineOp({
         )
         const box = await boxOf(d)
         const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
-        const x = await d.svc.extras.open(full)
+        const x = await withSchema(d, full)
         const confirmed = await requireConfirmed(
           d,
           x,
