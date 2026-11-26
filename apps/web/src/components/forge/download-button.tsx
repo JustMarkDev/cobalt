@@ -34,30 +34,37 @@ export function DownloadButton({
   const height = { sm: 'h-7 text-xs', md: 'h-9 text-sm', lg: 'h-11 text-base' }[
     size
   ]
-  const none = fit === 'none' && target
-  const label = none
-    ? `No ${osLabel[target.os]} build`
-    : target && size !== 'sm'
-      ? `Download for ${osLabel[target.os]}`
-      : 'Download'
-  const hint = none
-    ? size === 'sm'
-      ? ''
-      : `Only ${oses.map((o) => osLabel[o]).join(', ')}`
-    : fit === 'os' && best
-      ? `${best.arch === 'arm64' ? 'ARM64' : 'x64'} build only`
-      : target
-        ? size === 'sm'
-          ? osLabel[target.os]
-          : size === 'lg'
-            ? archLabel(target)
-            : release.version
-        : release.version
-  const why = none
-    ? `${release.version} has no ${osLabel[target.os]} build. It is available for ${oses.map((o) => osLabel[o]).join(' and ')}.`
-    : fit === 'os' && target && best
-      ? `No ${archLabel(target)} build. This one is for ${best.arch}.`
-      : best?.file
+  const empty = release.assets.length === 0
+  const none = (fit === 'none' && target) || empty
+  const label = empty
+    ? 'No downloads'
+    : none && target
+      ? `No ${osLabel[target.os]} build`
+      : target && size !== 'sm'
+        ? `Download for ${osLabel[target.os]}`
+        : 'Download'
+  const hint = empty
+    ? ''
+    : none
+      ? size === 'sm'
+        ? ''
+        : `Only ${oses.map((o) => osLabel[o]).join(', ')}`
+      : fit === 'os' && best
+        ? `${best.arch === 'arm64' ? 'ARM64' : best.arch} build only`
+        : target
+          ? size === 'sm'
+            ? osLabel[target.os]
+            : size === 'lg'
+              ? archLabel(target)
+              : release.version
+          : release.version
+  const why = empty
+    ? `${release.version} has no files to download.`
+    : none && target
+      ? `${release.version} has no ${osLabel[target.os]} build. It is available for ${oses.map((o) => osLabel[o]).join(' and ')}.`
+      : fit === 'os' && target && best
+        ? `No ${archLabel(target)} build. This one is for ${best.arch}.`
+        : best?.file
 
   return (
     <div

@@ -30,7 +30,7 @@ export const bodies = {
     category: z.enum(repoCategories).nullable().optional(),
     website: webAddress.nullable().optional(),
     docs_url: webAddress.nullable().optional(),
-    install: z.string().min(1).max(200).nullable().optional(),
+    install: z.string().min(1).max(1000).nullable().optional(),
     declined_models: z
       .array(z.string().min(1).max(80))
       .max(50)

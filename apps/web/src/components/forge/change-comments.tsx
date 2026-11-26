@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { shownHandle } from '~/lib/shown-handle'
+import { MarkdownBody } from './markdown'
 import { cn } from 'cn'
 import { MultiFileDiff } from '@pierre/diffs/react'
 import { ChatBubbleLeftIcon, WrenchIcon } from '@heroicons/react/24/outline'
@@ -205,12 +207,12 @@ function Thread({
           <li key={c.id} className="text-sm">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">
-                {c.author.handle}
+                {shownHandle(c.author.handle)}
               </span>
               <ReceiptNote via={c.via} />
               <span>{timeAgo(c.created_at)}</span>
             </div>
-            <p className="mt-0.5 whitespace-pre-wrap">{c.body}</p>
+            <MarkdownBody source={c.body} compact className="mt-0.5" />
           </li>
         ))}
       </ul>

@@ -417,7 +417,7 @@ ratelimit: "write";r=34;t=60
       "percent": 11.8
     }
   ],
-  "license": null,
+  "license": "MIT",
   "website": null,
   "docs_url": null,
   "maintainers": ["dana"],
@@ -1306,7 +1306,7 @@ Owners of the account and admins of the organization only. Send `If-Match` with 
 | `category`        | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
 | `website`         | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
 | `docs_url`        | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `install`         | string (up to 200 characters, at least 1) or null                      |                                                                                                                                                                                                                            |
+| `install`         | string (up to 1000 characters, at least 1) or null                     |                                                                                                                                                                                                                            |
 | `declined_models` | array of string (up to 80 characters, at least 1)                      | Declared models to take no changes from, compared without case. Replaces the list                                                                                                                                          |
 | `auto_land`       | boolean                                                                | Land a change by itself once it can. You answer for what lands this way                                                                                                                                                    |
 | `vouched`         | array of string (pattern)                                              | Accounts you trust; their changes come first. Replaces the list                                                                                                                                                            |
@@ -2822,6 +2822,7 @@ ratelimit: "read";r=1139;t=60
           "Windows: handle UNC paths in `gitfs clone`."
         ]
       },
+      "body": null,
       "signed": true,
       "commit": null,
       "withdrawn": null,
@@ -2833,7 +2834,8 @@ ratelimit: "read";r=1139;t=60
           "size": 14889779,
           "downloads": 612,
           "sha256": "907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2",
-          "content_url": null
+          "content_url": null,
+          "source_url": null
         },
         {
           "name": "gitfs-v0.10.0-beta.2-x86_64-apple-darwin.dmg",
@@ -2842,7 +2844,8 @@ ratelimit: "read";r=1139;t=60
           "size": 15833498,
           "downloads": 160,
           "sha256": "6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f",
-          "content_url": null
+          "content_url": null,
+          "source_url": null
         },
         "…and 3 more"
       ],
@@ -2936,6 +2939,7 @@ ratelimit: "write";r=46;t=60
     "changed": [],
     "fixed": ["The negative cache is bounded."]
   },
+  "body": null,
   "signed": true,
   "commit": null,
   "withdrawn": null,
@@ -2947,7 +2951,8 @@ ratelimit: "write";r=46;t=60
       "size": 14889779,
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "downloads": 0,
-      "content_url": null
+      "content_url": null,
+      "source_url": null
     }
   ],
   "downloads": 0,
@@ -2996,7 +3001,7 @@ curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.0" \
 
 ```http
 HTTP/1.1 200
-etag: W/"ujlqaOVotl6NoCQ9"
+etag: W/"VYAWxOKpyPwLNnrw"
 ratelimit: "read";r=1138;t=60
 ```
 
@@ -3020,6 +3025,7 @@ ratelimit: "read";r=1138;t=60
       "Windows: handle UNC paths in `gitfs clone`."
     ]
   },
+  "body": null,
   "signed": true,
   "commit": null,
   "withdrawn": null,
@@ -3031,7 +3037,8 @@ ratelimit: "read";r=1138;t=60
       "size": 14889779,
       "downloads": 8473,
       "sha256": "907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2",
-      "content_url": null
+      "content_url": null,
+      "source_url": null
     },
     {
       "name": "gitfs-v0.9.0-x86_64-apple-darwin.dmg",
@@ -3040,7 +3047,8 @@ ratelimit: "read";r=1138;t=60
       "size": 15833498,
       "downloads": 2210,
       "sha256": "6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f",
-      "content_url": null
+      "content_url": null,
+      "source_url": null
     },
     "…and 3 more"
   ],
@@ -3126,6 +3134,7 @@ ratelimit: "write";r=45;t=60
     "changed": [],
     "fixed": ["The negative cache is bounded."]
   },
+  "body": null,
   "signed": true,
   "commit": null,
   "withdrawn": {
@@ -3140,7 +3149,8 @@ ratelimit: "write";r=45;t=60
       "size": 14889779,
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "downloads": 0,
-      "content_url": null
+      "content_url": null,
+      "source_url": null
     }
   ],
   "downloads": 0,
@@ -3203,7 +3213,8 @@ ratelimit: "write";r=44;t=60
   "sha256": "907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2907e5c3a18f6d4b2",
   "url": "https://cobaltforge.dev/dana/gitfs/releases/download/v0.9.0/gitfs-v0.9.0-aarch64-apple-darwin.dmg",
   "downloads": 8474,
-  "content_url": null
+  "content_url": null,
+  "source_url": null
 }
 ```
 

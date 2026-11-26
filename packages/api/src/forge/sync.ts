@@ -5,6 +5,8 @@ import { webhookSecret } from './vault'
 import type { TokenVault } from './vault'
 import { PROVIDERS, ProviderError } from './types'
 import { RemoteItems } from './items'
+import { aboutOf } from './about'
+import type { About } from './about'
 import type { Materialize } from './items'
 import { ACCESS_WARNING, LFS_WARNING, hostLabel } from './labels'
 
@@ -60,6 +62,12 @@ export type SyncHost = {
     full: string,
     languages: Array<[string, number]>,
   ) => Promise<void>
+  /**
+   * Copies the provider's description, license and website onto the
+   * repository here, where nobody here has set them otherwise. `was` is what
+   * the provider said before, so a value copied earlier follows its edits.
+   */
+  setAbout?: (full: string, about: About, was: About | null) => Promise<void>
   hasCommit?: (full: string, sha: string) => Promise<boolean>
   materialize?: Materialize
 }
@@ -718,6 +726,7 @@ export class ProviderSync {
         .languages(pr.auth, pr.remote.slug)
         .then((l) => host.setLanguages!(full, percents(l)))
         .catch(() => undefined)
+    await host.setAbout?.(full, aboutOf(pr.remote), null)
     await this.store.audit({
       handle: p.handle,
       provider: pr.provider,
@@ -1108,6 +1117,9 @@ export class ProviderSync {
       fullName: remote.slug,
     })
     const host = this.need()
+    await host
+      .setAbout?.(r.repo, aboutOf(remote), aboutOf(r.meta))
+      .catch(() => undefined)
     if (host.setLanguages)
       await forge
         .languages(auth, remote.slug)
@@ -1482,6 +1494,9 @@ export class ProviderSync {
       if (this.now() - this.lastSweep >= (o.staleEvery ?? 10 * 60_000)) {
         this.lastSweep = this.now()
         for (const r of await this.store.stale(this.now() - STALE_MS, 20)) {
+          // Items too: a link whose schedule was lost is read again.
+          await this.store.setItemsDue(r.repo, this.now())
+          await this.refreshMeta(r).catch(() => undefined)
           await this.pull(r).then(
             () => pulled++,
             (e: unknown) =>

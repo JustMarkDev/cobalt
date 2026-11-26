@@ -1,4 +1,6 @@
 import { attachUpload } from '../lib/uploads'
+import { assetTarget } from '@cobaltforge/api/forge/assets'
+import { notesOf } from '@cobaltforge/api/forge/notes'
 import { v } from 'convex/values'
 import { newId } from '@cobaltforge/api/ids'
 import { internal } from '../_generated/api'
@@ -25,6 +27,8 @@ type Asset = {
   downloads: number
   sha256: string
   uploadId?: string
+  /** Where the file is kept when it is not stored here. */
+  sourceUrl?: string
 }
 export type Release = {
   id: string
@@ -32,6 +36,8 @@ export type Release = {
   channel: string
   title: string
   notes: { added: Array<string>; changed: Array<string>; fixed: Array<string> }
+  /** The notes as written, when they came from a provider. */
+  body?: string
   signed: boolean
   commit: string | null
   withdrawn: { reason: string; at: number } | null
@@ -70,16 +76,18 @@ function present(repo: Doc<'repos'>, r: Release) {
     channel: r.channel,
     title: r.title,
     notes: r.notes,
+    body: r.body ?? null,
     signed: r.signed,
     commit: r.commit,
     withdrawn: r.withdrawn
       ? { reason: r.withdrawn.reason, at: iso(r.withdrawn.at) }
       : null,
-    assets: r.assets.map(({ uploadId, ...a }) => ({
+    assets: r.assets.map(({ uploadId, sourceUrl, ...a }) => ({
       ...a,
       content_url: uploadId
         ? `${urls().api}/uploads/${uploadId}/content`
         : null,
+      source_url: sourceUrl ?? null,
     })),
     downloads: r.assets.reduce((n, a) => n + a.downloads, 0),
     author: actorOut(r.author),
@@ -435,22 +443,10 @@ export const download = mutation({
       content_url: x.uploadId
         ? `${urls().api}/uploads/${x.uploadId}/content`
         : null,
+      source_url: x.sourceUrl ?? null,
     })
   },
 })
-
-function notesOf(body: string): Release['notes'] {
-  const lines = body
-    .split('\n')
-    .map((l) => /^\s*[-*]\s+(.+)$/.exec(l)?.[1]?.trim())
-    .filter((l): l is string => Boolean(l))
-  const changed = lines.length ? lines : body.trim() ? [body.trim()] : []
-  return {
-    added: [],
-    changed: changed.slice(0, 200).map((l) => l.slice(0, 5000)),
-    fixed: [],
-  }
-}
 
 export const importRelease = mutation({
   args: {
@@ -463,6 +459,17 @@ export const importRelease = mutation({
     prerelease: v.boolean(),
     author: v.union(v.null(), v.object({ id: v.string(), login: v.string() })),
     published: v.number(),
+    assets: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          size: v.number(),
+          downloads: v.number(),
+          url: v.string(),
+          sha256: v.union(v.null(), v.string()),
+        }),
+      ),
+    ),
   },
   returns: v.string(),
   handler: async (ctx, a) => {
@@ -483,25 +490,51 @@ export const importRelease = mutation({
       a.author?.id ?? 'ghost',
       a.author?.login ?? 'ghost',
     )
+    // Installers only, served from the provider; signatures, manifests and
+    // updater bundles stay there.
+    const assets: Array<Asset> = []
+    for (const x of (a.assets ?? []).slice(0, 100)) {
+      const t = assetTarget(x.name)
+      if (t)
+        assets.push({
+          name: x.name.slice(0, 300),
+          platform: t.platform,
+          arch: t.arch,
+          size: x.size,
+          downloads: x.downloads,
+          sha256: x.sha256 ?? '',
+          sourceUrl: x.url,
+        })
+    }
+    const body = a.body.slice(0, 100_000)
     const r: Release = {
       id: publicId,
       tag: a.tag,
       channel: a.prerelease ? 'beta' : 'stable',
       title: a.title.slice(0, 500),
       notes: notesOf(a.body),
+      ...(body.trim() ? { body } : {}),
       signed: false,
       commit: null,
       withdrawn: null,
-      assets: [],
+      assets,
       author,
       published: a.published,
       version: 1,
     }
     if (had) {
       const was = JSON.parse(had.json) as Release
+      // Files uploaded here stay; the provider's are replaced.
+      const kept = was.assets.filter((x) => !x.sourceUrl)
+      const nextAssets = [
+        ...kept,
+        ...assets.filter((x) => !kept.some((k) => k.name === x.name)),
+      ]
       if (
         was.title === r.title &&
         JSON.stringify(was.notes) === JSON.stringify(r.notes) &&
+        (was.body ?? '') === (r.body ?? '') &&
+        JSON.stringify(was.assets) === JSON.stringify(nextAssets) &&
         was.channel === r.channel &&
         was.author.handle === r.author.handle
       )
@@ -510,6 +543,8 @@ export const importRelease = mutation({
         ...was,
         title: r.title,
         notes: r.notes,
+        body: r.body,
+        assets: nextAssets,
         channel: r.channel,
         author: r.author,
         version: was.version + 1,

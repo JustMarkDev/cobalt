@@ -142,9 +142,14 @@ export function matchAsset(
   target: Target | null,
 ): { asset: Asset | undefined; fit: Fit } {
   if (!target) return { asset: release.assets.at(0), fit: 'exact' }
-  const exact = release.assets.find(
-    (a) => a.platform === target.os && a.arch === target.arch,
-  )
+  const exact =
+    release.assets.find(
+      (a) => a.platform === target.os && a.arch === target.arch,
+    ) ??
+    // A universal build is the right one for any processor.
+    release.assets.find(
+      (a) => a.platform === target.os && a.arch === 'universal',
+    )
   if (exact) return { asset: exact, fit: 'exact' }
   const sameOs = release.assets.find((a) => a.platform === target.os)
   if (sameOs) return { asset: sameOs, fit: 'os' }

@@ -211,6 +211,7 @@ export type IssueRec = {
   author: ActorRec
   labels: Array<string>
   assignees?: Array<ActorRec>
+  closedAs?: 'completed' | 'not_planned' | 'duplicate' | null
   comments?: Array<CommentRec>
   evidence?: Array<EvidenceRec>
   created: number
@@ -442,6 +443,8 @@ export type AssetRec = {
   downloads: number
   sha256: string
   uploadId?: string
+  /** Where the file is kept when it is not stored here. */
+  sourceUrl?: string
 }
 export type ReleaseRec = {
   id: string
@@ -449,6 +452,8 @@ export type ReleaseRec = {
   channel: ReleaseChannel
   title: string
   notes: { added: Array<string>; changed: Array<string>; fixed: Array<string> }
+  /** The notes as written, when they came from a provider. */
+  body?: string
   signed: boolean
   commit: string | null
   withdrawn: { reason: string; at: number } | null

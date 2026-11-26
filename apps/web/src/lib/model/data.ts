@@ -50,6 +50,8 @@ export type Release = {
   signed: boolean
   title: string
   notes: { added: Array<string>; changed: Array<string>; fixed: Array<string> }
+  /** The notes as written, in Markdown, for an imported release. */
+  body?: string
   assets: Array<Asset>
   commit?: string
   withdrawn?: string

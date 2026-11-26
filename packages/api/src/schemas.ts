@@ -110,7 +110,9 @@ export const Repo = named(
     install: z
       .string()
       .nullable()
-      .describe('One command that installs the project, set by its owners'),
+      .describe(
+        'Commands that install the project, one per line, set by its owners',
+      ),
     category: z
       .enum(repoCategories)
       .nullable()
@@ -485,6 +487,12 @@ export const Issue = named(
       .describe('Who is working on it. Set with `assignees` on update'),
     comments: z.number().int().describe('How many comments it has'),
     closed_at: ts.nullable(),
+    closed_as: z
+      .enum(['completed', 'not_planned', 'duplicate'])
+      .nullable()
+      .describe(
+        'Why it was closed, when that was said: done, not going to be done, or the same as another',
+      ),
     created_at: ts,
     updated_at: ts,
     version: z.number().int(),
@@ -607,6 +615,12 @@ export const ReleaseAsset = named(
       .string()
       .nullable()
       .describe('Where the file is served, when it was uploaded here'),
+    source_url: z
+      .string()
+      .nullable()
+      .describe(
+        'Where the file is kept when it is not stored here, such as on the provider the repository was imported from',
+      ),
   }),
 )
 
@@ -627,6 +641,12 @@ export const Release = named(
       changed: z.array(z.string()),
       fixed: z.array(z.string()),
     }),
+    body: z
+      .string()
+      .nullable()
+      .describe(
+        'The notes as written, in Markdown, when they came from elsewhere (an imported release); null when they are only `notes`',
+      ),
     signed: z.boolean().describe('Every asset is signed'),
     commit: z
       .string()
@@ -703,6 +723,10 @@ export const Download = named(
       .describe(
         'The file itself, when it was uploaded here; null when it is kept elsewhere',
       ),
+    source_url: z
+      .string()
+      .nullable()
+      .describe('Where the file is kept when it is not stored here'),
   }),
 )
 

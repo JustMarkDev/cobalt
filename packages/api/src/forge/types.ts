@@ -57,6 +57,8 @@ export type RemotePull = {
   state: 'open' | 'closed' | 'merged'
   draft: boolean
   author: ExternalActor | null
+  /** Label names, as the provider shows them. */
+  labels?: Array<string>
   head: { ref: string; sha: string; fromFork: boolean }
   base: { ref: string }
   created: number
@@ -73,11 +75,16 @@ export type RemoteIssue = {
   state: 'open' | 'closed'
   author: ExternalActor | null
   labels: Array<string>
+  /** Why it was closed, where the provider says. */
+  closedAs?: IssueClosedAs | null
+  assignees?: Array<ExternalActor>
   created: number
   updated: number
   closed: number | null
   url: string
 }
+
+export type IssueClosedAs = 'completed' | 'not_planned' | 'duplicate'
 
 export type RemoteRelease = {
   id: string
@@ -90,6 +97,51 @@ export type RemoteRelease = {
   created: number
   published: number | null
   url: string
+  /** The files attached to it, kept on the provider. */
+  assets?: Array<RemoteAsset>
+}
+
+export type RemoteAsset = {
+  name: string
+  size: number
+  /** How many times the provider served it. */
+  downloads: number
+  /** Where the provider serves it. */
+  url: string
+  /** Hex, when the provider computed one. */
+  sha256: string | null
+}
+
+/** A label as the provider defines it. */
+export type RemoteLabel = {
+  name: string
+  /** Hex without `#`, such as `d73a4a`. */
+  color: string
+  description: string
+}
+
+/** A review of a pull request: a verdict with an optional summary. */
+export type RemoteReview = {
+  id: string
+  author: ExternalActor | null
+  state: 'approved' | 'changes' | 'commented'
+  body: string
+  /** The commit it was given on. */
+  sha: string | null
+  created: number
+}
+
+/** A comment on a line of a pull request's diff. */
+export type RemoteReviewComment = {
+  id: string
+  author: ExternalActor | null
+  body: string
+  path: string
+  line: number | null
+  /** The comment of the thread it answers. */
+  replyTo: string | null
+  created: number
+  updated: number
 }
 
 export type RemoteComment = {
@@ -216,6 +268,20 @@ export interface ForgeProvider {
     number: number,
     on?: 'issue' | 'pull',
   ) => Promise<Array<RemoteComment>>
+  /** The repository's labels. */
+  listLabels?: (auth: ProviderAuth, slug: string) => Promise<Array<RemoteLabel>>
+  /** A pull request's reviews, oldest first. */
+  listReviews?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+  ) => Promise<Array<RemoteReview>>
+  /** A pull request's comments on diff lines, oldest first. */
+  listReviewComments?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+  ) => Promise<Array<RemoteReviewComment>>
   checksOf?: (
     auth: ProviderAuth,
     slug: string,

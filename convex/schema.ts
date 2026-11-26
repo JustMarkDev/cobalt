@@ -349,6 +349,14 @@ export default defineSchema({
     author: actorRef,
     labels: v.array(v.string()),
     assignees: v.array(actorRef),
+    /** Why it was closed, when that was said (imported from a provider). */
+    closedAs: v.optional(
+      v.union(
+        v.literal('completed'),
+        v.literal('not_planned'),
+        v.literal('duplicate'),
+      ),
+    ),
     commentCount: v.number(),
     created: v.number(),
     updated: v.number(),

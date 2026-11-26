@@ -14,6 +14,7 @@ import { cn } from 'cn'
 import { Chip, LangDot, Panel, SectionLabel } from './bits'
 import { DownloadButton, TargetPicker } from './download-button'
 import { CopyField } from './repo-shell'
+import { useInstalls } from './repo-about'
 import type { Channel, Release, Repo } from '~/lib/model/data'
 import { Button } from '~/components/ui/button'
 import { Segmented } from '~/components/ui/tabs'
@@ -22,6 +23,7 @@ import { availableOses, matchAsset, osLabel, useTarget } from '~/lib/platform'
 import { useWrite } from '~/lib/forge'
 import { manages, useAccount } from '~/lib/auth/accounts'
 import { PublishRelease } from './release-publish'
+import { MarkdownBody } from './markdown'
 
 const platformIcon = {
   macos: ComputerDesktopIcon,
@@ -47,35 +49,56 @@ export function useDownload(repo: Repo) {
   }
 }
 
+/** A title that only repeats the version ("v2.5.2", "app v2.5.2") says nothing more. */
+function sameAsVersion(release: Release, name?: string) {
+  const t = release.title.trim().toLowerCase()
+  const v = release.version.toLowerCase()
+  return (
+    !t ||
+    t === v ||
+    t === v.replace(/^v/, '') ||
+    (name !== undefined && t === `${name} ${v}`.toLowerCase())
+  )
+}
+
 export function ReleaseNotes({ release }: { release: Release }) {
   return (
     <div className="space-y-5 text-sm">
       <div>
         <h3 className="text-lg font-semibold tracking-tight">
-          {release.version}: {release.title}
+          {release.version}
+          {!sameAsVersion(release) && `: ${release.title}`}
         </h3>
         <p className="text-xs text-muted-foreground">{release.date}</p>
       </div>
-      {(
-        [
-          ['Added', release.notes.added, 'text-success'],
-          ['Changed', release.notes.changed, 'text-info'],
-          ['Fixed', release.notes.fixed, 'text-warning'],
-        ] as const
-      ).map(
-        ([label, items, color]) =>
-          items.length > 0 && (
-            <div key={label}>
-              <h4 className={cn('mb-1.5 font-mono text-xs font-medium', color)}>
-                {label}
-              </h4>
-              <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-                {items.map((i) => (
-                  <li key={i}>{i}</li>
-                ))}
-              </ul>
-            </div>
-          ),
+      {release.body ? (
+        <MarkdownBody source={release.body} compact />
+      ) : (
+        (
+          [
+            ['Added', release.notes.added, 'text-success'],
+            ['Changed', release.notes.changed, 'text-info'],
+            ['Fixed', release.notes.fixed, 'text-warning'],
+          ] as const
+        ).map(
+          ([label, items, color]) =>
+            items.length > 0 && (
+              <div key={label}>
+                <h4
+                  className={cn('mb-1.5 font-mono text-xs font-medium', color)}
+                >
+                  {label}
+                </h4>
+                <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                  {items.map((i) => (
+                    <li key={i}>
+                      <MarkdownBody source={i} compact className="[&_p]:my-0" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ),
+        )
       )}
     </div>
   )
@@ -170,7 +193,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
   const download = useDownload(repo)
   const [version, setVersion] = React.useState<string | null>(null)
   const [filter, setFilter] = React.useState<'all' | Channel>('all')
-  const [install, setInstall] = React.useState(0)
+  const [install, setInstall] = React.useState<string | null>(null)
   const latest = latestStable(repo)
   const release =
     repo.releases.find((r) => r.version === version) ??
@@ -180,22 +203,8 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
     repo.releases.filter((r) => r.channel === c).length
 
   const pinned = release !== undefined && release !== latest
-  const v = release?.version.replace(/^v/, '') ?? ''
-  const installs = [
-    [
-      'curl',
-      `curl -fsSL https://cobaltforge.dev/${repo.owner}/${repo.name}/install | sh${pinned ? ` -s -- --version ${release.version}` : ''}`,
-    ],
-    [
-      'brew',
-      `brew install ${repo.owner}/tap/${repo.name}${pinned ? `@${v.split(/[.-]/).slice(0, 2).join('.')}` : ''}`,
-    ],
-    ['cargo', `cargo install ${repo.name}${pinned ? ` --version ${v}` : ''}`],
-    [
-      'docker',
-      `docker run --rm ghcr.io/${repo.owner}/${repo.name}${pinned ? `:${v}` : ''}`,
-    ],
-  ] as const
+  const installs = useInstalls(repo)
+  const shown = installs.find((i) => i.label === install) ?? installs.at(0)
 
   if (!release) {
     return (
@@ -323,7 +332,11 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
                   <div className="mt-1 text-3xl font-semibold tracking-tighter">
                     {repo.name} {release.version}
                   </div>
-                  <p className="mt-1 text-muted-foreground">{release.title}</p>
+                  {!sameAsVersion(release, repo.name) && (
+                    <p className="mt-1 text-muted-foreground">
+                      {release.title}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <DownloadButton
@@ -331,15 +344,22 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
                     size="lg"
                     onDownload={(file) => download(release, file)}
                   />
-                  {fit === 'none' && target && (
+                  {release.assets.length === 0 ? (
                     <p className="max-w-72 text-sm text-muted-foreground">
-                      {release.version} has no {osLabel[target.os]} build. It is
-                      available for{' '}
-                      {availableOses(release)
-                        .map((o) => osLabel[o])
-                        .join(' and ')}
-                      .
+                      {release.version} has no files to download.
                     </p>
+                  ) : (
+                    fit === 'none' &&
+                    target && (
+                      <p className="max-w-72 text-sm text-muted-foreground">
+                        {release.version} has no {osLabel[target.os]} build. It
+                        is available for{' '}
+                        {availableOses(release)
+                          .map((o) => osLabel[o])
+                          .join(' and ')}
+                        .
+                      </p>
+                    )
                   )}
                   {best && target && (
                     <p className="max-w-72 truncate font-mono text-xs text-muted-foreground">
@@ -353,29 +373,33 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
               </div>
             </Panel>
           </section>
-          <section id="install" className="scroll-mt-header space-y-3">
-            <SectionLabel>Or use a package manager</SectionLabel>
-            {pinned && (
-              <p className="text-sm text-muted-foreground">
-                These commands install{' '}
-                <span className="font-mono text-foreground">
-                  {release.version}
-                </span>{' '}
-                exactly, not the latest.
-              </p>
-            )}
-            <Segmented
-              label="Install with"
-              className="w-full [&>*>*]:flex-1"
-              value={String(install)}
-              onChange={(i) => setInstall(Number(i))}
-              options={installs.map(([label], i): [string, string] => [
-                String(i),
-                label,
-              ])}
-            />
-            <CopyField value={installs[install][1]} />
-          </section>
+          {shown && (
+            <section id="install" className="scroll-mt-header space-y-3">
+              <SectionLabel>Or use a package manager</SectionLabel>
+              {pinned && (
+                <p className="text-sm text-muted-foreground">
+                  These commands install the latest version, not{' '}
+                  <span className="font-mono text-foreground">
+                    {release.version}
+                  </span>
+                  .
+                </p>
+              )}
+              {installs.length > 1 && (
+                <Segmented
+                  label="Install with"
+                  className="w-full [&>*>*]:flex-1"
+                  value={shown.label}
+                  onChange={setInstall}
+                  options={installs.map((i): [string, string] => [
+                    i.label,
+                    i.label,
+                  ])}
+                />
+              )}
+              <CopyField value={shown.command} />
+            </section>
+          )}
           <section id="changelog" className="scroll-mt-header space-y-3">
             <SectionLabel>Changelog</SectionLabel>
             <Panel className="p-5">

@@ -14,6 +14,7 @@ import type { Viewer } from './records'
 import type { Prepared, SyncHost } from '../forge/sync'
 import type { ProviderId } from '../forge/types'
 import { labelOf } from '../forge/sync'
+import { aboutPatch } from '../forge/about'
 import { forgeOps } from '../forge/ports'
 import { DomainIntegrations } from './integrations'
 
@@ -175,7 +176,7 @@ export abstract class DomainImports extends DomainIntegrations {
           owner: body.owner,
           name,
           visibility: body.visibility,
-          description: `Linked to ${pr.instance}/${pr.remote.slug}`,
+          description: pr.remote.description.trim().slice(0, 500),
         },
         dry,
       )
@@ -202,8 +203,7 @@ export abstract class DomainImports extends DomainIntegrations {
         owner: o.owner,
         name: o.name,
         visibility: o.visibility,
-        description:
-          pr.remote.description || `Linked to ${pr.instance}/${pr.remote.slug}`,
+        description: pr.remote.description.trim().slice(0, 500),
       },
       false,
     )
@@ -285,6 +285,20 @@ export abstract class DomainImports extends DomainIntegrations {
       setLanguages: async (full, languages) => {
         const r = this.repos.get(full)
         if (r) r.languages = languages
+      },
+      setAbout: async (full, about, was) => {
+        const r = this.repos.get(full)
+        if (!r) return
+        const next = aboutPatch(
+          {
+            description: r.description,
+            license: r.license,
+            website: r.website,
+          },
+          about,
+          was,
+        )
+        if (next) Object.assign(r, next)
       },
       hasCommit: (full, sha) =>
         this.svc.git.commit(full, sha).then(

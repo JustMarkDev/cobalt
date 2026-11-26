@@ -13,9 +13,12 @@ import type {
   RemoteCheck,
   RemoteComment,
   RemoteIssue,
+  RemoteLabel,
   RemotePull,
   RemoteRelease,
   RemoteRepo,
+  RemoteReview,
+  RemoteReviewComment,
   WebhookEvent,
 } from './types'
 
@@ -443,6 +446,77 @@ export function createGithubForge(
       return out
     },
 
+    async listLabels(auth, slug) {
+      const out: Array<RemoteLabel> = []
+      let url: string | null = `/repos/${slug}/labels?per_page=100`
+      for (let page = 0; url && page < 10; page++) {
+        const r: Awaited<ReturnType<typeof get<Array<GhLabel>>>> = await get(
+          auth,
+          url,
+        )
+        for (const l of r.body)
+          out.push({
+            name: l.name,
+            color: l.color ?? '',
+            description: l.description ?? '',
+          })
+        url = r.next
+      }
+      return out
+    },
+
+    async listReviews(auth, slug, number) {
+      const out: Array<RemoteReview> = []
+      let url: string | null =
+        `/repos/${slug}/pulls/${number}/reviews?per_page=100`
+      for (let page = 0; url && page < 10; page++) {
+        const r: Awaited<ReturnType<typeof get<Array<GhReview>>>> = await get(
+          auth,
+          url,
+        )
+        for (const x of r.body) {
+          const state = reviewState(x.state)
+          if (!state || !x.submitted_at) continue
+          out.push({
+            id: String(x.id),
+            author: actor(x.user),
+            state,
+            body: x.body ?? '',
+            sha: x.commit_id ?? null,
+            created: toMs(x.submitted_at) ?? 0,
+          })
+        }
+        url = r.next
+      }
+      return out
+    },
+
+    async listReviewComments(auth, slug, number) {
+      const out: Array<RemoteReviewComment> = []
+      let url: string | null =
+        `/repos/${slug}/pulls/${number}/comments?per_page=100`
+      for (let page = 0; url && page < 10; page++) {
+        const r: Awaited<ReturnType<typeof get<Array<GhReviewComment>>>> =
+          await get(auth, url)
+        for (const c of r.body)
+          out.push({
+            id: String(c.id),
+            author: actor(c.user),
+            body: c.body ?? '',
+            path: c.path,
+            line: c.line ?? c.original_line ?? null,
+            replyTo:
+              c.in_reply_to_id === undefined || c.in_reply_to_id === null
+                ? null
+                : String(c.in_reply_to_id),
+            created: toMs(c.created_at) ?? 0,
+            updated: toMs(c.updated_at) ?? 0,
+          })
+        url = r.next
+      }
+      return out
+    },
+
     async checksOf(auth, slug, sha) {
       const out: Array<RemoteCheck> = []
       const runs = await get<{
@@ -571,6 +645,7 @@ type GhPull = {
   updated_at: string
   html_url: string
   user: GhUser | null
+  labels?: Array<{ name?: string } | string>
   head: { ref: string; sha: string; repo: { full_name: string } | null }
   base: { ref: string; repo: { full_name: string } }
 }
@@ -582,6 +657,7 @@ const pullOf = (p: GhPull): RemotePull => ({
   state: p.merged_at ? 'merged' : p.state,
   draft: p.draft ?? false,
   author: actor(p.user),
+  labels: labelNames(p.labels ?? []),
   head: {
     ref: p.head.ref,
     sha: p.head.sha,
@@ -607,6 +683,8 @@ type GhIssue = {
   closed_at: string | null
   html_url: string
   pull_request?: unknown
+  state_reason?: string | null
+  assignees?: Array<GhUser> | null
 }
 
 const issueOf = (i: GhIssue): RemoteIssue => ({
@@ -615,9 +693,18 @@ const issueOf = (i: GhIssue): RemoteIssue => ({
   body: i.body ?? '',
   state: i.state,
   author: actor(i.user),
-  labels: i.labels
-    .map((l) => (typeof l === 'string' ? l : (l.name ?? '')))
-    .filter(Boolean),
+  labels: labelNames(i.labels),
+  closedAs:
+    i.state !== 'closed'
+      ? null
+      : i.state_reason === 'not_planned'
+        ? 'not_planned'
+        : i.state_reason === 'duplicate'
+          ? 'duplicate'
+          : 'completed',
+  assignees: (i.assignees ?? [])
+    .map((u) => actor(u))
+    .filter((a): a is ExternalActor => a !== null),
   created: toMs(i.created_at) ?? 0,
   updated: toMs(i.updated_at) ?? 0,
   closed: toMs(i.closed_at),
@@ -635,6 +722,13 @@ type GhRelease = {
   created_at: string
   published_at: string | null
   html_url: string
+  assets?: Array<{
+    name: string
+    size: number
+    download_count: number
+    browser_download_url: string
+    digest?: string | null
+  }>
 }
 
 const releaseOf = (r: GhRelease): RemoteRelease => ({
@@ -648,7 +742,49 @@ const releaseOf = (r: GhRelease): RemoteRelease => ({
   created: toMs(r.created_at) ?? 0,
   published: toMs(r.published_at),
   url: r.html_url,
+  assets: (r.assets ?? []).map((a) => ({
+    name: a.name,
+    size: a.size,
+    downloads: a.download_count,
+    url: a.browser_download_url,
+    sha256: a.digest?.startsWith('sha256:') ? a.digest.slice(7) : null,
+  })),
 })
+
+type GhLabel = { name: string; color?: string; description?: string | null }
+
+type GhReview = {
+  id: number
+  user: GhUser | null
+  body: string | null
+  state: string
+  commit_id?: string | null
+  submitted_at?: string | null
+}
+
+const reviewState = (s: string): RemoteReview['state'] | null =>
+  s === 'APPROVED'
+    ? 'approved'
+    : s === 'CHANGES_REQUESTED'
+      ? 'changes'
+      : s === 'COMMENTED' || s === 'DISMISSED'
+        ? 'commented'
+        : null
+
+type GhReviewComment = {
+  id: number
+  user: GhUser | null
+  body: string | null
+  path: string
+  line?: number | null
+  original_line?: number | null
+  in_reply_to_id?: number | null
+  created_at: string
+  updated_at: string
+}
+
+const labelNames = (ls: Array<{ name?: string } | string>) =>
+  ls.map((l) => (typeof l === 'string' ? l : (l.name ?? ''))).filter(Boolean)
 
 type GhComment = {
   id: number

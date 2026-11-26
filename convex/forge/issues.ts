@@ -24,7 +24,14 @@ import {
 } from '../lib/events'
 import { keysetPage } from '../lib/paginate'
 import { actorOut, iso, urls } from '../lib/present'
-import { assignable, issueOf, presentIssue, recountLabels } from '../lib/issues'
+import {
+  assignable,
+  isDefaultLabel,
+  issueOf,
+  presentIssue,
+  recountLabels,
+} from '../lib/issues'
+import { labelColorOf } from '@cobaltforge/api/forge/colors'
 import { syncAssignees } from '../lib/grants'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
@@ -780,6 +787,99 @@ const importedActor = v.union(
   v.object({ id: v.string(), login: v.string() }),
 )
 
+/**
+ * The labels of the provider a repository is linked to, with the nearest
+ * colour here. On the first import the default labels nobody used yet make
+ * way for the provider's own.
+ */
+export const importLabels = mutation({
+  args: {
+    repo: v.string(),
+    host: v.string(),
+    labels: v.array(
+      v.object({
+        name: v.string(),
+        color: v.string(),
+        description: v.string(),
+      }),
+    ),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.repo)
+    if (!repo) fail('not_found', `No repository ${a.repo}.`)
+    const at = Date.now()
+    const theirs = new Set<string>()
+    let changed = 0
+    for (const l of a.labels.slice(0, 500)) {
+      const name = l.name.trim().slice(0, 100)
+      const key = name.toLowerCase()
+      if (!name || theirs.has(key)) continue
+      theirs.add(key)
+      const tone = labelColorOf(l.color)
+      const description = l.description.slice(0, 500)
+      const have = await ctx.db
+        .query('labels')
+        .withIndex('by_repoId_and_key', (q) =>
+          q.eq('repoId', repo._id).eq('key', key),
+        )
+        .unique()
+      if (have) {
+        if (
+          have.name !== name ||
+          have.color !== tone ||
+          have.description !== description
+        ) {
+          await ctx.db.patch('labels', have._id, {
+            name,
+            color: tone,
+            description,
+          })
+          changed++
+        }
+        continue
+      }
+      await ctx.db.insert('labels', {
+        repoId: repo._id,
+        publicId: newId('label', at),
+        name,
+        key,
+        color: tone,
+        description,
+        created: at,
+        openIssues: 0,
+      })
+      changed++
+    }
+    if (theirs.size)
+      for (const l of await ctx.db
+        .query('labels')
+        .withIndex('by_repoId_and_key', (q) => q.eq('repoId', repo._id))
+        .take(600)) {
+        // Seeded with the repository and never used: not the provider's.
+        if (
+          theirs.has(l.key) ||
+          l.created !== repo.created ||
+          l.openIssues > 0 ||
+          !isDefaultLabel(l.key)
+        )
+          continue
+        let used = false
+        for await (const i of issuesWith(ctx, repo, l.key)) {
+          void i
+          used = true
+          break
+        }
+        if (used) continue
+        await ctx.db.delete('labels', l._id)
+        changed++
+      }
+    if (changed) await bumpLabels(ctx, repo)
+    return out(changed ? 'updated' : 'unchanged')
+  },
+})
+
 export const importIssue = mutation({
   args: {
     repo: v.string(),
@@ -790,6 +890,17 @@ export const importIssue = mutation({
     state: v.union(v.literal('open'), v.literal('closed')),
     author: importedActor,
     labels: v.array(v.string()),
+    closedAs: v.optional(
+      v.union(
+        v.null(),
+        v.literal('completed'),
+        v.literal('not_planned'),
+        v.literal('duplicate'),
+      ),
+    ),
+    assignees: v.optional(
+      v.array(v.object({ id: v.string(), login: v.string() })),
+    ),
     created: v.number(),
     updated: v.number(),
     closed: v.union(v.null(), v.number()),
@@ -811,6 +922,9 @@ export const importIssue = mutation({
     const who = (x: { id: string; login: string } | null) =>
       externalActorFor(ctx, a.host, x?.id ?? 'ghost', x?.login ?? 'ghost')
     const author = await who(a.author)
+    const assignees = []
+    for (const x of (a.assignees ?? []).slice(0, 10))
+      assignees.push(await who(x))
     const publicId = `iss_${a.host}_${a.number}`
     const had = await ctx.db
       .query('issues')
@@ -836,6 +950,8 @@ export const importIssue = mutation({
       labels: a.labels.slice(0, 50),
       updated: Math.max(a.updated, had?.updated ?? 0),
       closed: a.closed,
+      closedAs: a.state === 'closed' ? (a.closedAs ?? undefined) : undefined,
+      assignees,
     }
     let issueId = had?._id
     let outcome = 'unchanged'
@@ -845,6 +961,9 @@ export const importIssue = mutation({
         had.title === fields.title &&
         had.body === fields.body &&
         had.state === fields.state &&
+        had.closedAs === fields.closedAs &&
+        JSON.stringify(had.assignees.map((x) => x.handle)) ===
+          JSON.stringify(fields.assignees.map((x) => x.handle)) &&
         JSON.stringify(had.labels) === JSON.stringify(fields.labels)
       if (!same) {
         await ctx.db.patch('issues', had._id, {
@@ -868,7 +987,6 @@ export const importIssue = mutation({
         number: a.number,
         ...fields,
         author,
-        assignees: [],
         commentCount: 0,
         created: a.created,
         version: 1,
@@ -888,9 +1006,12 @@ export const importIssue = mutation({
         )
         .unique()
       if (old) {
-        if (old.updated !== c.updated)
+        // Someone who linked their account since is shown as themselves.
+        const by = await who(c.author)
+        if (old.updated !== c.updated || old.author.handle !== by.handle)
           await ctx.db.patch('issueComments', old._id, {
             body: c.body.slice(0, 100_000),
+            author: by,
             updated: c.updated,
             version: old.version + 1,
           })

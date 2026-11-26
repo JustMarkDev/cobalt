@@ -50,6 +50,7 @@ const merges = [
     closed_at: null,
     merged_at: null,
     web_url: 'https://gitlab.com/dana.okafor/zine/-/merge_requests/3',
+    labels: ['print'],
   },
   {
     iid: 2,
@@ -78,6 +79,7 @@ const issues = [
     state: 'opened',
     author: tomas,
     labels: ['bug', 'print'],
+    assignees: [dana],
     created_at: '2026-10-30T14:00:00Z',
     updated_at: '2026-11-02T10:00:00Z',
     closed_at: null,
@@ -94,7 +96,24 @@ const releases = [
     created_at: '2026-10-22T09:00:00Z',
     released_at: '2026-10-22T09:00:00Z',
     _links: { self: 'https://gitlab.com/dana.okafor/zine/-/releases/v0.3.0' },
+    assets: {
+      links: [
+        {
+          name: 'zine-0.3.0-x86_64.AppImage',
+          url: 'https://gitlab.com/dana.okafor/zine/-/releases/v0.3.0/downloads/zine-0.3.0-x86_64.AppImage',
+        },
+        {
+          name: 'checksums.txt',
+          url: 'https://gitlab.com/dana.okafor/zine/-/releases/v0.3.0/downloads/checksums.txt',
+        },
+      ],
+    },
   },
+]
+
+const labels = [
+  { name: 'bug', color: '#d73a4a', description: 'It does not work' },
+  { name: 'print', color: '#8e44ad', description: 'Paper output' },
 ]
 
 const note = (id: number, body: string, author: typeof dana, at: string) => ({
@@ -135,6 +154,7 @@ export function sampleGitlabFetch(now: () => number) {
     if (p === `${project}/merge_requests`) return json(merges)
     if (p === `${project}/issues`) return json(issues)
     if (p === `${project}/releases`) return json(releases)
+    if (p === `${project}/labels`) return json(labels)
     if (p === `${project}/merge_requests/3/notes`)
       return json([
         note(901, 'Looks good on my printer.', dana, '2026-11-02T16:40:00Z'),

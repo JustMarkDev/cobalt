@@ -318,6 +318,37 @@ describe.skipIf(onConvex)('GitLab in generic mode', () => {
     ).toBe(405)
   })
 
+  test('a first sync still running is looked at again, and items are read again on a schedule', async () => {
+    const now = clock()
+    const h = harness({ now })
+    await connectGitlab(h)
+    await h.call('POST', '/imports', {
+      body: { host: 'gitlab', slug: 'dana.okafor/zine' },
+    })
+    const items = sync(h).items as unknown as {
+      hasCommit: (full: string, sha: string) => Promise<boolean>
+    }
+    // The store has no default branch yet: the git sync is still running.
+    items.hasCommit = () => Promise.resolve(false)
+    await sync(h).tick()
+    const store = sync(h).store
+    const linkOf = () => store.remoteOfRepo('dana/zine')
+    expect((await linkOf())!.state).toBe('syncing')
+    expect(await store.itemsDue(now() + 59_000, 5)).toHaveLength(0)
+    expect(await store.itemsDue(now() + 61_000, 5)).toHaveLength(1)
+    // It settles: the next look says so, without a push to wake it.
+    items.hasCommit = () => Promise.resolve(true)
+    now.advance(61_000)
+    await sync(h).tick()
+    expect((await linkOf())!.state).toBe('linked')
+    expect(
+      (await h.call('GET', '/repos/dana/zine/mirrors')).json.data[0].state,
+    ).toBe('in-sync')
+    // A missed webhook costs at most half an hour.
+    expect(await store.itemsDue(now() + 29 * 60_000, 5)).toHaveLength(0)
+    expect(await store.itemsDue(now() + 31 * 60_000, 5)).toHaveLength(1)
+  })
+
   test('a GitLab delivery carries the per-repository secret; a push pulls', async () => {
     const h = harness()
     await connectGitlab(h)

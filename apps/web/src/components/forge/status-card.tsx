@@ -37,6 +37,7 @@ export function StatusCard({
   note,
   onLand,
   onGoto,
+  landedText = 'Landed. Children were rebased.',
 }: {
   items: Array<StatusItem>
   landing: 'idle' | 'landing' | 'landed'
@@ -45,10 +46,12 @@ export function StatusCard({
   note: string
   onLand: () => void
   onGoto?: (tab: 'code' | 'timeline') => void
+  /** What the card says once the change has landed. */
+  landedText?: string
 }) {
   return (
     <Panel className="overflow-hidden p-2">
-      <ul>
+      <ul className="empty:hidden">
         {items.map((i) => (
           <li key={i.id}>
             <button
@@ -74,7 +77,7 @@ export function StatusCard({
         {landing === 'landed' ? (
           <div className="flex items-center gap-2 rounded-lg bg-merged/10 px-4 py-3 font-medium text-merged">
             <GitMergeIcon className="size-4" />
-            Landed. Children were rebased.
+            {landedText}
           </div>
         ) : (
           <>

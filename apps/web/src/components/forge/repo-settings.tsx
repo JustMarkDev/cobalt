@@ -62,6 +62,7 @@ function General({ repo }: { repo: Repo }) {
   const write = useWrite()
   const navigate = useNavigate()
   const [description, setDescription] = React.useState(repo.description)
+  const [install, setInstall] = React.useState(repo.install ?? '')
   const [visibility, setVisibility] = React.useState<'public' | 'private'>(
     repo.visibility ?? 'public',
   )
@@ -80,6 +81,21 @@ function General({ repo }: { repo: Repo }) {
             rows={2}
             onChange={(e) => {
               setDescription(e.target.value)
+              setSaved(false)
+            }}
+          />
+        </Field>
+        <Field
+          label="Install commands"
+          hint="One per line, such as brew install you/tap/app. Left empty, the commands in the README are shown, if it has any."
+        >
+          <Textarea
+            value={install}
+            rows={3}
+            className="font-mono text-sm"
+            placeholder="winget install You.App"
+            onChange={(e) => {
+              setInstall(e.target.value)
               setSaved(false)
             }}
           />
@@ -106,7 +122,11 @@ function General({ repo }: { repo: Repo }) {
             onClick={() =>
               void write('repos.update', {
                 ...at,
-                body: { description, visibility },
+                body: {
+                  description,
+                  visibility,
+                  install: install.trim() === '' ? null : install.trim(),
+                },
               }).then((r) => {
                 setError(r.error?.message ?? '')
                 setSaved(!r.error)

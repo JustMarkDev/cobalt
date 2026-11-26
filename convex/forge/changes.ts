@@ -2450,6 +2450,37 @@ export const importPull = mutation({
         created: v.number(),
       }),
     ),
+    labels: v.optional(v.array(v.string())),
+    reviews: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          author: importedActor,
+          state: v.union(
+            v.literal('approved'),
+            v.literal('changes'),
+            v.literal('commented'),
+          ),
+          body: v.string(),
+          sha: v.union(v.null(), v.string()),
+          created: v.number(),
+        }),
+      ),
+    ),
+    lineComments: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          author: importedActor,
+          body: v.string(),
+          path: v.string(),
+          line: v.union(v.null(), v.number()),
+          replyTo: v.union(v.null(), v.string()),
+          created: v.number(),
+          updated: v.number(),
+        }),
+      ),
+    ),
   },
   returns: v.string(),
   handler: async (ctx, a) => {
@@ -2459,6 +2490,7 @@ export const importPull = mutation({
     const who = (x: { id: string; login: string } | null) =>
       externalActorFor(ctx, a.host, x?.id ?? 'ghost', x?.login ?? 'ghost')
     const author = await who(a.author)
+    const labels = (a.labels ?? []).slice(0, 50)
     const files = Object.fromEntries(
       Object.entries(a.files ?? {})
         .slice(0, 3000)
@@ -2467,7 +2499,15 @@ export const importPull = mutation({
           { hash: a.headSha.slice(0, 6), add: f.add, del: f.del },
         ]),
     )
-    const reviews = []
+    const reviews: Array<{
+      id: string
+      actor: ActorRef
+      state: 'approved' | 'changes' | 'commented'
+      patchSet: number
+      carries: boolean
+      body: string
+      created: number
+    }> = []
     for (const c of a.comments.slice(0, 500))
       reviews.push({
         id: `rev_${a.host}_${c.id}`.slice(0, 64),
@@ -2477,6 +2517,38 @@ export const importPull = mutation({
         carries: false,
         body: c.body.slice(0, 60_000),
         created: c.created,
+      })
+    // Verdicts, and summaries worth reading: a bare "commented" review only
+    // holds line comments, which come below.
+    for (const r of (a.reviews ?? []).slice(0, 300))
+      if (r.state !== 'commented' || r.body.trim())
+        reviews.push({
+          id: `rev_${a.host}_review_${r.id}`.slice(0, 64),
+          actor: await who(r.author),
+          state: r.state,
+          patchSet: 1,
+          carries: false,
+          body: r.body.slice(0, 60_000),
+          created: r.created,
+        })
+    reviews.sort((x, y) => x.created - y.created)
+    // Line comments are settled once the pull request is.
+    const settled = a.state === 'landed' || a.state === 'abandoned'
+    const lineId = (id: string) => `cmt_${a.host}_${id}`.slice(0, 64)
+    const lineComments: Array<ReviewCommentRec> = []
+    for (const x of (a.lineComments ?? []).slice(0, 1000))
+      lineComments.push({
+        id: lineId(x.id),
+        author: await who(x.author),
+        body: x.body.slice(0, 60_000),
+        file: x.path.slice(0, 1000),
+        line: x.line,
+        patchSet: 1,
+        replyTo: x.replyTo === null ? null : lineId(x.replyTo),
+        resolved: settled,
+        created: x.created,
+        updated: x.updated,
+        version: 1,
       })
     const doc = await findChange(ctx, repo, String(a.number))
     if (doc) {
@@ -2489,6 +2561,36 @@ export const importPull = mutation({
       const head = c.patchSets[c.patchSets.length - 1]
       const known = new Set(c.reviews.map((r) => r.id))
       const fresh = reviews.filter((r) => !known.has(r.id))
+      // Someone who linked their account since is shown as themselves.
+      const byId = new Map(reviews.map((r) => [r.id, r.actor]))
+      let renamed = false
+      for (const r of c.reviews) {
+        const now = byId.get(r.id)
+        if (now && now.handle !== r.actor.handle) {
+          r.actor = now
+          renamed = true
+        }
+      }
+      const mine = c.comments ?? []
+      const knownLines = new Map(mine.map((x) => [x.id, x]))
+      const freshLines = lineComments.filter((x) => !knownLines.has(x.id))
+      let linesChanged = false
+      for (const x of lineComments) {
+        const had = knownLines.get(x.id)
+        if (!had) continue
+        if (
+          had.body !== x.body ||
+          had.author.handle !== x.author.handle ||
+          (settled && !had.resolved)
+        ) {
+          had.body = x.body
+          had.author = x.author
+          had.updated = x.updated
+          had.resolved = had.resolved || settled
+          had.version++
+          linesChanged = true
+        }
+      }
       const same =
         c.author.handle === author.handle &&
         c.title === a.title &&
@@ -2496,8 +2598,13 @@ export const importPull = mutation({
         to === was &&
         head.sha === a.headSha &&
         c.base === a.base &&
-        !fresh.length
+        JSON.stringify(c.labels) === JSON.stringify(labels) &&
+        !fresh.length &&
+        !freshLines.length &&
+        !linesChanged &&
+        !renamed
       if (same) return out('unchanged')
+      c.labels = labels
       c.author = author
       c.title = a.title
       c.description = a.description
@@ -2524,6 +2631,17 @@ export const importPull = mutation({
           ...r,
           patchSet: c.patchSets[c.patchSets.length - 1].n,
         })
+      c.reviews.sort((x, y) => x.created - y.created)
+      if (freshLines.length || linesChanged) {
+        c.comments = [
+          ...mine,
+          ...freshLines.map((x) => ({
+            ...x,
+            patchSet: c.patchSets[c.patchSets.length - 1].n,
+          })),
+        ]
+        c.commentRev = (c.commentRev ?? 0) + 1
+      }
       c.landed = a.landed ?? c.landed
       c.updated = Math.max(c.updated, a.updated)
       c.version++
@@ -2563,10 +2681,10 @@ export const importPull = mutation({
       findings: [],
       checks: [],
       stackId: null,
-      labels: [],
+      labels,
       mirrors: [{ host: a.host, number: a.number, origin: 'there' }],
       evidence: [],
-      comments: [],
+      comments: lineComments,
       commentRev: 0,
       created: a.created,
       updated: a.updated,
