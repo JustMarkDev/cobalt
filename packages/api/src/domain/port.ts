@@ -617,6 +617,13 @@ export interface DomainPort {
     } | null,
   ) => Promise<void>
 
+  /** Queue a hand-off for the person's own agent (a runner labelled t3). */
+  startHandoff: (
+    owner: string,
+    name: string,
+    p: Principal,
+    subject: string,
+  ) => Promise<{ run: number | null; agent: boolean }>
   createRunner: (
     p: Viewer,
     body: RunnerBody,

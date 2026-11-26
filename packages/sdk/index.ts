@@ -3229,6 +3229,27 @@ export interface Operations {
       next_cursor: string | null
     }
   }
+  /** Hand an issue, a change or a failed run to your agent (`POST /repos/{owner}/{repo}/handoffs`) */
+  'handoffs.start': {
+    input: {
+      owner: string
+      repo: string
+      body: {
+        /** An issue or change number, or run:N for a pipeline run */
+        subject: string
+        to?: 't3'
+      }
+    }
+    output: {
+      object: 'handoff'
+      subject: string
+      to: 't3'
+      /** The pipeline run that carries it, or null when it was already queued */
+      run: number | null
+      /** Whether a runner labelled t3 exists to take it */
+      agent: boolean
+    }
+  }
   /** Import many repositories at once (`POST /imports/batch`) */
   'imports.batch': {
     input: {
@@ -6077,6 +6098,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'read',
   },
+  'handoffs.start': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/handoffs',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
   'imports.batch': {
     method: 'POST',
     path: '/imports/batch',
@@ -8095,6 +8127,12 @@ export interface Client extends Core {
         options?: RequestOptions,
       ) => Promise<Operations['github.repos.list']['output']>
     }
+  }
+  handoffs: {
+    start: (
+      input: Operations['handoffs.start']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['handoffs.start']['output']>
   }
   imports: {
     batch: (

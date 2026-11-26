@@ -153,7 +153,16 @@ export const groupHelp: Record<string, string> = {
   revoke <id>             disables it; its token stops working at once
   start [--workdir dir] [--once]
                           with CB_RUNNER_TOKEN set: heartbeat, claim jobs its
-                          labels cover, run each step's run: and report it
+                          labels cover and run them as GitHub's runner would:
+                          run: steps, JavaScript and composite actions, matrix,
+                          needs, if:, outputs, GITHUB_ENV and GITHUB_PATH
+
+  One runner serves every repository of the account. Two labels make it your
+  agent too:
+    t3        the Hand off button opens a T3 Code thread on this machine
+    reviewer  each new change or patch set gets an AI review: opencode (or
+              CB_REVIEW_COMMAND) reads the diff and posts findings
+  Example: cb runner register my-mac --labels ubuntu-latest,self-hosted,t3,reviewer
 `,
   handoff: `cb handoff <issue|change|run:N>   (--to t3|boat)
 

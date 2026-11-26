@@ -402,7 +402,67 @@ export const resumePipelineStep = defineOp({
     }),
 })
 
+export const startHandoff = defineOp({
+  ...write,
+  dryRun: false,
+  id: 'handoffs.start',
+  summary: 'Hand an issue, a change or a failed run to your agent',
+  description:
+    'What the Hand off button does: queues a job for your own agent, a runner labelled `t3` (`cb runner register <name> --labels t3`, then `cb runner start`), which opens a T3 Code thread on its machine with the prompt built from the issue or change. Nothing to copy or run by hand. `agent` says whether such a runner exists; without one the job waits for it. The same subject on the same commit is queued once.',
+  method: 'POST',
+  path: '/repos/{owner}/{repo}/handoffs',
+  idempotent: true,
+  params: repoParams,
+  body: z.strictObject({
+    subject: z
+      .string()
+      .regex(/^(#?\d+|run:\d+)$/)
+      .describe('An issue or change number, or run:N for a pipeline run'),
+    to: z.enum(['t3']).default('t3'),
+  }),
+  response: z.strictObject({
+    object: z.literal('handoff'),
+    subject: z.string(),
+    to: z.literal('t3'),
+    run: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        'The pipeline run that carries it, or null when it was already queued',
+      ),
+    agent: z
+      .boolean()
+      .describe('Whether a runner labelled t3 exists to take it'),
+  }),
+  status: 202,
+  errors: ['not_found', 'forbidden', 'moved'],
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      const r = yield* run((d) =>
+        d.startHandoff(
+          ctx.params.owner,
+          ctx.params.repo,
+          ctx.principal!,
+          ctx.body.subject,
+        ),
+      )
+      return reply(
+        {
+          object: 'handoff' as const,
+          subject: ctx.body.subject,
+          to: 't3' as const,
+          run: r.run,
+          agent: r.agent,
+        },
+        { status: 202 },
+      )
+    }),
+})
+
 export const pipelineOps = [
+  startHandoff,
   listPipelineRuns,
   startPipeline,
   claimPipelineJob,

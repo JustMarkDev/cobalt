@@ -39,7 +39,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/device" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=38;t=60
+ratelimit: "write";r=37;t=60
 ```
 
 ```json
@@ -90,7 +90,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/device/poll" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=37;t=60
+ratelimit: "write";r=36;t=60
 ```
 
 ```json
@@ -142,7 +142,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/oauth" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=35;t=60
 ```
 
 ```json
@@ -192,7 +192,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/oauth/finish" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=35;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ```json
@@ -384,13 +384,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/imports" \
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=34;t=60
+ratelimit: "write";r=33;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80sxhwmfce",
+  "id": "rep_01m6tq6r80jffgqfsw",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -482,7 +482,7 @@ ratelimit: "write";r=109;t=60
 ```json
 {
   "object": "import_job",
-  "id": "imj_twm82smtqfew",
+  "id": "imj_lr3gaq0jxlkz",
   "provider": "github",
   "owner": "dana",
   "state": "running",
@@ -530,20 +530,20 @@ ratelimit: "write";r=109;t=60
 **Example**
 
 ```bash
-curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_kn3xydw000vq" \
+curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_6iowhlhv0vts" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"wFfQ6aobTvbSHQ6M"
+etag: W/"Nhc17AD5bk6cK5Bj"
 ratelimit: "read";r=1198;t=60
 ```
 
 ```json
 {
   "object": "import_job",
-  "id": "imj_kn3xydw000vq",
+  "id": "imj_6iowhlhv0vts",
   "provider": "github",
   "owner": "dana",
   "state": "running",
@@ -1168,7 +1168,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/repos/northwind/scratch2?confirm=
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=14;t=60
+ratelimit: "write";r=13;t=60
 ```
 
 ### `repos.get`
@@ -1327,7 +1327,7 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=16;t=60
+ratelimit: "write";r=15;t=60
 ```
 
 ```json
@@ -1470,7 +1470,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/dea
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=54;t=60
+ratelimit: "write";r=53;t=60
 ```
 
 ### `access_rules.put`
@@ -1528,7 +1528,7 @@ curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/deal" 
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=55;t=60
+ratelimit: "write";r=54;t=60
 ```
 
 ```json
@@ -2924,13 +2924,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases" \
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=46;t=60
+ratelimit: "write";r=45;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r8038hr519j",
+  "id": "rel_01m6tq6r804c154ye9",
   "tag": "v0.9.1",
   "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
@@ -3119,13 +3119,13 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1" 
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=45;t=60
+ratelimit: "write";r=44;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r8038hr519j",
+  "id": "rel_01m6tq6r804c154ye9",
   "tag": "v0.9.1",
   "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
@@ -3204,7 +3204,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.0/as
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=44;t=60
+ratelimit: "write";r=43;t=60
 ```
 
 ```json
@@ -3434,7 +3434,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=15;t=60
+ratelimit: "write";r=14;t=60
 ```
 
 ```json

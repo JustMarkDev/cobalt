@@ -2,6 +2,7 @@ import { resolveRepo } from '../repo'
 import { CbError, exit, print } from '../output'
 import { has, str } from '../args'
 import { resolve } from '../config'
+import type { ApiClient } from '../client'
 import type { Command } from './types'
 
 const targets = ['t3', 'boat'] as const
@@ -24,6 +25,153 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
       exit.usage,
     )
   const api = ctx.api()
+  const { prompt, type, title } = await handoffPrompt(api, repo, subject)
+  const base =
+    str(flags, 'base') ??
+    (
+      (await api.get(repo.path).catch(() => null))?.json as {
+        default_branch?: string
+      } | null
+    )?.default_branch ??
+    'main'
+  const threadTitle =
+    `${repo.slug} ${subject.startsWith('run:') ? subject : `#${subject.replace(/^#/, '')}`}: ${title}`.slice(
+      0,
+      120,
+    )
+  const command =
+    target === 't3'
+      ? `t3 thread start . ${JSON.stringify(prompt)} --worktree ${base} --title ${JSON.stringify(threadTitle)}`
+      : `boat run --repo ${repo.slug} ${JSON.stringify(prompt)}`
+  const dry = has(flags, 'dry-run')
+  if (!has(flags, 'start') || dry) {
+    print(
+      ctx,
+      {
+        to: target,
+        subject,
+        type,
+        prompt,
+        command,
+        started: false,
+        dryRun: dry,
+      },
+      () => command,
+    )
+    return
+  }
+  if (target !== 't3')
+    throw new CbError(
+      'not_supported',
+      `cb cannot start ${target} itself yet.`,
+      `Run the command it prints without --start.`,
+      exit.usage,
+    )
+  const thread = await startT3Thread(prompt, base, threadTitle)
+  print(
+    ctx,
+    { to: target, subject, type, prompt, command, started: true, ...thread },
+    () =>
+      `started T3 Code thread ${thread.thread}${thread.added ? ` (added ${thread.project} to T3 Code)` : ''}`,
+  )
+}
+
+/**
+ * Start a T3 Code thread in this folder's project, in a new worktree on
+ * `base`, with `prompt` on stdin. A folder T3 Code does not know yet is added
+ * as a project first.
+ */
+export async function startT3Thread(
+  prompt: string,
+  base: string,
+  title: string,
+  cwd?: string,
+) {
+  const t3 = Bun.which('t3')
+  if (!t3)
+    throw new CbError(
+      't3_not_found',
+      'T3 Code is not installed here (no t3 command).',
+      'Install it from https://t3.codes, or run the command without --start somewhere it is.',
+      exit.error,
+    )
+  const root =
+    cwd ??
+    ((
+      await exec(['git', 'rev-parse', '--show-toplevel'], '').catch(() => null)
+    )?.out.trim() ||
+      process.cwd())
+  const start = () =>
+    exec(
+      [
+        t3,
+        'thread',
+        'start',
+        root,
+        '-',
+        '--worktree',
+        base,
+        '--title',
+        title,
+        '--json',
+      ],
+      prompt,
+    )
+  let r = await start()
+  let added = false
+  if (r.code !== 0 && /project/i.test(r.err + r.out)) {
+    const add = await exec([t3, 'project', 'add', root], '')
+    if (add.code !== 0)
+      throw new CbError(
+        't3_failed',
+        `T3 Code did not add ${root} as a project: ${(add.err || add.out).trim()}`,
+        'Is T3 Code running? Start it with t3, then try again.',
+        exit.error,
+      )
+    added = true
+    r = await start()
+  }
+  if (r.code !== 0)
+    throw new CbError(
+      't3_failed',
+      `T3 Code did not start a thread: ${(r.err || r.out).trim()}`,
+      'Is T3 Code running? Start it with t3, then try again.',
+      exit.error,
+    )
+  let thread = r.out.trim()
+  try {
+    const j = JSON.parse(r.out) as { id?: string; threadId?: string }
+    thread = j.threadId ?? j.id ?? thread
+  } catch {
+    // Plain output is the id.
+  }
+  return { thread, project: root, added }
+}
+
+async function exec(cmd: Array<string>, stdin: string) {
+  const p = Bun.spawn(cmd, {
+    stdin: new TextEncoder().encode(stdin),
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
+  const [out, err, code] = await Promise.all([
+    new Response(p.stdout).text(),
+    new Response(p.stderr).text(),
+    p.exited,
+  ])
+  return { out, err, code }
+}
+
+/**
+ * The prompt for an agent to work on `subject` (an issue or change number, or
+ * run:N): its text, its screenshots and what to do. Also used by the agent
+ * runner that takes hand-offs from the web.
+ */
+export async function handoffPrompt(
+  api: ApiClient,
+  repo: { slug: string; path: string },
+  subject: string,
+): Promise<{ prompt: string; type: string; title: string }> {
   const run = /^run:(\d+)$/.exec(subject)
   let prompt: string
   let type: string
@@ -126,131 +274,5 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
       .filter(Boolean)
       .join('\n')
   }
-  const base =
-    str(flags, 'base') ??
-    (
-      (await api.get(repo.path).catch(() => null))?.json as {
-        default_branch?: string
-      } | null
-    )?.default_branch ??
-    'main'
-  const threadTitle =
-    `${repo.slug} ${subject.startsWith('run:') ? subject : `#${subject.replace(/^#/, '')}`}: ${title}`.slice(
-      0,
-      120,
-    )
-  const command =
-    target === 't3'
-      ? `t3 thread start . ${JSON.stringify(prompt)} --worktree ${base} --title ${JSON.stringify(threadTitle)}`
-      : `boat run --repo ${repo.slug} ${JSON.stringify(prompt)}`
-  const dry = has(flags, 'dry-run')
-  if (!has(flags, 'start') || dry) {
-    print(
-      ctx,
-      {
-        to: target,
-        subject,
-        type,
-        prompt,
-        command,
-        started: false,
-        dryRun: dry,
-      },
-      () => command,
-    )
-    return
-  }
-  if (target !== 't3')
-    throw new CbError(
-      'not_supported',
-      `cb cannot start ${target} itself yet.`,
-      `Run the command it prints without --start.`,
-      exit.usage,
-    )
-  const thread = await startT3Thread(prompt, base, threadTitle)
-  print(
-    ctx,
-    { to: target, subject, type, prompt, command, started: true, ...thread },
-    () =>
-      `started T3 Code thread ${thread.thread}${thread.added ? ` (added ${thread.project} to T3 Code)` : ''}`,
-  )
-}
-
-/**
- * Start a T3 Code thread in this folder's project, in a new worktree on
- * `base`, with `prompt` on stdin. A folder T3 Code does not know yet is added
- * as a project first.
- */
-async function startT3Thread(prompt: string, base: string, title: string) {
-  const t3 = Bun.which('t3')
-  if (!t3)
-    throw new CbError(
-      't3_not_found',
-      'T3 Code is not installed here (no t3 command).',
-      'Install it from https://t3.codes, or run the command without --start somewhere it is.',
-      exit.error,
-    )
-  const root =
-    (
-      await exec(['git', 'rev-parse', '--show-toplevel'], '').catch(() => null)
-    )?.out.trim() || process.cwd()
-  const start = () =>
-    exec(
-      [
-        t3,
-        'thread',
-        'start',
-        root,
-        '-',
-        '--worktree',
-        base,
-        '--title',
-        title,
-        '--json',
-      ],
-      prompt,
-    )
-  let r = await start()
-  let added = false
-  if (r.code !== 0 && /project/i.test(r.err + r.out)) {
-    const add = await exec([t3, 'project', 'add', root], '')
-    if (add.code !== 0)
-      throw new CbError(
-        't3_failed',
-        `T3 Code did not add ${root} as a project: ${(add.err || add.out).trim()}`,
-        'Is T3 Code running? Start it with t3, then try again.',
-        exit.error,
-      )
-    added = true
-    r = await start()
-  }
-  if (r.code !== 0)
-    throw new CbError(
-      't3_failed',
-      `T3 Code did not start a thread: ${(r.err || r.out).trim()}`,
-      'Is T3 Code running? Start it with t3, then try again.',
-      exit.error,
-    )
-  let thread = r.out.trim()
-  try {
-    const j = JSON.parse(r.out) as { id?: string; threadId?: string }
-    thread = j.threadId ?? j.id ?? thread
-  } catch {
-    // Plain output is the id.
-  }
-  return { thread, project: root, added }
-}
-
-async function exec(cmd: Array<string>, stdin: string) {
-  const p = Bun.spawn(cmd, {
-    stdin: new TextEncoder().encode(stdin),
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
-  const [out, err, code] = await Promise.all([
-    new Response(p.stdout).text(),
-    new Response(p.stderr).text(),
-    p.exited,
-  ])
-  return { out, err, code }
+  return { prompt, type, title }
 }

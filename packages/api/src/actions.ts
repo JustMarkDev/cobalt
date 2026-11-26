@@ -25,7 +25,7 @@ export type Planned = {
   file: string
   branch: string
   sha: string
-  trigger: 'push' | 'tag'
+  trigger: PipelineRunRec['trigger']
   jobs: PipelineRunRec['jobs']
   annotations: PipelineRunRec['annotations']
 }
@@ -40,10 +40,77 @@ const strings = (x: unknown): Array<string> | null =>
       ? x
       : null
 
-/** Steps a runner does itself instead of running the action. */
-const BUILT_IN: Array<[RegExp, string]> = [
-  [/^actions\/checkout@/, 'The runner checks out the commit itself.'],
-]
+export type Matrix = Record<string, unknown>
+
+/**
+ * The combinations of a job's `strategy.matrix` (with `include` and
+ * `exclude`), or one empty combination when it has none. The runner works
+ * them out the same way to know the values of the job it took.
+ */
+export function matrixOf(job: Record<string, unknown>): Array<Matrix> {
+  const strategy = job.strategy
+  const m =
+    strategy && typeof strategy === 'object'
+      ? (strategy as Record<string, unknown>).matrix
+      : undefined
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return [{}]
+  const spec = m as Record<string, unknown>
+  const keys = Object.keys(spec).filter(
+    (k) => k !== 'include' && k !== 'exclude' && Array.isArray(spec[k]),
+  )
+  // Only `include`: the combinations are exactly those.
+  let combos: Array<Matrix> = keys.length ? [{}] : []
+  for (const [k, v] of Object.entries(spec)) {
+    if (k === 'include' || k === 'exclude' || !Array.isArray(v)) continue
+    combos = combos.flatMap((c) => v.map((x: unknown) => ({ ...c, [k]: x })))
+  }
+  const same = (c: Matrix, e: unknown) =>
+    e &&
+    typeof e === 'object' &&
+    Object.entries(e as Matrix).every(
+      ([k, v]) => JSON.stringify(c[k]) === JSON.stringify(v),
+    )
+  if (Array.isArray(spec.exclude))
+    combos = combos.filter(
+      (c) => !(spec.exclude as Array<unknown>).some((e) => same(c, e)),
+    )
+  if (Array.isArray(spec.include))
+    for (const inc of spec.include as Array<unknown>) {
+      if (!inc || typeof inc !== 'object') continue
+      const add = inc as Matrix
+      // An include that matches the original keys extends those combinations.
+      const base = Object.keys(spec).filter(
+        (k) => k !== 'include' && k !== 'exclude',
+      )
+      const hits = combos.filter((c) =>
+        base.every(
+          (k) => !(k in add) || JSON.stringify(c[k]) === JSON.stringify(add[k]),
+        ),
+      )
+      if (hits.length && base.some((k) => k in add))
+        for (const h of hits) Object.assign(h, add)
+      else combos.push({ ...add })
+    }
+  return combos.length ? combos : [{}]
+}
+
+/** `Build (macos-latest, 20)`: the job and its matrix values, as GitHub names it. */
+export function jobName(base: string, m: Matrix): string {
+  const values = Object.values(m).filter(
+    (v) =>
+      typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean',
+  )
+  const named = substituteMatrix(base, m)
+  if (named !== base || !values.length) return named
+  return `${base} (${values.join(', ')})`
+}
+
+/** `${{ matrix.os }}` with its value. */
+export function substituteMatrix(text: string, m: Matrix): string {
+  return text.replace(/\$\{\{\s*matrix\.([\w-]+)\s*\}\}/g, (_, k: string) =>
+    k in m ? String(m[k]) : '',
+  )
+}
 
 /** Whether `on:` takes a push of `ref`. Path filters are not applied. */
 export function takesPush(
@@ -119,71 +186,74 @@ export function planPush(
     if (takes.note)
       annotations.push({ level: 'warn', text: takes.note, job: '', step: '' })
     const jobs: Planned['jobs'] = []
-    for (const [key, raw] of Object.entries(isObj(doc.jobs) ? doc.jobs : {})) {
+    const all = isObj(doc.jobs) ? doc.jobs : {}
+    // A job is named by its name, and once per matrix combination.
+    const namesOf = (key: string): Array<string> => {
+      const raw = all[key]
+      if (!isObj(raw)) return []
+      const base = typeof raw.name === 'string' && raw.name ? raw.name : key
+      return matrixOf(raw).map((m) => jobName(base, m))
+    }
+    for (const [key, raw] of Object.entries(all)) {
       if (!isObj(raw)) continue
-      const name = typeof raw.name === 'string' && raw.name ? raw.name : key
+      const base = typeof raw.name === 'string' && raw.name ? raw.name : key
       if ('uses' in raw) {
         annotations.push({
           level: 'warn',
-          text: `Job ${name} calls a reusable workflow (${String(raw.uses)}), which cobalt runners do not run.`,
-          job: name,
+          text: `Job ${base} calls a reusable workflow (${String(raw.uses)}), which cobalt runners do not run yet.`,
+          job: base,
           step: '',
         })
         continue
       }
-      if (isObj(raw.strategy) && 'matrix' in raw.strategy)
-        annotations.push({
-          level: 'warn',
-          text: `Job ${name} has a matrix; cobalt runs it once, with the matrix values unset.`,
-          job: name,
-          step: '',
+      const needs = (strings(raw.needs) ?? []).flatMap(namesOf)
+      for (const m of matrixOf(raw)) {
+        const name = jobName(base, m)
+        const labels = (strings(raw['runs-on']) ?? []).map((l) =>
+          substituteMatrix(l, m).toLowerCase(),
+        )
+        const steps = (Array.isArray(raw.steps) ? raw.steps : [])
+          .filter(isObj)
+          .map((s, i) => {
+            const uses = typeof s.uses === 'string' ? s.uses : null
+            const run = typeof s.run === 'string' ? s.run : null
+            const stepName = substituteMatrix(
+              typeof s.name === 'string' && s.name
+                ? s.name
+                : run
+                  ? (run.split('\n')[0] ?? '').slice(0, 80)
+                  : uses
+                    ? `Run ${uses}`
+                    : `Step ${i + 1}`,
+              m,
+            )
+            if (uses?.startsWith('docker://'))
+              annotations.push({
+                level: 'warn',
+                text: `${uses} runs in a container, which cobalt runners do not do yet: the step is skipped.`,
+                job: name,
+                step: stepName,
+              })
+            return {
+              name: stepName,
+              status: 'queued' as const,
+              duration: 0,
+              lines: [],
+              wait: null,
+            }
+          })
+        jobs.push({
+          name,
+          runner: '',
+          status: 'queued',
+          duration: 0,
+          runsOn: labels,
+          ...(needs.length ? { needs } : {}),
+          runnerId: null,
+          lease: null,
+          steps,
         })
-      if ('needs' in raw)
-        annotations.push({
-          level: 'warn',
-          text: `Job ${name} needs other jobs; cobalt does not wait for them.`,
-          job: name,
-          step: '',
-        })
-      const labels = strings(raw['runs-on'])
-      const steps = (Array.isArray(raw.steps) ? raw.steps : [])
-        .filter(isObj)
-        .map((s, i) => {
-          const uses = typeof s.uses === 'string' ? s.uses : null
-          const run = typeof s.run === 'string' ? s.run : null
-          const stepName =
-            typeof s.name === 'string' && s.name
-              ? s.name
-              : run
-                ? (run.split('\n')[0] ?? '').slice(0, 80)
-                : uses
-                  ? `Run ${uses}`
-                  : `Step ${i + 1}`
-          if (uses && !BUILT_IN.some(([re]) => re.test(uses)))
-            annotations.push({
-              level: 'warn',
-              text: `${uses} is a GitHub Action; a cobalt runner skips it and runs only run: steps. Install what it sets up on the runner.`,
-              job: name,
-              step: stepName,
-            })
-          return {
-            name: stepName,
-            status: 'queued' as const,
-            duration: 0,
-            lines: [],
-            wait: null,
-          }
-        })
-      jobs.push({
-        name,
-        runner: '',
-        status: 'queued',
-        duration: 0,
-        runsOn: (labels ?? []).map((l) => l.toLowerCase()),
-        runnerId: null,
-        lease: null,
-        steps,
-      })
+      }
     }
     if (!jobs.length) continue
     out.push({

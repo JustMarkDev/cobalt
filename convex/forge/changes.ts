@@ -1087,7 +1087,18 @@ export const raiseFinding = mutation({
   returns: v.string(),
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
-    const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    // A reviewer runner (labelled reviewer, so its token has pulls:comment)
+    // writes nothing but findings, on changes of its own account.
+    const reviewer = Boolean(p.runnerId) && p.scopes.has('pulls:comment')
+    const repo = await resolve(
+      ctx,
+      a.owner,
+      a.name,
+      p,
+      reviewer ? 'read' : 'write',
+    )
+    if (reviewer && repo.owner.toLowerCase() !== p.actingAs.toLowerCase())
+      fail('forbidden', 'A runner reviews only its own account.')
     const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     if (!isOpen(c.state))
@@ -2646,6 +2657,22 @@ export const importPull = mutation({
       c.updated = Math.max(c.updated, a.updated)
       c.version++
       await commit(ctx, repo, l, was, null)
+      // What changed on the provider is an event here too: reviews,
+      // automations and webhooks see a new patch set or a closed change.
+      const changed = [
+        ...(head.sha !== a.headSha ? ['head.patch_set'] : []),
+        ...(to !== was ? ['state'] : []),
+      ]
+      if (changed.length)
+        await emit(
+          ctx,
+          repo,
+          'change.updated',
+          await actorFor(ctx, author.handle),
+          { object: 'change', id: c.id, number: c.number },
+          changed,
+          null,
+        )
       return out('updated')
     }
     const issue = await ctx.db
@@ -2694,6 +2721,17 @@ export const importPull = mutation({
     await reserveNumber(ctx, repo, a.number)
     const l = { rec, parts: new Map() } as unknown as Loaded
     await commit(ctx, repo, l, null, null)
+    // Only a change that is open now: an import of old history is quiet.
+    if (a.state === 'open' || a.state === 'draft')
+      await emit(
+        ctx,
+        repo,
+        'change.opened',
+        await actorFor(ctx, author.handle),
+        { object: 'change', id: rec.id, number: rec.number },
+        ['state'],
+        null,
+      )
     return out('created')
   },
 })

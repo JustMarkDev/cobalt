@@ -720,10 +720,14 @@ describe('runners', () => {
     process.env.CB_RUNNER_TOKEN = r.secret
     try {
       const ran = await cb('runner', 'start', '--once', '--workdir', dir)
-      expect(ran.code).toBe(0)
       const out = JSON.parse(ran.out)
       expect(out.ran === null || typeof out.ran.run === 'number').toBe(true)
-      if (out.ran) expect(out.status).toBe('success')
+      // The sample's workflow really runs (make test, with no Makefile), so
+      // the job ends one way or the other, and the exit code says which.
+      if (out.ran) {
+        expect(['success', 'failure']).toContain(out.status)
+        expect(ran.code).toBe(out.status === 'success' ? 0 : 1)
+      } else expect(ran.code).toBe(0)
       expect((await cb('runner', 'revoke', r.id)).code).toBe(0)
       const after = await cb('runner', 'start', '--once', '--workdir', dir)
       expect(after.code).toBe(4)

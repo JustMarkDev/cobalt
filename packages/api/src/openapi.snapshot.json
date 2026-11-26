@@ -14308,6 +14308,168 @@
         "x-cb-secret-request": false
       }
     },
+    "/repos/{owner}/{repo}/handoffs": {
+      "post": {
+        "operationId": "handoffs.start",
+        "summary": "Hand an issue, a change or a failed run to your agent",
+        "description": "What the Hand off button does: queues a job for your own agent, a runner labelled `t3` (`cb runner register <name> --labels t3`, then `cb runner start`), which opens a T3 Code thread on its machine with the prompt built from the issue or change. Nothing to copy or run by hand. `agent` says whether such a runner exists; without one the job waits for it. The same subject on the same commit is queued once.",
+        "tags": [
+          "pipelines"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "pattern": "^(#?\\d+|run:\\d+)$",
+                    "description": "An issue or change number, or run:N for a pipeline run"
+                  },
+                  "to": {
+                    "default": "t3",
+                    "type": "string",
+                    "enum": [
+                      "t3"
+                    ]
+                  }
+                },
+                "required": [
+                  "subject"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "handoff"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string",
+                      "const": "t3"
+                    },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The pipeline run that carries it, or null when it was already queued"
+                    },
+                    "agent": {
+                      "type": "boolean",
+                      "description": "Whether a runner labelled t3 exists to take it"
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "subject",
+                    "to",
+                    "run",
+                    "agent"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
     "/repos/{owner}/{repo}/insights": {
       "get": {
         "operationId": "repos.insights",

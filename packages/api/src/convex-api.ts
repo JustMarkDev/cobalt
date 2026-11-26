@@ -103,6 +103,26 @@ export function createConvexApi(o: ConvexApiOptions) {
   // A push starts the workflows it takes. Old pushes the feed replays on
   // start are left alone; queueing is once per workflow and commit anyway.
   events.subscribe((e) => {
+    if (
+      (e.type === 'change.opened' ||
+        (e.type === 'change.updated' &&
+          e.changes.includes('head.patch_set'))) &&
+      e.repo &&
+      e.subject.number !== null &&
+      now() - Date.parse(e.created_at) < 10 * 60_000
+    )
+      void d
+        .queueReview({ repo: e.repo, number: e.subject.number })
+        .then((runs) => {
+          if (runs.length)
+            console.log(
+              '[review]',
+              JSON.stringify({ repo: e.repo, change: e.subject.number, runs }),
+            )
+        })
+        .catch((err: unknown) =>
+          console.error('[review] could not queue', e.repo, err),
+        )
     if (e.type !== 'repository.pushed' || !e.repo) return
     if (now() - Date.parse(e.created_at) > 10 * 60_000) return
     const data = e.data as { ref?: string; after?: string } | null

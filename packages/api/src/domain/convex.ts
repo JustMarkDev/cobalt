@@ -1,3 +1,5 @@
+import { handoffPlan, reviewPlan } from '../agent-runs'
+import type { Planned } from '../actions'
 import { LICENSE_FILES, languagesOf, licenseOf } from '../detect'
 import { isWorkflowFile, planPush, runOf } from '../actions'
 import { codeStorageRemotes } from '@cobaltforge/git/remote'
@@ -1630,6 +1632,130 @@ export class ConvexDomain implements DomainPort {
         license: text ? licenseOf(text) : null,
       },
       'system',
+    )
+  }
+
+  private agentOnline(account: string, label: string) {
+    return this.q<boolean>(
+      'runners:hasLabel',
+      { account, label },
+      'system',
+    ).catch(() => false)
+  }
+
+  private async queueAgent(full: string, plan: Planned, actor: string) {
+    const storeId = await this.storeIdOf(full)
+    if (!storeId) return []
+    return run<Array<number>>(
+      this.call,
+      'mutation',
+      'forge/pipelines:queuePlanned',
+      {
+        storeId,
+        actor,
+        runs: [
+          JSON.stringify(runOf(plan, { number: 0, actor, at: this.now() })),
+        ],
+      },
+      'system',
+    )
+  }
+
+  /**
+   * The Hand off button: a job for the person's own agent (a runner labelled
+   * t3, started once with cb runner start), which opens the T3 Code thread.
+   * Nothing to copy. The same subject on the same commit is queued once.
+   */
+  async startHandoff(
+    owner: string,
+    name: string,
+    p: Principal,
+    subject: string,
+  ) {
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const run_ = /^run:(\d+)$/.exec(subject)
+    let title = subject
+    if (run_)
+      title = (
+        await this.q<{ title: string }>(
+          'pipelines:get',
+          { owner, name, n: Number(run_[1]) },
+          p,
+        ).catch(() => ({ title: subject }))
+      ).title
+    else {
+      const n = Number(subject.replace(/^#/, ''))
+      const issue = await this.q<{ title: string } | null>(
+        'issues:get',
+        { owner, name, number: n },
+        p,
+      ).catch(() => null)
+      const change = issue
+        ? null
+        : await this.q<{ title: string }>(
+            'changes:get',
+            { owner, name, ref: String(n), expand: [], at: this.now() },
+            p,
+          ).catch(() => null)
+      if (!issue && !change)
+        throw apiError(
+          'not_found',
+          `#${n} is not an issue or change in ${full}.`,
+        )
+      title = (issue ?? change)!.title
+    }
+    const repo = await this.q<{ default_branch: string }>(
+      'repos:get',
+      { owner, name, at: this.now() },
+      p,
+    )
+    const sha =
+      (await this.svc.git.commits(full, 1).catch(() => []))[0]?.sha ?? ''
+    const runs = await this.queueAgent(
+      full,
+      handoffPlan({
+        subject: subject.replace(/^#/, ''),
+        title,
+        branch: repo.default_branch,
+        sha,
+      }),
+      p.handle,
+    )
+    return {
+      run: runs[0] ?? null,
+      agent: await this.agentOnline(owner, 't3'),
+    }
+  }
+
+  /**
+   * After a change is opened or gets a patch set: an AI review, when the
+   * account has a runner labelled reviewer to take it.
+   */
+  async queueReview(e: { repo: string; number: number }) {
+    const [owner, name] = e.repo.split('/')
+    if (!(await this.agentOnline(owner, 'reviewer'))) return []
+    const c = await this.q<{
+      number: number
+      title: string
+      branch: string
+      state: string
+      head: { patch_set: number; sha: string }
+    }>(
+      'changes:get',
+      { owner, name, ref: String(e.number), expand: [], at: this.now() },
+      'system',
+    ).catch(() => null)
+    if (!c || (c.state !== 'open' && c.state !== 'draft')) return []
+    return this.queueAgent(
+      e.repo,
+      reviewPlan({
+        change: c.number,
+        patchSet: c.head.patch_set,
+        title: c.title,
+        branch: c.branch,
+        sha: c.head.sha,
+      }),
+      'cobalt',
     )
   }
 

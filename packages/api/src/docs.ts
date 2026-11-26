@@ -638,6 +638,9 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       headers: { 'idempotency-key': '0b7c2e4f-1a3d-4e6b-9c8a-5d2f7e1b3a90' },
     })
     await call('pipelines.cancel', 'POST', `${R}/pipelines/1840/cancel`)
+    await call('handoffs.start', 'POST', `${R}/handoffs`, {
+      body: { subject: '4', to: 't3' },
+    })
     await call('pipelines.start', 'POST', `${R}/pipelines`, {
       body: { workflow: 'build', branch: 'main' },
       headers: { 'idempotency-key': '6d2a9f4b-3c1e-4b7a-8e5d-0f9c2b4a6e13' },
@@ -1288,7 +1291,7 @@ const pages: Array<{
     description:
       'Pipeline runs, their jobs, steps and logs; steps that wait on a person; the runners that take jobs; the triggers that start them.',
     icon: 'PlayIcon',
-    match: (id) => /^(pipelines|runners|triggers)\./.test(id),
+    match: (id) => /^(pipelines|runners|triggers|handoffs)\./.test(id),
   },
   {
     file: 'git-data',

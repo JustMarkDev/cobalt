@@ -519,6 +519,8 @@ export type PipelineRunRec = {
     status: PipelineStatus | 'skipped'
     duration: number
     runsOn?: Array<string>
+    /** Names of the jobs this one waits for (GitHub Actions `needs`). */
+    needs?: Array<string>
     runnerId?: string | null
     lease?: number | null
     steps: Array<{

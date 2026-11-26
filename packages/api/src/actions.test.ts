@@ -37,11 +37,17 @@ test('a push to a matching branch starts the workflow, with what cobalt skips sa
   expect(p.workflow).toBe('CI')
   expect(p.branch).toBe('release/1.2')
   expect(
-    p.jobs.map((j) => [j.name, j.runsOn, j.steps.map((s) => s.name)]),
+    p.jobs.map((j) => [
+      j.name,
+      j.runsOn,
+      j.needs ?? [],
+      j.steps.map((s) => s.name),
+    ]),
   ).toEqual([
     [
       'Test',
       ['self-hosted', 'macos'],
+      [],
       [
         'Run actions/checkout@v4',
         'Run oven-sh/setup-bun@v2',
@@ -49,15 +55,14 @@ test('a push to a matching branch starts the workflow, with what cobalt skips sa
         'Tests',
       ],
     ],
-    ['lint', ['ubuntu-latest'], ['bun run lint']],
+    ['lint (20)', ['ubuntu-latest'], ['Test'], ['bun run lint']],
+    ['lint (22)', ['ubuntu-latest'], ['Test'], ['bun run lint']],
   ])
   const notes = p.annotations.map((a) => a.text).join('\n')
   expect(notes).toContain('path filters')
-  expect(notes).toContain('oven-sh/setup-bun@v2 is a GitHub Action')
-  expect(notes).not.toContain('actions/checkout')
-  expect(notes).toContain('has a matrix')
-  expect(notes).toContain('needs other jobs')
   expect(notes).toContain('reusable workflow')
+  expect(notes).not.toContain('setup-bun')
+  expect(notes).not.toContain('matrix')
   const run = runOf(p, { number: 7, actor: 'dana', at: 0 })
   expect([run.number, run.status, run.trigger, run.file]).toEqual([
     7,
@@ -65,6 +70,41 @@ test('a push to a matching branch starts the workflow, with what cobalt skips sa
     'push',
     '.github/workflows/ci.yml',
   ])
+})
+
+test('a matrix is one job per combination, include and exclude as GitHub does', async () => {
+  const { matrixOf, jobName } = await import('./actions')
+  expect(
+    matrixOf({
+      strategy: {
+        matrix: {
+          os: ['ubuntu-latest', 'macos-latest'],
+          node: [20, 22],
+          exclude: [{ os: 'macos-latest', node: 20 }],
+          include: [{ os: 'windows-latest', node: 22 }],
+        },
+      },
+    }),
+  ).toEqual([
+    { os: 'ubuntu-latest', node: 20 },
+    { os: 'ubuntu-latest', node: 22 },
+    { os: 'macos-latest', node: 22 },
+    { os: 'windows-latest', node: 22 },
+  ])
+  expect(
+    matrixOf({
+      strategy: {
+        matrix: { include: [{ name: 'macOS' }, { name: 'Windows' }] },
+      },
+    }),
+  ).toEqual([{ name: 'macOS' }, { name: 'Windows' }])
+  expect(matrixOf({})).toEqual([{}])
+  expect(jobName('Checks (${{ matrix.name }})', { name: 'macOS' })).toBe(
+    'Checks (macOS)',
+  )
+  expect(jobName('Build', { os: 'ubuntu-latest', node: 20 })).toBe(
+    'Build (ubuntu-latest, 20)',
+  )
 })
 
 test('on: as a word, a list, branches-ignore and tags', () => {
