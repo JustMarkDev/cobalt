@@ -61,7 +61,8 @@ export function toRepo(r: ApiRepo, releases?: Array<Release>): Repo {
   }
 }
 
-const sizeOf = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`
+const sizeOf = (bytes: number) =>
+  bytes > 0 ? `${(bytes / 1048576).toFixed(1)} MB` : '—'
 
 export function toRelease(r: ApiRelease): Release {
   return {
@@ -71,6 +72,7 @@ export function toRelease(r: ApiRelease): Release {
     signed: r.signed,
     title: r.title,
     notes: r.notes,
+    body: r.body ?? undefined,
     assets: r.assets.map((a) => ({
       platform: a.platform,
       arch: a.arch,
@@ -78,7 +80,8 @@ export function toRelease(r: ApiRelease): Release {
       size: sizeOf(a.size),
       downloads: a.downloads,
       sha: a.sha256,
-      stored: a.content_url !== null,
+      // Served by the download route: from here, or from the provider.
+      stored: a.content_url !== null || (a.source_url ?? null) !== null,
     })),
     commit: r.commit ?? undefined,
     withdrawn: r.withdrawn?.reason,

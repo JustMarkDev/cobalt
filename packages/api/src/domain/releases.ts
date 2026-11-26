@@ -22,16 +22,18 @@ export abstract class DomainReleases extends DomainNotifications {
       channel: r.channel,
       title: r.title,
       notes: r.notes,
+      body: r.body ?? null,
       signed: r.signed,
       commit: r.commit,
       withdrawn: r.withdrawn
         ? { reason: r.withdrawn.reason, at: iso(r.withdrawn.at) }
         : null,
-      assets: r.assets.map(({ uploadId, ...a }) => ({
+      assets: r.assets.map(({ uploadId, sourceUrl, ...a }) => ({
         ...a,
         content_url: uploadId
           ? `${this.urls.api}/uploads/${uploadId}/content`
           : null,
+        source_url: sourceUrl ?? null,
       })),
       downloads: r.assets.reduce((n, a) => n + a.downloads, 0),
       author: this.actor(r.author),
@@ -273,6 +275,7 @@ export abstract class DomainReleases extends DomainNotifications {
       content_url: a.uploadId
         ? `${this.urls.api}/uploads/${a.uploadId}/content`
         : null,
+      source_url: a.sourceUrl ?? null,
     }
   }
 }

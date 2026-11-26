@@ -312,6 +312,7 @@ export abstract class DomainPresent extends DomainAccess {
       assignees: (i.assignees ?? []).map((a) => this.actor(a)),
       comments: i.comments?.length ?? 0,
       closed_at: i.closed ? iso(i.closed) : null,
+      closed_as: i.state === 'closed' ? (i.closedAs ?? null) : null,
       created_at: iso(i.created),
       updated_at: iso(i.updated),
       version: i.version,

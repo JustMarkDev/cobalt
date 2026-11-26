@@ -14,15 +14,31 @@ import type {
 import type {
   ExternalActor,
   ForgeProvider,
+  IssueClosedAs,
   ProviderAuth,
   ProviderId,
+  RemoteAsset,
   RemoteCheck,
   RemoteComment,
+  RemoteLabel,
   WebhookEvent,
 } from './types'
 
 const FIRST_PAGES = 30
 const BACKOFF_MS = 15 * 60_000
+/**
+ * How often a linked repository's items are read again with no webhook
+ * asking: a missed delivery costs at most this long. Unchanged lists answer
+ * 304, which the providers do not count against the rate limit.
+ */
+export const ITEMS_EVERY_MS = 30 * 60_000
+/** While the first git sync runs, how soon to look again whether it settled. */
+const SETTLE_RETRY_MS = 60_000
+/**
+ * What a read copies. A link read by an older version is read in full once
+ * more, so what was added since (labels, reviews, release files) arrives.
+ */
+const FORMAT = '2'
 
 const iso = (t: number) => new Date(t).toISOString()
 
@@ -143,6 +159,25 @@ export type Materialize = (
           body: string
           created: number
         }>
+        labels?: Array<string>
+        reviews?: Array<{
+          id: string
+          author: Who
+          state: 'approved' | 'changes' | 'commented'
+          body: string
+          sha: string | null
+          created: number
+        }>
+        lineComments?: Array<{
+          id: string
+          author: Who
+          body: string
+          path: string
+          line: number | null
+          replyTo: string | null
+          created: number
+          updated: number
+        }>
       }
     | {
         kind: 'issue'
@@ -153,6 +188,8 @@ export type Materialize = (
         state: 'open' | 'closed'
         author: Who
         labels: Array<string>
+        closedAs?: IssueClosedAs | null
+        assignees?: Array<NonNullable<Who>>
         created: number
         updated: number
         closed: number | null
@@ -185,6 +222,12 @@ export type Materialize = (
         prerelease: boolean
         author: Who
         published: number
+        assets?: Array<RemoteAsset>
+      }
+    | {
+        kind: 'labels'
+        host: ProviderId
+        labels: Array<RemoteLabel>
       },
 ) => Promise<string>
 
@@ -313,11 +356,23 @@ export class RemoteItems {
       await this.store.setItemsDue(r.repo, null)
       return 0
     }
-    const full = o.full ?? r.importedAt === null
+    const full = o.full ?? (r.importedAt === null || r.etags._format !== FORMAT)
     const since = full ? 0 : (r.importedAt ?? 0) - 5 * 60_000
     const etags = { ...r.etags }
     let changed = 0
     try {
+      // Labels first, so issues and changes find them with their colors.
+      if (full && forge.listLabels && this.materialize) {
+        const labels = await forge
+          .listLabels(auth, r.fullName)
+          .catch(() => null)
+        if (labels)
+          await this.materialize(r.repo, {
+            kind: 'labels',
+            host: r.provider,
+            labels,
+          })
+      }
       changed += await this.pulls(r, forge, auth, { full, since, etags })
       changed += await this.issues(r, forge, auth, { full, since, etags })
       changed += await this.releases(r, forge, auth, { full, etags })
@@ -348,7 +403,7 @@ export class RemoteItems {
       r.state === 'syncing' &&
       (await this.hasCommit(r.repo, r.meta.defaultBranch).catch(() => false))
     await this.store.patchRemote(r.id, {
-      etags,
+      etags: { ...etags, _format: FORMAT },
       importedAt: this.sync.now(),
       ...(settled
         ? {
@@ -359,7 +414,13 @@ export class RemoteItems {
           }
         : {}),
     })
-    await this.store.setItemsDue(r.repo, null)
+    // A first sync still running is looked at again soon, not left showing
+    // "syncing" until a push happens to arrive.
+    const waiting = r.state === 'syncing' && !settled
+    await this.store.setItemsDue(
+      r.repo,
+      this.sync.now() + (waiting ? SETTLE_RETRY_MS : ITEMS_EVERY_MS),
+    )
     if (settled || r.state === 'linked')
       await this.sync.host?.mirror(r.repo, 'in-sync', null)
     return changed
@@ -445,7 +506,7 @@ export class RemoteItems {
         body: p.body,
         state,
         authorId: await this.actor(r, p.author),
-        labels: [],
+        labels: p.labels ?? [],
         url: p.url,
         created: p.created,
         updated: p.updated,
@@ -503,6 +564,21 @@ export class RemoteItems {
           body: c.body,
           created: c.created,
         })),
+        labels: p.labels ?? [],
+        reviews: forge.listReviews
+          ? (
+              await forge
+                .listReviews(auth, r.fullName, p.number)
+                .catch(() => [])
+            ).map((x) => ({ ...x, author: who(x.author) }))
+          : [],
+        lineComments: forge.listReviewComments
+          ? (
+              await forge
+                .listReviewComments(auth, r.fullName, p.number)
+                .catch(() => [])
+            ).map((x) => ({ ...x, author: who(x.author) }))
+          : [],
       })
     }
     if (o.full && got.complete)
@@ -568,6 +644,8 @@ export class RemoteItems {
         state: i.state,
         author: who(i.author),
         labels: i.labels,
+        closedAs: i.closedAs ?? null,
+        assignees: (i.assignees ?? []).map((a) => who(a)!),
         created: i.created,
         updated: i.updated,
         closed: i.closed,
@@ -634,6 +712,7 @@ export class RemoteItems {
           prerelease: x.prerelease,
           author: who(x.author),
           published: x.published ?? x.created,
+          assets: x.assets ?? [],
         })
     }
     if (got.complete)

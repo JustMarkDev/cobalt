@@ -316,6 +316,134 @@ describe('GitHub', () => {
     expect(calls.length).toBe(3)
   })
 
+  test('labels, reviews, line comments, release files and why an issue closed', async () => {
+    const u = { id: 9, login: 'rev', avatar_url: null }
+    const { f } = scripted({
+      'GET /repos/o/r/labels': () =>
+        Response.json([
+          { name: 'bug', color: 'd73a4a', description: 'Broken' },
+          { name: 'rust', color: '000000', description: null },
+        ]),
+      'GET /repos/o/r/pulls/4/reviews': () =>
+        Response.json([
+          {
+            id: 1,
+            user: u,
+            body: '',
+            state: 'APPROVED',
+            commit_id: 'abc',
+            submitted_at: '2026-01-02T00:00:00Z',
+          },
+          {
+            id: 2,
+            user: u,
+            body: 'Please rename',
+            state: 'CHANGES_REQUESTED',
+            commit_id: 'abc',
+            submitted_at: '2026-01-01T00:00:00Z',
+          },
+          // Not submitted yet: nobody else sees it.
+          { id: 3, user: u, body: 'draft', state: 'PENDING' },
+        ]),
+      'GET /repos/o/r/pulls/4/comments': () =>
+        Response.json([
+          {
+            id: 70,
+            user: u,
+            body: 'Off by one?',
+            path: 'src/a.ts',
+            line: 12,
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+          {
+            id: 71,
+            user: u,
+            body: 'Fixed',
+            path: 'src/a.ts',
+            line: null,
+            original_line: 12,
+            in_reply_to_id: 70,
+            created_at: '2026-01-01T01:00:00Z',
+            updated_at: '2026-01-01T01:00:00Z',
+          },
+        ]),
+      'GET /repos/o/r/issues': () =>
+        Response.json([
+          {
+            number: 8,
+            title: 'Nope',
+            body: null,
+            state: 'closed',
+            state_reason: 'not_planned',
+            user: u,
+            labels: [],
+            assignees: [u],
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+            closed_at: '2026-01-02T00:00:00Z',
+            html_url: 'i',
+          },
+        ]),
+      'GET /repos/o/r/releases': () =>
+        Response.json([
+          {
+            id: 5,
+            tag_name: 'v1',
+            name: null,
+            body: '## Fixes\n- a',
+            draft: false,
+            prerelease: false,
+            author: u,
+            created_at: '2026-01-01T00:00:00Z',
+            published_at: '2026-01-01T00:00:00Z',
+            html_url: 'r',
+            assets: [
+              {
+                name: 'App_1_universal.dmg',
+                size: 2048,
+                download_count: 37,
+                browser_download_url:
+                  'https://github.com/o/r/releases/download/v1/App_1_universal.dmg',
+                digest: 'sha256:ff00',
+              },
+            ],
+          },
+        ]),
+    })
+    const gh = createGithubForge({ fetch: f })
+    expect(await gh.listLabels!(user, 'o/r')).toEqual([
+      { name: 'bug', color: 'd73a4a', description: 'Broken' },
+      { name: 'rust', color: '000000', description: '' },
+    ])
+    const reviews = await gh.listReviews!(user, 'o/r', 4)
+    expect(reviews.map((r) => [r.id, r.state, r.sha])).toEqual([
+      ['1', 'approved', 'abc'],
+      ['2', 'changes', 'abc'],
+    ])
+    const lines = await gh.listReviewComments!(user, 'o/r', 4)
+    expect(lines[1]).toMatchObject({
+      id: '71',
+      path: 'src/a.ts',
+      line: 12,
+      replyTo: '70',
+    })
+    const issue = (await gh.listIssues(user, 'o/r', {})).items[0]
+    expect(issue.closedAs).toBe('not_planned')
+    expect(issue.assignees?.map((a) => a.login)).toEqual(['rev'])
+    const rel = (await gh.listReleases(user, 'o/r', {})).items[0]
+    expect(rel.name).toBe('v1')
+    expect(rel.assets).toEqual([
+      {
+        name: 'App_1_universal.dmg',
+        size: 2048,
+        downloads: 37,
+        url: 'https://github.com/o/r/releases/download/v1/App_1_universal.dmg',
+        sha256: 'ff00',
+      },
+    ])
+  })
+
   test('a provider error says who answered and whether to reconnect', async () => {
     const gh = createGithubForge({
       fetch: scripted({

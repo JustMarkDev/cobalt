@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { aboutPatch } from '@cobaltforge/api/forge/about'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { signedIn, system } from '../lib/actor'
@@ -409,6 +410,38 @@ async function mirrorMeta(
       version: repo.version + 1,
     })
 }
+
+const aboutV = v.object({
+  description: v.string(),
+  license: v.union(v.null(), v.string()),
+  website: v.union(v.null(), v.string()),
+})
+
+/** The provider's description, license and website, where nobody here set them otherwise. */
+export const setAbout = mutation({
+  args: { repo: v.string(), about: aboutV, was: v.union(v.null(), aboutV) },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await repoByKey(ctx, a.repo)
+    if (!repo) return out(null)
+    const next = aboutPatch(
+      {
+        description: repo.description,
+        license: repo.license,
+        website: repo.website,
+      },
+      a.about,
+      a.was,
+    )
+    if (next)
+      await ctx.db.patch('repos', repo._id, {
+        ...next,
+        version: repo.version + 1,
+      })
+    return out(null)
+  },
+})
 
 export const setLanguages = mutation({
   args: {

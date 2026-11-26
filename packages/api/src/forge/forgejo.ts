@@ -327,6 +327,17 @@ export function createForgejo(cfg: ForgejoConfig): {
       }
     },
 
+    async listLabels(auth, slug) {
+      const r = await get<
+        Array<{ name: string; color?: string; description?: string }>
+      >(auth, `/repos/${slug}/labels?limit=100`)
+      return r.body.map((l) => ({
+        name: l.name,
+        color: (l.color ?? '').replace(/^#/, ''),
+        description: l.description ?? '',
+      }))
+    },
+
     async listComments(auth, slug, number) {
       const r = await get<Array<FjComment>>(
         auth,
@@ -374,6 +385,7 @@ type FjPull = {
   closed_at: string | null
   merged_at: string | null
   html_url: string
+  labels?: Array<{ name: string }> | null
 }
 
 const pullOf = (p: FjPull): RemotePull => ({
@@ -383,6 +395,7 @@ const pullOf = (p: FjPull): RemotePull => ({
   state: p.merged || p.merged_at ? 'merged' : p.state,
   draft: p.draft ?? /^(WIP|\[WIP\]|Draft):/i.test(p.title),
   author: actor(p.user),
+  labels: (p.labels ?? []).map((l) => l.name),
   head: {
     ref: p.head.ref,
     sha: p.head.sha,
@@ -433,6 +446,12 @@ type FjRelease = {
   created_at: string
   published_at: string | null
   html_url: string
+  assets?: Array<{
+    name: string
+    size: number
+    download_count: number
+    browser_download_url: string
+  }> | null
 }
 
 const releaseOf = (r: FjRelease): RemoteRelease => ({
@@ -446,6 +465,13 @@ const releaseOf = (r: FjRelease): RemoteRelease => ({
   created: toMs(r.created_at) ?? 0,
   published: toMs(r.published_at),
   url: r.html_url,
+  assets: (r.assets ?? []).map((a) => ({
+    name: a.name,
+    size: a.size,
+    downloads: a.download_count,
+    url: a.browser_download_url,
+    sha256: null,
+  })),
 })
 
 type FjComment = {

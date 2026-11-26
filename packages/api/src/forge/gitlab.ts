@@ -348,6 +348,17 @@ export function createGitlab(cfg: GitlabConfig): {
       }
     },
 
+    async listLabels(auth, slug) {
+      const r = await get<
+        Array<{ name: string; color?: string; description?: string | null }>
+      >(auth, `/projects/${enc(slug)}/labels?per_page=100`)
+      return r.body.map((l) => ({
+        name: l.name,
+        color: (l.color ?? '').replace(/^#/, ''),
+        description: l.description ?? '',
+      }))
+    },
+
     async listComments(auth, slug, number, on = 'issue') {
       const out: Array<RemoteComment> = []
       let url: string | null =
@@ -422,6 +433,7 @@ type GlMr = {
   closed_at: string | null
   merged_at: string | null
   web_url: string
+  labels?: Array<string>
 }
 
 const mrOf = (m: GlMr): RemotePull => ({
@@ -432,6 +444,7 @@ const mrOf = (m: GlMr): RemotePull => ({
     m.state === 'merged' ? 'merged' : m.state === 'opened' ? 'open' : 'closed',
   draft: m.draft ?? m.work_in_progress ?? false,
   author: actor(m.author),
+  labels: m.labels ?? [],
   head: {
     ref: m.source_branch,
     sha: m.sha,
@@ -452,6 +465,7 @@ type GlIssue = {
   state: 'opened' | 'closed'
   author: GlUser | null
   labels: Array<string>
+  assignees?: Array<GlUser> | null
   created_at: string
   updated_at: string
   closed_at: string | null
@@ -465,6 +479,10 @@ const issueOf = (i: GlIssue): RemoteIssue => ({
   state: i.state === 'opened' ? 'open' : 'closed',
   author: actor(i.author),
   labels: i.labels,
+  closedAs: i.state === 'closed' ? 'completed' : null,
+  assignees: (i.assignees ?? [])
+    .map((u) => actor(u))
+    .filter((a): a is NonNullable<typeof a> => a !== null),
   created: toMs(i.created_at) ?? 0,
   updated: toMs(i.updated_at) ?? 0,
   closed: toMs(i.closed_at),
@@ -480,6 +498,9 @@ type GlRelease = {
   released_at: string | null
   upcoming_release?: boolean
   _links?: { self?: string }
+  assets?: {
+    links?: Array<{ name: string; url: string; direct_asset_url?: string }>
+  }
 }
 
 const releaseOf = (r: GlRelease): RemoteRelease => ({
@@ -493,6 +514,14 @@ const releaseOf = (r: GlRelease): RemoteRelease => ({
   created: toMs(r.created_at) ?? 0,
   published: toMs(r.released_at),
   url: r._links?.self ?? '',
+  // GitLab keeps no size or count for release links.
+  assets: (r.assets?.links ?? []).map((l) => ({
+    name: l.name,
+    size: 0,
+    downloads: 0,
+    url: l.direct_asset_url ?? l.url,
+    sha256: null,
+  })),
 })
 
 type GlNote = {

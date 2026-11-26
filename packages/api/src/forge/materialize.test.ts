@@ -48,7 +48,37 @@ test.skipIf(!onConvex)(
       .json.data
     expect(comments[0].body).toBe('Same here with the A5 layout.')
     const rel = (await h.call('GET', '/repos/dana/zine/releases')).json.data
-    expect(rel[0]).toMatchObject({ tag: 'v0.3.0', title: 'Zine 0.3' })
+    expect(rel[0]).toMatchObject({
+      tag: 'v0.3.0',
+      title: 'Zine 0.3',
+      body: 'Footnotes, and a faster build.',
+    })
+    // Installers only, kept on the provider; checksums stay there.
+    expect(rel[0].assets).toEqual([
+      expect.objectContaining({
+        name: 'zine-0.3.0-x86_64.AppImage',
+        platform: 'linux',
+        arch: 'x64',
+        content_url: null,
+        source_url:
+          'https://gitlab.com/dana.okafor/zine/-/releases/v0.3.0/downloads/zine-0.3.0-x86_64.AppImage',
+      }),
+    ])
+    // The provider's labels, in the nearest colour; unused defaults are gone.
+    const labels = (await h.call('GET', '/repos/dana/zine/labels')).json.data
+    const byName = Object.fromEntries(
+      labels.map((l: { name: string; color: string }) => [l.name, l.color]),
+    )
+    expect(byName).toMatchObject({ bug: 'red', print: 'purple' })
+    expect(byName.perf).toBeUndefined()
+    expect(c3.labels).toEqual(['print'])
+    expect(issue.assignees.map((a: { handle: string }) => a.handle)).toEqual([
+      'dana.okafor@gitlab',
+    ])
+    // The provider's description, not a placeholder.
+    expect((await h.call('GET', '/repos/dana/zine')).json.description).toBe(
+      'A small static site generator for zines.',
+    )
     const made = await h.call('POST', '/repos/dana/zine/issues', {
       body: { title: 'Ours' },
     })

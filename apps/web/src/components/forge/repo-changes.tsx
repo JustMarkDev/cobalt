@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { shownHandle } from '~/lib/shown-handle'
 import { useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { MultiFileDiff } from '@pierre/diffs/react'
@@ -13,6 +14,7 @@ import {
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, ReceiptNote, Seg, Tile } from './bits'
 import { MirrorCard, StackCard } from './change-mirror'
+import { MarkdownBody } from './markdown'
 import { EditingProvider, useEditorFactory } from './diff-editing'
 import { Timeline } from './change-timeline'
 import { ChangeDiscussion } from './change-comments'
@@ -138,8 +140,10 @@ function Row({
             {c.state === 'draft' && <Chip>Draft</Chip>}
             {c.mirror && (
               <Chip>
-                {hostName[c.mirror.host]}{' '}
-                {hostTerms[c.mirror.host].ref(c.mirror.number)}
+                {hostName[c.mirror.host]}
+                {/* An import keeps the number: no need to say it twice. */}
+                {c.mirror.number !== Number(c.id) &&
+                  ` ${hostTerms[c.mirror.host].ref(c.mirror.number)}`}
               </Chip>
             )}
           </div>
@@ -152,7 +156,7 @@ function Row({
             )}
             <span className="inline-flex items-center gap-1">
               <AuthorMark author={c.author} />
-              {c.author.name}
+              {shownHandle(c.author.name)}
               {vouched && <Chip tone="info">vouched</Chip>}
               <ReceiptNote via={c.author.via} className="hidden sm:inline" />
             </span>
@@ -760,7 +764,9 @@ function ChangeDetail({
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <AuthorMark author={change.author} />
-                <span className="text-foreground">{change.author.name}</span>
+                <span className="text-foreground">
+                  {shownHandle(change.author.name)}
+                </span>
                 <ReceiptNote via={change.author.via} />
               </span>
               <span>{change.when}</span>
@@ -802,7 +808,14 @@ function ChangeDetail({
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
           <div className="min-w-0 space-y-6">
             <StatusCard
-              items={items}
+              // Landed on the provider it came from: what this repository
+              // would require of it now says nothing.
+              items={change.mirror && change.state === 'landed' ? [] : items}
+              landedText={
+                change.mirror && change.state === 'landed'
+                  ? `Landed on ${hostName[change.mirror.host]}.`
+                  : undefined
+              }
               landing={landing.phase}
               canLand={landing.canLand}
               changeId={change.id}
@@ -842,9 +855,15 @@ function ChangeDetail({
             <StackCard repo={repo} change={change} all={stack} />
             <section className="space-y-2">
               <h3 className="text-sm font-medium">Description</h3>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                {api.description || 'No description.'}
-              </p>
+              {api.description ? (
+                <MarkdownBody
+                  source={api.description}
+                  compact
+                  className="leading-relaxed text-muted-foreground"
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">No description.</p>
+              )}
             </section>
             {media.length > 0 ? (
               <EvidenceSection items={media} />

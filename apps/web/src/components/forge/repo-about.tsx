@@ -14,6 +14,8 @@ import type { Repo } from '~/lib/model/data'
 import { Segmented } from '~/components/ui/tabs'
 import { latestStable } from '~/lib/model/data'
 import { useOpMaybe } from '~/lib/forge'
+import { installsFor } from '~/lib/install-commands'
+import type { Install } from '~/lib/install-commands'
 
 const SHOWN_AVATARS = 6
 const MONTH = 30 * 24 * 3_600_000
@@ -23,30 +25,18 @@ const handleOf = (c: { name: string; email: string }) =>
     ? c.email.split('@')[0]
     : c.name
 
-const langInstall: Record<string, [string, (name: string) => string]> = {
-  Rust: ['cargo', (n) => `cargo install ${n}`],
-  TypeScript: ['npm', (n) => `npm install -g ${n}`],
-  Go: ['go', (n) => `go install github.com/${n}@latest`],
-  Python: ['pip', (n) => `pip install ${n}`],
-}
-
-function installsFor(repo: Repo): Array<[string, string]> {
-  const out: Array<[string, string]> = []
-  out.push([
-    'script',
-    repo.install ??
-      `curl -fsSL https://cobaltforge.dev/${repo.owner}/${repo.name}/install | sh`,
-  ])
-  out.push(['brew', `brew install ${repo.owner}/tap/${repo.name}`])
-  const lang = langInstall[repo.language] as
-    | [string, (n: string) => string]
-    | undefined
-  if (lang) out.push([lang[0], lang[1](repo.name)])
-  out.push([
-    'docker',
-    `docker run --rm cobaltforge.dev/${repo.owner}/${repo.name}`,
-  ])
-  return out
+/** Install commands from the owners, or else from the README. Empty when neither has any. */
+export function useInstalls(repo: Repo): Array<Install> {
+  const file = useOpMaybe('git.blob', {
+    owner: repo.owner,
+    repo: repo.name,
+    path: 'README.md',
+  })
+  const readme = file?.encoding === 'utf-8' ? file.content : ''
+  return React.useMemo(
+    () => installsFor(repo.install, readme),
+    [repo.install, readme],
+  )
 }
 
 function Section({
@@ -128,9 +118,9 @@ export function AboutPanel({
   repo: Repo
   onOpenLicense: () => void
 }) {
-  const installs = installsFor(repo)
-  const [which, setWhich] = React.useState(installs[0][0])
-  const current = installs.find(([k]) => k === which) ?? installs[0]
+  const installs = useInstalls(repo)
+  const [which, setWhich] = React.useState<string | null>(null)
+  const current = installs.find((i) => i.label === which) ?? installs.at(0)
   const release = latestStable(repo)
   const contributors =
     useOpMaybe('repos.contributors', { owner: repo.owner, repo: repo.name })
@@ -148,16 +138,23 @@ export function AboutPanel({
   } as const
   return (
     <aside className="surface flex min-w-0 flex-col divide-y overflow-hidden rounded-2xl border bg-card text-sm">
-      <Section title="Install">
-        <Segmented
-          label="Install with"
-          className="w-full [&>*>*]:min-w-0 [&>*>*]:flex-1 [&>*>*]:px-1.5"
-          value={which}
-          onChange={setWhich}
-          options={installs.map(([k]): [string, string] => [k, k])}
-        />
-        <CopyField value={current[1]} prefix="$" />
-      </Section>
+      {current && (
+        <Section title="Install">
+          {installs.length > 1 && (
+            <Segmented
+              label="Install with"
+              className="w-full [&>*>*]:min-w-0 [&>*>*]:flex-1 [&>*>*]:px-1.5"
+              value={current.label}
+              onChange={setWhich}
+              options={installs.map((i): [string, string] => [
+                i.label,
+                i.label,
+              ])}
+            />
+          )}
+          <CopyField value={current.command} prefix="$" />
+        </Section>
+      )}
 
       <Section title="Details">
         <ul className="space-y-2">

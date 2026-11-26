@@ -378,6 +378,25 @@ export const markVerified = mutation({
     if (had) await ctx.db.replace('links', had._id, l)
     else await ctx.db.insert('links', l)
     await bump(ctx, `~${a.handle}`)
+    // What was imported before they proved the login theirs shows them as
+    // `login@github`: their linked repositories are read again in full.
+    if (!had?.verified || had.login !== a.login)
+      for (const r of await ctx.db
+        .query('remoteRepos')
+        .withIndex('by_provider_and_instance_and_externalId', (q) =>
+          q.eq('provider', 'github'),
+        )
+        .take(2000)) {
+        const repo = await ctx.db.get('repos', r.repoId)
+        if (
+          repo &&
+          (repo.owner === a.handle || repo.collaborators.includes(a.handle))
+        )
+          await ctx.db.patch('remoteRepos', r._id, {
+            importedAt: undefined,
+            itemsDue: Date.now(),
+          })
+      }
     return null
   },
 })

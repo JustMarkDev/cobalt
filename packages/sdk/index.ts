@@ -499,6 +499,8 @@ export type Download = {
   downloads: number
   /** The file itself, when it was uploaded here; null when it is kept elsewhere */
   content_url: string | null
+  /** Where the file is kept when it is not stored here */
+  source_url: string | null
 }
 
 export type EnvValues = {
@@ -900,6 +902,8 @@ export type Issue = {
   /** How many comments it has */
   comments: number
   closed_at: string | null
+  /** Why it was closed, when that was said: done, not going to be done, or the same as another */
+  closed_as: 'completed' | 'not_planned' | 'duplicate' | null
   /** RFC 3339 time, UTC */
   created_at: string
   /** RFC 3339 time, UTC */
@@ -1658,6 +1662,8 @@ export type Release = {
     changed: Array<string>
     fixed: Array<string>
   }
+  /** The notes as written, in Markdown, when they came from elsewhere (an imported release); null when they are only `notes` */
+  body: string | null
   /** Every asset is signed */
   signed: boolean
   /** The commit a beta or nightly was built from */
@@ -1688,6 +1694,8 @@ export type ReleaseAsset = {
   sha256: string
   /** Where the file is served, when it was uploaded here */
   content_url: string | null
+  /** Where the file is kept when it is not stored here, such as on the provider the repository was imported from */
+  source_url: string | null
 }
 
 export type RemoteComment = {
@@ -1819,7 +1827,7 @@ export type Repo = {
     /** `owner/name` there */
     slug: string
   } | null
-  /** One command that installs the project, set by its owners */
+  /** Commands that install the project, one per line, set by its owners */
   install: string | null
   /** Where Discover lists it. Set by its owners */
   category: 'Developer tools' | 'Apps' | 'Infrastructure' | 'Databases' | null

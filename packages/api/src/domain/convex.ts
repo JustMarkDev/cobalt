@@ -1376,7 +1376,7 @@ export class ConvexDomain implements DomainPort {
           owner: body.owner,
           name,
           visibility: body.visibility,
-          description: `Linked to ${pr.instance}/${pr.remote.slug}`,
+          description: pr.remote.description.trim().slice(0, 500),
         },
         true,
         sync.link(pr),
@@ -1402,8 +1402,7 @@ export class ConvexDomain implements DomainPort {
         owner: o.owner,
         name: o.name,
         visibility: o.visibility,
-        description:
-          pr.remote.description || `Linked to ${pr.instance}/${pr.remote.slug}`,
+        description: pr.remote.description.trim().slice(0, 500),
       },
       false,
       sync.link(pr),
@@ -1502,6 +1501,9 @@ export class ConvexDomain implements DomainPort {
           'system',
         )
       },
+      setAbout: async (full, about, was) => {
+        await this.m('providers:setAbout', { repo: full, about, was }, 'system')
+      },
       hasCommit: (full, sha) =>
         this.svc.git.commit(full, sha).then(
           () => true,
@@ -1525,7 +1527,9 @@ export class ConvexDomain implements DomainPort {
               ? 'changes:importChecks'
               : kind === 'issue'
                 ? 'issues:importIssue'
-                : 'releases:importRelease'
+                : kind === 'labels'
+                  ? 'issues:importLabels'
+                  : 'releases:importRelease'
         return this.m<string>(fn, { repo: full, ...rest }, 'system')
       },
     }

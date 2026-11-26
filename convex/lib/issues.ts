@@ -26,6 +26,7 @@ export function presentIssue(
     assignees: x.assignees.map(actorOut),
     comments: x.commentCount,
     closed_at: x.closed ? iso(x.closed) : null,
+    closed_as: x.state === 'closed' ? (x.closedAs ?? null) : null,
     created_at: iso(x.created),
     updated_at: iso(x.updated),
     version: x.version,
@@ -119,6 +120,10 @@ const DEFAULT_LABELS: Array<[string, string, string]> = [
   ['good first issue', 'green', 'A good place to start'],
   ['help wanted', 'orange', 'The maintainers would welcome a hand'],
 ]
+
+/** Whether a label is one every repository here starts with. */
+export const isDefaultLabel = (key: string) =>
+  DEFAULT_LABELS.some(([name]) => name === key)
 
 export async function seedLabels(
   ctx: MutationCtx,

@@ -25354,7 +25354,7 @@
                       {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 200
+                        "maxLength": 1000
                       },
                       {
                         "type": "null"
@@ -30495,7 +30495,7 @@
             "description": "Where the code is developed when this repository mirrors it. Null when it lives here"
           },
           "install": {
-            "description": "One command that installs the project, set by its owners",
+            "description": "Commands that install the project, one per line, set by its owners",
             "type": [
               "string",
               "null"
@@ -34648,6 +34648,22 @@
               }
             ]
           },
+          "closed_as": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "not_planned",
+                  "duplicate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it was closed, when that was said: done, not going to be done, or the same as another"
+          },
           "created_at": {
             "type": "string",
             "description": "RFC 3339 time, UTC"
@@ -34677,6 +34693,7 @@
           "assignees",
           "comments",
           "closed_at",
+          "closed_as",
           "created_at",
           "updated_at",
           "version"
@@ -36551,6 +36568,13 @@
               "string",
               "null"
             ]
+          },
+          "source_url": {
+            "description": "Where the file is kept when it is not stored here",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -36560,7 +36584,8 @@
           "sha256",
           "url",
           "downloads",
-          "content_url"
+          "content_url",
+          "source_url"
         ]
       },
       "Release": {
@@ -36622,6 +36647,13 @@
               "added",
               "changed",
               "fixed"
+            ]
+          },
+          "body": {
+            "description": "The notes as written, in Markdown, when they came from elsewhere (an imported release); null when they are only `notes`",
+            "type": [
+              "string",
+              "null"
             ]
           },
           "signed": {
@@ -36693,6 +36725,7 @@
           "channel",
           "title",
           "notes",
+          "body",
           "signed",
           "commit",
           "withdrawn",
@@ -36741,6 +36774,13 @@
               "string",
               "null"
             ]
+          },
+          "source_url": {
+            "description": "Where the file is kept when it is not stored here, such as on the provider the repository was imported from",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -36750,7 +36790,8 @@
           "size",
           "downloads",
           "sha256",
-          "content_url"
+          "content_url",
+          "source_url"
         ]
       },
       "Star": {

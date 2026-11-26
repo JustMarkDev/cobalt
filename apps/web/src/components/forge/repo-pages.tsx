@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { shownHandle } from '~/lib/shown-handle'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ChatBubbleLeftIcon,
@@ -233,7 +234,7 @@ function IssueList({ repo }: { repo: Repo }) {
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   #{i.number} opened {timeAgo(i.created_at)} by{' '}
-                  {i.author.handle}
+                  {shownHandle(i.author.handle)}
                 </p>
               </div>
               {i.comments > 0 && (
@@ -340,10 +341,25 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
               </span>
             </h2>
             <div className="mt-2 flex items-center gap-3 text-sm text-muted-foreground">
-              <Chip tone={issue.state === 'open' ? 'success' : 'merged'}>
-                {issue.state === 'open' ? 'Open' : 'Closed'}
+              <Chip
+                tone={
+                  issue.state === 'open'
+                    ? 'success'
+                    : issue.closed_as === 'completed' || !issue.closed_as
+                      ? 'merged'
+                      : 'muted'
+                }
+              >
+                {issue.state === 'open'
+                  ? 'Open'
+                  : issue.closed_as === 'not_planned'
+                    ? 'Closed as not planned'
+                    : issue.closed_as === 'duplicate'
+                      ? 'Closed as duplicate'
+                      : 'Closed'}
               </Chip>
-              {issue.author.handle} opened this {timeAgo(issue.created_at)}
+              {shownHandle(issue.author.handle)} opened this{' '}
+              {timeAgo(issue.created_at)}
             </div>
             <div className="mt-2">
               <Viewers viewers={viewers} />
