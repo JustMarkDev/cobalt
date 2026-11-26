@@ -1,4 +1,20 @@
-import { chmodSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs'
+import { join, relative } from 'node:path'
+import {
+  environmentOf,
+  isValuesFile,
+  parseDotenv,
+  schemaNames,
+  withNames,
+} from '../dotenv'
 import { resolveRepo } from '../repo'
 import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
@@ -84,6 +100,43 @@ export const env: Command = async (
       ctx,
       { name: v.name, env: environment, sealed: !dry, dryRun: dry },
       () => `${dry ? 'would seal' : 'sealed'} ${name} for ${environment}`,
+    )
+    return
+  }
+
+  if (sub === 'commit') return commitEnv(ctx, repo.path, rest, flags)
+
+  if (sub === 'hook') {
+    const root = gitRoot()
+    const hook = join(root, '.git', 'hooks', 'pre-commit')
+    if (rest.at(0) === 'uninstall') {
+      if (existsSync(hook) && readFileSync(hook, 'utf8').includes(HOOK_MARK))
+        writeFileSync(hook, '')
+      print(ctx, { hook, installed: false }, () => `removed ${hook}`)
+      return
+    }
+    if (
+      existsSync(hook) &&
+      !readFileSync(hook, 'utf8').includes(HOOK_MARK) &&
+      readFileSync(hook, 'utf8').trim()
+    )
+      throw new CbError(
+        'hook_exists',
+        `${hook} is already there and is not cobalt's.`,
+        'Add this line to it instead: cb env commit --staged',
+        exit.usage,
+      )
+    mkdirSync(join(root, '.git', 'hooks'), { recursive: true })
+    writeFileSync(
+      hook,
+      `#!/bin/sh\n# ${HOOK_MARK}\n# A staged .env file goes to cobalt, sealed, and leaves the commit.\nexec cb env commit --staged\n`,
+    )
+    chmodSync(hook, 0o755)
+    print(ctx, { hook, installed: true }, () =>
+      [
+        `installed ${relative(process.cwd(), hook) || hook}`,
+        'Now `git add .env && git commit` seals its values on cobalt; the file never enters a commit.',
+      ].join('\n'),
     )
     return
   }
@@ -191,4 +244,136 @@ export const env: Command = async (
     'cb env --help lists them.',
     exit.usage,
   )
+}
+
+const HOOK_MARK = 'cobalt: cb env hook'
+
+function git(args: Array<string>, cwd?: string) {
+  const r = Bun.spawnSync(['git', ...args], { cwd, stderr: 'pipe' })
+  if (r.exitCode !== 0)
+    throw new CbError(
+      'git_failed',
+      `git ${args.join(' ')} failed: ${r.stderr.toString().trim()}`,
+      'Run it inside a clone.',
+      exit.error,
+    )
+  return r.stdout.toString()
+}
+
+function gitRoot() {
+  return git(['rev-parse', '--show-toplevel']).trim()
+}
+
+/**
+ * `.env` files into cobalt instead of into git: every value is sealed on
+ * cobalt for the environment its file is for (and sent on to the linked
+ * host), the names go into .env.schema, and the files leave the index and
+ * are kept out of it (.git/info/exclude, nothing to add to .gitignore).
+ */
+async function commitEnv(
+  ctx: Parameters<Command>[1],
+  path: string,
+  given: Array<string>,
+  flags: Parameters<Command>[0]['flags'],
+) {
+  const root = gitRoot()
+  const dry = has(flags, 'dry-run')
+  const staged = git(
+    ['diff', '--cached', '--name-only', '--diff-filter=ACMR'],
+    root,
+  )
+    .split('\n')
+    .filter(Boolean)
+  const files = (
+    given.length
+      ? given.map((f) => relative(root, join(process.cwd(), f)))
+      : has(flags, 'staged')
+        ? staged.filter(isValuesFile)
+        : readdirSync(root).filter(isValuesFile)
+  ).filter(isValuesFile)
+  if (!files.length) {
+    print(ctx, { files: [], sealed: [] }, () => 'no .env files to commit')
+    return
+  }
+  const api = ctx.api()
+  const sealed: Array<{ name: string; environment: string; file: string }> = []
+  const failed: Array<{ name: string; environment: string; why: string }> = []
+  for (const file of files) {
+    const environment = environmentOf(file)
+    for (const [name] of parseDotenv(readFileSync(join(root, file), 'utf8'))) {
+      const value = parseDotenv(readFileSync(join(root, file), 'utf8')).find(
+        ([n]) => n === name,
+      )![1]
+      try {
+        if (!dry)
+          await api.put(`${path}/env/${name}/${environment}`, {
+            body: { value, declare: true },
+          })
+        sealed.push({ name, environment, file })
+      } catch (e) {
+        failed.push({
+          name,
+          environment,
+          why:
+            e instanceof CbError
+              ? `${e.message}${e.hint ? ` ${e.hint}` : ''}`
+              : String(e),
+        })
+      }
+    }
+  }
+  // Names into the schema, which is committed: reviewers see a variable exists.
+  const schemaPath = join(root, '.env.schema')
+  const before = existsSync(schemaPath) ? readFileSync(schemaPath, 'utf8') : ''
+  const { schema, added } = withNames(before, [
+    ...new Set(sealed.map((s) => s.name)),
+  ])
+  if (!dry && added.length) writeFileSync(schemaPath, schema)
+  if (!dry) {
+    if (added.length) git(['add', '.env.schema'], root)
+    const inIndex = files.filter(
+      (f) => staged.includes(f) || git(['ls-files', f], root).trim(),
+    )
+    if (inIndex.length)
+      git(['rm', '--cached', '--quiet', '--', ...inIndex], root)
+    const exclude = join(root, '.git', 'info', 'exclude')
+    mkdirSync(join(root, '.git', 'info'), { recursive: true })
+    const have = existsSync(exclude) ? readFileSync(exclude, 'utf8') : ''
+    const missing = files.filter((f) => !have.split('\n').includes(`/${f}`))
+    if (missing.length)
+      appendFileSync(
+        exclude,
+        `${have.endsWith('\n') || !have ? '' : '\n'}# kept on cobalt (cb env commit)\n${missing.map((f) => `/${f}`).join('\n')}\n`,
+      )
+  }
+  const known = schemaNames(schema)
+  print(
+    ctx,
+    {
+      files,
+      sealed: sealed.map(({ name, environment }) => ({ name, environment })),
+      failed,
+      schema_added: added,
+      in_schema: [...known].length,
+      dryRun: dry,
+    },
+    () =>
+      [
+        ...sealed.map(
+          (s) =>
+            `${dry ? 'would seal' : 'sealed'} ${s.name} (${s.environment}) from ${s.file}`,
+        ),
+        ...added.map((n) => `added ${n} to .env.schema`),
+        ...failed.map(
+          (f) => `NOT sealed ${f.name} (${f.environment}): ${f.why}`,
+        ),
+        dry
+          ? ''
+          : `${files.join(', ')} left the commit and stay out of git (.git/info/exclude).`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+  )
+  // A value that did not reach cobalt must not be lost: stop the commit.
+  if (failed.length) return exit.error
 }

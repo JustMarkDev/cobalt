@@ -359,6 +359,35 @@ export class ProviderSync {
    * own token sealed, so writes to GitHub (comments, issues) are theirs and
    * not the app's. Without a vault the login is kept and writes stay the app's.
    */
+  /**
+   * After a value is set here, the same value on the provider the repository
+   * is linked to, so its own CI keeps working. Production goes to the
+   * repository's secrets, which workflows read by default; development and
+   * preview to the provider's environments of those names. Says where it went,
+   * or null when the repository is not linked to a provider that keeps secrets.
+   */
+  async pushSecret(
+    full: string,
+    secret: { name: string; value: string; environment: string },
+  ): Promise<string | null> {
+    const r = await this.store.remoteOfRepo(full)
+    if (!r || r.state === 'gone' || r.state === 'archived') return null
+    const forge = this.forge(r.provider)
+    if (!forge.setSecret) return null
+    const auth = await this.authOf(r)
+    if (!auth) return null
+    const environment =
+      secret.environment === 'production' ? null : secret.environment
+    await forge.setSecret(auth, r.fullName, {
+      name: secret.name,
+      value: secret.value,
+      environment,
+    })
+    return environment
+      ? `${hostLabel[r.provider]} environment ${environment}`
+      : `${hostLabel[r.provider]} repository secrets`
+  }
+
   async rememberGithub(
     handle: string,
     login: string,

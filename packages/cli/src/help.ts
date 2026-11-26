@@ -84,6 +84,12 @@ export const groupHelp: Record<string, string> = {
   run -- <command>        run with values injected into that process only; output is scrubbed
   pull --plaintext        write .env.local (0600). Prefer run: a file is what leaks.
   confirmations           your production confirmations, and where to confirm one
+  commit [files] [--staged] .env files into cobalt, not into git: each value
+                          sealed for its file's environment (.env and .env.local:
+                          development, .env.preview, .env.production), names
+                          added to .env.schema, the files kept out of the index
+  hook install|uninstall  a pre-commit hook: git add .env && git commit runs
+                          cb env commit --staged
 
   Values follow your login: on the repository's team, any machine you sign in
   on (cb auth login) reads them, and so does an agent you run there. Production

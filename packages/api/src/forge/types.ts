@@ -275,6 +275,15 @@ export interface ForgeProvider {
       draft: boolean
     },
   ) => Promise<RemotePull>
+  /**
+   * Write a secret's value there, encrypted for the provider; in one of its
+   * environments, or for the whole repository when `environment` is null.
+   */
+  setSecret?: (
+    auth: ProviderAuth,
+    slug: string,
+    secret: { name: string; value: string; environment: string | null },
+  ) => Promise<void>
   /** Open an issue there (as the app, on GitHub). */
   createIssue?: (
     auth: ProviderAuth,

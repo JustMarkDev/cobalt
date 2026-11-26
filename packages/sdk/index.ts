@@ -2915,6 +2915,8 @@ export interface Operations {
       environment: 'development' | 'preview' | 'production'
       body: {
         value: string
+        /** Add the name when the schema on the default branch does not have it yet: for a value whose .env.schema line is in a commit that has not landed (cb env commit sends both). */
+        declare?: boolean
       }
     }
     output: EnvVar

@@ -191,6 +191,23 @@ export function createGithubForge(
   const installationToken =
     o.installationToken ?? (tokens ? (i: number) => tokens.token(i) : null)
 
+  /** A write as the installation, once more with a new token if refused. */
+  async function fresh<T>(auth: ProviderAuth, write: () => Promise<T>) {
+    try {
+      return await write()
+    } catch (e) {
+      if (
+        auth.kind !== 'installation' ||
+        !tokens ||
+        !(e instanceof ProviderError) ||
+        e.status !== 403
+      )
+        throw e
+      tokens.forget(auth.installation)
+      return write()
+    }
+  }
+
   async function headers(auth: ProviderAuth) {
     if (auth.kind === 'user')
       return { ...base, authorization: `Bearer ${auth.token}` }
@@ -442,6 +459,51 @@ export function createGithubForge(
         notModified: r.notModified,
         next: r.next,
       }
+    },
+
+    async setSecret(auth, slug, secret) {
+      return fresh(auth, async () => {
+        const h = await headers(auth)
+        let where = `${API}/repos/${slug}/actions/secrets`
+        if (secret.environment) {
+          // Environments are made on first use (Administration permission).
+          // GitHub has none for private repositories on free plans, and then
+          // answers 403 with a misleading "rate limit exceeded".
+          await call(
+            'github',
+            f,
+            `${API}/repos/${slug}/environments/${encodeURIComponent(secret.environment)}`,
+            { method: 'PUT', headers: h, body: {} },
+          ).catch((e: unknown) => {
+            if (
+              e instanceof ProviderError &&
+              (e.status === 403 || e.status === 404)
+            )
+              throw new ProviderError(
+                'github',
+                e.status,
+                `GitHub has no environments for this repository (private repositories need a paid plan for them), so the ${secret.environment} value stays on cobalt only. Production values go to the repository's secrets.`,
+                false,
+              )
+            throw e
+          })
+          where = `${API}/repos/${slug}/environments/${encodeURIComponent(secret.environment)}/secrets`
+        }
+        const key = await call<{ key: string; key_id: string }>(
+          'github',
+          f,
+          `${where}/public-key`,
+          { headers: h },
+        )
+        await call('github', f, `${where}/${encodeURIComponent(secret.name)}`, {
+          method: 'PUT',
+          headers: h,
+          body: {
+            encrypted_value: await sealForGithub(key.body.key, secret.value),
+            key_id: key.body.key_id,
+          },
+        })
+      })
     },
 
     async createPull(auth, slug, pr) {
@@ -1006,3 +1068,17 @@ export function githubEvent(kind: string, body: string): WebhookEvent {
 }
 
 export type { Delivery }
+
+/**
+ * A value as GitHub takes a secret: a libsodium sealed box for the
+ * repository's (or environment's) public key, in base64. Only GitHub opens it.
+ */
+export async function sealForGithub(publicKey: string, value: string) {
+  const { default: sodium } = await import('libsodium-wrappers')
+  await sodium.ready
+  const sealed = sodium.crypto_box_seal(
+    sodium.from_string(value),
+    sodium.from_base64(publicKey, sodium.base64_variants.ORIGINAL),
+  )
+  return sodium.to_base64(sealed, sodium.base64_variants.ORIGINAL)
+}

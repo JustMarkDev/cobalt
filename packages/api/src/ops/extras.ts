@@ -466,7 +466,15 @@ export const setEnv = defineOp({
   idempotent: true,
   dryRun: true,
   secretRequest: true,
-  body: z.strictObject({ value: z.string().min(1).max(65536) }),
+  body: z.strictObject({
+    value: z.string().min(1).max(65536),
+    declare: z
+      .boolean()
+      .optional()
+      .describe(
+        'Add the name when the schema on the default branch does not have it yet: for a value whose .env.schema line is in a commit that has not landed (cb env commit sends both).',
+      ),
+  }),
   response: S.EnvVar,
   errors: [
     'not_found',
@@ -490,6 +498,18 @@ export const setEnv = defineOp({
         const box = await boxOf(d)
         const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
         const x = await withSchema(d, full)
+        if (
+          ctx.body.declare &&
+          !x.env.some((e) => e.name === ctx.params.name) &&
+          /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(ctx.params.name)
+        )
+          x.env.push({
+            name: ctx.params.name,
+            kind: 'string',
+            secret: true,
+            set: [],
+            description: `Declared by ${p.handle} with its value; .env.schema names it once that commit lands.`,
+          })
         const v = x.env.find((e) => e.name === ctx.params.name)
         if (!v)
           throw apiError(
@@ -543,6 +563,33 @@ export const setEnv = defineOp({
             },
           )
           if (first) await d.bumpRepo(ctx.params.owner, ctx.params.repo, p)
+          // The linked provider (GitHub) gets the value too, sealed for it.
+          const out = await d.svc.providers
+            ?.pushSecret(full, {
+              name: v.name,
+              value: ctx.body.value,
+              environment: ctx.params.environment,
+            })
+            .catch((e: unknown) => {
+              x.note(
+                whoOf(p),
+                `could not send ${v.name} (${ctx.params.environment}) to the linked host: ${e instanceof Error ? e.message.slice(0, 200) : 'failed'}`,
+                {
+                  target: `${v.name} in ${ctx.params.environment}`,
+                  kind: 'rotate',
+                },
+              )
+              return null
+            })
+          if (out)
+            x.note(
+              whoOf(p),
+              `sent ${v.name} (${ctx.params.environment}) to ${out}`,
+              {
+                target: `${v.name} in ${ctx.params.environment}`,
+                kind: 'rotate',
+              },
+            )
         }
         return {
           object: 'env_var' as const,
