@@ -1,3 +1,4 @@
+import { LICENSE_FILES, languagesOf, licenseOf } from '../detect'
 import { isWorkflowFile, planPush, runOf } from '../actions'
 import { codeStorageRemotes } from '@cobaltforge/git/remote'
 import { copyHistory } from '@cobaltforge/git/transfer'
@@ -1550,6 +1551,38 @@ export class ConvexDomain implements DomainPort {
         runs: planned.map((p) =>
           JSON.stringify(runOf(p, { number: 0, actor: e.actor, at })),
         ),
+      },
+      'system',
+    )
+  }
+
+  /**
+   * After a push to the default branch of a repository made here: its
+   * languages and license, read from its files.
+   */
+  async detectFacts(e: { repo: string; ref: string; after: string }) {
+    if (/^0+$/.test(e.after) || !e.ref.startsWith('refs/heads/')) return
+    const storeId = await this.storeIdOf(e.repo)
+    if (!storeId) return
+    const listed = await this.svc.git.files(e.repo, e.after).catch(() => null)
+    if (!listed) return
+    const top = listed.paths.filter((p) => !p.includes('/'))
+    const licensePath = top.find((p) => LICENSE_FILES.test(p))
+    const text = licensePath
+      ? await this.svc.git
+          .blob(e.repo, licensePath, e.after)
+          .then((b) => (b ? new TextDecoder().decode(b) : null))
+          .catch(() => null)
+      : null
+    await run(
+      this.call,
+      'mutation',
+      'forge/providers:setDetected',
+      {
+        storeId,
+        ref: e.ref,
+        languages: languagesOf(listed.paths.map((path) => ({ path }))),
+        license: text ? licenseOf(text) : null,
       },
       'system',
     )

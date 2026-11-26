@@ -17,13 +17,14 @@ import {
 } from '@heroicons/react/24/outline'
 import { AboutPanel } from './repo-about'
 import { Who } from './repo-history'
-import { ReadmeCard } from './markdown'
+import { MarkdownBody, ReadmeCard } from './markdown'
 import { LineProvenance } from './line-provenance'
 import type { RepoDoc } from './markdown'
 import type { Repo } from '~/lib/model/data'
 import { codeTheme, useCodeOverflow } from '~/lib/highlight'
 import { Button } from '~/components/ui/button'
 import { Modal } from '~/components/ui/dialog'
+import { Segmented } from '~/components/ui/tabs'
 import { useOp, useOpMaybe } from '~/lib/forge'
 import { committerOf, timeAgo } from '~/lib/repo'
 import { useIsDark } from '~/lib/theme'
@@ -180,6 +181,9 @@ export function CodeBrowser({
       : blob
         ? `Binary file, ${blob.size.toLocaleString('en')} bytes.`
         : ''
+  const preview = blob ? previewOf(path, blob) : null
+  const [show, setShow] = React.useState<'preview' | 'code'>('preview')
+  const lines = blob?.size === 0 ? 0 : contents.split('\n').length
 
   return (
     <div className="space-y-4">
@@ -304,9 +308,23 @@ export function CodeBrowser({
             <span className="min-w-0 flex-1 truncate font-medium">
               {path.split('/').at(-1)}
             </span>
+            {preview && preview.code && (
+              <Segmented
+                label="Show"
+                value={show}
+                onChange={setShow}
+                options={[
+                  ['preview', 'Preview'],
+                  ['code', 'Code'],
+                ]}
+              />
+            )}
             <span className="text-xs text-muted-foreground">
-              {contents.split('\n').length} lines · click a line number to see
-              why it is here
+              {blob?.size === 0
+                ? 'Empty file'
+                : preview && (!preview.code || show === 'preview')
+                  ? `${blob!.size.toLocaleString('en')} bytes`
+                  : `${lines} ${lines === 1 ? 'line' : 'lines'} · click a line number to see why it is here`}
             </span>
             <Button
               size="sm"
@@ -320,18 +338,34 @@ export function CodeBrowser({
               <ClipboardDocumentIcon /> {copied ? 'Copied' : 'Copy path'}
             </Button>
           </div>
-          <div className="max-h-[36rem] overflow-auto">
-            <File
-              key={path}
-              file={{ name: path, contents }}
-              options={{
-                theme: codeTheme(dark),
-                overflow,
-                disableFileHeader: true,
-                onLineNumberClick: ({ lineNumber }) => setWhy(lineNumber),
-              }}
-            />
-          </div>
+          {preview && (!preview.code || show === 'preview') ? (
+            preview.kind === 'image' ? (
+              <div className="flex max-h-[36rem] justify-center overflow-auto bg-[repeating-conic-gradient(var(--muted)_0%_25%,transparent_0%_50%)] bg-[length:16px_16px] p-6">
+                <img
+                  src={preview.src}
+                  alt={path.split('/').at(-1)}
+                  className="max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="max-h-[48rem] overflow-auto px-6 py-5">
+                <MarkdownBody source={contents} />
+              </div>
+            )
+          ) : (
+            <div className="max-h-[36rem] overflow-auto">
+              <File
+                key={path}
+                file={{ name: path, contents }}
+                options={{
+                  theme: codeTheme(dark),
+                  overflow,
+                  disableFileHeader: true,
+                  onLineNumberClick: ({ lineNumber }) => setWhy(lineNumber),
+                }}
+              />
+            </div>
+          )}
           <LineProvenance
             repo={repo}
             path={path}
@@ -356,4 +390,47 @@ export function CodeBrowser({
       </Modal>
     </div>
   )
+}
+
+const IMAGES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  ico: 'image/x-icon',
+  bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+}
+
+/**
+ * How to show a file other than as text: images as images (an SVG in an
+ * <img>, where its scripts cannot run), Markdown rendered. `code` says the
+ * source can be shown too.
+ */
+function previewOf(
+  path: string,
+  blob: { encoding: string; content: string; size: number },
+):
+  | { kind: 'image'; src: string; code: boolean }
+  | { kind: 'markdown'; code: true }
+  | null {
+  const ext = /\.([A-Za-z0-9]+)$/.exec(path)?.[1]?.toLowerCase() ?? ''
+  const type = IMAGES[ext]
+  if (type && blob.size > 0)
+    return blob.encoding === 'base64'
+      ? {
+          kind: 'image',
+          src: `data:${type};base64,${blob.content}`,
+          code: false,
+        }
+      : {
+          kind: 'image',
+          src: `data:${type};charset=utf-8,${encodeURIComponent(blob.content)}`,
+          code: true,
+        }
+  if (/^(md|markdown|mdx)$/.test(ext) && blob.encoding === 'utf-8')
+    return { kind: 'markdown', code: true }
+  return null
 }

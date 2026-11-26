@@ -1212,3 +1212,36 @@ export const jobProgress = query({
     })
   },
 })
+
+/**
+ * Languages and license read from a repository's own files, after a push to
+ * its default branch. A repository linked to a provider takes both from it.
+ */
+export const setDetected = mutation({
+  args: {
+    storeId: v.string(),
+    ref: v.string(),
+    languages: v.array(v.array(v.union(v.string(), v.number()))),
+    license: v.union(v.null(), v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
+      .unique()
+    if (!repo || repo.upstream || a.ref !== `refs/heads/${repo.defaultBranch}`)
+      return out(null)
+    const patch: Partial<Doc<'repos'>> = {}
+    if (JSON.stringify(repo.languages) !== JSON.stringify(a.languages))
+      patch.languages = a.languages
+    if (repo.license !== a.license) patch.license = a.license
+    if (Object.keys(patch).length)
+      await ctx.db.patch('repos', repo._id, {
+        ...patch,
+        version: repo.version + 1,
+      })
+    return out(null)
+  },
+})

@@ -4,9 +4,11 @@ import {
   BookOpenIcon,
   DocumentTextIcon,
   GlobeAltIcon,
+  HeartIcon,
   RocketLaunchIcon,
   ScaleIcon,
   ShieldCheckIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { Avatar } from './bits'
 import { CopyField, Languages } from './repo-shell'
@@ -85,6 +87,36 @@ function ExternalLink({
   )
 }
 
+/** Where GitHub and others look for a project's community files. */
+const COMMUNITY_DIRS = ['', '.github', 'docs'] as const
+
+/**
+ * The community files the repository really has, by what they are: a link
+ * shows only for a file that exists (any case, at the root, in .github or
+ * in docs), never for one that does not.
+ */
+function useCommunityFiles(repo: Repo) {
+  const at = { owner: repo.owner, repo: repo.name }
+  const root = useOpMaybe('git.tree', { ...at })?.entries ?? []
+  const hidden =
+    useOpMaybe('git.tree', { ...at, path: '.github' })?.entries ?? []
+  const docs = useOpMaybe('git.tree', { ...at, path: 'docs' })?.entries ?? []
+  const all = [root, hidden, docs].flat().filter((e) => e.type === 'blob')
+  const find = (re: RegExp) => {
+    for (const dir of COMMUNITY_DIRS)
+      for (const e of all)
+        if (re.test(e.name) && e.path === (dir ? `${dir}/${e.name}` : e.name))
+          return e.path
+    return null
+  }
+  return {
+    security: find(/^security(\.(md|markdown|txt|rst))?$/i),
+    changelog: find(/^(changelog|changes|history)(\.(md|markdown|txt|rst))?$/i),
+    contributing: find(/^contributing(\.(md|markdown|txt|rst))?$/i),
+    conduct: find(/^code[_-]of[_-]conduct(\.(md|markdown|txt|rst))?$/i),
+  }
+}
+
 function FileLink({
   repo,
   path,
@@ -129,6 +161,7 @@ export function AboutPanel({
     0,
     ...contributors.map((c) => Date.parse(c.last_commit_at)),
   )
+  const community = useCommunityFiles(repo)
   const active = contributors.filter(
     (c) => newest - Date.parse(c.last_commit_at) < MONTH,
   ).length
@@ -177,19 +210,21 @@ export function AboutPanel({
               </span>
             </li>
           )}
-          <li className="flex items-center gap-2.5">
-            <ScaleIcon className="size-4 shrink-0 text-muted-foreground" />
-            <button
-              type="button"
-              onClick={onOpenLicense}
-              className="font-medium hover:underline"
-            >
-              {repo.license}
-            </button>
-            <span className="ml-auto text-xs text-muted-foreground">
-              license
-            </span>
-          </li>
+          {repo.license && (
+            <li className="flex items-center gap-2.5">
+              <ScaleIcon className="size-4 shrink-0 text-muted-foreground" />
+              <button
+                type="button"
+                onClick={onOpenLicense}
+                className="font-medium hover:underline"
+              >
+                {repo.license}
+              </button>
+              <span className="ml-auto text-xs text-muted-foreground">
+                license
+              </span>
+            </li>
+          )}
         </ul>
         <ul className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-2.5 text-xs">
           {repo.website && (
@@ -202,12 +237,38 @@ export function AboutPanel({
               Docs
             </ExternalLink>
           )}
-          <FileLink repo={repo} path="SECURITY.md" icon={ShieldCheckIcon}>
-            Security policy
-          </FileLink>
-          <FileLink repo={repo} path="CHANGELOG.md" icon={DocumentTextIcon}>
-            Changelog
-          </FileLink>
+          {community.contributing && (
+            <FileLink
+              repo={repo}
+              path={community.contributing}
+              icon={UserGroupIcon}
+            >
+              Contributing
+            </FileLink>
+          )}
+          {community.conduct && (
+            <FileLink repo={repo} path={community.conduct} icon={HeartIcon}>
+              Code of conduct
+            </FileLink>
+          )}
+          {community.security && (
+            <FileLink
+              repo={repo}
+              path={community.security}
+              icon={ShieldCheckIcon}
+            >
+              Security policy
+            </FileLink>
+          )}
+          {community.changelog && (
+            <FileLink
+              repo={repo}
+              path={community.changelog}
+              icon={DocumentTextIcon}
+            >
+              Changelog
+            </FileLink>
+          )}
         </ul>
       </Section>
 

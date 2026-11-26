@@ -124,6 +124,15 @@ export function createConvexApi(o: ConvexApiOptions) {
       .catch((err: unknown) =>
         console.error('[pipelines] could not start workflows', e.repo, err),
       )
+    void d
+      .detectFacts({ repo: e.repo, ref: data.ref, after: data.after })
+      .catch((err: unknown) =>
+        console.error(
+          '[repos] could not read languages and license',
+          e.repo,
+          err,
+        ),
+      )
   })
   const feed = new ConvexEventFeed(call, events, (rev) => {
     d.accessRevision = rev
