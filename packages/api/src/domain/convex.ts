@@ -462,14 +462,110 @@ export class ConvexDomain implements DomainPort {
     this.q('issues:get', { owner, name, number: n }, p)
   issueVersion: Port['issueVersion'] = (owner, name, n, p) =>
     this.q('issues:version', { owner, name, number: n }, p)
-  createIssue: Port['createIssue'] = (owner, name, p, body, dry) =>
-    this.m('issues:create', { owner, name, ...body, dry }, p)
-  updateIssue: Port['updateIssue'] = (owner, name, n, p, body, ifMatch, dry) =>
-    this.m(
-      'issues:update',
-      { owner, name, number: n, body, fields: Object.keys(body), ifMatch, dry },
-      p,
-    )
+  createIssue: Port['createIssue'] = async (owner, name, p, body, dry) => {
+    // A repository linked to GitHub opens the issue there first: it gets
+    // GitHub's number, so the two never number different issues alike.
+    if (!dry && p && this.svc.providers) {
+      const full = await this.repoAccess(owner, name, p, 'read')
+      const link = await this.svc.providers.store.remoteOfRepo(full)
+      if (link?.provider === 'github') {
+        const same = (
+          await this.q<{ items: Array<{ number: number; title: string }> }>(
+            'issues:list',
+            { owner, name, state: 'open', after: null, limit: 100 },
+            p,
+          ).catch(() => ({ items: [] }))
+        ).items.find((i) => i.title === body.title)
+        if (same)
+          return {
+            issue: await this.getIssue(owner, name, same.number, p),
+            outcome: 'unchanged',
+          }
+        const n = await this.svc.providers.items
+          .createIssue(
+            full,
+            {
+              title: body.title,
+              body: body.body ?? '',
+              labels: body.labels ?? [],
+            },
+            p.handle,
+          )
+          .catch((e: unknown) => {
+            throw this.svc.providers!.providerProblem(e)
+          })
+        if (n !== null)
+          return {
+            issue: await this.getIssue(owner, name, n, p),
+            outcome: 'created',
+          }
+      }
+    }
+    return this.m('issues:create', { owner, name, ...body, dry }, p)
+  }
+  updateIssue: Port['updateIssue'] = async (
+    owner,
+    name,
+    n,
+    p,
+    body,
+    ifMatch,
+    dry,
+  ) => {
+    const local = (b: typeof body, match: typeof ifMatch) =>
+      this.m<z.infer<typeof S.Issue>>(
+        'issues:update',
+        {
+          owner,
+          name,
+          number: n,
+          body: b,
+          fields: Object.keys(b),
+          ifMatch: match,
+          dry,
+        },
+        p,
+      )
+    // An issue of a repository linked to GitHub changes there first, then
+    // comes back here, so both sides agree.
+    const synced = await this.issueOnGithub(owner, name, n, p)
+    if (dry || !synced) return local(body, ifMatch)
+    if (ifMatch !== null) {
+      const now = await this.getIssue(owner, name, n, p)
+      if (String(now.version) !== String(ifMatch).replace(/"/g, ''))
+        return local(body, ifMatch)
+    }
+    const { assignees, ...there } = body
+    if (Object.keys(there).length)
+      await synced.items
+        .updateIssue(synced.full, n, there)
+        .catch((e: unknown) => {
+          throw synced.problem(e)
+        })
+    if (assignees) return local({ assignees }, null)
+    return this.getIssue(owner, name, n, p)
+  }
+
+  /** The sync for an issue that came from (or went to) GitHub, if any. */
+  private async issueOnGithub(
+    owner: string,
+    name: string,
+    n: number,
+    p: Viewer,
+  ) {
+    const sync = this.svc.providers
+    if (!sync || !p) return null
+    const full = await this.repoAccess(owner, name, p, 'read')
+    const link = await sync.store.remoteOfRepo(full)
+    if (link?.provider !== 'github') return null
+    const issue = await this.getIssue(owner, name, n, p).catch(() => null)
+    if (!issue?.id.startsWith('iss_github_')) return null
+    return {
+      full,
+      items: sync.items,
+      problem: (e: unknown) => sync.providerProblem(e),
+    }
+  }
   listLabels: Port['listLabels'] = (owner, name, p) =>
     this.q('issues:listLabels', { owner, name }, p)
   labelsVersion: Port['labelsVersion'] = (owner, name, p) =>
@@ -495,12 +591,36 @@ export class ConvexDomain implements DomainPort {
     this.q('issues:listComments', { owner, name, number: n, ...q }, p)
   commentsVersion: Port['commentsVersion'] = (owner, name, n, p) =>
     this.q('issues:commentsVersion', { owner, name, number: n }, p)
-  createComment: Port['createComment'] = (owner, name, n, p, body, dry) =>
-    this.m(
+  createComment: Port['createComment'] = async (
+    owner,
+    name,
+    n,
+    p,
+    body,
+    dry,
+  ) => {
+    const synced = dry ? null : await this.issueOnGithub(owner, name, n, p)
+    if (synced && p) {
+      const id = await synced.items
+        .commentIssue(synced.full, n, body.body, p.handle)
+        .catch((e: unknown) => {
+          throw synced.problem(e)
+        })
+      if (id) {
+        const all = await this.listComments(owner, name, n, p, {
+          after: null,
+          limit: 200,
+        })
+        const mine = all.items.find((c) => c.id === `cmt_github_${id}`)
+        if (mine) return mine
+      }
+    }
+    return this.m(
       'issues:createComment',
       { owner, name, number: n, body: body.body, dry },
       p,
     )
+  }
   updateComment: Port['updateComment'] = (
     owner,
     name,

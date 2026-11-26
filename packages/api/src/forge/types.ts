@@ -260,6 +260,34 @@ export interface ForgeProvider {
     slug: string,
     o: { cursor?: string | null; etag?: Etag },
   ) => Promise<Listed<RemotePull> & { next: string | null }>
+  /** Open an issue there (as the app, on GitHub). */
+  createIssue?: (
+    auth: ProviderAuth,
+    slug: string,
+    issue: { title: string; body: string; labels: Array<string> },
+  ) => Promise<RemoteIssue>
+  getIssue?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+  ) => Promise<RemoteIssue>
+  updateIssue?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+    patch: {
+      title?: string
+      body?: string
+      labels?: Array<string>
+      state?: 'open' | 'closed'
+    },
+  ) => Promise<RemoteIssue>
+  createComment?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+    body: string,
+  ) => Promise<{ id: string }>
   listIssues: (
     auth: ProviderAuth,
     slug: string,

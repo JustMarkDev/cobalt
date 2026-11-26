@@ -444,6 +444,46 @@ export function createGithubForge(
       }
     },
 
+    async createIssue(auth, slug, issue) {
+      const r = await call<GhIssue>(
+        'github',
+        f,
+        `${API}/repos/${slug}/issues`,
+        {
+          method: 'POST',
+          headers: await headers(auth),
+          body: issue,
+        },
+      )
+      return issueOf(r.body)
+    },
+
+    async getIssue(auth, slug, number) {
+      return issueOf(
+        (await get<GhIssue>(auth, `/repos/${slug}/issues/${number}`)).body,
+      )
+    },
+
+    async updateIssue(auth, slug, number, patch) {
+      const r = await call<GhIssue>(
+        'github',
+        f,
+        `${API}/repos/${slug}/issues/${number}`,
+        { method: 'PATCH', headers: await headers(auth), body: patch },
+      )
+      return issueOf(r.body)
+    },
+
+    async createComment(auth, slug, number, body) {
+      const r = await call<{ id: number }>(
+        'github',
+        f,
+        `${API}/repos/${slug}/issues/${number}/comments`,
+        { method: 'POST', headers: await headers(auth), body: { body } },
+      )
+      return { id: String(r.body.id) }
+    },
+
     async listComments(auth, slug, number) {
       const out: Array<RemoteComment> = []
       let url: string | null =

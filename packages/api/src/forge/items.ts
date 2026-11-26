@@ -20,6 +20,7 @@ import type {
   RemoteAsset,
   RemoteCheck,
   RemoteComment,
+  RemoteIssue,
   RemoteLabel,
   WebhookEvent,
 } from './types'
@@ -603,60 +604,7 @@ export class RemoteItems {
     let changed = 0
     for (const i of got.items) {
       if (!o.full && i.updated < o.since) continue
-      const put = await this.store.putItem(r.repo, {
-        kind: 'issue',
-        number: i.number,
-        key: String(i.number),
-        title: i.title,
-        body: i.body,
-        state: i.state,
-        authorId: await this.actor(r, i.author),
-        labels: i.labels,
-        url: i.url,
-        created: i.created,
-        updated: i.updated,
-        closed: i.closed,
-        merged: null,
-        head: null,
-        flags: null,
-      })
-      const id =
-        put ??
-        (o.full
-          ? ((await this.store.item(r.repo, 'issue', String(i.number)))?.id ??
-            null)
-          : null)
-      if (!id) continue
-      changed++
-      const comments = await forge.listComments(
-        auth,
-        r.fullName,
-        i.number,
-        'issue',
-      )
-      await this.comments_(r, id, comments)
-      await this.materialize?.(r.repo, {
-        kind: 'issue',
-        host: r.provider,
-        number: i.number,
-        title: i.title,
-        body: i.body,
-        state: i.state,
-        author: who(i.author),
-        labels: i.labels,
-        closedAs: i.closedAs ?? null,
-        assignees: (i.assignees ?? []).map((a) => who(a)!),
-        created: i.created,
-        updated: i.updated,
-        closed: i.closed,
-        comments: comments.map((c) => ({
-          id: c.id,
-          author: who(c.author),
-          body: c.body,
-          created: c.created,
-          updated: c.updated,
-        })),
-      })
+      if (await this.issueIn(r, forge, auth, i, o.full)) changed++
     }
     if (o.full && got.complete)
       await this.removeMissing(
@@ -665,6 +613,142 @@ export class RemoteItems {
         new Set(got.items.map((i) => String(i.number))),
       )
     return changed
+  }
+
+  /** One issue from the provider into Issues here, with its comments. */
+  private async issueIn(
+    r: RemoteRec,
+    forge: ForgeProvider,
+    auth: ProviderAuth,
+    i: RemoteIssue,
+    full: boolean,
+  ) {
+    const put = await this.store.putItem(r.repo, {
+      kind: 'issue',
+      number: i.number,
+      key: String(i.number),
+      title: i.title,
+      body: i.body,
+      state: i.state,
+      authorId: await this.actor(r, i.author),
+      labels: i.labels,
+      url: i.url,
+      created: i.created,
+      updated: i.updated,
+      closed: i.closed,
+      merged: null,
+      head: null,
+      flags: null,
+    })
+    const id =
+      put ??
+      (full
+        ? ((await this.store.item(r.repo, 'issue', String(i.number)))?.id ??
+          null)
+        : null)
+    if (!id) return false
+    const comments = await forge.listComments(
+      auth,
+      r.fullName,
+      i.number,
+      'issue',
+    )
+    await this.comments_(r, id, comments)
+    await this.materialize?.(r.repo, {
+      kind: 'issue',
+      host: r.provider,
+      number: i.number,
+      title: i.title,
+      body: i.body,
+      state: i.state,
+      author: who(i.author),
+      labels: i.labels,
+      closedAs: i.closedAs ?? null,
+      assignees: (i.assignees ?? []).map((a) => who(a)!),
+      created: i.created,
+      updated: i.updated,
+      closed: i.closed,
+      comments: comments.map((c) => ({
+        id: c.id,
+        author: who(c.author),
+        body: c.body,
+        created: c.created,
+        updated: c.updated,
+      })),
+    })
+    return true
+  }
+
+  /**
+   * Open an issue on the provider of a linked repository and bring it here,
+   * so it has the provider's number and both sides show the same issue.
+   * Null when the repository is not linked to a provider that can.
+   */
+  async createIssue(
+    full: string,
+    issue: { title: string; body: string; labels: Array<string> },
+    by: string,
+  ): Promise<number | null> {
+    const r = await this.store.remoteOfRepo(full)
+    if (!r || r.state === 'gone' || r.state === 'archived') return null
+    const forge = this.sync.forge(r.provider)
+    if (!forge.createIssue) return null
+    const auth = await this.sync.authOf(r)
+    if (!auth) return null
+    const made = await forge.createIssue(auth, r.fullName, {
+      title: issue.title,
+      body: `${issue.body}${issue.body ? '\n\n' : ''}<sub>Opened on cobalt by @${by}.</sub>`,
+      labels: issue.labels,
+    })
+    await this.issueIn(r, forge, auth, made, true)
+    return made.number
+  }
+
+  /** The provider of a linked repository that can take issue writes. */
+  private async writable(full: string) {
+    const r = await this.store.remoteOfRepo(full)
+    if (!r || r.state === 'gone' || r.state === 'archived') return null
+    const forge = this.sync.forge(r.provider)
+    const auth = await this.sync.authOf(r)
+    return auth ? { r, forge, auth } : null
+  }
+
+  /** Change an issue on the provider first, then read it back here. */
+  async updateIssue(
+    full: string,
+    number: number,
+    patch: {
+      title?: string
+      body?: string
+      labels?: Array<string>
+      state?: 'open' | 'closed'
+    },
+  ): Promise<boolean> {
+    const w = await this.writable(full)
+    if (!w?.forge.updateIssue) return false
+    const made = await w.forge.updateIssue(w.auth, w.r.fullName, number, patch)
+    await this.issueIn(w.r, w.forge, w.auth, made, true)
+    return true
+  }
+
+  /** Comment on the provider's issue, then read the issue back here. */
+  async commentIssue(
+    full: string,
+    number: number,
+    body: string,
+    by: string,
+  ): Promise<string | null> {
+    const w = await this.writable(full)
+    if (!w?.forge.createComment || !w.forge.getIssue) return null
+    const made = await w.forge.createComment(
+      w.auth,
+      w.r.fullName,
+      number,
+      `${body}\n\n<sub>@${by} on cobalt.</sub>`,
+    )
+    const issue = await w.forge.getIssue(w.auth, w.r.fullName, number)
+    await this.issueIn(w.r, w.forge, w.auth, issue, true)
+    return made.id
   }
 
   private async releases(
