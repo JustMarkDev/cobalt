@@ -134,7 +134,8 @@ export function toMedia(
 ): Array<Media> {
   const out: Array<Media> = []
   for (const e of evidence) {
-    const src = e.upload.content_url
+    // The API's address needs a token; the page reads it as the signed-in user.
+    const src = e.upload.content_url && `/uploads/${e.upload.id}`
     if (!src || e.kind === 'test_results') continue
     const base = {
       id: e.id,

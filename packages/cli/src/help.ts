@@ -70,7 +70,10 @@ export const groupHelp: Record<string, string> = {
   view <n>
   timeline <n>            comments, reviews, linked changes, oldest first
   presence <n>            who else is looking (--here, --leave)
-  create <title>          --label bug,docs. Same title twice returns the open one.
+  create <title>          --label bug,docs --body <text> | --body-file <file|->
+                          --screenshot a.png,b.webm [--caption <text>]
+                          Same title twice returns the open one.
+  attach <n> <file...>    add screenshots or recordings to an issue (--caption)
   close <n>
 `,
   env: `cb env <command>   (--env development|preview|production)

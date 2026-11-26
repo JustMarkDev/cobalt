@@ -27,6 +27,7 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
   const run = /^run:(\d+)$/.exec(subject)
   let prompt: string
   let type: string
+  let title = ''
   if (run) {
     const p = (
       await api.get(`${repo.path}/pipelines/${run[1]}`).catch(() => null)
@@ -55,6 +56,7 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
         exit.notFound,
       )
     type = 'pipeline'
+    title = p.title
     const waiting = (p.jobs ?? [])
       .flatMap((j, ji) =>
         j.steps.flatMap((st, si) =>
@@ -80,29 +82,175 @@ export const handoff: Command = async ({ rest: [subject], flags }, ctx) => {
         'cb issue list and cb change list show what exists.',
         exit.notFound,
       )
-    const title = (
-      await api.get(
-        `${repo.path}/${ref.type === 'change' ? 'changes' : 'issues'}/${n}`,
-      )
-    ).json.title as string
+    const kind = ref.type === 'change' ? 'changes' : 'issues'
+    const found = (await api.get(`${repo.path}/${kind}/${n}`)).json as {
+      title: string
+      body?: string
+      description?: string
+      html_url?: string
+    }
+    title = found.title
     type = ref.type as string
-    prompt = `Work on ${repo.slug} #${n}: ${title}. Open a draft change. If you have not used cb, run "cb skill" first, then "cb context" for policies and the env schema. Set CB_MODEL to the model you are, so the receipt says so.`
+    const text = (found.body ?? found.description ?? '').trim()
+    const media =
+      kind === 'issues'
+        ? ((
+            (
+              await api
+                .get(`${repo.path}/issues/${n}/evidence`)
+                .catch(() => null)
+            )?.json as {
+              data: Array<{
+                kind: string
+                caption: string
+                upload: { content_url: string | null }
+              }>
+            } | null
+          )?.data ?? [])
+        : []
+    prompt = [
+      `Work on ${repo.slug} #${n}: ${found.title}.`,
+      text
+        ? `\n${text.length > 6000 ? `${text.slice(0, 6000)}…` : text}\n`
+        : '',
+      media.length
+        ? `Attached to it (download with your cb token, e.g. curl -H "Authorization: Bearer $CB_TOKEN"; they show the problem):\n${media.map((m) => `- ${m.kind}${m.caption ? ` "${m.caption}"` : ''}: ${m.upload.content_url ?? '(still uploading)'}`).join('\n')}\n`
+        : '',
+      found.html_url ? `It is at ${found.html_url}.` : '',
+      `Open a draft change. If you have not used cb, run "cb skill" first, then "cb context" for policies and the env schema. Set CB_MODEL to the model you are, so the receipt says so.`,
+      // A local or self-hosted server: the agent's cb must talk to the same one.
+      process.env.CB_API
+        ? `Use this cobalt server: CB_API=${process.env.CB_API}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
   }
+  const base =
+    str(flags, 'base') ??
+    (
+      (await api.get(repo.path).catch(() => null))?.json as {
+        default_branch?: string
+      } | null
+    )?.default_branch ??
+    'main'
+  const threadTitle =
+    `${repo.slug} ${subject.startsWith('run:') ? subject : `#${subject.replace(/^#/, '')}`}: ${title}`.slice(
+      0,
+      120,
+    )
   const command =
     target === 't3'
-      ? `t3 thread start . ${JSON.stringify(prompt)} --worktree main`
+      ? `t3 thread start . ${JSON.stringify(prompt)} --worktree ${base} --title ${JSON.stringify(threadTitle)}`
       : `boat run --repo ${repo.slug} ${JSON.stringify(prompt)}`
+  const dry = has(flags, 'dry-run')
+  if (!has(flags, 'start') || dry) {
+    print(
+      ctx,
+      {
+        to: target,
+        subject,
+        type,
+        prompt,
+        command,
+        started: false,
+        dryRun: dry,
+      },
+      () => command,
+    )
+    return
+  }
+  if (target !== 't3')
+    throw new CbError(
+      'not_supported',
+      `cb cannot start ${target} itself yet.`,
+      `Run the command it prints without --start.`,
+      exit.usage,
+    )
+  const thread = await startT3Thread(prompt, base, threadTitle)
   print(
     ctx,
-    {
-      to: target,
-      subject,
-      type,
-      prompt,
-      command,
-      started: false,
-      dryRun: has(flags, 'dry-run'),
-    },
-    () => command,
+    { to: target, subject, type, prompt, command, started: true, ...thread },
+    () =>
+      `started T3 Code thread ${thread.thread}${thread.added ? ` (added ${thread.project} to T3 Code)` : ''}`,
   )
+}
+
+/**
+ * Start a T3 Code thread in this folder's project, in a new worktree on
+ * `base`, with `prompt` on stdin. A folder T3 Code does not know yet is added
+ * as a project first.
+ */
+async function startT3Thread(prompt: string, base: string, title: string) {
+  const t3 = Bun.which('t3')
+  if (!t3)
+    throw new CbError(
+      't3_not_found',
+      'T3 Code is not installed here (no t3 command).',
+      'Install it from https://t3.codes, or run the command without --start somewhere it is.',
+      exit.error,
+    )
+  const root =
+    (
+      await exec(['git', 'rev-parse', '--show-toplevel'], '').catch(() => null)
+    )?.out.trim() || process.cwd()
+  const start = () =>
+    exec(
+      [
+        t3,
+        'thread',
+        'start',
+        root,
+        '-',
+        '--worktree',
+        base,
+        '--title',
+        title,
+        '--json',
+      ],
+      prompt,
+    )
+  let r = await start()
+  let added = false
+  if (r.code !== 0 && /project/i.test(r.err + r.out)) {
+    const add = await exec([t3, 'project', 'add', root], '')
+    if (add.code !== 0)
+      throw new CbError(
+        't3_failed',
+        `T3 Code did not add ${root} as a project: ${(add.err || add.out).trim()}`,
+        'Is T3 Code running? Start it with t3, then try again.',
+        exit.error,
+      )
+    added = true
+    r = await start()
+  }
+  if (r.code !== 0)
+    throw new CbError(
+      't3_failed',
+      `T3 Code did not start a thread: ${(r.err || r.out).trim()}`,
+      'Is T3 Code running? Start it with t3, then try again.',
+      exit.error,
+    )
+  let thread = r.out.trim()
+  try {
+    const j = JSON.parse(r.out) as { id?: string; threadId?: string }
+    thread = j.threadId ?? j.id ?? thread
+  } catch {
+    // Plain output is the id.
+  }
+  return { thread, project: root, added }
+}
+
+async function exec(cmd: Array<string>, stdin: string) {
+  const p = Bun.spawn(cmd, {
+    stdin: new TextEncoder().encode(stdin),
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
+  const [out, err, code] = await Promise.all([
+    new Response(p.stdout).text(),
+    new Response(p.stderr).text(),
+    p.exited,
+  ])
+  return { out, err, code }
 }

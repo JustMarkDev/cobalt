@@ -41,6 +41,7 @@ import { Route as HooksProviderRouteImport } from './routes/hooks/$provider'
 import { Route as OrganizationsJoinRouteImport } from './routes/organizations/join'
 import { Route as OrganizationsNewRouteImport } from './routes/organizations/new'
 import { Route as SettingsSectionRouteImport } from './routes/settings/$section'
+import { Route as UploadsIdRouteImport } from './routes/uploads.$id'
 import { Route as HandleRepoIndexRouteImport } from './routes/$handle/$repo/index'
 import { Route as HandleRepoTabRouteImport } from './routes/$handle/$repo/$tab'
 import { Route as HandleChar123repoChar125DotgitSplatRouteImport } from './routes/$handle/{$repo}[.]git.$'
@@ -217,6 +218,11 @@ const SettingsSectionRoute = SettingsSectionRouteImport.update({
   path: '/settings/$section',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UploadsIdRoute = UploadsIdRouteImport.update({
+  id: '/uploads/$id',
+  path: '/uploads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HandleRepoIndexRoute = HandleRepoIndexRouteImport.update({
   id: '/$handle/$repo/',
   path: '/$handle/$repo/',
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
+  '/uploads/$id': typeof UploadsIdRoute
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
+  '/uploads/$id': typeof UploadsIdRoute
   '/$handle': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
+  '/uploads/$id': typeof UploadsIdRoute
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
@@ -465,6 +474,7 @@ export interface FileRouteTypes {
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
+    | '/uploads/$id'
     | '/$handle/'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
@@ -512,6 +522,7 @@ export interface FileRouteTypes {
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
+    | '/uploads/$id'
     | '/$handle'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
@@ -559,6 +570,7 @@ export interface FileRouteTypes {
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
+    | '/uploads/$id'
     | '/$handle/'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
@@ -607,6 +619,7 @@ export interface RootRouteChildren {
   OrganizationsJoinRoute: typeof OrganizationsJoinRoute
   OrganizationsNewRoute: typeof OrganizationsNewRoute
   SettingsSectionRoute: typeof SettingsSectionRoute
+  UploadsIdRoute: typeof UploadsIdRoute
   HandleIndexRoute: typeof HandleIndexRoute
   HandleRepoTabRoute: typeof HandleRepoTabRoute
   HandleChar123repoChar125DotgitSplatRoute: typeof HandleChar123repoChar125DotgitSplatRoute
@@ -849,6 +862,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsSectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/uploads/$id': {
+      id: '/uploads/$id'
+      path: '/uploads/$id'
+      fullPath: '/uploads/$id'
+      preLoaderRoute: typeof UploadsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$handle/$repo/': {
       id: '/$handle/$repo/'
       path: '/$handle/$repo'
@@ -977,6 +997,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrganizationsJoinRoute: OrganizationsJoinRoute,
   OrganizationsNewRoute: OrganizationsNewRoute,
   SettingsSectionRoute: SettingsSectionRoute,
+  UploadsIdRoute: UploadsIdRoute,
   HandleIndexRoute: HandleIndexRoute,
   HandleRepoTabRoute: HandleRepoTabRoute,
   HandleChar123repoChar125DotgitSplatRoute:

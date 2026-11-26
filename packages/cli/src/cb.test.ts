@@ -547,6 +547,76 @@ describe('hand-off', () => {
   })
 })
 
+describe('issues', () => {
+  test('a new issue takes a body and screenshots, and attach adds more', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cb-shot-'))
+    const png = join(dir, 'crash.png')
+    // The smallest PNG: the server checks the first bytes against the type.
+    await Bun.write(
+      png,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    )
+    try {
+      const made = await cb(
+        'issue',
+        'create',
+        'Crash on an empty repository',
+        '-R',
+        'dana/gitfs',
+        '--body',
+        'Open an empty repository and it crashes.',
+        '--screenshot',
+        png,
+        '--caption',
+        'The crash',
+      )
+      expect(made.code).toBe(0)
+      const issue = JSON.parse(made.out)
+      expect(issue.body).toBe('Open an empty repository and it crashes.')
+      expect(issue.attached).toEqual(['crash.png'])
+      const more = await cb(
+        'issue',
+        'attach',
+        String(issue.number),
+        png,
+        '-R',
+        'dana/gitfs',
+      )
+      expect(more.code).toBe(0)
+      const wrong = await cb(
+        'issue',
+        'attach',
+        String(issue.number),
+        join(dir, 'notes.txt'),
+        '-R',
+        'dana/gitfs',
+      )
+      expect(JSON.parse(wrong.err).error.code).toBe('unsupported_file')
+      const handed = JSON.parse(
+        (
+          await cb(
+            'handoff',
+            String(issue.number),
+            '-R',
+            'dana/gitfs',
+            '--to',
+            'boat',
+          )
+        ).out,
+      )
+      expect(handed.prompt).toContain(
+        'Open an empty repository and it crashes.',
+      )
+      expect(handed.prompt).toContain('image "The crash"')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('import', () => {
   test('from a host and owner/name, or from its address, once', async () => {
     const made = await cb('import', 'github', 'dana-okafor/dotfiles')
