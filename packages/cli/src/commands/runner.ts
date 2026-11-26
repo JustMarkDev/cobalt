@@ -229,16 +229,26 @@ async function stepsToRun(api: ApiClient, repo: string, job: Job) {
       : text,
   ) as {
     jobs?: Partial<
-      Record<string, { name?: string; steps?: Array<{ run?: string }> }>
+      Record<
+        string,
+        { name?: string; steps?: Array<{ run?: string; uses?: string }> }
+      >
     >
   }
   const jobs = yaml.jobs ?? {}
   const found =
     jobs[job.name] ?? Object.values(jobs).find((j) => j?.name === job.name)
   return (found?.steps ?? []).map((s) =>
-    typeof s.run === 'string' ? s.run : null,
+    typeof s.run === 'string'
+      ? s.run
+      : typeof s.uses === 'string' && s.uses.startsWith('actions/checkout@')
+        ? CHECKOUT
+        : null,
   )
 }
+
+/** A step the runner has already done: it checks the commit out first. */
+const CHECKOUT = Symbol('checkout')
 
 async function runJob(
   api: ApiClient,
@@ -264,11 +274,29 @@ async function runJob(
   const runs = await stepsToRun(api, repo, job)
   for (const step of job.steps) {
     const cmd = runs[step.number - 1] ?? null
+    if (cmd === CHECKOUT) {
+      await report({
+        step: step.number,
+        status: 'success',
+        lines: [
+          {
+            text: `Checked out ${job.sha.slice(0, 7)} in ${dir}`,
+            level: 'info',
+          },
+        ],
+      })
+      continue
+    }
     if (!cmd) {
       await report({
         step: step.number,
         status: 'skipped',
-        lines: [{ text: 'Nothing to run on this runner.', level: 'info' }],
+        lines: [
+          {
+            text: 'A GitHub Action, not a run: step: this runner skips it. Install what it sets up on the runner.',
+            level: 'info',
+          },
+        ],
       })
       continue
     }

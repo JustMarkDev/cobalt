@@ -1,3 +1,4 @@
+import { isWorkflowFile, planPush, runOf } from '../actions'
 import { codeStorageRemotes } from '@cobaltforge/git/remote'
 import { copyHistory } from '@cobaltforge/git/transfer'
 import { groupAuthors } from '../contributors'
@@ -1381,6 +1382,51 @@ export class ConvexDomain implements DomainPort {
     dry,
   ) =>
     this.m('integrations:setRepoIntegration', { owner, name, id, on, dry }, p)
+  /**
+   * Start the GitHub Actions workflows a push takes (.github/workflows at the
+   * pushed commit), queued for a runner. Runs once per workflow and commit.
+   */
+  async queueWorkflows(e: {
+    repo: string
+    ref: string
+    after: string
+    actor: string
+  }) {
+    if (/^0+$/.test(e.after)) return []
+    const storeId = await this.storeIdOf(e.repo)
+    if (!storeId) return []
+    const listed = await this.svc.git
+      .files(e.repo, e.after)
+      .catch(() => ({ paths: [] as Array<string> }))
+    const files: Record<string, string> = {}
+    for (const path of listed.paths.filter(isWorkflowFile).slice(0, 30)) {
+      const bytes = await this.svc.git
+        .blob(e.repo, path, e.after)
+        .catch(() => null)
+      if (bytes) files[path] = new TextDecoder().decode(bytes)
+    }
+    const planned = planPush(files, {
+      ref: e.ref,
+      sha: e.after,
+      actor: e.actor,
+    })
+    if (!planned.length) return []
+    const at = this.now()
+    return run<Array<number>>(
+      this.call,
+      'mutation',
+      'forge/pipelines:queuePlanned',
+      {
+        storeId,
+        actor: e.actor,
+        runs: planned.map((p) =>
+          JSON.stringify(runOf(p, { number: 0, actor: e.actor, at })),
+        ),
+      },
+      'system',
+    )
+  }
+
   /** Pushes that went through the API's git endpoint, with their messages. */
   async recordPushes(
     at: { full: string; storeId: string },

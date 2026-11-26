@@ -100,6 +100,31 @@ export function createConvexApi(o: ConvexApiOptions) {
   const domain = Object.assign(d, {
     oauthState: new ConvexOAuthState(call),
   })
+  // A push starts the workflows it takes. Old pushes the feed replays on
+  // start are left alone; queueing is once per workflow and commit anyway.
+  events.subscribe((e) => {
+    if (e.type !== 'repository.pushed' || !e.repo) return
+    if (now() - Date.parse(e.created_at) > 10 * 60_000) return
+    const data = e.data as { ref?: string; after?: string } | null
+    if (!data?.ref || !data.after) return
+    void d
+      .queueWorkflows({
+        repo: e.repo,
+        ref: data.ref,
+        after: data.after,
+        actor: e.actor.handle,
+      })
+      .then((runs) => {
+        if (runs.length)
+          console.log(
+            '[pipelines]',
+            JSON.stringify({ repo: e.repo, ref: data.ref, runs }),
+          )
+      })
+      .catch((err: unknown) =>
+        console.error('[pipelines] could not start workflows', e.repo, err),
+      )
+  })
   const feed = new ConvexEventFeed(call, events, (rev) => {
     d.accessRevision = rev
   })

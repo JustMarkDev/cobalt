@@ -940,3 +940,49 @@ export const setRunsOn = mutation({
     return out(null)
   },
 })
+
+/**
+ * Queue the runs a push started (planned from its workflow files by the
+ * API). The same workflow on the same commit, by the same kind of trigger,
+ * is queued once, however many times the push is reported.
+ */
+export const queuePlanned = mutation({
+  args: {
+    storeId: v.string(),
+    actor: v.string(),
+    runs: v.array(v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
+      .unique()
+    if (!repo) return out([])
+    const recent = await ctx.db
+      .query('pipelineRuns')
+      .withIndex('by_repoId_and_started', (q) => q.eq('repoId', repo._id))
+      .order('desc')
+      .take(200)
+    const seen = new Set(
+      recent.map((d) => {
+        const r = JSON.parse(d.json) as PipelineRunRec
+        return `${r.workflow}\u0000${r.sha}\u0000${r.trigger}`
+      }),
+    )
+    const queued: Array<number> = []
+    for (const text of a.runs.slice(0, 20)) {
+      const r = JSON.parse(text) as PipelineRunRec
+      const key = `${r.workflow}\u0000${r.sha}\u0000${r.trigger}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const c = await counters(ctx, repo)
+      r.number = (c.pipelineNumber ?? 0) + 1
+      r.actor = a.actor
+      await insertRun(ctx, repo, r)
+      queued.push(r.number)
+    }
+    return out(queued)
+  },
+})
