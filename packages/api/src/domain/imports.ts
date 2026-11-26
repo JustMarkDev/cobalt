@@ -90,7 +90,10 @@ export abstract class DomainImports extends DomainIntegrations {
           },
         ],
       })
-    const list = (this.links.get(handle) ?? []).filter((l) => l.host !== host)
+    const list = (this.links.get(handle) ?? []).filter(
+      (l) =>
+        l.host !== host || l.login.toLowerCase() !== body.login.toLowerCase(),
+    )
     const l: LinkRec = {
       host,
       login: body.login,
@@ -102,11 +105,16 @@ export abstract class DomainImports extends DomainIntegrations {
     return this.presentLink(handle, l)
   }
 
-  async unlinkAccount(handle: string, host: Host, p: Viewer) {
+  async unlinkAccount(handle: string, host: Host, p: Viewer, login?: string) {
     this.self(handle, p)
     this.links.set(
       handle,
-      (this.links.get(handle) ?? []).filter((l) => l.host !== host),
+      (this.links.get(handle) ?? []).filter(
+        (l) =>
+          l.host !== host ||
+          (login !== undefined &&
+            l.login.toLowerCase() !== login.toLowerCase()),
+      ),
     )
     this.linkRev++
   }

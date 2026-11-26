@@ -1469,8 +1469,12 @@ export class ConvexDomain implements DomainPort {
     this.q('integrations:listLinks', { handle }, p)
   linkAccount: Port['linkAccount'] = (handle, host, p, body) =>
     this.m('integrations:link', { handle, host, ...body }, p)
-  unlinkAccount: Port['unlinkAccount'] = (handle, host, p) =>
-    this.m('integrations:unlink', { handle, host }, p)
+  unlinkAccount: Port['unlinkAccount'] = (handle, host, p, login) =>
+    this.m(
+      'integrations:unlink',
+      { handle, host, ...(login ? { login } : {}) },
+      p,
+    )
   private readonly forgeOps = forgeOps(
     () => this.svc.providers,
     (owner, name, p, need) => this.repoAccess(owner, name, p, need),

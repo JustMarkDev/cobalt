@@ -424,7 +424,11 @@ function Accounts() {
 
       <div className="space-y-3">
         {hosts.map((p) => {
-          const link = links.find((l) => l.host === p.id)
+          const mine = links.filter((l) => l.host === p.id)
+          const linkGithub = () =>
+            void startGithubLink(write, '/settings/accounts').then(
+              (e) => e && setError(e),
+            )
           return (
             <section
               key={p.id}
@@ -442,23 +446,15 @@ function Accounts() {
                     </div>
                   </div>
                 </div>
-                {link ? (
-                  link.verified ? (
-                    <Chip tone="success">Verified</Chip>
-                  ) : (
-                    <Chip tone="warning">Linked, not verified</Chip>
-                  )
-                ) : p.id === 'github' ? (
+                {p.id === 'github' ? (
                   <Button
-                    onClick={() =>
-                      void startGithubLink(write, '/settings/accounts').then(
-                        (e) => e && setError(e),
-                      )
-                    }
+                    variant={mine.length ? 'outline' : 'default'}
+                    onClick={linkGithub}
                   >
-                    Link
+                    {mine.length ? 'Link another' : 'Link'}
                   </Button>
-                ) : (p.id === 'gitlab' || p.id === 'codeberg') &&
+                ) : mine.length ? null : (p.id === 'gitlab' ||
+                    p.id === 'codeberg') &&
                   liveProviders.has(p.id) ? (
                   <ProviderControls
                     provider={p.id}
@@ -470,48 +466,62 @@ function Accounts() {
                   <Badge>Planned</Badge>
                 )}
               </div>
-              {link && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-sm">
-                  <span>
-                    <b className="font-mono">@{link.login}</b>
-                    {link.instance && (
-                      <span className="text-muted-foreground">
-                        {' '}
-                        on {link.instance}
-                      </span>
-                    )}
-                  </span>
-                  {confirm === p.id ? (
+              {mine.map((link) => {
+                const key = `${p.id}:${link.login}`
+                return (
+                  <div
+                    key={key}
+                    className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-sm"
+                  >
                     <span className="flex items-center gap-2">
-                      <span className="text-muted-foreground">
-                        Unlink {p.name}?
+                      <b className="font-mono">@{link.login}</b>
+                      {link.instance && (
+                        <span className="text-muted-foreground">
+                          on {link.instance}
+                        </span>
+                      )}
+                      {link.verified ? (
+                        <Chip tone="success">Verified</Chip>
+                      ) : (
+                        <Chip tone="warning">Not verified</Chip>
+                      )}
+                    </span>
+                    {confirm === key ? (
+                      <span className="flex items-center gap-2">
+                        <span className="text-muted-foreground">
+                          Unlink @{link.login}?
+                        </span>
+                        <Button
+                          variant="danger"
+                          onClick={() =>
+                            void write('links.remove', {
+                              handle,
+                              host: p.id,
+                              login: link.login,
+                            }).then(() => setConfirm(null))
+                          }
+                        >
+                          Unlink
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => setConfirm(null)}
+                        >
+                          Cancel
+                        </Button>
                       </span>
+                    ) : (
                       <Button
-                        variant="danger"
-                        onClick={() =>
-                          void write('links.remove', {
-                            handle,
-                            host: p.id,
-                          }).then(() => setConfirm(null))
-                        }
+                        variant="ghost"
+                        className="text-muted-foreground"
+                        onClick={() => setConfirm(key)}
                       >
                         Unlink
                       </Button>
-                      <Button variant="ghost" onClick={() => setConfirm(null)}>
-                        Cancel
-                      </Button>
-                    </span>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      className="text-muted-foreground"
-                      onClick={() => setConfirm(p.id)}
-                    >
-                      Unlink
-                    </Button>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )
+              })}
             </section>
           )
         })}

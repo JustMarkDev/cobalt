@@ -3608,6 +3608,8 @@ export interface Operations {
     input: {
       handle: string
       host: 'github' | 'gitlab' | 'codeberg' | 'gitea'
+      /** Forget only this account. Without it, every account linked on the host. */
+      login?: string
     }
     output: void
   }
@@ -6384,7 +6386,7 @@ const OPERATIONS = {
   'links.remove': {
     method: 'DELETE',
     path: '/accounts/{handle}/links/{host}',
-    query: [],
+    query: ['login'],
     body: false,
     rawBody: false,
     json: true,

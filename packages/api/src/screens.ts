@@ -377,7 +377,11 @@ const writes: { [Id in OperationId]?: Write<Id> } = {
   },
   'links.remove': {
     fn: api.forge.integrations.unlink,
-    args: (i) => ({ handle: i.handle, host: i.host }),
+    args: (i) => ({
+      handle: i.handle,
+      host: i.host,
+      ...(i.login ? { login: i.login } : {}),
+    }),
     empty: true,
   },
   'integrations.set': {

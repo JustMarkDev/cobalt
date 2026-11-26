@@ -84,6 +84,16 @@ export const unlinkAccount = defineOp({
   safety: 'destructive',
   idempotent: true,
   params: person.extend({ host }),
+  query: z.strictObject({
+    login: z
+      .string()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe(
+        'Forget only this account. Without it, every account linked on the host.',
+      ),
+  }),
   response: z.null(),
   status: 204,
   errors: ['not_found'],
@@ -91,7 +101,12 @@ export const unlinkAccount = defineOp({
     Effect.gen(function* () {
       const { run } = yield* Domain
       yield* run((d) =>
-        d.unlinkAccount(ctx.params.handle, ctx.params.host, ctx.principal),
+        d.unlinkAccount(
+          ctx.params.handle,
+          ctx.params.host,
+          ctx.principal,
+          ctx.query.login,
+        ),
       )
       return reply(null, { status: 204 })
     }),

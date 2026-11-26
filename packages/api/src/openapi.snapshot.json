@@ -968,6 +968,17 @@
                 "gitea"
               ]
             }
+          },
+          {
+            "name": "login",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Forget only this account. Without it, every account linked on the host.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
           }
         ],
         "responses": {

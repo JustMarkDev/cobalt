@@ -770,10 +770,12 @@ export interface DomainPort {
     p: Viewer,
     body: { login: string; instance?: string },
   ) => Promise<Out<typeof S.LinkedAccount>>
+  /** One login on the host, or every linked account there when `login` is left out. */
   unlinkAccount: (
     handle: string,
     host: 'github' | 'gitlab' | 'codeberg' | 'gitea',
     p: Viewer,
+    login?: string,
   ) => Promise<void>
   importRepo: (
     p: Principal,

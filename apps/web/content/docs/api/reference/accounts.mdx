@@ -848,6 +848,12 @@ ratelimit: "read";r=1135;t=60
 | `handle` | string                                        |       |
 | `host`   | `github` or `gitlab` or `codeberg` or `gitea` |       |
 
+**Query parameters**
+
+| Name    | Type                                      | Notes                                                                   |
+| ------- | ----------------------------------------- | ----------------------------------------------------------------------- |
+| `login` | string (up to 100 characters, at least 1) | Forget only this account. Without it, every account linked on the host. |
+
 **Errors**
 
 [`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`invalid_request`](/docs/api/errors#invalid_request), [`not_found`](/docs/api/errors#not_found), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_version`](/docs/api/errors#unsupported_version)
