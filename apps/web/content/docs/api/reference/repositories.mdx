@@ -1707,7 +1707,7 @@ ratelimit: "read";r=1195;t=60
 
 **Who wrote the code**
 
-Authors of the newest 1,000 commits on the default branch, by email, most commits first. Up to 100. A repository with no history answers an empty list.
+People who wrote the newest 1,000 commits on the default branch, most commits first. One person's addresses count once: a GitHub no-reply address and a commit signed with that login are one contributor, and so are identities a cobalt account proved its own (`handle`). Bots are left out. Up to 100. A repository with no history answers an empty list.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |
@@ -1737,7 +1737,7 @@ curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/contributors" \
 
 ```http
 HTTP/1.1 200
-etag: W/"yybYoFOxXbEiTkmD"
+etag: W/"gIYAba0jFFi1Njrp"
 ratelimit: "read";r=1153;t=60
 ```
 
@@ -1749,6 +1749,7 @@ ratelimit: "read";r=1153;t=60
       "object": "contributor",
       "name": "Dana Okafor",
       "email": "dana@users.cobaltforge.dev",
+      "handle": null,
       "commits": 19,
       "last_commit_at": "2026-10-20T16:45:00.000Z"
     },
@@ -1756,10 +1757,11 @@ ratelimit: "read";r=1153;t=60
       "object": "contributor",
       "name": "Kofi Mensah",
       "email": "kofi@users.cobaltforge.dev",
+      "handle": null,
       "commits": 10,
       "last_commit_at": "2026-08-08T15:34:06.245Z"
     },
-    "…and 5 more"
+    "…and 4 more"
   ],
   "has_more": false,
   "next_cursor": null
@@ -1820,7 +1822,7 @@ ratelimit: "heavy";r=115;t=60
       }
     ]
   },
-  "contributors": 7,
+  "contributors": 6,
   "downloads": {
     "total": 60950,
     "daily": [53, 42, "…and 28 more"],

@@ -31,6 +31,7 @@ export interface GitData {
   diff: (
     repo: string,
     sha: string,
+    base?: string,
   ) => Promise<{ sha: string; base: string | null; files: Array<GitDiffFile> }>
   setRepo?: (repo: string, storeId: string) => void
   provision?: (storeId: string, opts?: ProvisionOptions) => Promise<void>
@@ -152,9 +153,14 @@ export class StoreGit implements GitData {
     )
   }
 
-  diff(repo: string, sha: string) {
+  diff(repo: string, sha: string, base?: string) {
     return guarded(`Commit ${sha}`, async () => {
-      const d = await (await this.repo(repo)).getCommitDiff({ sha })
+      const d = await (
+        await this.repo(repo)
+      ).getCommitDiff({
+        sha,
+        ...(base ? { base } : {}),
+      })
       return {
         sha: d.sha,
         base: d.baseSha ?? null,

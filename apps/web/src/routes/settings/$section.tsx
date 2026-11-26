@@ -31,6 +31,7 @@ import { Badge } from '~/components/ui/badge'
 import { authClient } from '~/lib/auth/client'
 import { startGithubLink } from '~/lib/github-link'
 import { startProviderLink } from '~/lib/provider-link'
+import { liveProviders } from '~/components/forge/provider-picker'
 
 const sections = [
   ['profile', 'Profile', UserIcon],
@@ -457,7 +458,8 @@ function Accounts() {
                   >
                     Link
                   </Button>
-                ) : p.id === 'gitlab' || p.id === 'codeberg' ? (
+                ) : (p.id === 'gitlab' || p.id === 'codeberg') &&
+                  liveProviders.has(p.id) ? (
                   <ProviderControls
                     provider={p.id}
                     name={p.name}

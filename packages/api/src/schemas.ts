@@ -194,6 +194,12 @@ export const Contributor = named(
     object: z.literal('contributor'),
     name: z.string(),
     email: z.string(),
+    handle: z
+      .string()
+      .nullable()
+      .describe(
+        'The cobalt account that proved one of these commit identities its own, or null',
+      ),
     commits: z.number().int(),
     last_commit_at: ts,
   }),

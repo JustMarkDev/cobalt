@@ -56,6 +56,16 @@ export abstract class DomainImports extends DomainIntegrations {
     this.links.set(handle, [...(this.links.get(handle) ?? []), l])
   }
 
+  async handlesOfLogins(host: string, logins: ReadonlyArray<string>) {
+    const want = new Set(logins.map((l) => l.toLowerCase()))
+    const found: Record<string, string> = {}
+    for (const [handle, ls] of this.links)
+      for (const l of ls)
+        if (l.host === host && want.has(l.login.toLowerCase()))
+          found[l.login.toLowerCase()] = handle
+    return found
+  }
+
   async listLinks(handle: string, p: Viewer) {
     this.self(handle, p)
     return (this.links.get(handle) ?? []).map((l) =>

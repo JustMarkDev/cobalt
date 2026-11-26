@@ -96,8 +96,12 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
             repo.getCommit(o),
           ),
         getCommitDiff: (o) =>
-          data(id, 'getCommitDiff', { sha: o.sha }, FULL_SHA.test(o.sha), () =>
-            repo.getCommitDiff(o),
+          data(
+            id,
+            'getCommitDiff',
+            { sha: o.sha, base: o.base },
+            FULL_SHA.test(o.sha) && (!o.base || FULL_SHA.test(o.base)),
+            () => repo.getCommitDiff(o),
           ),
         async getFileStream(o) {
           const key = keyOf(id, 'getFileStream', { path: o.path, ref: o.ref })

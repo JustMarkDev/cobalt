@@ -144,13 +144,20 @@ export function evaluateRules(
     (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
   )
   const run = latestRun(c, head, (k) => k.name === 'ci/test')
-  const ciState = assume.checks?.['ci/test'] ?? run?.state ?? 'pending'
+  const remote = run ? null : providerChecks(c, head)
+  const ciState =
+    assume.checks?.['ci/test'] ?? run?.state ?? remote?.state ?? 'pending'
   out.push({
     id: 'ci-evidence',
     rule: 'Tests pass on the tree that will land',
     state: ciState,
-    detail:
-      ciState === 'pass'
+    detail: remote
+      ? ciState === 'pass'
+        ? `${remote.runs.length} checks on ${remote.host} passed on tree ${head.tree}, the tree that lands.`
+        : ciState === 'fail'
+          ? `${remote.failed.map((k) => k.name).join(', ')} failed on ${remote.host}, tree ${head.tree}.`
+          : `Checks on ${remote.host} are running on tree ${head.tree}.`
+      : ciState === 'pass'
         ? `ci/test passed on tree ${head.tree}, the tree that lands.`
         : ciState === 'fail'
           ? `ci/test failed on tree ${head.tree}.`
@@ -158,7 +165,12 @@ export function evaluateRules(
             ? `ci/test is running on tree ${head.tree}.`
             : `No ci/test result for tree ${head.tree} yet.`,
     needs: { check: 'ci/test', bound_to: 'tree', tree: head.tree },
-    blocking: ciState === 'fail' && run ? [run.id] : [],
+    blocking:
+      ciState === 'fail'
+        ? run
+          ? [run.id]
+          : (remote?.failed.map((k) => k.id) ?? [])
+        : [],
   })
   const open = c.findings.filter(
     (f) =>
@@ -197,6 +209,41 @@ export function evaluateRules(
         }
       : r
   })
+}
+
+const PROVIDER_HOSTS: Record<string, string> = {
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  codeberg: 'Codeberg',
+  forgejo: 'Forgejo',
+}
+
+/**
+ * A change imported from another host carries that host's checks
+ * (`github:CI`), not a `ci/test` of ours. They count as the tests of the tree
+ * when they ran on it: all must pass, and any one failing fails.
+ */
+function providerChecks(c: Change, head: PatchSetRec) {
+  const latest = new Map<string, CheckRec>()
+  for (const k of c.checks) {
+    const host = k.key.split(':')[0]
+    if (k.tree !== head.tree || !(host in PROVIDER_HOSTS)) continue
+    const had = latest.get(k.key)
+    if (!had || had.updated < k.updated) latest.set(k.key, k)
+  }
+  const runs = [...latest.values()]
+  if (runs.length === 0) return null
+  const failed = runs.filter((k) => k.state === 'fail')
+  return {
+    host: PROVIDER_HOSTS[runs[0].key.split(':')[0]],
+    runs,
+    failed,
+    state: failed.length
+      ? ('fail' as const)
+      : runs.some((k) => k.state === 'pending')
+        ? ('pending' as const)
+        : ('pass' as const),
+  }
 }
 
 const latestRun = (

@@ -296,6 +296,26 @@ const presentLink = (l: {
   linked_at: iso(l.linked),
 })
 
+/** Verified links for these logins on a host: who wrote a commit, by login. */
+export const handlesOfLogins = query({
+  args: { host: v.string(), logins: v.array(v.string()) },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const found: Record<string, string> = {}
+    for (const login of [...new Set(a.logins)].slice(0, 200)) {
+      const l = await ctx.db
+        .query('links')
+        .withIndex('by_host_and_login', (q) =>
+          q.eq('host', a.host).eq('login', login),
+        )
+        .first()
+      if (l?.verified) found[login.toLowerCase()] = l.handle
+    }
+    return out(found)
+  },
+})
+
 export const listLinks = query({
   args: { handle: v.string() },
   returns: v.string(),

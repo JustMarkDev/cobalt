@@ -19,6 +19,14 @@ import { useWrite } from '~/lib/forge'
 
 export type ProviderId = 'github' | 'gitlab' | 'codeberg'
 
+/**
+ * Hosts you can link and import from today. The others are built but not
+ * offered until they are tested end to end; they show as Planned.
+ */
+export const liveProviders: ReadonlySet<string> = new Set<ProviderId>([
+  'github',
+])
+
 export const providerLabel: Record<ProviderId, string> = {
   github: 'GitHub',
   gitlab: 'GitLab',

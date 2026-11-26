@@ -1,3 +1,4 @@
+import { groupAuthors } from '../contributors'
 import { receiptFor } from '../receipt'
 import { runsOnOf } from '../workflow'
 import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
@@ -40,6 +41,8 @@ import { Moved } from './records'
 import type { Attached, Urls, Viewer } from './records'
 import type { EventLog } from '../events'
 import type { DomainPort } from './port'
+import type * as S from '../schemas'
+import type { z } from 'zod'
 
 export type ConvexCall = (
   kind: 'query' | 'mutation' | 'action',
@@ -681,8 +684,75 @@ export class ConvexDomain implements DomainPort {
       { owner, name, ref, id, ...body, dry },
       p,
     )
-  getPatchSetFiles: Port['getPatchSetFiles'] = (owner, name, ref, n, p) =>
-    this.q('changes:getPatchSetFiles', { owner, name, ref, n }, p)
+  getPatchSetFiles: Port['getPatchSetFiles'] = async (
+    owner,
+    name,
+    ref,
+    n,
+    p,
+  ) => {
+    const stored = await this.q<z.infer<typeof S.PatchSetFiles>>(
+      'changes:getPatchSetFiles',
+      { owner, name, ref, n },
+      p,
+    )
+    if (stored.available) return stored
+    return (await this.patchSetFilesFromGit(owner, name, ref, n, p)) ?? stored
+  }
+
+  /**
+   * A change imported from a provider keeps no file contents, only the commit
+   * of each patch set. Read them from git: the files `sha` touches since it
+   * split from the base branch, as the provider shows a pull request.
+   */
+  private async patchSetFilesFromGit(
+    owner: string,
+    name: string,
+    ref: string,
+    n: number,
+    p: Viewer,
+  ): Promise<z.infer<typeof S.PatchSetFiles> | null> {
+    const MAX_FILES = 300
+    const MAX_BYTES = 1_000_000
+    const full = await this.repoAccess(owner, name, p, 'read')
+    const [change, ps] = await Promise.all([
+      this.q<{ number: number; base: string }>(
+        'changes:get',
+        { owner, name, ref, expand: [], at: this.now() },
+        p,
+      ),
+      this.getPatchSet(owner, name, ref, n, p),
+    ])
+    const diff = await this.svc.git
+      .diff(full, ps.sha, change.base)
+      .catch(() => null)
+    if (!diff || diff.files.length > MAX_FILES) return null
+    const text = (bytes: Uint8Array | null) =>
+      bytes && bytes.length <= MAX_BYTES && !bytes.includes(0)
+        ? new TextDecoder().decode(bytes)
+        : null
+    const read = (path: string, at: string | null) =>
+      at
+        ? this.svc.git
+            .blob(full, path, at)
+            .then(text)
+            .catch(() => null)
+        : Promise.resolve(null)
+    const files = await Promise.all(
+      diff.files.map(async (f) => ({
+        path: f.path,
+        base: f.state === 'added' ? null : await read(f.path, diff.base),
+        content: f.state === 'deleted' ? null : await read(f.path, diff.sha),
+      })),
+    )
+    return {
+      object: 'patch_set_files',
+      change: change.number,
+      patch_set: ps.number,
+      available: true,
+      files: files.sort((x, y) => (x.path < y.path ? -1 : 1)),
+    }
+  }
   comparePatchSets: Port['comparePatchSets'] = (
     owner,
     name,
@@ -1309,6 +1379,14 @@ export class ConvexDomain implements DomainPort {
     dry,
   ) =>
     this.m('integrations:setRepoIntegration', { owner, name, id, on, dry }, p)
+  handlesOfLogins: Port['handlesOfLogins'] = (host, logins) =>
+    logins.length
+      ? this.q(
+          'integrations:handlesOfLogins',
+          { host, logins: [...logins] },
+          'system',
+        )
+      : Promise.resolve({})
   listLinks: Port['listLinks'] = (handle, p) =>
     this.q('integrations:listLinks', { handle }, p)
   linkAccount: Port['linkAccount'] = (handle, host, p, body) =>
@@ -1785,17 +1863,17 @@ export class ConvexDomain implements DomainPort {
     }>('insights:repoFacts', { owner, name, at: now }, p)
     const WEEKS = 26
     const weeks = Array.from({ length: WEEKS }, () => 0)
-    const people = new Set<string>()
     for (const c of commits) {
       const w = Math.floor((now - Date.parse(c.date)) / (7 * 86_400_000))
       if (w >= 0 && w < WEEKS) weeks[WEEKS - 1 - w]++
-      people.add(c.author.email.toLowerCase())
     }
     return {
       object: 'repo_insights' as const,
       repo: f.repo,
       commits: { total: commits.length, by_week: weeks, by_model: f.byModel },
-      contributors: people.size,
+      contributors: groupAuthors(
+        commits.map((c) => ({ ...c.author, date: c.date })),
+      ).length,
       downloads: this.downloadsOf(f.downloads, now),
       stars: f.stars,
       issues: { open: f.issues.open ?? 0, closed: f.issues.closed ?? 0 },

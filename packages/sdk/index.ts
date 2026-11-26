@@ -369,6 +369,8 @@ export type Contributor = {
   object: 'contributor'
   name: string
   email: string
+  /** The cobalt account that proved one of these commit identities its own, or null */
+  handle: string | null
   commits: number
   /** RFC 3339 time, UTC */
   last_commit_at: string

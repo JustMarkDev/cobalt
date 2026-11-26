@@ -186,10 +186,8 @@ const reads: { [Id in OperationId]?: Read<Id> } = {
     args: (i, c) => ({ ...repo(i), ref: i.number, at: c.at }),
     list: true,
   },
-  'patch_sets.files': {
-    fn: api.forge.changes.getPatchSetFiles,
-    args: (i) => ({ ...repo(i), ref: i.number, n: i.patchSet }),
-  },
+  // `patch_sets.files` goes through the API: an imported change keeps no
+  // files in Convex, and the API reads them from git.
   'changes.guide.get': {
     fn: api.forge.changes.guide,
     args: (i) => ({ ...repo(i), ref: i.number }),

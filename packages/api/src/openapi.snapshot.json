@@ -12505,7 +12505,7 @@
       "get": {
         "operationId": "repos.contributors",
         "summary": "Who wrote the code",
-        "description": "Authors of the newest 1,000 commits on the default branch, by email, most commits first. Up to 100. A repository with no history answers an empty list.",
+        "description": "People who wrote the newest 1,000 commits on the default branch, most commits first. One person's addresses count once: a GitHub no-reply address and a commit signed with that login are one contributor, and so are identities a cobalt account proved its own (`handle`). Bots are left out. Up to 100. A repository with no history answers an empty list.",
         "tags": [
           "repositories"
         ],
@@ -33772,6 +33772,13 @@
           "email": {
             "type": "string"
           },
+          "handle": {
+            "description": "The cobalt account that proved one of these commit identities its own, or null",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "commits": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -33786,6 +33793,7 @@
           "object",
           "name",
           "email",
+          "handle",
           "commits",
           "last_commit_at"
         ]

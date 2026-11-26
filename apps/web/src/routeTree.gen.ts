@@ -44,11 +44,15 @@ import { Route as SettingsSectionRouteImport } from './routes/settings/$section'
 import { Route as HandleRepoIndexRouteImport } from './routes/$handle/$repo/index'
 import { Route as HandleRepoTabRouteImport } from './routes/$handle/$repo/$tab'
 import { Route as HandleChar123repoChar125DotgitSplatRouteImport } from './routes/$handle/{$repo}[.]git.$'
+import { Route as HandleChar123repoChar125DotgitGitReceivePackRouteImport } from './routes/$handle/{$repo}[.]git.git-receive-pack'
+import { Route as HandleChar123repoChar125DotgitGitUploadPackRouteImport } from './routes/$handle/{$repo}[.]git.git-upload-pack'
 import { Route as DotwellKnownOauthProtectedResourceMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource_.mcp'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as OrganizationsHandleSectionRouteImport } from './routes/organizations/$handle.$section'
+import { Route as HandleRepoChangesNRouteImport } from './routes/$handle/$repo/changes.$n'
 import { Route as HandleRepoCommitShaRouteImport } from './routes/$handle/$repo/commit/$sha'
+import { Route as HandleRepoIssuesNRouteImport } from './routes/$handle/$repo/issues.$n'
 import { Route as HandleRepoReleasesDownloadTagAssetRouteImport } from './routes/$handle/$repo/releases.download.$tag.$asset'
 
 const IndexRoute = IndexRouteImport.update({
@@ -229,6 +233,18 @@ const HandleChar123repoChar125DotgitSplatRoute =
     path: '/$handle/{$repo}.git/$',
     getParentRoute: () => rootRouteImport,
   } as any)
+const HandleChar123repoChar125DotgitGitReceivePackRoute =
+  HandleChar123repoChar125DotgitGitReceivePackRouteImport.update({
+    id: '/$handle/{$repo}.git/git-receive-pack',
+    path: '/$handle/{$repo}.git/git-receive-pack',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const HandleChar123repoChar125DotgitGitUploadPackRoute =
+  HandleChar123repoChar125DotgitGitUploadPackRouteImport.update({
+    id: '/$handle/{$repo}.git/git-upload-pack',
+    path: '/$handle/{$repo}.git/git-upload-pack',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DotwellKnownOauthProtectedResourceMcpRoute =
   DotwellKnownOauthProtectedResourceMcpRouteImport.update({
     id: '/.well-known/oauth-protected-resource_/mcp',
@@ -251,9 +267,19 @@ const OrganizationsHandleSectionRoute =
     path: '/organizations/$handle/$section',
     getParentRoute: () => rootRouteImport,
   } as any)
+const HandleRepoChangesNRoute = HandleRepoChangesNRouteImport.update({
+  id: '/$handle/$repo/changes/$n',
+  path: '/$handle/$repo/changes/$n',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HandleRepoCommitShaRoute = HandleRepoCommitShaRouteImport.update({
   id: '/$handle/$repo/commit/$sha',
   path: '/$handle/$repo/commit/$sha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HandleRepoIssuesNRoute = HandleRepoIssuesNRouteImport.update({
+  id: '/$handle/$repo/issues/$n',
+  path: '/$handle/$repo/issues/$n',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HandleRepoReleasesDownloadTagAssetRoute =
@@ -298,12 +324,16 @@ export interface FileRoutesByFullPath {
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
+  '/$handle/{$repo}.git/git-receive-pack': typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  '/$handle/{$repo}.git/git-upload-pack': typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo/': typeof HandleRepoIndexRoute
+  '/$handle/$repo/changes/$n': typeof HandleRepoChangesNRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
+  '/$handle/$repo/issues/$n': typeof HandleRepoIssuesNRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRoutesByTo {
@@ -341,12 +371,16 @@ export interface FileRoutesByTo {
   '/$handle': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
+  '/$handle/{$repo}.git/git-receive-pack': typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  '/$handle/{$repo}.git/git-upload-pack': typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo': typeof HandleRepoIndexRoute
+  '/$handle/$repo/changes/$n': typeof HandleRepoChangesNRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
+  '/$handle/$repo/issues/$n': typeof HandleRepoIssuesNRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRoutesById {
@@ -385,12 +419,16 @@ export interface FileRoutesById {
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
+  '/$handle/{$repo}.git/git-receive-pack': typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  '/$handle/{$repo}.git/git-upload-pack': typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   '/.well-known/oauth-protected-resource_/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo/': typeof HandleRepoIndexRoute
+  '/$handle/$repo/changes/$n': typeof HandleRepoChangesNRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
+  '/$handle/$repo/issues/$n': typeof HandleRepoIssuesNRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRouteTypes {
@@ -430,12 +468,16 @@ export interface FileRouteTypes {
     | '/$handle/'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
+    | '/$handle/{$repo}.git/git-receive-pack'
+    | '/$handle/{$repo}.git/git-upload-pack'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
     | '/organizations/$handle/$section'
     | '/$handle/$repo/'
+    | '/$handle/$repo/changes/$n'
     | '/$handle/$repo/commit/$sha'
+    | '/$handle/$repo/issues/$n'
     | '/$handle/$repo/releases/download/$tag/$asset'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -473,12 +515,16 @@ export interface FileRouteTypes {
     | '/$handle'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
+    | '/$handle/{$repo}.git/git-receive-pack'
+    | '/$handle/{$repo}.git/git-upload-pack'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
     | '/organizations/$handle/$section'
     | '/$handle/$repo'
+    | '/$handle/$repo/changes/$n'
     | '/$handle/$repo/commit/$sha'
+    | '/$handle/$repo/issues/$n'
     | '/$handle/$repo/releases/download/$tag/$asset'
   id:
     | '__root__'
@@ -516,12 +562,16 @@ export interface FileRouteTypes {
     | '/$handle/'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
+    | '/$handle/{$repo}.git/git-receive-pack'
+    | '/$handle/{$repo}.git/git-upload-pack'
     | '/.well-known/oauth-protected-resource_/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
     | '/organizations/$handle/$section'
     | '/$handle/$repo/'
+    | '/$handle/$repo/changes/$n'
     | '/$handle/$repo/commit/$sha'
+    | '/$handle/$repo/issues/$n'
     | '/$handle/$repo/releases/download/$tag/$asset'
   fileRoutesById: FileRoutesById
 }
@@ -560,12 +610,16 @@ export interface RootRouteChildren {
   HandleIndexRoute: typeof HandleIndexRoute
   HandleRepoTabRoute: typeof HandleRepoTabRoute
   HandleChar123repoChar125DotgitSplatRoute: typeof HandleChar123repoChar125DotgitSplatRoute
+  HandleChar123repoChar125DotgitGitReceivePackRoute: typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  HandleChar123repoChar125DotgitGitUploadPackRoute: typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   DotwellKnownOauthProtectedResourceMcpRoute: typeof DotwellKnownOauthProtectedResourceMcpRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   OrganizationsHandleSectionRoute: typeof OrganizationsHandleSectionRoute
   HandleRepoIndexRoute: typeof HandleRepoIndexRoute
+  HandleRepoChangesNRoute: typeof HandleRepoChangesNRoute
   HandleRepoCommitShaRoute: typeof HandleRepoCommitShaRoute
+  HandleRepoIssuesNRoute: typeof HandleRepoIssuesNRoute
   HandleRepoReleasesDownloadTagAssetRoute: typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 
@@ -816,6 +870,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HandleChar123repoChar125DotgitSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$handle/{$repo}.git/git-receive-pack': {
+      id: '/$handle/{$repo}.git/git-receive-pack'
+      path: '/$handle/{$repo}.git/git-receive-pack'
+      fullPath: '/$handle/{$repo}.git/git-receive-pack'
+      preLoaderRoute: typeof HandleChar123repoChar125DotgitGitReceivePackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$handle/{$repo}.git/git-upload-pack': {
+      id: '/$handle/{$repo}.git/git-upload-pack'
+      path: '/$handle/{$repo}.git/git-upload-pack'
+      fullPath: '/$handle/{$repo}.git/git-upload-pack'
+      preLoaderRoute: typeof HandleChar123repoChar125DotgitGitUploadPackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.well-known/oauth-protected-resource_/mcp': {
       id: '/.well-known/oauth-protected-resource_/mcp'
       path: '/.well-known/oauth-protected-resource/mcp'
@@ -844,11 +912,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizationsHandleSectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$handle/$repo/changes/$n': {
+      id: '/$handle/$repo/changes/$n'
+      path: '/$handle/$repo/changes/$n'
+      fullPath: '/$handle/$repo/changes/$n'
+      preLoaderRoute: typeof HandleRepoChangesNRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$handle/$repo/commit/$sha': {
       id: '/$handle/$repo/commit/$sha'
       path: '/$handle/$repo/commit/$sha'
       fullPath: '/$handle/$repo/commit/$sha'
       preLoaderRoute: typeof HandleRepoCommitShaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$handle/$repo/issues/$n': {
+      id: '/$handle/$repo/issues/$n'
+      path: '/$handle/$repo/issues/$n'
+      fullPath: '/$handle/$repo/issues/$n'
+      preLoaderRoute: typeof HandleRepoIssuesNRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$handle/$repo/releases/download/$tag/$asset': {
@@ -899,13 +981,19 @@ const rootRouteChildren: RootRouteChildren = {
   HandleRepoTabRoute: HandleRepoTabRoute,
   HandleChar123repoChar125DotgitSplatRoute:
     HandleChar123repoChar125DotgitSplatRoute,
+  HandleChar123repoChar125DotgitGitReceivePackRoute:
+    HandleChar123repoChar125DotgitGitReceivePackRoute,
+  HandleChar123repoChar125DotgitGitUploadPackRoute:
+    HandleChar123repoChar125DotgitGitUploadPackRoute,
   DotwellKnownOauthProtectedResourceMcpRoute:
     DotwellKnownOauthProtectedResourceMcpRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,
   OrganizationsHandleSectionRoute: OrganizationsHandleSectionRoute,
   HandleRepoIndexRoute: HandleRepoIndexRoute,
+  HandleRepoChangesNRoute: HandleRepoChangesNRoute,
   HandleRepoCommitShaRoute: HandleRepoCommitShaRoute,
+  HandleRepoIssuesNRoute: HandleRepoIssuesNRoute,
   HandleRepoReleasesDownloadTagAssetRoute:
     HandleRepoReleasesDownloadTagAssetRoute,
 }

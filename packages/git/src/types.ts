@@ -44,7 +44,8 @@ export interface GitRepo {
     nextCursor?: string
   }>
   getCommit: (opts: { sha: string }) => Promise<{ commit: CommitInfo }>
-  getCommitDiff: (opts: { sha: string }) => Promise<{
+  /** Against the first parent, or with `base` from where `sha` and `base` split (`git diff base...sha`). */
+  getCommitDiff: (opts: { sha: string; base?: string }) => Promise<{
     sha: string
     baseSha?: string
     files: Array<FileDiff>

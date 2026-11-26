@@ -755,6 +755,11 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.RepoIntegration>>
 
+  /** Accounts that proved these logins theirs, keyed by lowercased login. */
+  handlesOfLogins: (
+    host: 'github' | 'gitlab' | 'codeberg' | 'gitea',
+    logins: ReadonlyArray<string>,
+  ) => Promise<Record<string, string>>
   listLinks: (
     handle: string,
     p: Viewer,

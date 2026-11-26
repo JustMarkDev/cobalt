@@ -122,15 +122,27 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
         const d = await pierre.repos.diff.get({
           repo_name: storeId,
           ref: opts.sha,
+          ...(opts.base ? { base_ref: opts.base } : {}),
         })
         const base =
+          d.merge_base_sha ??
           d.base_sha ??
           (await pierre.repos.commits.get({ repo_name: storeId, ref: d.sha }))
             .commit.parent_shas[0]
         return {
           sha: d.sha,
           ...(base ? { baseSha: base } : {}),
-          files: d.files.map(diffOf),
+          // Lock files and large files come without a patch; keep them listed.
+          files: [
+            ...d.files.map(diffOf),
+            ...d.filtered_files.map((f): FileDiff => ({
+              path: f.path,
+              state: stateOf(f.state),
+              additions: 0,
+              deletions: 0,
+              raw: '',
+            })),
+          ],
         }
       }),
   }
