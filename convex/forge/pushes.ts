@@ -8,7 +8,7 @@ import { out } from '../lib/errors'
 import { markStale } from '../lib/usage'
 import { emit } from '../lib/events'
 import { branchOwner, hydrate, saveChange } from '../lib/changes'
-import { counters } from '../lib/events'
+import { actorFor, counters } from '../lib/events'
 import { pushReceipt } from '@cobaltforge/api/trailers'
 import { contributionRefusal } from '@cobaltforge/api/via'
 
@@ -24,6 +24,8 @@ const pushArgs = {
   after: v.string(),
   pushedAt: v.number(),
   message: v.optional(v.string()),
+  /** Who pushed, when the push came through cobalt; else Code Storage. */
+  by: v.optional(v.string()),
 }
 
 type PushArgs = {
@@ -33,9 +35,10 @@ type PushArgs = {
   after: string
   pushedAt: number
   message?: string
+  by?: string
 }
 
-async function record(ctx: MutationCtx, { message, ...a }: PushArgs) {
+async function record(ctx: MutationCtx, { message, by, ...a }: PushArgs) {
   const seen = await ctx.db
     .query('pushes')
     .withIndex('by_storeId_and_ref_and_after', (q) =>
@@ -50,6 +53,7 @@ async function record(ctx: MutationCtx, { message, ...a }: PushArgs) {
     .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
     .unique()
   if (!repo) return 'unknown_repository'
+  const pusher = by ? await actorFor(ctx, by) : STORAGE_ACTOR
   await markStale(ctx, repo)
   const branch = a.ref.startsWith('refs/heads/')
     ? a.ref.slice('refs/heads/'.length)
@@ -94,7 +98,7 @@ async function record(ctx: MutationCtx, { message, ...a }: PushArgs) {
           ctx,
           repo,
           'change.updated',
-          STORAGE_ACTOR,
+          pusher,
           { object: 'change', id: c.id, number: c.number },
           ['head.patch_set', 'policy.state', 'checks.state'],
           null,
@@ -107,7 +111,7 @@ async function record(ctx: MutationCtx, { message, ...a }: PushArgs) {
     ctx,
     repo,
     'repository.pushed',
-    STORAGE_ACTOR,
+    pusher,
     { object: 'repo', id: repo.publicId, number: null },
     ['refs'],
     {

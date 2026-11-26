@@ -689,28 +689,52 @@ export class RemoteItems {
     issue: { title: string; body: string; labels: Array<string> },
     by: string,
   ): Promise<number | null> {
-    const r = await this.store.remoteOfRepo(full)
-    if (!r || r.state === 'gone' || r.state === 'archived') return null
-    const forge = this.sync.forge(r.provider)
-    if (!forge.createIssue) return null
-    const auth = await this.sync.authOf(r)
-    if (!auth) return null
-    const made = await forge.createIssue(auth, r.fullName, {
-      title: issue.title,
-      body: `${issue.body}${issue.body ? '\n\n' : ''}<sub>Opened on cobalt by @${by}.</sub>`,
-      labels: issue.labels,
-    })
-    await this.issueIn(r, forge, auth, made, true)
+    const w = await this.writable(full, by)
+    if (!w?.forge.createIssue) return null
+    // The same title by the same person in the last minutes is the same
+    // issue: a retry after a lost answer must not open a second one.
+    const login = w.asPerson ? await this.sync.githubLogin(by) : null
+    const recent =
+      login && w.forge.recentIssuesBy
+        ? await w.forge
+            .recentIssuesBy(
+              w.write,
+              w.r.fullName,
+              login,
+              this.sync.now() - 10 * 60_000,
+            )
+            .catch(() => [])
+        : []
+    const made =
+      recent.find((i) => i.title === issue.title) ??
+      (await w.forge.createIssue(w.write, w.r.fullName, {
+        title: issue.title,
+        body: w.asPerson
+          ? issue.body
+          : `${issue.body}${issue.body ? '\n\n' : ''}<sub>Opened on cobalt by @${by}.</sub>`,
+        labels: issue.labels,
+      }))
+    // Reading it back may fail (a rate limit): it is on GitHub, so it comes
+    // with the next sync instead of failing the request.
+    await this.issueIn(w.r, w.forge, w.write, made, true).catch(() =>
+      this.store.setItemsDue(w.r.repo, this.sync.now()),
+    )
     return made.number
   }
 
-  /** The provider of a linked repository that can take issue writes. */
-  private async writable(full: string) {
+  /**
+   * The provider of a linked repository that can take issue writes, as the
+   * person when cobalt holds their own GitHub token (their name on GitHub),
+   * else as the app (`as: null`), which then says who wrote it.
+   */
+  private async writable(full: string, by: string) {
     const r = await this.store.remoteOfRepo(full)
     if (!r || r.state === 'gone' || r.state === 'archived') return null
     const forge = this.sync.forge(r.provider)
     const auth = await this.sync.authOf(r)
-    return auth ? { r, forge, auth } : null
+    if (!auth) return null
+    const mine = r.provider === 'github' ? await this.sync.githubAs(by) : null
+    return { r, forge, auth, write: mine ?? auth, asPerson: Boolean(mine) }
   }
 
   /** Change an issue on the provider first, then read it back here. */
@@ -723,11 +747,14 @@ export class RemoteItems {
       labels?: Array<string>
       state?: 'open' | 'closed'
     },
+    by: string,
   ): Promise<boolean> {
-    const w = await this.writable(full)
+    const w = await this.writable(full, by)
     if (!w?.forge.updateIssue) return false
-    const made = await w.forge.updateIssue(w.auth, w.r.fullName, number, patch)
-    await this.issueIn(w.r, w.forge, w.auth, made, true)
+    const made = await w.forge.updateIssue(w.write, w.r.fullName, number, patch)
+    await this.issueIn(w.r, w.forge, w.write, made, true).catch(() =>
+      this.store.setItemsDue(w.r.repo, this.sync.now()),
+    )
     return true
   }
 
@@ -738,16 +765,18 @@ export class RemoteItems {
     body: string,
     by: string,
   ): Promise<string | null> {
-    const w = await this.writable(full)
+    const w = await this.writable(full, by)
     if (!w?.forge.createComment || !w.forge.getIssue) return null
     const made = await w.forge.createComment(
-      w.auth,
+      w.write,
       w.r.fullName,
       number,
-      `${body}\n\n<sub>@${by} on cobalt.</sub>`,
+      w.asPerson ? body : `${body}\n\n<sub>@${by} on cobalt.</sub>`,
     )
-    const issue = await w.forge.getIssue(w.auth, w.r.fullName, number)
-    await this.issueIn(w.r, w.forge, w.auth, issue, true)
+    const issue = await w.forge.getIssue(w.write, w.r.fullName, number)
+    await this.issueIn(w.r, w.forge, w.write, issue, true).catch(() =>
+      this.store.setItemsDue(w.r.repo, this.sync.now()),
+    )
     return made.id
   }
 

@@ -266,6 +266,13 @@ export interface ForgeProvider {
     slug: string,
     issue: { title: string; body: string; labels: Array<string> },
   ) => Promise<RemoteIssue>
+  /** Open issues `login` opened since `since`, newest first (to not open one twice). */
+  recentIssuesBy?: (
+    auth: ProviderAuth,
+    slug: string,
+    login: string,
+    since: number,
+  ) => Promise<Array<RemoteIssue>>
   getIssue?: (
     auth: ProviderAuth,
     slug: string,

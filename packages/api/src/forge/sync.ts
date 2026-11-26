@@ -354,34 +354,80 @@ export class ProviderSync {
     return { connection: fresh, returnTo: s.t }
   }
 
-  async rememberGithub(handle: string, login: string) {
+  /**
+   * After a GitHub sign-in: the account's GitHub connection, with the user's
+   * own token sealed, so writes to GitHub (comments, issues) are theirs and
+   * not the app's. Without a vault the login is kept and writes stay the app's.
+   */
+  async rememberGithub(
+    handle: string,
+    login: string,
+    tokens?: {
+      access: string
+      refresh: string | null
+      expiresAt: number | null
+    },
+  ) {
     const had = await this.store.connection(handle, 'github', 'github.com')
-    if (had?.login === login) return
-    await this.store.saveConnection(
-      {
+    const saved =
+      had?.login === login
+        ? had
+        : await this.store.saveConnection(
+            {
+              handle,
+              provider: 'github',
+              instance: 'github.com',
+              externalId: login.toLowerCase(),
+              login,
+              token: null,
+              refresh: null,
+              keyId: null,
+              expiresAt: null,
+              scopes: [],
+              state: 'ok',
+              problem: null,
+            },
+            this.now(),
+          )
+    const v = tokens ? await this.deps.vault : null
+    if (tokens && v)
+      await this.store.patchConnection(
+        saved.id,
+        {
+          token: await v.seal(this.slot(saved, 'token'), tokens.access),
+          refresh: tokens.refresh
+            ? await v.seal(this.slot(saved, 'refresh'), tokens.refresh)
+            : null,
+          keyId: v.current,
+          expiresAt: tokens.expiresAt,
+          state: 'ok',
+          problem: null,
+        },
+        this.now(),
+      )
+    if (had?.login !== login)
+      await this.store.audit({
         handle,
         provider: 'github',
-        instance: 'github.com',
-        externalId: login.toLowerCase(),
-        login,
-        token: null,
-        refresh: null,
-        keyId: null,
-        expiresAt: null,
-        scopes: [],
-        state: 'ok',
-        problem: null,
-      },
-      this.now(),
+        action: had ? 'reconnected' : 'connected',
+        repo: null,
+        detail: login,
+        at: this.now(),
+      })
+  }
+
+  async githubLogin(handle: string) {
+    return (
+      (await this.store.connection(handle, 'github', 'github.com'))?.login ??
+      null
     )
-    await this.store.audit({
-      handle,
-      provider: 'github',
-      action: had ? 'reconnected' : 'connected',
-      repo: null,
-      detail: login,
-      at: this.now(),
-    })
+  }
+
+  /** The user's own GitHub auth, when they signed in with a kept token. */
+  async githubAs(handle: string): Promise<ProviderAuth | null> {
+    const c = await this.store.connection(handle, 'github', 'github.com')
+    if (!c?.token) return null
+    return this.userAuth(c).catch(() => null)
   }
 
   async userAuth(c: ConnectionRec): Promise<ProviderAuth> {

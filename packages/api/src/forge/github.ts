@@ -458,6 +458,18 @@ export function createGithubForge(
       return issueOf(r.body)
     },
 
+    async recentIssuesBy(auth, slug, login, since) {
+      const q = new URLSearchParams({
+        creator: login,
+        state: 'open',
+        since: new Date(since).toISOString(),
+        sort: 'created',
+        per_page: '30',
+      })
+      const r = await get<Array<GhIssue>>(auth, `/repos/${slug}/issues?${q}`)
+      return r.body.filter((i) => !i.pull_request).map(issueOf)
+    },
+
     async getIssue(auth, slug, number) {
       return issueOf(
         (await get<GhIssue>(auth, `/repos/${slug}/issues/${number}`)).body,

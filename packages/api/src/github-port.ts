@@ -1,3 +1,4 @@
+import type { OAuthTokens } from './forge/types'
 import { apiError } from './problem'
 import type { z } from 'zod'
 import type { Principal } from './auth'
@@ -32,8 +33,10 @@ export async function devicePoll(
   github: Github | null | undefined,
   p: Principal,
   deviceCode: string,
+  keep?: (login: string, tokens: OAuthTokens) => Promise<void>,
 ): Promise<z.infer<typeof S.GithubDeviceStatus>> {
   const r = await needGithub(github).devicePoll(deviceCode, p.handle)
+  if (r.status === 'authorized') await keep?.(r.login, r.tokens)
   const none = { access: null, login: null, expires_in: null }
   switch (r.status) {
     case 'pending':
@@ -89,6 +92,7 @@ export async function oauthFinish(
   github: Github | null | undefined,
   p: Principal,
   body: { code: string; state: string; redirect_uri: string },
+  keep?: (login: string, tokens: OAuthTokens) => Promise<void>,
 ): Promise<z.infer<typeof S.GithubOauthResult>> {
   const r = await needGithub(github).oauthFinish(
     p.handle,
@@ -96,6 +100,7 @@ export async function oauthFinish(
     body.state,
     body.redirect_uri,
   )
+  await keep?.(r.login, r.tokens)
   return {
     object: 'github_oauth_result',
     access: r.access,

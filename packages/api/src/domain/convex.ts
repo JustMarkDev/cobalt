@@ -494,11 +494,19 @@ export class ConvexDomain implements DomainPort {
           .catch((e: unknown) => {
             throw this.svc.providers!.providerProblem(e)
           })
-        if (n !== null)
-          return {
-            issue: await this.getIssue(owner, name, n, p),
-            outcome: 'created',
-          }
+        if (n !== null) {
+          const issue = await this.getIssue(owner, name, n, p).catch(() => {
+            throw apiError(
+              'backend_unavailable',
+              `Opened on GitHub as #${n}; it shows here once GitHub answers again.`,
+              {
+                retryAfter: 60,
+                hint: 'Sending it again is safe: the same title by you in the last minutes is the same issue.',
+              },
+            )
+          })
+          return { issue, outcome: 'created' }
+        }
       }
     }
     return this.m('issues:create', { owner, name, ...body, dry }, p)
@@ -538,7 +546,7 @@ export class ConvexDomain implements DomainPort {
     const { assignees, ...there } = body
     if (Object.keys(there).length)
       await synced.items
-        .updateIssue(synced.full, n, there)
+        .updateIssue(synced.full, n, there, p!.handle)
         .catch((e: unknown) => {
           throw synced.problem(e)
         })
@@ -1549,7 +1557,7 @@ export class ConvexDomain implements DomainPort {
 
   /** Pushes that went through the API's git endpoint, with their messages. */
   async recordPushes(
-    at: { full: string; storeId: string },
+    at: { full: string; storeId: string; by?: string },
     updates: ReadonlyArray<{ ref: string; before: string; after: string }>,
   ) {
     for (const u of updates) {
@@ -1570,6 +1578,7 @@ export class ConvexDomain implements DomainPort {
           before: u.before,
           after: u.after,
           pushedAt: this.now(),
+          ...(at.by ? { by: at.by } : {}),
           ...(message === undefined ? {} : { message }),
         },
         'system',
@@ -1819,7 +1828,9 @@ export class ConvexDomain implements DomainPort {
     deviceStart(this.svc.github)
 
   githubDevicePoll: Port['githubDevicePoll'] = async (p, deviceCode) => {
-    const r = await devicePoll(this.svc.github, p, deviceCode)
+    const r = await devicePoll(this.svc.github, p, deviceCode, (login, t) =>
+      this.keepGithub(p.handle, login, t),
+    )
     if (r.status === 'authorized' && r.login)
       await this.m(
         'integrations:markVerified',
@@ -1829,11 +1840,29 @@ export class ConvexDomain implements DomainPort {
     return r
   }
 
+  private async keepGithub(
+    handle: string,
+    login: string,
+    tokens: {
+      access: string
+      refresh: string | null
+      expiresAt: number | null
+    },
+  ) {
+    await this.svc.providers
+      ?.rememberGithub(handle, login, tokens)
+      .catch((e: unknown) =>
+        console.error('[github] could not keep the sign-in', String(e)),
+      )
+  }
+
   githubOauthStart: Port['githubOauthStart'] = (p, redirectUri, returnTo) =>
     oauthStart(this.svc.github, p, redirectUri, returnTo)
 
   githubOauthFinish: Port['githubOauthFinish'] = async (p, body) => {
-    const r = await oauthFinish(this.svc.github, p, body)
+    const r = await oauthFinish(this.svc.github, p, body, (login, t) =>
+      this.keepGithub(p.handle, login, t),
+    )
     await this.m(
       'integrations:markVerified',
       { handle: p.handle, login: r.login },
