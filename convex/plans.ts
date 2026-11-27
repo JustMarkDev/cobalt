@@ -2,15 +2,16 @@ import { v } from 'convex/values'
 import {
   GRANT_MAX_MS,
   LAPSED_KEEP_MS,
+  limitsFor,
   overQuota,
-  planLimits,
 } from '@cobaltforge/api/plans'
 import { internalMutation, internalQuery, query } from './_generated/server'
 import { signedIn } from './lib/actor'
 import { fail, out } from './lib/errors'
 import { accountByHandle } from './lib/access'
-import { planOf } from './lib/plan'
+import { planOf, seatsOf } from './lib/plan'
 import { usageOf } from './lib/usage'
+import { audit } from './lib/audit'
 
 const paid = v.union(
   v.literal('solo'),
@@ -28,6 +29,7 @@ export const mine = query({
     const now = Date.now()
     const effective = await planOf(ctx, account._id, now)
     const usage = await usageOf(ctx, account._id, now)
+    const seats = await seatsOf(ctx, account._id, effective)
     return out({
       handle: account.handle,
       usage: {
@@ -38,7 +40,8 @@ export const mine = query({
       source: effective.source,
       until: effective.until,
       unlimited: effective.unlimited,
-      limits: effective.unlimited ? null : planLimits[effective.plan],
+      seats,
+      limits: effective.unlimited ? null : limitsFor(effective.plan, seats),
       keptUntil:
         effective.lapsedAt === null
           ? null
@@ -181,6 +184,19 @@ export const setSubscription = internalMutation({
       eventAt: a.at,
       updated: now,
     }
+    if (!row || row.plan !== a.plan || row.status !== a.status)
+      await audit(
+        ctx,
+        account,
+        { handle: 'cobalt' },
+        'plan.changed',
+        account.handle,
+        {
+          plan: a.plan,
+          status: a.status,
+          ...(a.seats === undefined ? {} : { seats: a.seats }),
+        },
+      )
     if (row)
       await ctx.db.replace('subscriptions', row._id, {
         accountId: account._id,

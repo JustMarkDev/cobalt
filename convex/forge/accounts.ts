@@ -13,6 +13,7 @@ import { iso, presentAccount, urls } from '../lib/present'
 import { queueMail } from '../mail'
 import { renderMail } from '../lib/mailTemplate'
 import { bumpAccess } from '../lib/acl'
+import { audit } from '../lib/audit'
 import type { Actor } from '../lib/actor'
 import type { Role } from '../lib/access'
 import type { Doc } from '../_generated/dataModel'
@@ -222,6 +223,10 @@ export const update = mutation({
       updated: Date.now(),
       version: a.version + 1,
     })
+    await audit(ctx, a, p, 'organization.updated', a.handle, {
+      name: next.name !== a.name ? next.name : undefined,
+      bio: next.bio !== a.bio ? true : undefined,
+    })
     const after = (await ctx.db.get('accounts', a._id))!
     return finish(args.dry, await presentAccount(ctx, after, p))
   },
@@ -285,6 +290,7 @@ export const createOrganization = mutation({
       role: 'owner',
     })
     await bumpAccess(ctx)
+    await audit(ctx, id, p, 'organization.created', args.handle)
     const org = (await ctx.db.get('accounts', id))!
     return finish(args.dry, {
       account: await presentAccount(ctx, org, p),
@@ -374,6 +380,14 @@ export const setMember = mutation({
       })
     await touch(ctx, a)
     await bumpAcl(ctx, a)
+    await audit(
+      ctx,
+      a,
+      p,
+      theirs ? 'member.role_changed' : 'member.added',
+      person.handle,
+      { role: args.role, ...(theirs ? { was: theirs } : {}) },
+    )
     return finish(args.dry, {
       member: presentMember(a.handle, person.handle, person.name, args.role),
       outcome: theirs ? 'updated' : 'created',
@@ -424,6 +438,7 @@ export const removeMember = mutation({
     }
     await touch(ctx, a)
     await bumpAcl(ctx, a)
+    await audit(ctx, a, p, 'member.removed', args.login, { role: row.role })
     return finish(args.dry, null)
   },
 })
@@ -551,6 +566,7 @@ export const invite = mutation({
       html,
       sender: 'team',
     })
+    await audit(ctx, a, p, 'invitation.sent', email, { role: args.role })
     return finish(args.dry, {
       invitation: presentInvite(a.handle, rec),
       outcome: live ? 'updated' : 'created',
@@ -570,6 +586,7 @@ export const revokeInvitation = mutation({
       .unique()
     if (!i || i.organizationId !== a._id) return out(null)
     await ctx.db.delete('invitations', i._id)
+    await audit(ctx, a, p, 'invitation.revoked', i.email)
     await touch(ctx, a)
     return finish(args.dry, null)
   },
@@ -619,6 +636,7 @@ export const acceptInvitation = mutation({
       })
     await touch(ctx, a)
     await bumpAcl(ctx, a)
+    await audit(ctx, a, p, 'invitation.accepted', person.handle, { role: r })
     return finish(
       args.dry,
       presentMember(a.handle, person.handle, person.name, r),

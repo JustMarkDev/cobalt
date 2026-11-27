@@ -25,6 +25,7 @@ import { fail } from './errors'
 import { canWrite } from './access'
 import { counters } from './events'
 import { presentRepo, repoRef, repoUrl, urls } from './present'
+import { isOrgRule, orgRulesFor } from './orgPolicy'
 import type { Actor } from './actor'
 import type {
   ActorRec,
@@ -48,6 +49,8 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 export type RepoPolicy = {
   ruleModes: Map<string, RuleMode>
   customRules: Array<CustomRuleRec>
+  // Set by the organization that owns the repository; never saved with it.
+  orgRules: Array<CustomRuleRec>
   exceptions: Array<PolicyExceptionRec>
   landing: Landing
   file: { text: string; sha: string; errors: Array<FileError> } | null
@@ -71,6 +74,7 @@ export async function loadPolicy(
     customRules: doc
       ? (JSON.parse(doc.customRules) as Array<CustomRuleRec>)
       : [],
+    orgRules: await orgRulesFor(ctx, repo),
     exceptions: doc
       ? (JSON.parse(doc.exceptions) as Array<PolicyExceptionRec>)
       : [],
@@ -380,9 +384,13 @@ export class ChangeView {
   private get config(): PolicyConfig {
     const maintainers = new Set(this.repo.maintainers)
     return (this.cfg ??= {
-      modes: this.policy.ruleModes,
-      exceptions: this.policy.exceptions,
-      customRules: this.policy.customRules,
+      // A repository cannot turn off, or make an exception to, a rule its
+      // organization sets.
+      modes: new Map(
+        [...this.policy.ruleModes].filter(([id]) => !isOrgRule(id)),
+      ),
+      customRules: [...this.policy.orgRules, ...this.policy.customRules],
+      exceptions: this.policy.exceptions.filter((e) => !isOrgRule(e.rule)),
       landing: this.policy.landing,
       isMaintainer: (h) => maintainers.has(h),
       now: this.now,

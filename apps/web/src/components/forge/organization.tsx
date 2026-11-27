@@ -672,7 +672,17 @@ function Members({ me, org, role, members, invites, owners }: Context) {
   )
 }
 
-export function NewOrganizationForm() {
+export type PlanChoice = {
+  plan: 'team' | 'business'
+  seats: number
+  cycle: 'month' | 'year'
+}
+
+export function NewOrganizationForm({
+  choice = null,
+}: {
+  choice?: PlanChoice | null
+}) {
   const { me } = useAccounts()
   const navigate = useNavigate()
   const write = useWrite()
@@ -699,7 +709,13 @@ export function NewOrganizationForm() {
         return
       }
       switchAccount(me, r.data.handle)
-      void navigate({ to: '/dashboard' })
+      if (choice)
+        void navigate({
+          to: '/organizations/$handle/$section',
+          params: { handle: r.data.handle, section: 'plan' },
+          search: choice,
+        })
+      else void navigate({ to: '/dashboard' })
       return
     }
     setBusy(false)

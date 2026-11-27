@@ -5,6 +5,7 @@ import {
   LAPSED_KEEP_MS,
   allowsPrivate,
   effectivePlan,
+  limitsFor,
   overQuota,
   planLimits,
   planOrder,
@@ -98,29 +99,54 @@ describe('the effective plan', () => {
 })
 
 describe('what a plan allows', () => {
-  test('only Free has no private repositories', () => {
-    expect(planOrder.filter((p) => !allowsPrivate(p))).toEqual(['free'])
+  test('a person may keep private repositories on every plan', () => {
+    expect(planOrder.filter((p) => !allowsPrivate(p, 'person'))).toEqual([])
   })
 
-  test('limits only grow with the plan', () => {
+  test('an organization on Free has no private repositories', () => {
+    expect(planOrder.filter((p) => !allowsPrivate(p, 'organization'))).toEqual([
+      'free',
+    ])
+  })
+
+  test('a seat never has less than the plan below it', () => {
     for (const k of ['storageGb', 'transferGb', 'pushGb'] as const)
       for (let i = 1; i < planOrder.length; i++)
-        expect(planLimits[planOrder[i]][k]).toBeGreaterThan(
+        expect(planLimits[planOrder[i]][k]).toBeGreaterThanOrEqual(
           planLimits[planOrder[i - 1]][k],
         )
   })
 
-  test('a private repository on Free only reads; a public one does not', () => {
-    expect(repoState('free', 'private', false)).toEqual({
+  test('Team and Business grow with their seats; Free and Pro do not', () => {
+    expect(limitsFor('team', 4)).toEqual({
+      storageGb: 12,
+      transferGb: 200,
+      pushGb: 40,
+    })
+    expect(limitsFor('business', 2).storageGb).toBe(20)
+    expect(limitsFor('solo', 9)).toEqual(planLimits.solo)
+    expect(limitsFor('free', 9)).toEqual(planLimits.free)
+    expect(limitsFor('team', 0)).toEqual(planLimits.team)
+  })
+
+  test('a private repository of an organization on Free only reads', () => {
+    expect(repoState('free', 'private', false, 'organization')).toEqual({
       writable: false,
       why: 'plan',
     })
-    expect(repoState('free', 'public', false)).toEqual({ writable: true })
-    expect(repoState('solo', 'private', false)).toEqual({ writable: true })
+    expect(repoState('free', 'private', false, 'person')).toEqual({
+      writable: true,
+    })
+    expect(repoState('free', 'public', false, 'organization')).toEqual({
+      writable: true,
+    })
+    expect(repoState('team', 'private', false, 'organization')).toEqual({
+      writable: true,
+    })
   })
 
   test('everything of an account waiting to be deleted only reads', () => {
-    expect(repoState('business', 'public', true)).toEqual({
+    expect(repoState('business', 'public', true, 'person')).toEqual({
       writable: false,
       why: 'deletion',
     })
@@ -137,16 +163,14 @@ describe('the allowance', () => {
 
   test('Free is held to its three limits, and each says which', () => {
     expect(overQuota('free', none)).toBeNull()
-    expect(overQuota('free', { ...none, storageBytes: 0.25 * GB })).toBeNull()
-    expect(overQuota('free', { ...none, storageBytes: 0.25 * GB + 1 })).toBe(
+    expect(overQuota('free', { ...none, storageBytes: 0.1 * GB })).toBeNull()
+    expect(overQuota('free', { ...none, storageBytes: 0.1 * GB + 1 })).toBe(
       'storage',
     )
-    expect(overQuota('free', { ...none, transferBytes: 1 * GB + 1 })).toBe(
+    expect(overQuota('free', { ...none, transferBytes: 0.5 * GB + 1 })).toBe(
       'transfer',
     )
-    expect(overQuota('free', { ...none, pushBytes: 0.25 * GB + 1 })).toBe(
-      'push',
-    )
+    expect(overQuota('free', { ...none, pushBytes: 0.1 * GB + 1 })).toBe('push')
   })
 
   test('a paid plan is never paused: it is billed for the excess', () => {
@@ -155,12 +179,18 @@ describe('the allowance', () => {
       expect(overQuota(p, huge)).toBeNull()
   })
 
-  test('past the allowance a repository stops taking pushes, but a private one on Free says plan first', () => {
-    expect(repoState('free', 'public', false, 'storage')).toEqual({
+  test('past the allowance a repository stops taking pushes, but a private one of an organization on Free says plan first', () => {
+    expect(repoState('free', 'public', false, 'person', 'storage')).toEqual({
       writable: false,
       why: 'quota',
     })
-    expect(repoState('free', 'private', false, 'storage')).toEqual({
+    expect(repoState('free', 'private', false, 'person', 'storage')).toEqual({
+      writable: false,
+      why: 'quota',
+    })
+    expect(
+      repoState('free', 'private', false, 'organization', 'storage'),
+    ).toEqual({
       writable: false,
       why: 'plan',
     })

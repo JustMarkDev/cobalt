@@ -21,14 +21,16 @@ import { DomainAccounts } from './accounts'
 
 export abstract class DomainRepos extends DomainAccounts {
   private assertPrivateAllowed(
-    acct: { handle: string; plan?: PlanId } | undefined,
+    acct:
+      | { handle: string; kind: 'person' | 'organization'; plan?: PlanId }
+      | undefined,
   ) {
-    if (acct && !allowsPrivate(acct.plan ?? 'business'))
+    if (acct && !allowsPrivate(acct.plan ?? 'business', acct.kind))
       throw apiError(
         'plan_required',
-        `${acct.handle} is on the Free plan, which is for public repositories.`,
+        `${acct.handle} is an organization on the Free plan, which is for public repositories.`,
         {
-          hint: 'Upgrade the account that owns the repository to keep it private. See /pricing.',
+          hint: 'Move the organization to Team or Business to keep it private. See /pricing.',
           extra: { plan: acct.plan },
         },
       )

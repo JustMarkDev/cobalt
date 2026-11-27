@@ -193,7 +193,10 @@ async function autoLandReady(
   if (!(await canWrite(ctx, repo, as))) return null
   const view = await viewFor(ctx, repo, as, Date.now(), [c])
   if (hasAfterSteps(view.policy.landing)) return null
-  if (rulesReadChangedFiles(view.policy.customRules)) return null
+  if (
+    rulesReadChangedFiles([...view.policy.orgRules, ...view.policy.customRules])
+  )
+    return null
   if (
     contributionRefusal(
       repo,

@@ -35,6 +35,8 @@ import {
   proposalTitle,
 } from '@cobaltforge/api/policy-proposals'
 import { commit, hex, patchSetEvent, pushPatchSet } from './changes'
+import { audit, orgOfRepo } from '../lib/audit'
+import { ORG_RULE, isOrgRule } from '../lib/orgPolicy'
 import type { ChangeRec, CustomRuleRec, RuleMode } from '../lib/changeTypes'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
@@ -50,6 +52,13 @@ const mode = v.union(
 function rulesOf(pol: RepoPolicy) {
   return [
     ...policyRules.map((r) => ({ ...r, custom: null as CustomRuleRec | null })),
+    ...pol.orgRules.map((r) => ({
+      id: r.id,
+      name: r.name,
+      mode: 'enforce' as RuleMode,
+      ...describeCustomRule(r),
+      custom: r as CustomRuleRec | null,
+    })),
     ...pol.customRules.map((r) => ({
       id: r.id,
       name: r.name,
@@ -61,6 +70,7 @@ function rulesOf(pol: RepoPolicy) {
 }
 
 const modeOf = (pol: RepoPolicy, id: string): RuleMode =>
+  (isOrgRule(id) ? 'enforce' : undefined) ??
   pol.ruleModes.get(id) ??
   policyRules.find((r) => r.id === id)?.mode ??
   'enforce'
@@ -381,6 +391,14 @@ async function policyChanged(
   what: string,
 ) {
   await savePolicy(ctx, repo, pol)
+  await audit(
+    ctx,
+    await orgOfRepo(ctx, repo),
+    p,
+    'repo.policy_changed',
+    `${repo.owner}/${repo.name}`,
+    { what },
+  )
   for (const c of await ctx.db
     .query('changes')
     .withIndex('by_repoId_and_number', (q) => q.eq('repoId', repo._id))
@@ -403,6 +421,18 @@ function ruleOf(pol: RepoPolicy, id: string) {
   const r = rulesOf(pol).find((x) => x.id === id)
   if (!r) fail('not_found', `No rule ${id}.`)
   return r
+}
+
+// A rule the organization sets is changed in the organization, not here.
+function notFromOrg(repo: Doc<'repos'>, id: string) {
+  if (isOrgRule(id))
+    fail(
+      'forbidden',
+      `${id} is set by ${repo.owner} for all its repositories.`,
+      {
+        hint: `An owner or admin of ${repo.owner} changes it under the organization's policies.`,
+      },
+    )
 }
 
 export const createRule = mutation({
@@ -447,6 +477,8 @@ export const createRule = mutation({
       })
     if (policyRules.some((r) => r.id === a.id))
       bad('/body/id', `${a.id} is a built-in rule; pick another id.`)
+    if (isOrgRule(a.id))
+      bad('/body/id', `Ids starting ${ORG_RULE} belong to the organization.`)
     const need: Record<
       typeof a.kind,
       Array<'check' | 'paths' | 'max_lines'>
@@ -507,6 +539,7 @@ export const deleteRule = mutation({
     const pol = await loadPolicy(ctx, repo)
     settingsOnly(pol)
     const r = ruleOf(pol, a.rule)
+    notFromOrg(repo, a.rule)
     if (!r.custom)
       fail(
         'invalid_state',
@@ -536,6 +569,7 @@ export const setRuleMode = mutation({
     const pol = await loadPolicy(ctx, repo)
     settingsOnly(pol)
     ruleOf(pol, a.rule)
+    notFromOrg(repo, a.rule)
     if (modeOf(pol, a.rule) !== a.mode) {
       pol.ruleModes.set(a.rule, a.mode)
       await policyChanged(ctx, repo, pol, p, 'rules')
@@ -576,6 +610,7 @@ export const addException = mutation({
     const pol = await loadPolicy(ctx, repo)
     settingsOnly(pol)
     ruleOf(pol, a.rule)
+    notFromOrg(repo, a.rule)
     if ((await accountByHandle(ctx, a.who))?.kind !== 'person')
       fail('invalid_request', `${a.who} is not a person.`, {
         errors: [

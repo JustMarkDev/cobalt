@@ -1,12 +1,13 @@
 import {
   allowsPrivate,
   effectivePlan,
+  limitsFor,
   overQuota,
   repoState,
 } from '@cobaltforge/api/plans'
 import { fail } from './errors'
 import { usageOf } from './usage'
-import type { Effective, Quota } from '@cobaltforge/api/plans'
+import type { Effective, PlanLimits, Quota } from '@cobaltforge/api/plans'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 
@@ -28,18 +29,41 @@ export async function planOf(
   return effectivePlan(sub, grants, now)
 }
 
+// The seats an account pays for: an organization on Team or Business has its
+// allowance times this. A grant or Free counts as one seat.
+export async function seatsOf(
+  ctx: Ctx,
+  accountId: Id<'accounts'>,
+  effective: Effective,
+): Promise<number> {
+  if (effective.source !== 'subscription') return 1
+  const sub = await ctx.db
+    .query('subscriptions')
+    .withIndex('by_accountId', (q) => q.eq('accountId', accountId))
+    .unique()
+  return Math.max(1, sub?.seats ?? 1)
+}
+
+export async function limitsOf(
+  ctx: Ctx,
+  accountId: Id<'accounts'>,
+  effective: Effective,
+): Promise<PlanLimits> {
+  return limitsFor(effective.plan, await seatsOf(ctx, accountId, effective))
+}
+
 export const pendingDeletion = (owner: Doc<'accounts'> | null): boolean =>
   owner?.purgeAt !== undefined
 
 export async function assertMayHavePrivate(ctx: Ctx, owner: Doc<'accounts'>) {
   if (pendingDeletion(owner)) failReadOnly(owner.handle, 'deletion')
   const { plan } = await planOf(ctx, owner._id)
-  if (!allowsPrivate(plan))
+  if (!allowsPrivate(plan, owner.kind))
     fail(
       'plan_required',
-      `${owner.handle} is on the Free plan, which is for public repositories.`,
+      `${owner.handle} is an organization on the Free plan, which is for public repositories.`,
       {
-        hint: 'Upgrade the account that owns the repository to keep it private. See /pricing.',
+        hint: 'Move the organization to Team or Business to keep it private. See /pricing.',
         extra: { plan },
       },
     )
@@ -56,7 +80,12 @@ export async function assertRepoWritable(ctx: Ctx, repo: Doc<'repos'>) {
     repo.visibility === 'private' && !pending
       ? (await planOf(ctx, repo.ownerId)).plan
       : 'business'
-  const state = repoState(plan, repo.visibility, pending)
+  const state = repoState(
+    plan,
+    repo.visibility,
+    pending,
+    owner?.kind ?? 'person',
+  )
   if (!state.writable && state.why !== 'quota')
     failReadOnly(`${repo.owner}/${repo.name}`, state.why)
 }
@@ -65,7 +94,14 @@ export async function assertPushAllowed(ctx: Ctx, repo: Doc<'repos'>) {
   await assertRepoWritable(ctx, repo)
   const { plan } = await planOf(ctx, repo.ownerId)
   const quota = overQuota(plan, await usageOf(ctx, repo.ownerId))
-  const state = repoState(plan, repo.visibility, false, quota)
+  const owner = await ctx.db.get('accounts', repo.ownerId)
+  const state = repoState(
+    plan,
+    repo.visibility,
+    false,
+    owner?.kind ?? 'person',
+    quota,
+  )
   if (!state.writable && state.why === 'quota')
     failQuota(`${repo.owner}/${repo.name}`, quota)
 }

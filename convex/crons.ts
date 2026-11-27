@@ -19,6 +19,7 @@ crons.interval(
 )
 crons.interval('sweep oauth', { minutes: 15 }, internal.forge.oauth.sweep, {})
 crons.interval('sweep mail', { hours: 6 }, internal.mail.sweep, {})
+crons.interval('sweep audit log', { hours: 24 }, internal.forge.audit.sweep, {})
 crons.interval(
   'sweep operations',
   { hours: 6 },

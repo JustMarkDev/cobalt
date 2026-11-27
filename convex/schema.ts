@@ -478,6 +478,28 @@ export default defineSchema({
     token: v.string(),
   }).index('by_room', ['room']),
 
+  // What changed in an organization and who changed it. Business shows it to
+  // owners and admins; every organization records it. Kept for a year.
+  auditEvents: defineTable({
+    organizationId: v.id('accounts'),
+    at: v.number(),
+    actor: v.string(),
+    via: v.optional(v.string()),
+    action: v.string(),
+    target: v.string(),
+    detail: v.optional(v.string()),
+  })
+    .index('by_organizationId_and_at', ['organizationId', 'at'])
+    .index('by_at', ['at']),
+
+  // Rules an organization on Business sets once for its repositories. They
+  // join each repository's own rules, and a repository cannot weaken them.
+  orgPolicies: defineTable({
+    organizationId: v.id('accounts'),
+    rules: v.string(),
+    updated: v.number(),
+  }).index('by_organizationId', ['organizationId']),
+
   repoPolicy: defineTable({
     repoId: v.id('repos'),
     ruleModes: v.array(v.object({ id: v.string(), mode: v.string() })),
