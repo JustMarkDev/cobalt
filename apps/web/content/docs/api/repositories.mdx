@@ -59,7 +59,12 @@ cbcurl "$CB/repos/dana/gitfs/git/raw?path=logo.png" -o logo.png
 cbcurl "$CB/repos/dana/gitfs/git/commits?limit=20"        # history, newest first
 cbcurl "$CB/repos/dana/gitfs/git/commits/3c2646a"         # one commit
 cbcurl "$CB/repos/dana/gitfs/git/commits/3c2646a/diff"    # what it changed
+cbcurl "$CB/repos/dana/gitfs/git/commits?path=src/refs.rs" # history of one file
+cbcurl "$CB/repos/dana/gitfs/git/blame?path=src/refs.rs"  # who last wrote each line
+cbcurl "$CB/repos/dana/gitfs/git/compare?base=main&head=fix-refs" # merge base and diff
 ```
+
+The store answers these itself, so an agent or a CI job never needs a clone to ask who wrote a line, how two commits relate, or what a branch changed. `compare` reads like `git diff base...head`: `merge_base` is the commit where the two histories split.
 
 - `ref` takes a branch or a commit id. The tree answers with the full commit id it resolved to, so you can keep reading the same snapshot while the branch moves.
 - Anything addressed by a full commit id never changes, so it is answered with `Cache-Control: private, max-age=31536000, immutable`. It is `private` on purpose: whether a repository is public is not the cache's business.

@@ -8,7 +8,7 @@ import { ConvexDomain, run } from './domain/convex'
 import { OAuthServer } from './oauth'
 import { oauthScopes } from './auth'
 import { SearchIndex } from './search'
-import { StoreGit } from './git'
+import { StoreGit, invalidateOnPush } from './git'
 import { HttpTransport } from './webhooks'
 import { UploadSigner } from './uploads'
 import { mailerFromEnv } from './mail'
@@ -29,6 +29,7 @@ import { githubFromEnv } from './github'
 import { providersFromEnv } from './forge/env'
 import { createGitHttp } from './git-http'
 import { codeStorageAdmin } from '@cobaltforge/git/admin'
+import { readCache } from '@cobaltforge/git'
 import { codeStorageStores } from '@cobaltforge/git/stores'
 import { codeStorageRemotes } from '@cobaltforge/git/remote'
 import type { GitRemotes } from '@cobaltforge/git/remote'
@@ -96,6 +97,7 @@ export function createConvexApi(o: ConvexApiOptions) {
   const d = new ConvexDomain(urls, call, events, svc, now)
   providers.attach(d.providerHost())
   ;(svc.git as StoreGit).resolveStore = (full) => d.storeIdOf(full)
+  invalidateOnPush(events, svc.git, (id) => readCache.invalidate(id))
   svc.search = new SearchIndex(() => d.searchDocs(), events)
   const domain = Object.assign(d, {
     oauthState: new ConvexOAuthState(call),

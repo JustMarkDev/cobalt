@@ -95,6 +95,26 @@ export function LandingCard({
         <span className="font-medium">Landing</span>
         <Chip tone="outline">{l.landing.strategy}</Chip>
         {l.landing.fresh_approvals && <Chip tone="muted">fresh approvals</Chip>}
+        {l.verification && (
+          <Chip
+            tone={
+              l.verification.state === 'failed'
+                ? 'danger'
+                : l.verification.state === 'passed'
+                  ? 'success'
+                  : 'muted'
+            }
+          >
+            {l.verification.state === 'failed'
+              ? `verification failed: ${l.verification.checks
+                  .filter((c) => c.state === 'fail')
+                  .map((c) => c.name)
+                  .join(', ')}`
+              : l.verification.state === 'passed'
+                ? 'verified'
+                : 'verifies after landing'}
+          </Chip>
+        )}
         <span className="ml-auto">
           {landed ? (
             <Chip tone="merged">landed</Chip>

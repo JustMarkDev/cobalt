@@ -87,12 +87,21 @@ calls made with it, so use this rule for what must hold for everyone.
 
 ## landing
 
-| Key               | Values                      | Meaning                                                                    |
-| ----------------- | --------------------------- | -------------------------------------------------------------------------- |
-| `strategy`        | `squash`, `rebase`, `merge` | How the change goes onto the base. Default `squash`                        |
-| `fresh_approvals` | `true`, `false`             | Approvals count only on the newest patch set, even after a rebase          |
-| `resolve`         | `author`, `any_reviewer`    | Who may settle a review thread. Default `any_reviewer`                     |
-| `steps`           | list                        | In order: `wait_checks: [...]`, `run_pipeline: name`, `webhook: https://…` |
+| Key               | Values                      | Meaning                                                                                                                                                            |
+| ----------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `strategy`        | `squash`, `rebase`, `merge` | How the change goes onto the base. Default `squash`                                                                                                                |
+| `fresh_approvals` | `true`, `false`             | Approvals count only on the newest patch set, even after a rebase                                                                                                  |
+| `resolve`         | `author`, `any_reviewer`    | Who may settle a review thread. Default `any_reviewer`                                                                                                             |
+| `verify`          | `before`, `after`           | Where `wait_checks` are checked. Default `before`: they gate landing. `after`: the change lands when its rules are met, and the checks are verified on what landed |
+| `steps`           | list                        | In order: `wait_checks: [...]`, `run_pipeline: name`, `webhook: https://…`                                                                                         |
+
+With `verify: after`, `wait_checks` stop holding a change back and report on it
+instead: `GET /repos/{owner}/{repo}/changes/{n}/landability` answers a
+`verification` of `pending`, `passed` or `failed` with each check's state, and
+a check that fails raises `ci.failed` as before. Use it when changes land faster
+than a check can run, and a failure is fixed forward (or reverted) after the
+fact rather than held in a queue. Required checks in `rules` still gate
+landing. Landing does not revert anything by itself.
 
 Approvals and required checks stay in `rules`. `GET
 /repos/{owner}/{repo}/changes/{n}/landability` says what stops a change now,

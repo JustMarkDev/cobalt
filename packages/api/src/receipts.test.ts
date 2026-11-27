@@ -144,6 +144,8 @@ describe('landing on evidence', () => {
       commits: () => Promise.resolve([]),
       commit: fail,
       diff: fail,
+      blame: fail,
+      compare: fail,
     }
   }
 

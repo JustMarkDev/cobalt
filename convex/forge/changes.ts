@@ -36,7 +36,7 @@ import {
 import { keysetPage } from '../lib/paginate'
 import { changeBlame } from '@cobaltforge/api/provenance'
 import { lineCounts } from '@cobaltforge/api/lines'
-import { landingWaits } from '@cobaltforge/api/policy-file'
+import { landingVerification, landingWaits } from '@cobaltforge/api/policy-file'
 import {
   hasAfterSteps,
   landingPlan,
@@ -1597,6 +1597,7 @@ export const landability = query({
       blockers,
       requirements,
       landing: view.policy.landing,
+      verification: landingVerification(view.policy.landing, c.checks, head),
     })
   },
 })

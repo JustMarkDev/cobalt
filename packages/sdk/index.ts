@@ -626,6 +626,32 @@ export type Finding = {
   created_at: string
 }
 
+export type GitBlame = {
+  object: 'blame'
+  path: string
+  /** The commit the file was read at */
+  ref: string
+  lines: Array<{
+    /** 1-based, in the file at `ref` */
+    line: number
+    /** The commit that last wrote the line */
+    sha: string
+    author: {
+      name: string
+      email: string
+    }
+    /** RFC 3339 time, UTC */
+    date: string
+    /** The first line of that commit message */
+    summary: string
+    /** Where the line was first written, if the file moved */
+    original_path: string
+    original_line: number
+  }>
+  /** True when more lines follow `to` and the answer was cut */
+  has_more: boolean
+}
+
 export type GitBlob = {
   object: 'blob'
   path: string
@@ -663,6 +689,30 @@ export type GitCommitDiff = {
   object: 'commit_diff'
   sha: string
   base_sha: string | null
+  stats: {
+    files: number
+    additions: number
+    deletions: number
+  }
+  files: Array<{
+    path: string
+    state: 'added' | 'modified' | 'deleted'
+    additions: number
+    deletions: number
+    /** Unified diff hunks. Cut at 64 KB; see `truncated` */
+    patch: string
+    truncated: boolean
+  }>
+}
+
+export type GitCompare = {
+  object: 'comparison'
+  /** The commit `base` was resolved to */
+  base: string
+  /** The commit `head` was resolved to */
+  head: string
+  /** The commit where the two histories split. The diff starts here, so it holds only what `head` changed since. Equal to `head` when `head` is already in `base` */
+  merge_base: string | null
   stats: {
     files: number
     additions: number
@@ -971,6 +1021,14 @@ export type Landability = {
   blockers: Array<Requirement>
   requirements: Array<Requirement>
   landing: Landing
+  /** With `landing.verify: after`, whether the `wait_checks` hold on this change: `failed` is the signal to fix forward or revert. Null otherwise */
+  verification: {
+    state: 'pending' | 'passed' | 'failed'
+    checks: Array<{
+      name: string
+      state: 'pass' | 'fail' | 'pending'
+    }>
+  } | null
 }
 
 export type Landing = {
@@ -979,6 +1037,8 @@ export type Landing = {
   fresh_approvals: boolean
   /** Who may settle a review thread */
   resolve: 'author' | 'any_reviewer'
+  /** `before`: the `wait_checks` must pass before a change lands. `after`: it lands when its rules are met, and the `wait_checks` are verified on what landed (see `verification` on the landability) */
+  verify: 'before' | 'after'
   /** `{wait_checks: [...]}`, `{run_pipeline: name}` or `{webhook: url}`, in order */
   steps: Array<Record<string, unknown>>
 }
@@ -3106,6 +3166,22 @@ export interface Operations {
     }
     output: void
   }
+  /** Who last wrote each line of a file (`GET /repos/{owner}/{repo}/git/blame`) */
+  'git.blame': {
+    input: {
+      owner: string
+      repo: string
+      /** A file, without a leading slash */
+      path: string
+      /** A branch, or a commit id. Default: the default branch */
+      ref?: string
+      /** First line, 1-based. Default: 1 */
+      from?: number
+      /** Last line, inclusive. Default: the end of the file */
+      to?: number
+    }
+    output: GitBlame
+  }
   /** Read a file (`GET /repos/{owner}/{repo}/git/blob`) */
   'git.blob': {
     input: {
@@ -3126,7 +3202,7 @@ export interface Operations {
     }
     output: GitCommit
   }
-  /** The history of the default branch, newest first (`GET /repos/{owner}/{repo}/git/commits`) */
+  /** The history of a branch, newest first (`GET /repos/{owner}/{repo}/git/commits`) */
   'git.commits': {
     input: {
       owner: string
@@ -3135,6 +3211,10 @@ export interface Operations {
       limit?: number
       /** `next_cursor` from the previous page, exactly as returned */
       cursor?: string
+      /** A branch, or a commit id. Default: the default branch */
+      ref?: string
+      /** Only commits that changed this file or directory, without a leading slash */
+      path?: string
     }
     output: {
       object: 'list'
@@ -3142,6 +3222,20 @@ export interface Operations {
       has_more: boolean
       next_cursor: string | null
     }
+  }
+  /** What a branch or commit changed since it split from another (`GET /repos/{owner}/{repo}/git/compare`) */
+  'git.compare': {
+    input: {
+      owner: string
+      repo: string
+      /** A branch or a commit id */
+      base: string
+      /** A branch or a commit id */
+      head: string
+      /** Only this file or directory, without a leading slash */
+      path?: string
+    }
+    output: GitCompare
   }
   /** What a commit changed (`GET /repos/{owner}/{repo}/git/commits/{sha}/diff`) */
   'git.diff': {
@@ -4173,6 +4267,7 @@ export interface Operations {
               strategy?: 'squash' | 'rebase' | 'merge'
               fresh_approvals?: boolean
               resolve?: 'author' | 'any_reviewer'
+              verify?: 'before' | 'after'
               steps?: Array<
                 | {
                     wait_checks: Array<string>
@@ -5981,6 +6076,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'write',
   },
+  'git.blame': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/git/blame',
+    query: ['path', 'ref', 'from', 'to'],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
   'git.blob': {
     method: 'GET',
     path: '/repos/{owner}/{repo}/git/blob',
@@ -6006,7 +6112,18 @@ const OPERATIONS = {
   'git.commits': {
     method: 'GET',
     path: '/repos/{owner}/{repo}/git/commits',
-    query: ['limit', 'cursor'],
+    query: ['limit', 'cursor', 'ref', 'path'],
+    body: false,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'read',
+  },
+  'git.compare': {
+    method: 'GET',
+    path: '/repos/{owner}/{repo}/git/compare',
+    query: ['base', 'head', 'path'],
     body: false,
     rawBody: false,
     json: true,
@@ -8079,6 +8196,10 @@ export interface Client extends Core {
     ) => Promise<Operations['follows.remove']['output']>
   }
   git: {
+    blame: (
+      input: Operations['git.blame']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['git.blame']['output']>
     blob: (
       input: Operations['git.blob']['input'],
       options?: RequestOptions,
@@ -8091,6 +8212,10 @@ export interface Client extends Core {
       input: Operations['git.commits']['input'],
       options?: RequestOptions,
     ) => Promise<Operations['git.commits']['output']>
+    compare: (
+      input: Operations['git.compare']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['git.compare']['output']>
     diff: (
       input: Operations['git.diff']['input'],
       options?: RequestOptions,

@@ -213,9 +213,28 @@ async function start(
   }
 }
 
+const CHECKOUT_PARALLEL = 16
+
+/** Run `work` over `items`, at most `limit` at a time; the first failure stops it. */
+export async function inParallel<T>(
+  items: ReadonlyArray<T>,
+  limit: number,
+  work: (item: T) => Promise<void>,
+) {
+  let next = 0
+  const lane = async () => {
+    while (next < items.length) await work(items[next++])
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => lane()),
+  )
+}
+
 /**
  * The repository at `sha` in `dir`: a git clone through cobalt with the
- * runner's token when the server is reachable, else the files one by one.
+ * runner's token when the server is reachable, else the files one by one,
+ * fetched in parallel (the commit id is fixed, so every read is of something
+ * that never changes).
  */
 export async function checkout(
   api: ApiClient,
@@ -259,22 +278,25 @@ export async function checkout(
       query: { ref: sha, recursive: 'true' },
     })
   ).json as { entries: Array<{ path: string; type: string }> }
-  for (const e of tree.entries) {
-    if (e.type !== 'blob') continue
-    const res = await api.call('GET', `/repos/${repo}/git/blob`, {
-      query: { ref: sha, path: e.path },
-    })
-    const blob = res.json as { content: string; encoding: string } | null
-    if (!blob) continue
-    const path = join(dir, e.path)
-    mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(
-      path,
-      blob.encoding === 'base64'
-        ? Buffer.from(blob.content, 'base64')
-        : blob.content,
-    )
-  }
+  await inParallel(
+    tree.entries.filter((e) => e.type === 'blob'),
+    CHECKOUT_PARALLEL,
+    async (e) => {
+      const res = await api.call('GET', `/repos/${repo}/git/blob`, {
+        query: { ref: sha, path: e.path },
+      })
+      const blob = res.json as { content: string; encoding: string } | null
+      if (!blob) return
+      const path = join(dir, e.path)
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(
+        path,
+        blob.encoding === 'base64'
+          ? Buffer.from(blob.content, 'base64')
+          : blob.content,
+      )
+    },
+  )
 }
 
 async function workflowText(api: ApiClient, repo: string, job: Job) {

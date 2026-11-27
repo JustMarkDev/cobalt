@@ -76,7 +76,7 @@ export async function loadPolicy(
       ? (JSON.parse(doc.exceptions) as Array<PolicyExceptionRec>)
       : [],
     landing: doc?.landing
-      ? (JSON.parse(doc.landing) as Landing)
+      ? ({ ...DEFAULT_LANDING, ...JSON.parse(doc.landing) } as Landing)
       : DEFAULT_LANDING,
     file:
       doc?.sourceText !== undefined

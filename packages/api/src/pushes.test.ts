@@ -207,3 +207,82 @@ test('the older payload, which names the repository by id, still counts', async 
   expect(res.status).toBe(200)
   expect(await res.text()).toBe('patch_set_added')
 })
+
+async function counters(
+  t: Awaited<ReturnType<typeof setup>>['t'],
+  storeId: string,
+) {
+  return t.run(async (ctx) => {
+    const repo = (await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', storeId))
+      .unique())!
+    const c = (await ctx.db
+      .query('repoCounters')
+      .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+      .unique())!
+    return {
+      updated: repo.updated,
+      seq: c.seq,
+      rev: c.rev,
+      changeRev: c.changeRev,
+    }
+  })
+}
+
+const deliver = (
+  t: Awaited<ReturnType<typeof setup>>['t'],
+  storeId: string,
+  ref: string,
+  after: string,
+) => {
+  const body = push(storeId, ref, after)
+  return t.fetch('/hooks/code-storage', {
+    method: 'POST',
+    headers: { 'x-pierre-signature': signed(body), 'x-pierre-event': 'push' },
+    body,
+  })
+}
+
+test('a push that adds a patch set counts once in each counter, not twice', async () => {
+  const { t, storeId, change } = await setup()
+  const before = await counters(t, storeId)
+  const res = await deliver(
+    t,
+    storeId,
+    `refs/heads/${change.branch}`,
+    'd'.repeat(40),
+  )
+  expect(await res.text()).toBe('patch_set_added')
+  const after = await counters(t, storeId)
+  // Two events (the change updated, the repository pushed), each one step.
+  expect(after.seq - before.seq).toBe(2)
+  expect(after.rev - before.rev).toBe(2)
+  expect(after.changeRev - before.changeRev).toBe(1)
+})
+
+test('a burst of pushes rewrites the repository row once, not once each', async () => {
+  const { t, storeId } = await setup()
+  const rows = async () =>
+    t.run(
+      async (ctx) =>
+        (await ctx.db
+          .query('repos')
+          .withIndex('by_storeId', (q) => q.eq('storeId', storeId))
+          .unique())!.updated,
+    )
+  const start = await rows()
+  await deliver(t, storeId, 'refs/heads/b1', '1'.repeat(40))
+  const first = await rows()
+  expect(first).toBeGreaterThanOrEqual(start)
+  for (let i = 2; i <= 6; i++)
+    await deliver(t, storeId, `refs/heads/b${i}`, String(i).repeat(40))
+  expect(await rows()).toBe(first)
+  // Every one of them is still an event, in order.
+  const c = await counters(t, storeId)
+  expect(c.seq).toBeGreaterThanOrEqual(6)
+
+  setSystemTime(new Date(Date.now() + 31_000))
+  await deliver(t, storeId, 'refs/heads/b7', '7'.repeat(40))
+  expect(await rows()).toBeGreaterThan(first)
+})

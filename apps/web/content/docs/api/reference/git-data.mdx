@@ -10,6 +10,91 @@ description: Directories, files, history and diffs, read from the repository its
   Examples are real responses from the sample data the preview serves.
 </Callout>
 
+### `git.blame`
+
+`GET /repos/{owner}/{repo}/git/blame`
+
+**Who last wrote each line of a file**
+
+Per line, from the store's own blame (it follows the file across renames): the commit that last wrote it, its author and date. `from` and `to` pick a range of lines; at most 5000 come back and `has_more` says when more follow. To go from a line to the change and agent run behind it, use `repos.provenance`. With a full commit id as `ref` the answer never changes and is cacheable for good.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `heavy` pool, 2 units                      |
+| Success    | `200`, a `blame`                           |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Query parameters**
+
+| Name   | Type                                       | Notes                                                 |
+| ------ | ------------------------------------------ | ----------------------------------------------------- |
+| `path` | string (up to 1000 characters, at least 1) | Required. A file, without a leading slash             |
+| `ref`  | string (up to 200 characters)              | A branch, or a commit id. Default: the default branch |
+| `from` | integer (min 1, max 9007199254740991)      | First line, 1-based. Default: 1                       |
+| `to`   | integer (min 1, max 9007199254740991)      | Last line, inclusive. Default: the end of the file    |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/blame?path=src/refs.rs&from=1&to=4" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"7tKQ6EAXLzDytrDW"
+ratelimit: "heavy";r=109;t=60
+```
+
+```json
+{
+  "object": "blame",
+  "path": "src/refs.rs",
+  "ref": "1b7880d028f90a3eaac9e41bb3c28086691e29ba",
+  "lines": [
+    {
+      "line": 1,
+      "sha": "8aa0b47900cfb5ce4deb08ea69801b47ca7d3c4b",
+      "author": {
+        "name": "dep-bot",
+        "email": "dep-bot@users.cobaltforge.dev"
+      },
+      "date": "2026-06-28T08:26:17.113Z",
+      "summary": "Project skeleton",
+      "original_path": "src/refs.rs",
+      "original_line": 1
+    },
+    {
+      "line": 2,
+      "sha": "8aa0b47900cfb5ce4deb08ea69801b47ca7d3c4b",
+      "author": {
+        "name": "dep-bot",
+        "email": "dep-bot@users.cobaltforge.dev"
+      },
+      "date": "2026-06-28T08:26:17.113Z",
+      "summary": "Project skeleton",
+      "original_path": "src/refs.rs",
+      "original_line": 2
+    },
+    "…and 2 more"
+  ],
+  "has_more": false
+}
+```
+
 ### `git.blob`
 
 `GET /repos/{owner}/{repo}/git/blob`
@@ -72,9 +157,9 @@ ratelimit: "read";r=1123;t=60
 
 `GET /repos/{owner}/{repo}/git/commits`
 
-**The history of the default branch, newest first**
+**The history of a branch, newest first**
 
-Follows a cursor through the newest 1,000 commits.
+Follows a cursor through the newest 1,000 commits of `ref` (default: the default branch). With `path`, only the commits that changed that file or directory.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |
@@ -93,10 +178,12 @@ Follows a cursor through the newest 1,000 commits.
 
 **Query parameters**
 
-| Name     | Type                     | Notes                                                              |
-| -------- | ------------------------ | ------------------------------------------------------------------ |
-| `limit`  | integer (min 1, max 200) | Default `50`. Items per page, 1 to 200. Larger values are clamped. |
-| `cursor` | string                   | `next_cursor` from the previous page, exactly as returned          |
+| Name     | Type                                       | Notes                                                                     |
+| -------- | ------------------------------------------ | ------------------------------------------------------------------------- |
+| `limit`  | integer (min 1, max 200)                   | Default `50`. Items per page, 1 to 200. Larger values are clamped.        |
+| `cursor` | string                                     | `next_cursor` from the previous page, exactly as returned                 |
+| `ref`    | string (up to 200 characters)              | A branch, or a commit id. Default: the default branch                     |
+| `path`   | string (up to 1000 characters, at least 1) | Only commits that changed this file or directory, without a leading slash |
 
 **Errors**
 
@@ -111,7 +198,7 @@ curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/commits?limit=1" \
 
 ```http
 HTTP/1.1 200
-etag: W/"1hsqoNdifieUopBB"
+etag: W/"-E6oLfqAuSIEgJn9"
 ratelimit: "read";r=1121;t=60
 ```
 
@@ -144,7 +231,7 @@ ratelimit: "read";r=1121;t=60
     }
   ],
   "has_more": true,
-  "next_cursor": "c_WzEsIjFiNzg4MGQwMjhmOTBhM2VhYWM5ZTQxYmIzYzI4MDg2NjkxZTI5YmEiLCIxdWU3ODYiXQ"
+  "next_cursor": "c_WzEsIjFiNzg4MGQwMjhmOTBhM2VhYWM5ZTQxYmIzYzI4MDg2NjkxZTI5YmEiLCJqa2YycWUiXQ"
 }
 ```
 
@@ -273,6 +360,87 @@ ratelimit: "heavy";r=111;t=60
       "patch": "diff --git a/src/refs.rs b/src/refs.rs\n--- a/src/refs.rs\n+++ b/src/refs.rs\n@@ -1,9 +1,13 @@\n pub struct Refs {\n     disk: Disk,\n+    neg: NegCache,\n }\n \n imp…",
       "truncated": false
     }
+  ]
+}
+```
+
+### `git.compare`
+
+`GET /repos/{owner}/{repo}/git/compare`
+
+**What a branch or commit changed since it split from another**
+
+As `git diff base...head`: the changes on `head` after it split from `base`, from their merge base. `merge_base` names that commit, so the answer doubles as "how are these two related": it equals `head` when `head` is already in `base`. Per file the unified diff is cut at 64 KB (`truncated` says so). With full commit ids on both sides the answer never changes and is cacheable for good.
+
+| About      |                                            |
+| ---------- | ------------------------------------------ |
+| Safety     | `read`, safe to repeat                     |
+| Needs      | nothing for public data, a token otherwise |
+| Scopes     | `repo:read`                                |
+| Rate limit | `heavy` pool, 2 units                      |
+| Success    | `200`, a `comparison`                      |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Query parameters**
+
+| Name   | Type                                       | Notes                                                |
+| ------ | ------------------------------------------ | ---------------------------------------------------- |
+| `base` | string (up to 200 characters, at least 1)  | Required. A branch or a commit id                    |
+| `head` | string (up to 200 characters, at least 1)  | Required. A branch or a commit id                    |
+| `path` | string (up to 1000 characters, at least 1) | Only this file or directory, without a leading slash |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/git/compare?base=8aa0b47900cfb5ce4deb08ea69801b47ca7d3c4b&head=1b7880d028f90a3eaac9e41bb3c28086691e29ba" \
+  -H "Authorization: Bearer $CB_TOKEN"
+```
+
+```http
+HTTP/1.1 200
+etag: W/"KhkhXGNfE3DpXfMe"
+ratelimit: "heavy";r=107;t=60
+```
+
+```json
+{
+  "object": "comparison",
+  "base": "8aa0b47900cfb5ce4deb08ea69801b47ca7d3c4b",
+  "head": "1b7880d028f90a3eaac9e41bb3c28086691e29ba",
+  "merge_base": "8aa0b47900cfb5ce4deb08ea69801b47ca7d3c4b",
+  "stats": {
+    "files": 4,
+    "additions": 137,
+    "deletions": 40
+  },
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "state": "modified",
+      "additions": 57,
+      "deletions": 0,
+      "patch": "diff --git a/CHANGELOG.md b/CHANGELOG.md\n--- a/CHANGELOG.md\n+++ b/CHANGELOG.md\n@@ -1,3 +1,60 @@\n # Changelog\n \n ## Unreleased\n+- Cache negative ref lookups\n+…",
+      "truncated": false
+    },
+    {
+      "path": "README.md",
+      "state": "modified",
+      "additions": 1,
+      "deletions": 36,
+      "patch": "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1,38 +1,3 @@\n # gitfs\n \n-Git over object storage. Mount any bucket as a repository and…",
+      "truncated": false
+    },
+    "…and 2 more"
   ]
 }
 ```

@@ -38,6 +38,7 @@ const SHAPE_PATHS: Record<string, string> = {
   'git.tree': `${REPO}/git/tree`,
   'git.blob': `${REPO}/git/blob?path=README.md`,
   'git.commits': `${REPO}/git/commits`,
+  'git.blame': `${REPO}/git/blame?path=src/refs.rs`,
   'repos.provenance': `${REPO}/provenance?path=src/refs.rs&line=1`,
   'changes.timeline': `${REPO}/changes/216/timeline`,
   'changes.seen.get': `${REPO}/changes/216/seen`,
@@ -97,6 +98,7 @@ const SHAPE_PATHS: Record<string, string> = {
   'providers.audit': '/providers/audit',
 }
 const SHAPE_DYNAMIC = [
+  'git.compare',
   'imports.jobs.get',
   'repos.provider.get',
   'repos.provider.pulls.list',
@@ -194,6 +196,10 @@ describe('shape', () => {
     const sha = (await h.call('GET', `${REPO}/git/commits`)).json.data[0].sha
     dynamic['git.commit'] = `${REPO}/git/commits/${sha}`
     dynamic['git.diff'] = `${REPO}/git/commits/${sha}/diff`
+    const root = (
+      await h.call('GET', `${REPO}/git/commits?limit=100`)
+    ).json.data.at(-1).sha
+    dynamic['git.compare'] = `${REPO}/git/compare?base=${root}&head=${sha}`
     const runner = (
       await h.call('POST', '/runners', {
         body: { name: 'shape', labels: ['linux'] },
