@@ -2,14 +2,14 @@ import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   BookOpenIcon,
-  DocumentTextIcon,
-  GlobeAltIcon,
+  FileTextIcon,
+  GlobeIcon,
   HeartIcon,
   RocketLaunchIcon,
-  ScaleIcon,
+  ScalesIcon,
   ShieldCheckIcon,
-  UserGroupIcon,
-} from '@heroicons/react/24/outline'
+  UsersThreeIcon,
+} from '@phosphor-icons/react'
 import { Avatar } from './bits'
 import { CopyField, Languages } from './repo-shell'
 import type { Repo } from '~/lib/model/data'
@@ -212,7 +212,7 @@ export function AboutPanel({
           )}
           {repo.license && (
             <li className="flex items-center gap-2.5">
-              <ScaleIcon className="size-4 shrink-0 text-muted-foreground" />
+              <ScalesIcon className="size-4 shrink-0 text-muted-foreground" />
               <button
                 type="button"
                 onClick={onOpenLicense}
@@ -228,7 +228,7 @@ export function AboutPanel({
         </ul>
         <ul className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-2.5 text-xs">
           {repo.website && (
-            <ExternalLink href={repo.website} icon={GlobeAltIcon}>
+            <ExternalLink href={repo.website} icon={GlobeIcon}>
               Website
             </ExternalLink>
           )}
@@ -241,7 +241,7 @@ export function AboutPanel({
             <FileLink
               repo={repo}
               path={community.contributing}
-              icon={UserGroupIcon}
+              icon={UsersThreeIcon}
             >
               Contributing
             </FileLink>
@@ -264,7 +264,7 @@ export function AboutPanel({
             <FileLink
               repo={repo}
               path={community.changelog}
-              icon={DocumentTextIcon}
+              icon={FileTextIcon}
             >
               Changelog
             </FileLink>

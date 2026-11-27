@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { CheckIcon } from '@heroicons/react/24/outline'
+import { CheckIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { BrandId } from '~/components/brand'
 import type { FreePlan, Plan } from '~/lib/pricing'

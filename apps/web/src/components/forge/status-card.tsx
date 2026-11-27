@@ -1,11 +1,11 @@
 import {
   CheckCircleIcon,
-  EllipsisHorizontalCircleIcon,
+  DotsThreeCircleIcon,
+  GitMergeIcon,
   MinusIcon,
   XCircleIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { Panel } from './bits'
-import { GitMergeIcon } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 
 export function StateIcon({
@@ -17,7 +17,7 @@ export function StateIcon({
     return <CheckCircleIcon className="size-4 text-success" />
   if (state === 'fail') return <XCircleIcon className="size-4 text-danger" />
   if (state === 'pending')
-    return <EllipsisHorizontalCircleIcon className="size-4 text-warning" />
+    return <DotsThreeCircleIcon className="size-4 text-warning" />
   return <MinusIcon className="size-4 text-muted-foreground" />
 }
 

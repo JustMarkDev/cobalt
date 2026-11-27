@@ -3,7 +3,7 @@ import {
   CheckCircleIcon,
   MinusCircleIcon,
   XCircleIcon,
-} from '@heroicons/react/20/solid'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { Cell, Level, Product } from '~/lib/compare'
 import { levelLabel, products, rows } from '~/lib/compare'
@@ -20,9 +20,9 @@ function Mark({ level, className }: { level: Level; className?: string }) {
     'aria-hidden': true as const,
     className: cn('size-5 shrink-0', tone[level], className),
   }
-  if (level === 'yes') return <CheckCircleIcon {...props} />
-  if (level === 'partly') return <MinusCircleIcon {...props} />
-  if (level === 'no') return <XCircleIcon {...props} />
+  if (level === 'yes') return <CheckCircleIcon weight="fill" {...props} />
+  if (level === 'partly') return <MinusCircleIcon weight="fill" {...props} />
+  if (level === 'no') return <XCircleIcon weight="fill" {...props} />
   return (
     <span {...props} className={cn(props.className, 'grid place-items-center')}>
       <span className="h-0.5 w-2.5 rounded-full bg-current" />

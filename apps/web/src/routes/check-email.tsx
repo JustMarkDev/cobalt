@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { EnvelopeOpenIcon } from '@heroicons/react/24/outline'
+import { EnvelopeSimpleOpenIcon } from '@phosphor-icons/react'
 import { AuthShell, RequireAuth } from '~/components/forge/auth'
 import { useResendVerification } from '~/components/forge/verify-email-banner'
 import { Button } from '~/components/ui/button'
@@ -65,7 +65,7 @@ function CheckEmail() {
     >
       <div className="flex flex-col items-center gap-4 py-2 text-center">
         <span className="grid size-12 place-items-center rounded-full bg-brand/10 text-brand">
-          <EnvelopeOpenIcon className="size-6" />
+          <EnvelopeSimpleOpenIcon className="size-6" />
         </span>
         <p className="text-sm text-muted-foreground">
           You can keep going and confirm later. Until you do, a reminder stays

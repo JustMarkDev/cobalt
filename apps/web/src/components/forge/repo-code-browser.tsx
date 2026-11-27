@@ -5,16 +5,16 @@ import { File } from '@pierre/diffs/react'
 import { FileTree, useFileTree } from '@pierre/trees/react'
 import {
   ArrowUpIcon,
-  CheckBadgeIcon,
-  ChevronRightIcon,
-  ClipboardDocumentIcon,
+  CaretRightIcon,
   ClockIcon,
-  DocumentIcon,
-  DocumentTextIcon,
+  CopyIcon,
+  FileIcon,
+  FileTextIcon,
   FolderIcon,
-  LockClosedIcon,
+  LockIcon,
+  SealCheckIcon,
   XCircleIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { AboutPanel } from './repo-about'
 import { Who } from './repo-history'
 import { MarkdownBody, ReadmeCard } from './markdown'
@@ -52,10 +52,9 @@ function entriesIn(paths: Array<string>, dir: string): Array<Entry> {
 
 function iconFor(e: Entry) {
   if (e.kind === 'dir') return FolderIcon
-  if (e.name.endsWith('.md')) return DocumentTextIcon
-  if (e.path.includes('secrets') || e.name.endsWith('.env'))
-    return LockClosedIcon
-  return DocumentIcon
+  if (e.name.endsWith('.md')) return FileTextIcon
+  if (e.path.includes('secrets') || e.name.endsWith('.env')) return LockIcon
+  return FileIcon
 }
 
 function Crumbs({ repo, path }: { repo: Repo; path: string }) {
@@ -81,7 +80,7 @@ function Crumbs({ repo, path }: { repo: Repo; path: string }) {
         const last = i === parts.length - 1
         return (
           <React.Fragment key={to}>
-            <ChevronRightIcon className="size-3.5 text-muted-foreground/60" />
+            <CaretRightIcon className="size-3.5 text-muted-foreground/60" />
             {last ? (
               <span className="font-medium">{part}</span>
             ) : (
@@ -214,7 +213,7 @@ export function CodeBrowser({
                 </Link>
                 {latest.checks === 'pass' ? (
                   <span className="inline-flex items-center gap-1 text-success">
-                    <CheckBadgeIcon className="size-4" /> checks passed
+                    <SealCheckIcon className="size-4" /> checks passed
                   </span>
                 ) : latest.checks === 'fail' ? (
                   <span className="inline-flex items-center gap-1 text-danger">
@@ -335,7 +334,7 @@ export function CodeBrowser({
                 setTimeout(() => setCopied(false), 1500)
               }}
             >
-              <ClipboardDocumentIcon /> {copied ? 'Copied' : 'Copy path'}
+              <CopyIcon /> {copied ? 'Copied' : 'Copy path'}
             </Button>
           </div>
           {preview && (!preview.code || show === 'preview') ? (

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { ArrowClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { Button } from '~/components/ui/button'
 import { Modal } from '~/components/ui/dialog'
 import { Field, Input, Textarea } from '~/components/ui/input'
@@ -122,7 +122,7 @@ export function ContactSales({ children }: { children: React.ReactNode }) {
                 disabled={state === 'sending'}
               >
                 {state === 'sending' && (
-                  <ArrowPathIcon className="animate-spin" />
+                  <ArrowClockwiseIcon className="animate-spin" />
                 )}
                 {state === 'sending' ? 'Sending' : 'Send'}
               </Button>

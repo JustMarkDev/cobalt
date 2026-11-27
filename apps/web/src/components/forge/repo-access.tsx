@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { LockClosedIcon } from '@heroicons/react/24/outline'
+import { LockIcon } from '@phosphor-icons/react'
 import { Chip, EmptyState, Panel, SectionLabel } from './bits'
 import type { Repo } from '~/lib/model/data'
 import { Button } from '~/components/ui/button'
@@ -60,7 +60,7 @@ export function AccessPage({ repo }: { repo: Repo }) {
         <Panel as="div" className="divide-y">
           {rules.map((r) => (
             <div key={r.id} className="flex items-start gap-3 p-4 text-sm">
-              <LockClosedIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <LockIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{r.id}</span>

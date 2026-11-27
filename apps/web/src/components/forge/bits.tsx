@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, CopyIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { BadgeTone } from '~/components/ui/badge'
 import type { Source } from '~/lib/model/data'
@@ -209,7 +209,7 @@ export function CopyAddress({ handle }: { handle: string }) {
       {copied ? (
         <CheckIcon className="size-3.5 text-success" />
       ) : (
-        <ClipboardDocumentIcon className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <CopyIcon className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
       )}
     </button>
   )

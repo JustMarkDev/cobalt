@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
-import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline'
+import { CaretUpDownIcon, CheckIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { field } from './input'
 
@@ -95,7 +95,7 @@ function Select({
           className="min-w-0 flex-1 truncate data-[placeholder]:text-muted-foreground"
         />
         <SelectPrimitive.Icon>
-          <ChevronUpDownIcon className="size-4 text-muted-foreground" />
+          <CaretUpDownIcon className="size-4 text-muted-foreground" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>

@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ArrowPathIcon,
+  ArrowClockwiseIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
   PlusIcon,
-} from '@heroicons/react/24/outline'
+  WarningIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { IntegrationsPanel } from './integrations-panel'
 import { PoliciesPage } from './repo-policies'
@@ -356,7 +356,7 @@ function MirrorRow({
         ) : (
           <Badge tone={stateTone[m.state]}>
             {m.state === 'in-sync' && <CheckCircleIcon />}
-            {m.state === 'failing' && <ExclamationTriangleIcon />}
+            {m.state === 'failing' && <WarningIcon />}
             {stateLabel[m.state]}
           </Badge>
         )}
@@ -371,7 +371,7 @@ function MirrorRow({
             void onSync().finally(() => setBusy(false))
           }}
         >
-          <ArrowPathIcon className={cn(busy && 'animate-spin')} />
+          <ArrowClockwiseIcon className={cn(busy && 'animate-spin')} />
           {m.state === 'failing' ? 'Reconnect' : 'Sync now'}
         </Button>
       </div>

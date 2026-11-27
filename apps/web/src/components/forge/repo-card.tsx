@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowTrendingUpIcon, StarIcon } from '@heroicons/react/24/outline'
+import { GitForkIcon, StarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { LangDot, Tile } from './bits'
 import type { Repo } from '~/lib/model/data'
 import type { Person } from '@cobaltforge/sdk'
@@ -9,7 +9,6 @@ import { useMe } from '~/lib/auth/accounts'
 
 const plural = (n: number, word: string) =>
   `${n.toLocaleString('en')} ${word}${n === 1 ? '' : 's'}`
-import { GitForkIcon } from '~/components/icons'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { availableOses, osLabel } from '~/lib/platform'
@@ -35,7 +34,7 @@ function Counts({ repo, showToday }: { repo: Repo; showToday?: boolean }) {
       </span>
       {showToday && (
         <span className="inline-flex items-center gap-1 text-success tabular-nums">
-          <ArrowTrendingUpIcon className="size-3.5" />+{repo.starsToday} today
+          <TrendUpIcon className="size-3.5" />+{repo.starsToday} today
         </span>
       )}
     </div>

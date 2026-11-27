@@ -6,11 +6,11 @@ import { MultiFileDiff } from '@pierre/diffs/react'
 import { FileTree, useFileTree } from '@pierre/trees/react'
 import {
   CheckIcon,
-  ClipboardDocumentIcon,
-  CpuChipIcon,
+  CopyIcon,
+  CpuIcon,
   MagnifyingGlassIcon,
-  PencilSquareIcon,
-} from '@heroicons/react/24/outline'
+  NotePencilIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, ReceiptNote, Seg, Tile } from './bits'
 import { MirrorCard, StackCard } from './change-mirror'
@@ -81,7 +81,7 @@ function ReviewerMark({ r }: { r: ChangeItem['reviewers'][number] }) {
       ) : (
         <span className="flex size-6 items-center justify-center rounded-full bg-muted">
           {r.kind === 'agent' ? (
-            <CpuChipIcon className="size-3.5" />
+            <CpuIcon className="size-3.5" />
           ) : (
             <MagnifyingGlassIcon className="size-3.5" />
           )}
@@ -300,7 +300,7 @@ function CopyPrompt({ prompt }: { prompt: string }) {
   return (
     <details className="well group rounded-xl border bg-background">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground marker:hidden [&::-webkit-details-marker]:hidden">
-        <CpuChipIcon className="size-3.5" />
+        <CpuIcon className="size-3.5" />
         Prompt for an agent
         <span className="ml-auto transition-transform group-open:rotate-90">
           ›
@@ -317,7 +317,7 @@ function CopyPrompt({ prompt }: { prompt: string }) {
             setTimeout(() => setCopied(false), 1500)
           }}
         >
-          {copied ? <CheckIcon /> : <ClipboardDocumentIcon />}
+          {copied ? <CheckIcon /> : <CopyIcon />}
           {copied ? 'Copied' : 'Copy prompt'}
         </Button>
       </div>
@@ -417,7 +417,7 @@ function FindingCard({
               variant={f.suggestion ? 'outline' : 'brand'}
               onClick={onSend}
             >
-              <CpuChipIcon className="size-3.5" />
+              <CpuIcon className="size-3.5" />
               Copy fix for an agent
             </Button>
           )}
@@ -1115,7 +1115,7 @@ function CodeReview({
             title={canEdit ? undefined : 'Open the newest patch set to edit it'}
             onClick={() => setEditing((e) => !e)}
           >
-            {editing ? <CheckIcon /> : <PencilSquareIcon />}
+            {editing ? <CheckIcon /> : <NotePencilIcon />}
             {editing ? 'Done editing' : 'Edit'}
           </Button>
           <Seg

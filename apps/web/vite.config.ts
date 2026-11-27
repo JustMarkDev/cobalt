@@ -26,7 +26,7 @@ export default defineConfig({
       },
       output: {
         codeSplitting: {
-          groups: [{ name: 'heroicons', test: /[\\/]@heroicons[\\/]/ }],
+          groups: [{ name: 'icons', test: /[\\/]@phosphor-icons[\\/]/ }],
         },
       },
     },

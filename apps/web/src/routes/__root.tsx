@@ -8,6 +8,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { RootProvider } from 'fumadocs-ui/provider/tanstack'
+import { IconContext } from '@phosphor-icons/react'
 import * as React from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ConvexQueryClient } from '@convex-dev/react-query'
@@ -85,6 +86,11 @@ function RootComponent() {
   )
 }
 
+/** Icons are decoration: the text next to them, or an aria-label, names them. */
+const iconDefaults = { 'aria-hidden': true } as React.ComponentProps<
+  typeof IconContext.Provider
+>['value']
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   const docs = useRouterState({
     select: (s) => s.location.pathname.startsWith('/docs'),
@@ -128,34 +134,38 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           theme={{ defaultTheme: 'system', enableSystem: true }}
           search={{ enabled: docs }}
         >
-          <MotionProvider>
-            <RouteProgress />
-            <SessionSync />
-            {docs ? (
-              children
-            ) : bare ? (
-              <main id="main" tabIndex={-1} className="flex-1 outline-none">
-                <PageTransition trigger={routeId}>{children}</PageTransition>
-              </main>
-            ) : (
-              <>
-                <SiteHeader />
-                <VerifyEmailBanner />
-                <main
-                  id="main"
-                  tabIndex={-1}
-                  className={
-                    home
-                      ? 'w-full flex-1 outline-none'
-                      : 'mx-auto w-full max-w-6xl flex-1 px-6 py-8 outline-none'
-                  }
-                >
+          <IconContext.Provider value={iconDefaults}>
+            <MotionProvider>
+              <RouteProgress />
+              <SessionSync />
+              {docs ? (
+                children
+              ) : bare ? (
+                <main id="main" tabIndex={-1} className="flex-1 outline-none">
                   <PageTransition trigger={routeId}>{children}</PageTransition>
                 </main>
-                <SiteFooter />
-              </>
-            )}
-          </MotionProvider>
+              ) : (
+                <>
+                  <SiteHeader />
+                  <VerifyEmailBanner />
+                  <main
+                    id="main"
+                    tabIndex={-1}
+                    className={
+                      home
+                        ? 'w-full flex-1 outline-none'
+                        : 'mx-auto w-full max-w-6xl flex-1 px-6 py-8 outline-none'
+                    }
+                  >
+                    <PageTransition trigger={routeId}>
+                      {children}
+                    </PageTransition>
+                  </main>
+                  <SiteFooter />
+                </>
+              )}
+            </MotionProvider>
+          </IconContext.Provider>
         </RootProvider>
         <Scripts />
       </body>

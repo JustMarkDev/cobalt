@@ -2,12 +2,12 @@ import * as React from 'react'
 import { shownHandle } from '~/lib/shown-handle'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ChatBubbleLeftIcon,
+  ChatCircleIcon,
   CheckCircleIcon,
-  ExclamationCircleIcon,
+  ImageIcon,
   MagnifyingGlassIcon,
-  PhotoIcon,
-} from '@heroicons/react/24/outline'
+  WarningCircleIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, SectionLabel, Seg, Tile } from './bits'
 import { slugOf } from './repo-shell'
@@ -212,7 +212,7 @@ function IssueList({ repo }: { repo: Repo }) {
               className="relative flex gap-3 px-4 py-3 hover:bg-muted/40"
             >
               {i.state === 'open' ? (
-                <ExclamationCircleIcon className="mt-0.5 size-4 shrink-0 text-success" />
+                <WarningCircleIcon className="mt-0.5 size-4 shrink-0 text-success" />
               ) : (
                 <CheckCircleIcon className="mt-0.5 size-4 shrink-0 text-merged" />
               )}
@@ -239,7 +239,7 @@ function IssueList({ repo }: { repo: Repo }) {
               </div>
               {i.comments > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <ChatBubbleLeftIcon className="size-3.5" />
+                  <ChatCircleIcon className="size-3.5" />
                   {i.comments}
                 </span>
               )}
@@ -403,7 +403,7 @@ function IssueDetail({ repo, n }: { repo: Repo; n: number }) {
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex flex-wrap items-center justify-end gap-2">
               <label className="mr-auto inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-                <PhotoIcon className="size-4" />
+                <ImageIcon className="size-4" />
                 {attaching || 'Attach an image or recording'}
                 <input
                   type="file"

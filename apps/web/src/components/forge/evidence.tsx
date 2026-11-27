@@ -2,11 +2,11 @@ import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   CheckCircleIcon,
-  CpuChipIcon,
+  CpuIcon,
   MinusCircleIcon,
   PlayCircleIcon,
   XCircleIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, Panel, Seg } from './bits'
 import type {
@@ -128,7 +128,7 @@ function CompareImage({
 function OriginChip({ o }: { o: Origin }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-      {o.kind !== 'human' && <CpuChipIcon className="size-3.5" />}
+      {o.kind !== 'human' && <CpuIcon className="size-3.5" />}
       {o.kind === 'human'
         ? 'Added by'
         : o.kind === 'agent'
