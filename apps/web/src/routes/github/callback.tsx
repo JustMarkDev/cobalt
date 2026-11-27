@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
+import { ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { RequireAuth } from '~/components/forge/auth'
 import { PageTitle } from '~/components/forge/bits'
 import { BrandLogo } from '~/components/brand'
@@ -149,7 +149,7 @@ function Picker({ signed }: { signed: Signed }) {
         actions={
           <Button variant="outline" onClick={install}>
             Choose repositories on GitHub
-            <ArrowTopRightOnSquareIcon className="size-4" />
+            <ArrowSquareOutIcon className="size-4" />
           </Button>
         }
       />

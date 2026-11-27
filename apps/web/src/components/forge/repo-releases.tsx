@@ -1,15 +1,15 @@
 import * as React from 'react'
 import {
-  ArrowDownTrayIcon,
-  BeakerIcon,
-  ChevronDownIcon,
-  CommandLineIcon,
-  ComputerDesktopIcon,
-  ExclamationTriangleIcon,
+  CaretDownIcon,
+  DesktopIcon,
+  DownloadSimpleIcon,
+  FlaskIcon,
   MoonIcon,
-  ScaleIcon,
+  ScalesIcon,
   ShieldCheckIcon,
-} from '@heroicons/react/24/outline'
+  TerminalWindowIcon,
+  WarningIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, LangDot, Panel, SectionLabel } from './bits'
 import { DownloadButton, TargetPicker } from './download-button'
@@ -26,9 +26,9 @@ import { PublishRelease } from './release-publish'
 import { MarkdownBody } from './markdown'
 
 const platformIcon = {
-  macos: ComputerDesktopIcon,
-  windows: ComputerDesktopIcon,
-  linux: CommandLineIcon,
+  macos: DesktopIcon,
+  windows: DesktopIcon,
+  linux: TerminalWindowIcon,
 } as const
 
 export function useDownload(repo: Repo) {
@@ -135,7 +135,7 @@ function ReleaseNotice({
   if (release.withdrawn)
     return (
       <div className={cn(base, 'bg-danger/10')}>
-        <ExclamationTriangleIcon className="size-5 shrink-0 text-danger" />
+        <WarningIcon className="size-5 shrink-0 text-danger" />
         <p className="min-w-0 flex-1">
           <b className="font-medium">Withdrawn.</b> {release.withdrawn}
         </p>
@@ -161,7 +161,7 @@ function ReleaseNotice({
   if (release.channel === 'beta')
     return (
       <div className={cn(base, 'bg-warning/10')}>
-        <BeakerIcon className="size-5 shrink-0 text-warning" />
+        <FlaskIcon className="size-5 shrink-0 text-warning" />
         <p className="min-w-0 flex-1">
           <b className="font-medium">Beta.</b> {channelBlurb.beta}
           {release.commit && (
@@ -253,7 +253,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
           ))}
           <div className="!mt-6 space-y-2 border-t px-3 pt-4 text-xs text-muted-foreground">
             <div className="inline-flex items-center gap-1.5">
-              <ScaleIcon className="size-3.5" /> {repo.license}
+              <ScalesIcon className="size-3.5" /> {repo.license}
             </div>
             <LangDot language={repo.language} className="flex" />
           </div>
@@ -470,7 +470,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
                             className="raised inline-flex size-8 items-center justify-center rounded-lg border bg-card hover:bg-muted"
                             aria-label={`Download ${a.file}`}
                           >
-                            <ArrowDownTrayIcon className="size-4" />
+                            <DownloadSimpleIcon className="size-4" />
                           </a>
                         </td>
                       </tr>
@@ -560,7 +560,7 @@ export function ReleasesPage({ repo }: { repo: Repo }) {
           >
             <summary className="flex cursor-pointer list-none items-center justify-between text-sm text-muted-foreground hover:text-foreground">
               Verify your download
-              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
+              <CaretDownIcon className="size-4 transition-transform group-open:rotate-180" />
             </summary>
             <div className="mt-4 space-y-3">
               <p className="text-sm text-muted-foreground">

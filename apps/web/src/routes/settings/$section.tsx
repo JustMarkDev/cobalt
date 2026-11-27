@@ -2,16 +2,16 @@ import * as React from 'react'
 import { Link, createFileRoute, notFound } from '@tanstack/react-router'
 import { Dialog } from '@base-ui/react/dialog'
 import {
-  ArrowDownTrayIcon,
   BellIcon,
-  CpuChipIcon,
+  CpuIcon,
   CreditCardIcon,
+  DownloadSimpleIcon,
+  HardDrivesIcon,
   LinkIcon,
   PuzzlePieceIcon,
-  ServerStackIcon,
   ShieldCheckIcon,
   UserIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { AuthUser } from '~/lib/auth/client'
 import { RequireAuth } from '~/components/forge/auth'
@@ -37,10 +37,10 @@ const sections = [
   ['profile', 'Profile', UserIcon],
   ['accounts', 'Linked accounts', LinkIcon],
   ['integrations', 'Integrations', PuzzlePieceIcon],
-  ['agents', 'Machines and tokens', CpuChipIcon],
-  ['runners', 'Runners', ServerStackIcon],
+  ['agents', 'Machines and tokens', CpuIcon],
+  ['runners', 'Runners', HardDrivesIcon],
   ['privacy', 'Privacy', ShieldCheckIcon],
-  ['downloads', 'Downloads', ArrowDownTrayIcon],
+  ['downloads', 'Downloads', DownloadSimpleIcon],
   ['notifications', 'Notifications', BellIcon],
   ['plan', 'Plan and data', CreditCardIcon],
 ] as const

@@ -5,16 +5,16 @@ import { cn } from 'cn'
 import { PatchDiff } from '@pierre/diffs/react'
 import {
   CheckCircleIcon,
-  ClipboardDocumentIcon,
-  CpuChipIcon,
+  CopyIcon,
+  CpuIcon,
+  GitBranchIcon,
   MagnifyingGlassIcon,
   XCircleIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { Avatar } from './bits'
 import type { Repo } from '~/lib/model/data'
 import type { Committer } from '~/lib/repo'
 import { codeTheme, useCodeOverflow } from '~/lib/highlight'
-import { GitBranchIcon } from '~/components/icons'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -39,7 +39,7 @@ export function Who({
         className,
       )}
     >
-      <CpuChipIcon className="size-4" />
+      <CpuIcon className="size-4" />
     </span>
   )
 }
@@ -287,7 +287,7 @@ export function CommitView({ repo, sha }: { repo: Repo; sha: string }) {
               setTimeout(() => setCopied(false), 1500)
             }}
           >
-            <ClipboardDocumentIcon /> {copied ? 'Copied' : 'Copy'}
+            <CopyIcon /> {copied ? 'Copied' : 'Copy'}
           </Button>
           {parent && (
             <span className="font-mono text-muted-foreground">

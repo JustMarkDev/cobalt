@@ -1,9 +1,5 @@
 import * as React from 'react'
-import {
-  ComputerDesktopIcon,
-  KeyIcon,
-  PuzzlePieceIcon,
-} from '@heroicons/react/24/outline'
+import { DesktopIcon, KeyIcon, PuzzlePieceIcon } from '@phosphor-icons/react'
 import { Chip, EmptyState, Panel, SectionLabel } from './bits'
 import { CopyField } from './repo-shell'
 import { Button } from '~/components/ui/button'
@@ -36,7 +32,7 @@ export function MachinesPanel() {
             {machines.map((a) => (
               <Row
                 key={a.id}
-                icon={ComputerDesktopIcon}
+                icon={DesktopIcon}
                 title={a.device!}
                 detail={`${a.client.name}, signed in ${timeAgo(a.created_at)}${a.last_used_at ? `, last used ${timeAgo(a.last_used_at)}` : ''}`}
                 secrets={a.scopes.includes('secrets:decrypt')}

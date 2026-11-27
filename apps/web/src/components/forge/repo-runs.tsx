@@ -2,20 +2,20 @@ import * as React from 'react'
 import { useSuspenseQueries } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
+  ArrowClockwiseIcon,
   ArrowLeftIcon,
-  ArrowPathIcon,
+  CaretRightIcon,
   CheckCircleIcon,
-  ChevronRightIcon,
-  ClipboardDocumentIcon,
   ClockIcon,
-  ExclamationTriangleIcon,
+  CopyIcon,
   MagnifyingGlassIcon,
   MinusCircleIcon,
   PauseCircleIcon,
   PlayIcon,
   StopIcon,
+  WarningIcon,
   XCircleIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, EmptyState, Panel, Seg } from './bits'
 import { slugOf } from './repo-shell'
@@ -73,7 +73,7 @@ function StatusIcon({
       />
     )
   return (
-    <ArrowPathIcon
+    <ArrowClockwiseIcon
       aria-label="Running"
       className={cn(c, 'animate-spin text-warning motion-reduce:animate-none')}
     />
@@ -200,7 +200,7 @@ function RunList({ repo }: { repo: Repo }) {
             <span className="hidden w-24 text-right text-xs text-muted-foreground md:block">
               {r.when}
             </span>
-            <ChevronRightIcon className="size-4 text-muted-foreground" />
+            <CaretRightIcon className="size-4 text-muted-foreground" />
           </Link>
         ))}
       </Panel>
@@ -296,7 +296,7 @@ function StepBlock({
         onClick={onToggle}
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left focus-ring-inset hover:bg-muted/40"
       >
-        <ChevronRightIcon
+        <CaretRightIcon
           className={cn(
             'size-3.5 shrink-0 text-muted-foreground transition-transform',
             open && 'rotate-90',
@@ -475,7 +475,7 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
               status !== 'queued' &&
               status !== 'waiting' && (
                 <Button variant="outline" size="sm" onClick={rerun}>
-                  <ArrowPathIcon className="size-3.5" />
+                  <ArrowClockwiseIcon className="size-3.5" />
                   Run again
                 </Button>
               )}
@@ -488,7 +488,7 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
       {detail.annotations.length > 0 && (
         <Panel className="overflow-hidden text-sm">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-muted/40 px-4 py-2.5">
-            <ExclamationTriangleIcon className="size-4 text-muted-foreground" />
+            <WarningIcon className="size-4 text-muted-foreground" />
             <span className="font-medium">
               {errors.length > 0 &&
                 `${errors.length} error${errors.length > 1 ? 's' : ''}`}
@@ -600,7 +600,7 @@ function RunView({ repo, detail }: { repo: Repo; detail: RunDetail }) {
                 setTimeout(() => setCopied(false), 1500)
               }}
             >
-              <ClipboardDocumentIcon className="size-3.5" />
+              <CopyIcon className="size-3.5" />
               {copied ? 'Copied' : 'Copy log'}
             </Button>
           </div>

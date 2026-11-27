@@ -1,11 +1,11 @@
 import * as React from 'react'
 import {
   CheckCircleIcon,
-  ClipboardDocumentCheckIcon,
-  ClipboardDocumentIcon,
-  InformationCircleIcon,
+  ClipboardTextIcon,
+  CopyIcon,
+  InfoIcon,
   XCircleIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { Chip } from './bits'
 import { Button } from '~/components/ui/button'
 
@@ -181,11 +181,7 @@ export function LicenseView({ id, text }: { id: string; text: string }) {
               setTimeout(() => setCopied(false), 1500)
             }}
           >
-            {copied ? (
-              <ClipboardDocumentCheckIcon />
-            ) : (
-              <ClipboardDocumentIcon />
-            )}
+            {copied ? <ClipboardTextIcon /> : <CopyIcon />}
             {copied ? 'Copied' : 'Copy text'}
           </Button>
           <Button
@@ -220,7 +216,7 @@ export function LicenseView({ id, text }: { id: string; text: string }) {
             hint="What you must do"
             items={f.conditions}
             tone="text-info"
-            icon={<InformationCircleIcon className="size-4" />}
+            icon={<InfoIcon className="size-4" />}
           />
           <Column
             title="Limitations"

@@ -1,10 +1,10 @@
 import { Menu } from '@base-ui/react/menu'
 import {
-  ArrowDownTrayIcon,
+  CaretDownIcon,
   CheckIcon,
-  ChevronDownIcon,
-  NoSymbolIcon,
-} from '@heroicons/react/24/outline'
+  DownloadSimpleIcon,
+  ProhibitIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { Platform, Release } from '~/lib/model/data'
 import {
@@ -83,7 +83,7 @@ export function DownloadButton({
             height,
           )}
         >
-          <NoSymbolIcon className={size === 'lg' ? 'size-5' : 'size-4'} />
+          <ProhibitIcon className={size === 'lg' ? 'size-5' : 'size-4'} />
           {label}
           {hint && (
             <span
@@ -109,7 +109,7 @@ export function DownloadButton({
             height,
           )}
         >
-          <ArrowDownTrayIcon className={size === 'lg' ? 'size-5' : 'size-4'} />
+          <DownloadSimpleIcon className={size === 'lg' ? 'size-5' : 'size-4'} />
           {label}
           <span
             className={cn(
@@ -132,7 +132,7 @@ export function DownloadButton({
             height,
           )}
         >
-          <ChevronDownIcon className="size-4" />
+          <CaretDownIcon className="size-4" />
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner align="end" sideOffset={6} className="z-50">

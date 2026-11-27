@@ -3,9 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import {
+  GitCommitIcon,
+  GitMergeIcon,
   MagnifyingGlassIcon,
   RocketLaunchIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { api } from '../../../../../convex/_generated/api'
 import { useSignInGate } from './auth'
 import { CopyAddress, EmptyState, LangDot, Tile } from './bits'
@@ -16,7 +18,6 @@ import type { LinkProps } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import type { Repo } from '~/lib/model/data'
 import type { ProfileTab } from './profile-tabs'
-import { GitCommitIcon, GitMergeIcon } from '~/components/icons'
 import {
   GroupedBars,
   RankedBars,

@@ -1,8 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline'
+import { CheckCircleIcon, WarningIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { Status as StatusReport } from '@cobaltforge/sdk'
 import { Badge } from '~/components/ui/badge'
@@ -99,7 +96,7 @@ function Status() {
           {s.state === 'up' ? (
             <CheckCircleIcon className="size-6 shrink-0 text-success" />
           ) : (
-            <ExclamationTriangleIcon
+            <WarningIcon
               className={cn(
                 'size-6 shrink-0',
                 s.state === 'down' ? 'text-danger' : 'text-warning',

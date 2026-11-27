@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ServerStackIcon } from '@heroicons/react/24/outline'
+import { HardDrivesIcon } from '@phosphor-icons/react'
 import type { Runner } from '@cobaltforge/sdk'
 import { Chip, EmptyState, Panel, SectionLabel } from './bits'
 import { CopyField } from './repo-shell'
@@ -120,7 +120,7 @@ function AccountRunners({ account }: { account: string }) {
           <Panel as="div" className="divide-y">
             {live.map((r) => (
               <div key={r.id} className="flex items-start gap-3 p-4 text-sm">
-                <ServerStackIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                <HardDrivesIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{r.name}</span>

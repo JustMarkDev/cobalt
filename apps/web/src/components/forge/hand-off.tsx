@@ -1,10 +1,6 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import {
-  ArrowUpRightIcon,
-  CloudIcon,
-  ComputerDesktopIcon,
-} from '@heroicons/react/24/outline'
+import { ArrowUpRightIcon, CloudIcon, DesktopIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { CopyField } from './repo-shell'
 import { Modal } from './bits'
@@ -20,7 +16,7 @@ type Subject = {
 const targets = [
   {
     id: 't3',
-    icon: ComputerDesktopIcon,
+    icon: DesktopIcon,
     name: 'T3 Code',
     body: 'On your machine, with the agents and subscriptions you already use. Opens a thread in a new worktree.',
   },

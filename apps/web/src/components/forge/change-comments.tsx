@@ -3,7 +3,7 @@ import { shownHandle } from '~/lib/shown-handle'
 import { MarkdownBody } from './markdown'
 import { cn } from 'cn'
 import { MultiFileDiff } from '@pierre/diffs/react'
-import { ChatBubbleLeftIcon, WrenchIcon } from '@heroicons/react/24/outline'
+import { ChatCircleIcon, WrenchIcon } from '@phosphor-icons/react'
 import { Chip, EmptyState, Panel, ReceiptNote } from './bits'
 import type { ChangeComment } from '@cobaltforge/sdk'
 import { Button } from '~/components/ui/button'
@@ -292,7 +292,7 @@ export function ChangeDiscussion({
       </div>
       <Panel className="space-y-3 p-4">
         <h3 className="flex items-center gap-2 text-sm font-medium">
-          <ChatBubbleLeftIcon className="size-4" /> Start a thread
+          <ChatCircleIcon className="size-4" /> Start a thread
         </h3>
         <label className="block space-y-2 text-sm">
           <span className="text-muted-foreground">On</span>

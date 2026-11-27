@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { cn } from 'cn'
-import { PlusIcon } from '@heroicons/react/24/outline'
+import { PlusIcon } from '@phosphor-icons/react'
 import { Modal } from './bits'
 import type { Repo } from '~/lib/model/data'
 import { Button } from '~/components/ui/button'

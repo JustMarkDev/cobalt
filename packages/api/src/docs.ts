@@ -1257,7 +1257,7 @@ const pages: Array<{
     title: 'Discovery, identity and batch',
     description:
       'The root, the OpenAPI document, every error and limit, who a token is, and several requests in one.',
-    icon: 'ServerIcon',
+    icon: 'HardDriveIcon',
     match: (id) =>
       id.startsWith('api.') ||
       id.startsWith('auth.') ||
@@ -1298,7 +1298,7 @@ const pages: Array<{
     title: 'Git data',
     description:
       'Directories, files, history and diffs, read from the repository itself.',
-    icon: 'CodeBracketIcon',
+    icon: 'CodeIcon',
     match: (id) => id.startsWith('git.'),
   },
   {
@@ -1325,7 +1325,7 @@ const pages: Array<{
     title: 'Issues',
     description:
       'List, open, edit, assign and close issues; their labels and comments.',
-    icon: 'ListBulletIcon',
+    icon: 'ListBulletsIcon',
     match: (id) => /^(issues|labels|comments)\./.test(id),
   },
   {
@@ -1333,7 +1333,7 @@ const pages: Array<{
     title: 'Events, sync and operations',
     description:
       'The event log, the stream, keeping a local copy in sync, and long-running operations.',
-    icon: 'ArrowPathIcon',
+    icon: 'ArrowClockwiseIcon',
     match: (id) =>
       id.startsWith('events.') ||
       id.startsWith('sync.') ||
@@ -1352,14 +1352,14 @@ const pages: Array<{
     title: 'Webhooks',
     description:
       'Create an endpoint, watch deliveries, send one again, replay what was missed.',
-    icon: 'ArrowPathIcon',
+    icon: 'ArrowClockwiseIcon',
     match: (id) => id.startsWith('webhooks.'),
   },
   {
     file: 'search',
     title: 'Search',
     description: 'One query across repositories, changes and issues.',
-    icon: 'ListBulletIcon',
+    icon: 'ListBulletsIcon',
     match: (id) => id.startsWith('search.'),
   },
   {
@@ -1367,7 +1367,7 @@ const pages: Array<{
     title: 'Uploads and evidence',
     description:
       'Announce a file, send it to a signed address, attach it to a change.',
-    icon: 'ArrowDownTrayIcon',
+    icon: 'DownloadSimpleIcon',
     match: (id) =>
       id.startsWith('uploads.') ||
       id.startsWith('evidence.') ||
@@ -1378,7 +1378,7 @@ const pages: Array<{
     title: 'Secrets and mirrors',
     description:
       "Environment variables and their sealed values for the repository's team, confirmations for production values, and copies on other hosts.",
-    icon: 'LockClosedIcon',
+    icon: 'LockIcon',
     match: (id) =>
       id.startsWith('env.') ||
       id.startsWith('confirmations.') ||

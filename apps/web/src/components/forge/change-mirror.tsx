@@ -1,9 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import {
-  ArrowsRightLeftIcon,
-  CheckIcon,
-  LockClosedIcon,
-} from '@heroicons/react/24/outline'
+import { ArrowsLeftRightIcon, CheckIcon, LockIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, Panel } from './bits'
 import type { Repo } from '~/lib/model/data'
@@ -49,7 +45,7 @@ export function MirrorCard({
     <Panel className="divide-y overflow-hidden text-sm">
       <div className="space-y-1.5 p-4">
         <div className="flex items-center gap-2">
-          <ArrowsRightLeftIcon className="size-4 text-muted-foreground" />
+          <ArrowsLeftRightIcon className="size-4 text-muted-foreground" />
           <h3 className="font-medium">
             {hostName[m.host]} {terms.ref(m.number)}
           </h3>
@@ -92,7 +88,7 @@ export function MirrorCard({
       )}
       <Group
         title={`Stays on cobalt`}
-        icon={<LockClosedIcon className="size-3.5 text-muted-foreground" />}
+        icon={<LockIcon className="size-3.5 text-muted-foreground" />}
         rows={fit.native.map((f) => ({ id: f.id, label: f.label }))}
       />
     </Panel>
