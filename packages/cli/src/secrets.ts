@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { CbError } from './output'
 import type { Ctx } from './output'
 import type { RepoRef } from './repo'
+import { varlockCommand, varlockEnv } from './varlock'
 
 export function scrub(text: string, secrets: Record<string, string>): string {
   let out = text
@@ -116,8 +117,14 @@ export async function runWithEnv(opts: {
       .filter((n) => n in read.values)
       .map((n) => [n, read.values[n]]),
   )
-  const proc = Bun.spawn(withVarlock(opts.command, opts.noValidate), {
-    env: { ...process.env, ...read.values },
+  const argv = withVarlock(opts.command, opts.noValidate)
+  const proc = Bun.spawn(argv, {
+    env: {
+      ...process.env,
+      ...read.values,
+      // Only the varlock in front of the command: the command itself runs as it is.
+      ...(argv !== opts.command ? varlockEnv : {}),
+    },
     stdout: 'pipe',
     stderr: 'pipe',
   })
@@ -152,23 +159,5 @@ export function withVarlock(
     .stdout.toString()
     .trim()
   if (!root || !existsSync(join(root, '.env.schema'))) return command
-  // varlock on the PATH (installed with cb), else the package's own script
-  // through bun: in a compiled cb, process.execPath is cb itself.
-  let argv: Array<string> | null = null
-  const onPath = Bun.which('varlock')
-  if (onPath) argv = [onPath]
-  else
-    try {
-      const script = join(
-        dirname(require.resolve('varlock/package.json')),
-        'bin',
-        'cli.js',
-      )
-      const bun = Bun.which('bun')
-      if (existsSync(script) && bun) argv = [bun, script]
-    } catch {
-      argv = null
-    }
-  if (!argv) return command
-  return [...argv, 'run', '--path', root, '--', ...command]
+  return [...varlockCommand(), 'run', '--path', root, '--', ...command]
 }

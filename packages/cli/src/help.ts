@@ -1,4 +1,4 @@
-export const version = '0.1.0'
+export const version = '0.2.0'
 
 export const topHelp = `cb ${version}: the cobalt command line
 
@@ -23,6 +23,7 @@ Commands
   skill     print or install the agent skill that teaches cb
   mcp       serve the MCP server over stdio
   auth      status, login
+  upgrade   replace this cb with the latest release
   completion  bash, zsh, fish
 
 Using an agent? Run: cb skill install   (then it knows cb), or: cb commands
@@ -184,6 +185,11 @@ export const groupHelp: Record<string, string> = {
     4. the account saved by cb account switch
     5. you
 `,
+  upgrade: `cb upgrade [--to x.y.z] [--dry-run]
+
+  Replaces this cb with the latest release (or --to), checked against
+  its SHA-256. Installed with npm or run from a checkout: update it that way.
+`,
   auth: `cb auth <command>
 
   status                  signed in? to what, as whom, with which scopes (exit 4: no)
@@ -204,13 +210,13 @@ export const groupHelp: Record<string, string> = {
 }
 
 export const completions: Record<string, string> = {
-  bash: `_cb() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
+  bash: `_cb() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
 complete -F _cb cb cobalt
 `,
   zsh: `#compdef cb cobalt
-_arguments '1: :(repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion)'
+_arguments '1: :(repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion)'
 `,
-  fish: `complete -c cb -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
-complete -c cobalt -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
+  fish: `complete -c cb -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion"
+complete -c cobalt -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion"
 `,
 }

@@ -17,6 +17,8 @@ import { Route as DesignRouteImport } from './routes/design'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as InstallDotps1RouteImport } from './routes/install[.]ps1'
+import { Route as InstallDotshRouteImport } from './routes/install[.]sh'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as McpRouteImport } from './routes/mcp'
@@ -94,6 +96,16 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallDotps1Route = InstallDotps1RouteImport.update({
+  id: '/install.ps1',
+  path: '/install.ps1',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallDotshRoute = InstallDotshRouteImport.update({
+  id: '/install.sh',
+  path: '/install.sh',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmsFullDottxtRoute = LlmsFullDottxtRouteImport.update({
@@ -304,6 +316,8 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/inbox': typeof InboxRoute
+  '/install.ps1': typeof InstallDotps1Route
+  '/install.sh': typeof InstallDotshRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
@@ -352,6 +366,8 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/inbox': typeof InboxRoute
+  '/install.ps1': typeof InstallDotps1Route
+  '/install.sh': typeof InstallDotshRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
@@ -401,6 +417,8 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/inbox': typeof InboxRoute
+  '/install.ps1': typeof InstallDotps1Route
+  '/install.sh': typeof InstallDotshRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
@@ -451,6 +469,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/inbox'
+    | '/install.ps1'
+    | '/install.sh'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/mcp'
@@ -499,6 +519,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/inbox'
+    | '/install.ps1'
+    | '/install.sh'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/mcp'
@@ -547,6 +569,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/inbox'
+    | '/install.ps1'
+    | '/install.sh'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/mcp'
@@ -596,6 +620,8 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   InboxRoute: typeof InboxRoute
+  InstallDotps1Route: typeof InstallDotps1Route
+  InstallDotshRoute: typeof InstallDotshRoute
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   McpRoute: typeof McpRoute
@@ -692,6 +718,20 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install.ps1': {
+      id: '/install.ps1'
+      path: '/install.ps1'
+      fullPath: '/install.ps1'
+      preLoaderRoute: typeof InstallDotps1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install.sh': {
+      id: '/install.sh'
+      path: '/install.sh'
+      fullPath: '/install.sh'
+      preLoaderRoute: typeof InstallDotshRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llms-full.txt': {
@@ -972,6 +1012,8 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   InboxRoute: InboxRoute,
+  InstallDotps1Route: InstallDotps1Route,
+  InstallDotshRoute: InstallDotshRoute,
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   McpRoute: McpRoute,

@@ -4,18 +4,33 @@ title: Install
 description: Get cb on your machine.
 ---
 
-`cb` is a single TypeScript program that runs on [Bun](https://bun.sh).
+`cb` is one file with nothing else to install: Varlock (which checks your
+variables against `.env.schema`) and the MCP server are inside it.
 
 ```bash
-bun add -g @cobaltforge/cli
+curl -fsSL https://cobaltforge.dev/install.sh | sh
 cb --version
+cb auth login
 ```
 
-From a checkout of the cobalt repository you can run it directly:
+On Windows, in PowerShell:
 
-```bash
-bun packages/cli/src/main.ts --help
+```powershell
+irm https://cobaltforge.dev/install.ps1 | iex
 ```
+
+The script picks the binary for your system from the latest
+[release](https://github.com/JustMarkDev/cobalt/releases), checks it against
+the release's SHA-256 sums, puts it in `~/.cobalt/bin` (with `cobalt` as a
+second name) and adds that folder to your `PATH`. `CB_VERSION=0.2.0` installs a
+given release, `CB_INSTALL=/some/dir` another folder.
+
+An agent can install it the same way: the command never asks a question.
+
+## Other ways
+
+With [Bun](https://bun.sh): `bun add -g @cobaltforge/cli`. From a checkout of
+the cobalt repository: `bun packages/cli/src/main.ts --help`.
 
 ## Shell completion
 
@@ -27,4 +42,10 @@ cb completion fish > ~/.config/fish/completions/cb.fish
 
 ## Updating
 
-Update it the way you installed it, for example `bun update -g @cobaltforge/cli`. Settings in `~/.config/cb/config.json` are kept.
+```bash
+cb upgrade
+```
+
+It replaces `cb` with the latest release, checked the same way. Installed with
+Bun, update it with `bun update -g @cobaltforge/cli`. Settings in
+`~/.config/cb/config.json` are kept.
