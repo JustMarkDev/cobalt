@@ -334,7 +334,7 @@ export const update = mutation({
     }
     if (
       body.github_bot_writes !== undefined &&
-      body.github_bot_writes !== !!repo.githubBotWrites
+      body.github_bot_writes !== (repo.githubBotWrites !== false)
     ) {
       patch.githubBotWrites = body.github_bot_writes
       changed.push('github_bot_writes')

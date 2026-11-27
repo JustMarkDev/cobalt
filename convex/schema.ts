@@ -194,7 +194,7 @@ export default defineSchema({
     ),
     declinedModels: v.optional(v.array(v.string())),
     autoLand: v.optional(v.union(v.null(), v.object({ by: v.string() }))),
-    /** On a repository mirrored to GitHub: people without a linked GitHub account write through the app. */
+    /** On a repository mirrored to GitHub: people without a linked GitHub account write through the app. On unless set to false. */
     githubBotWrites: v.optional(v.boolean()),
     ownerSince: v.optional(v.number()),
     vouched: v.optional(v.array(v.string())),

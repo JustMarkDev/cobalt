@@ -83,7 +83,7 @@ export const errorCatalog = {
     title: 'Link your GitHub account first',
     retryable: false,
     exit: 6,
-    hint: 'This repository is mirrored to GitHub, and what you write there appears under your own name. Link GitHub in Settings, Accounts (or cb auth login on a new machine), then retry.',
+    hint: 'This repository is mirrored to GitHub and its owners turned off writing through the cobalt app, so what you write there must appear under your own GitHub account. Link GitHub in Settings, Accounts, then retry.',
   },
   session_required: {
     status: 403,

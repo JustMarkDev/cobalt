@@ -30766,7 +30766,7 @@
           },
           "github_bot_writes": {
             "type": "boolean",
-            "description": "On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text. Otherwise they need a linked account (`link_required`)"
+            "description": "On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text (the default). Off, they need a linked account (`link_required`)"
           },
           "vouched": {
             "type": "array",

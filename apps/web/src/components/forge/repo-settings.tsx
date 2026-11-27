@@ -718,7 +718,7 @@ function Contributions({ repo }: { repo: Repo }) {
           checked={shown.github_bot_writes}
           onChange={(on) => save({ github_bot_writes: on })}
           label="Let people without a GitHub account write"
-          hint="This repository is mirrored to GitHub. Off: issues, comments and changes need the writer's own linked GitHub account, so GitHub shows their name. On: the cobalt app posts for people who have none, with their cobalt name in the text. Commits always keep their author either way."
+          hint="This repository is mirrored to GitHub. On (the default): the cobalt app posts issues, comments and changes for people with no linked GitHub account, with their cobalt name in the text. Off: they need their own linked GitHub account first. People who linked one always post as themselves, and commits always keep their author."
         />
       ) : null}
 

@@ -1853,7 +1853,7 @@ export type Repo = {
   declined_models: Array<string>
   /** Whether a change lands by itself once it can, under the account that turned this on */
   auto_land: boolean
-  /** On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text. Otherwise they need a linked account (`link_required`) */
+  /** On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text (the default). Off, they need a linked account (`link_required`) */
   github_bot_writes: boolean
   /** Accounts the owners trust. Their changes come first */
   vouched: Array<string>

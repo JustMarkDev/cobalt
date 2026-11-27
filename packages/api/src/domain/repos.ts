@@ -325,7 +325,7 @@ export abstract class DomainRepos extends DomainAccounts {
     }
     if (
       body.github_bot_writes !== undefined &&
-      body.github_bot_writes !== !!repo.githubBotWrites
+      body.github_bot_writes !== (repo.githubBotWrites !== false)
     ) {
       repo.githubBotWrites = body.github_bot_writes
       changed.push('github_bot_writes')

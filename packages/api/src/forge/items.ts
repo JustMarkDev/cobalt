@@ -940,7 +940,7 @@ export function githubLinkRequired(full: string, r: { fullName: string }) {
     'link_required',
     `${full} is mirrored to GitHub (${r.fullName}): link your GitHub account to write to it, so it shows under your name there.`,
     {
-      hint: 'Link GitHub in Settings, Accounts. Or an owner can let the cobalt app write for people without one (Settings, Contributions).',
+      hint: 'Link GitHub in Settings, Accounts. Or an owner can let the cobalt app write for people without one again (Settings, Contributions).',
     },
   )
 }

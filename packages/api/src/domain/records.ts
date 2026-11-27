@@ -287,6 +287,7 @@ export type RepoRec = {
   docsUrl: string | null
   declinedModels?: Array<string>
   autoLand?: { by: string } | null
+  /** On unless false. */
   githubBotWrites?: boolean
   vouched?: Array<string>
   denounced?: Array<{ handle: string; reason: string }>

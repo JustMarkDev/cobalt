@@ -48,7 +48,7 @@ async function remote(ctx: QueryCtx, r: Doc<'remoteRepos'>) {
     connectionId: (r.connectionId as string | null) ?? null,
     etags: r.etags ?? {},
     importedAt: r.importedAt ?? null,
-    botWrites: Boolean(repo?.githubBotWrites),
+    botWrites: repo?.githubBotWrites !== false,
   }
 }
 

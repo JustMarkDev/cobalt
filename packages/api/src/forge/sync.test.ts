@@ -108,12 +108,13 @@ describe.skipIf(onConvex)('GitHub through the App', () => {
       },
     })
     await sync(h).beforeGit('dana/dotfiles', true)
-    const off = (await h.call('GET', '/repos/dana/dotfiles')).json
-    expect(off.github_bot_writes).toBe(false)
-    const on = await h.call('PATCH', '/repos/dana/dotfiles', {
-      body: { github_bot_writes: true },
+    // The app writes for people without a GitHub account unless turned off.
+    const on = (await h.call('GET', '/repos/dana/dotfiles')).json
+    expect(on.github_bot_writes).toBe(true)
+    const off = await h.call('PATCH', '/repos/dana/dotfiles', {
+      body: { github_bot_writes: false },
     })
-    expect(on.json.github_bot_writes).toBe(true)
+    expect(off.json.github_bot_writes).toBe(false)
   })
 
   test('webhooks: the signature is checked, a push pulls, a redelivery does nothing', async () => {
