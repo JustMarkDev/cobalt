@@ -220,6 +220,7 @@ const PROVIDER_HOSTS: Record<string, string> = {
   gitlab: 'GitLab',
   codeberg: 'Codeberg',
   forgejo: 'Forgejo',
+  cobalt: 'cobalt pipelines',
 }
 
 /**

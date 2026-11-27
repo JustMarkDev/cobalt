@@ -5,6 +5,7 @@
 //   bun scripts/dev/seed-native.ts             # mark/cobalt-native-lab
 //   bun scripts/dev/seed-native.ts --fresh     # delete it and start again
 //   bun scripts/dev/seed-native.ts --as mark --name other-lab
+//   bun scripts/dev/seed-native.ts --fresh --external-runner   # your runner runs the jobs
 //
 // Changes (draft, patch sets that address comments, a stack, findings with
 // suggestions and agent prompts, a reading guide, checks bound to the tree,
@@ -607,11 +608,14 @@ await api('POST', `/repos/${full}/releases`, {
 })
 
 // --- A runner runs the workflows; one step then waits for a person ----------
-const runner = await api('POST', '/runners', {
-  name: `${name}-runner`,
-  labels: ['self-hosted', 'linux', 'macos'],
-  repos: [full],
-})
+// --external-runner: a `cb runner start` already running takes the jobs.
+const runner = process.argv.includes('--external-runner')
+  ? null
+  : await api('POST', '/runners', {
+      name: `${name}-runner`,
+      labels: ['self-hosted', 'linux', 'macos'],
+      repos: [full],
+    })
 if (runner?.secret) {
   for (let i = 0; i < 60; i++) {
     const p = Bun.spawn(['bun', main, 'runner', 'start', '--once', '--json'], {

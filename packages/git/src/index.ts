@@ -5,6 +5,7 @@ import type { GitRepo } from './types'
 
 export { GitError } from './types'
 export type {
+  CommitFilesOptions,
   CommitInfo,
   FileDiff,
   GitRepo,

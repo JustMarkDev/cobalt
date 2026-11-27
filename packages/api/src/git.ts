@@ -1,7 +1,11 @@
 import { getGitRepo } from '@cobaltforge/git'
 import type { GitStores, ProvisionOptions } from '@cobaltforge/git/stores'
 import { apiError } from './problem'
-import type { GitRepo, MergeOptions } from '@cobaltforge/git'
+import type {
+  CommitFilesOptions,
+  GitRepo,
+  MergeOptions,
+} from '@cobaltforge/git'
 
 export type GitCommit = {
   sha: string
@@ -30,6 +34,8 @@ export interface GitData {
   commit: (repo: string, sha: string) => Promise<GitCommit>
   /** The commit a branch points at, or null when it has none. */
   head?: (repo: string, branch: string) => Promise<string | null>
+  /** Commit files on a branch in the store; the new commit's sha. */
+  commitFiles?: (repo: string, o: CommitFilesOptions) => Promise<string>
   /** Land a branch on another in the store. */
   merge?: (
     repo: string,
@@ -152,6 +158,14 @@ export class StoreGit implements GitData {
         commitOf,
       ),
     )
+  }
+
+  commitFiles(repo: string, o: CommitFilesOptions) {
+    return guarded(`Committing to ${o.branch}`, async () => {
+      const store = await this.repo(repo)
+      if (!store.commitFiles) throw new Error('This git store cannot commit.')
+      return store.commitFiles(o)
+    })
   }
 
   merge(repo: string, o: MergeOptions) {

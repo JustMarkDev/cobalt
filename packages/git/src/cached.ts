@@ -71,7 +71,17 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
     },
     wrap(id: string, repo: GitRepo): GitRepo {
       const merge = repo.merge?.bind(repo)
+      const commitFiles = repo.commitFiles?.bind(repo)
       return {
+        ...(commitFiles
+          ? {
+              commitFiles: async (o) => {
+                const r = await commitFiles(o)
+                invalidate(id)
+                return r
+              },
+            }
+          : {}),
         // A merge moves a branch: what was read of it is stale.
         ...(merge
           ? {

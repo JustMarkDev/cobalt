@@ -2805,3 +2805,67 @@ export const importChecks = mutation({
     return out('updated')
   },
 })
+
+async function systemChange(
+  ctx: QueryCtx,
+  a: { owner: string; name: string; number: number },
+) {
+  const repo = await repoByKey(ctx, `${a.owner}/${a.name}`)
+  if (!repo) return null
+  const doc = await findChange(ctx, repo, String(a.number))
+  return doc ? { repo, l: await hydrate(ctx, doc) } : null
+}
+
+/**
+ * The newest patch set of a change whose files were written here (an edit in
+ * the browser, a policy proposal), for the API to commit to git: its branch,
+ * base and the files as they stand. Null when it came from git.
+ */
+export const headSource = query({
+  args: { owner: v.string(), name: v.string(), number: v.number() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const found = await systemChange(ctx, a)
+    if (!found) return out(null)
+    const c = found.l.rec
+    const head = c.patchSets[c.patchSets.length - 1]
+    if (!head.contents || !Object.keys(head.contents).length) return out(null)
+    return out({
+      n: head.n,
+      sha: head.sha,
+      branch: c.branch,
+      base: c.base,
+      title: c.title,
+      author: head.author.handle,
+      contents: head.contents,
+    })
+  },
+})
+
+/** The commit the API made in git for a patch set written here. */
+export const setPatchSetSha = mutation({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    number: v.number(),
+    n: v.number(),
+    was: v.string(),
+    sha: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const found = await systemChange(ctx, a)
+    if (!found) return out(false)
+    const ps = found.l.rec.patchSets.find((x) => x.n === a.n)
+    if (!ps || ps.sha !== a.was) return out(false)
+    ps.sha = a.sha
+    ps.tree = a.sha.slice(0, 7)
+    found.l.rec.version++
+    await saveChange(ctx, found.l)
+    const k = await counters(ctx, found.repo)
+    await ctx.db.patch('repoCounters', k._id, { changeRev: k.changeRev + 1 })
+    return out(true)
+  },
+})

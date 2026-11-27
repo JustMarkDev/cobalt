@@ -90,6 +90,22 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
         return wrap(() => Promise.reject(e))
       }
     },
+    commitFiles: (o) =>
+      wrap(async () => {
+        const r = await pierre.repos.commits.create({
+          repo_name: storeId,
+          target_branch: o.branch,
+          base_branch: o.base,
+          commit_message: o.message,
+          author: o.author,
+          files: o.files.map((f) =>
+            f.content === null
+              ? { path: f.path, operation: 'delete' as const }
+              : { path: f.path, content: f.content },
+          ),
+        })
+        return r.commit.commit_sha
+      }),
     merge: (o) =>
       wrap(async () => {
         const r = await pierre.repos.merge({

@@ -173,7 +173,18 @@ async function start(
   const timer = opts.once ? null : setInterval(() => void beat(), 30_000)
   try {
     for (;;) {
-      const r = await api.post('/runners/claim')
+      // A long-running runner outlives a failed claim or job: the server
+      // restarting, or a repository deleted while its job ran. It says so
+      // and goes on. With --once the error is the answer.
+      const r = await api.post('/runners/claim').catch((e: unknown) => {
+        if (opts.once) throw e
+        ctx.err(`claim failed, retrying: ${errText(e)}`)
+        return null
+      })
+      if (r === null) {
+        await new Promise((x) => setTimeout(x, 5_000))
+        continue
+      }
       if (r.status === 204) {
         if (opts.once) {
           print(ctx, { ran: null }, () => 'nothing to run')
@@ -183,7 +194,15 @@ async function start(
         continue
       }
       const job = r.json as Job
-      const result = await runJob(api, ctx, job, opts.workdir)
+      const result = await runJob(api, ctx, job, opts.workdir).catch(
+        (e: unknown) => {
+          if (opts.once) throw e
+          ctx.err(
+            `${job.workflow} / ${job.name} (run ${job.run}): ${errText(e)}`,
+          )
+          return 'failure' as const
+        },
+      )
       if (opts.once) {
         print(ctx, { ran: job, status: result }, () => `${job.name}: ${result}`)
         return result === 'success' ? exit.ok : exit.error
@@ -444,3 +463,6 @@ async function runAgentJob(
     return 'failure'
   }
 }
+
+const errText = (e: unknown) =>
+  e instanceof Error ? e.message : JSON.stringify(e)

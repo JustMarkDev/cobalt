@@ -1850,6 +1850,65 @@ export class ConvexDomain implements DomainPort {
   }
 
   /**
+   * A patch set written here (an edit in the browser, a policy proposal) as
+   * a real commit on the change's branch, so a runner can check it out and
+   * landing can merge it. Pushed patch sets are commits already.
+   */
+  async commitWrittenPatchSet(e: { repo: string; number: number }) {
+    const [owner, name] = e.repo.split('/')
+    if (!this.svc.git.commitFiles || !this.svc.git.head) return null
+    const src = await run<{
+      n: number
+      sha: string
+      branch: string
+      base: string
+      title: string
+      author: string
+      contents: Record<string, string | null>
+    } | null>(
+      this.call,
+      'query',
+      'forge/changes:headSource',
+      { owner, name, number: e.number },
+      'system',
+    )
+    if (!src) return null
+    const before = await this.svc.git.head(e.repo, src.branch).catch(() => null)
+    if (before === src.sha) return null
+    const sha = await this.svc.git.commitFiles(e.repo, {
+      branch: src.branch,
+      base: src.base,
+      files: Object.entries(src.contents).map(([path, content]) => ({
+        path,
+        content,
+      })),
+      message: `${src.title}\n\nPatch set ${src.n} of #${e.number}, written on cobalt.`,
+      author: {
+        name: src.author,
+        email: `${src.author}@users.cobaltforge.dev`,
+      },
+    })
+    await run(
+      this.call,
+      'mutation',
+      'forge/changes:setPatchSetSha',
+      { owner, name, number: e.number, n: src.n, was: src.sha, sha },
+      'system',
+    )
+    // As a push to the branch: the workflows it takes run on it.
+    const storeId = await this.storeIdOf(e.repo)
+    if (storeId)
+      await this.recordPushes({ full: e.repo, storeId, by: src.author }, [
+        {
+          ref: `refs/heads/${src.branch}`,
+          before: before ?? '0'.repeat(40),
+          after: sha,
+        },
+      ])
+    return { patchSet: src.n, sha }
+  }
+
+  /**
    * A landed change's code on its base branch: the change's branch merged in
    * the store at the commit that was checked, with the repository's landing
    * strategy, as whoever landed it. Then it counts as a push to the base, so

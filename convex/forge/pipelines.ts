@@ -28,7 +28,9 @@ import { mutation } from '../lib/functions'
 import { actorOf, signedIn, system } from '../lib/actor'
 import { accessStamp, repoByPublicId, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
-import { counters } from '../lib/events'
+import { counters, emit } from '../lib/events'
+import { branchOwner, hydrate, saveChange } from '../lib/changes'
+import { newId } from '@cobaltforge/api/ids'
 import { repoUrl, urls } from '../lib/present'
 import { notify } from './notifications'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -138,6 +140,7 @@ export async function save(
   doc: Doc<'pipelineRuns'>,
   r: PipelineRun,
 ) {
+  const was = doc.status
   await ctx.db.patch('pipelineRuns', doc._id, {
     status: r.status,
     json: stripped(r),
@@ -146,6 +149,65 @@ export async function save(
   await ctx.db.patch('repoCounters', c._id, {
     pipelineRev: (c.pipelineRev ?? 0) + 1,
   })
+  if (was !== r.status) await runAsCheck(ctx, repo, r)
+}
+
+/**
+ * A workflow run on a change's branch, at the change's newest patch set, is a
+ * check on that tree (`cobalt:<workflow>`): its evidence for landing, as
+ * GitHub's checks are for a linked repository. Agent runs (review, hand-off)
+ * are not checks.
+ */
+async function runAsCheck(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  r: PipelineRun,
+) {
+  if (r.file.startsWith('cobalt:') || r.branch === repo.defaultBranch) return
+  const owner = await branchOwner(ctx, repo, r.branch)
+  if (!owner) return
+  const l = await hydrate(ctx, owner)
+  const c = l.rec
+  const head = c.patchSets[c.patchSets.length - 1]
+  if (head.sha !== r.sha) return
+  const state =
+    r.status === 'success'
+      ? ('pass' as const)
+      : r.status === 'failure' || r.status === 'canceled'
+        ? ('fail' as const)
+        : ('pending' as const)
+  const key = `cobalt:${r.workflow}`
+  const at = Date.now()
+  const found = c.checks.find((k) => k.key === key && k.tree === head.tree)
+  if (found?.state === state) return
+  if (found) {
+    found.state = state
+    found.updated = at
+  } else
+    c.checks.push({
+      id: newId('check', at),
+      key,
+      name: r.workflow,
+      state,
+      tree: head.tree,
+      detailsUrl: `${repoUrl(repo)}/pipelines/${r.number}`,
+      created: at,
+      updated: at,
+    })
+  c.updated = Math.max(at, c.updated + 1)
+  c.version++
+  await saveChange(ctx, l)
+  const n = await counters(ctx, repo)
+  await ctx.db.patch('repoCounters', n._id, { changeRev: n.changeRev + 1 })
+  await emit(
+    ctx,
+    repo,
+    state === 'fail' ? 'ci.failed' : 'check.reported',
+    { id: 'acc_cobaltpipelines0', handle: 'cobalt' },
+    { object: 'change', id: c.id, number: c.number },
+    ['checks', 'policy.state'],
+    null,
+  )
 }
 
 export async function runnersOf(

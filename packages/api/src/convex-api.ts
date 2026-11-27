@@ -112,7 +112,14 @@ export function createConvexApi(o: ConvexApiOptions) {
       now() - Date.parse(e.created_at) < 10 * 60_000
     )
       void d
-        .queueReview({ repo: e.repo, number: e.subject.number })
+        // A patch set written here becomes a commit first, so the review
+        // reads real code.
+        .commitWrittenPatchSet({ repo: e.repo, number: e.subject.number })
+        .catch((err: unknown) => {
+          console.error('[changes] could not commit', e.repo, err)
+          return null
+        })
+        .then(() => d.queueReview({ repo: e.repo!, number: e.subject.number! }))
         .then((runs) => {
           if (runs.length)
             console.log(
