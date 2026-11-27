@@ -39,7 +39,7 @@ export type GitHttpOptions = {
   >
   domain: Pick<DomainPort, 'gitAccess'>
   remotes: GitRemotes
-  beforeGit?: (full: string, write: boolean, by: string) => Promise<void>
+  beforeGit?: (full: string, write: boolean) => Promise<void>
   /**
    * After a push through here: the refs the server took. Code Storage's
    * webhook says the same later; recording is idempotent per ref and commit.
@@ -131,11 +131,7 @@ export function createGitHttp(o: GitHttpOptions) {
 
     if (o.beforeGit && route.path.startsWith('info/refs'))
       try {
-        await o.beforeGit(
-          `${route.owner}/${route.name}`,
-          need === 'write',
-          principal.handle,
-        )
+        await o.beforeGit(`${route.owner}/${route.name}`, need === 'write')
       } catch (e) {
         if (!(e instanceof ApiError)) throw e
         const hint = e.hint ? `\n${e.hint}` : ''

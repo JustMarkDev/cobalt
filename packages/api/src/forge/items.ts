@@ -645,7 +645,7 @@ export class RemoteItems {
       ...pr,
       body: w.asPerson
         ? pr.body
-        : `${pr.body}${pr.body ? '\n\n' : ''}<sub>Opened on cobalt by @${by}.</sub>`,
+        : `${pr.body}${pr.body ? '\n\n' : ''}<sub>Opened on cobalt by ${by} (a cobalt account, not a GitHub one).</sub>`,
     })
     await this.pullIn(w.r, w.forge, w.write, made, true).catch(() =>
       this.store.setItemsDue(w.r.repo, this.sync.now()),
@@ -749,7 +749,7 @@ export class RemoteItems {
         title: issue.title,
         body: w.asPerson
           ? issue.body
-          : `${issue.body}${issue.body ? '\n\n' : ''}<sub>Opened on cobalt by @${by}.</sub>`,
+          : `${issue.body}${issue.body ? '\n\n' : ''}<sub>Opened on cobalt by ${by} (a cobalt account, not a GitHub one).</sub>`,
         labels: issue.labels,
       }))
     // Reading it back may fail (a rate limit): it is on GitHub, so it comes
@@ -762,9 +762,10 @@ export class RemoteItems {
 
   /**
    * The provider of a linked repository that can take issue writes, as the
-   * person: on GitHub, with their own token, so it is their name there. A
-   * person without a linked GitHub account cannot write to a repository
-   * mirrored to GitHub (link_required); other hosts write as the link.
+   * person: on GitHub, with their own token, so it is their name there.
+   * Without a linked GitHub account, the app writes for them (naming them)
+   * if the repository allows it (github_bot_writes), else link_required.
+   * Other hosts write as the link.
    */
   private async writable(full: string, by: string) {
     const r = await this.store.remoteOfRepo(full)
@@ -773,7 +774,8 @@ export class RemoteItems {
     const auth = await this.sync.authOf(r)
     if (!auth) return null
     const mine = r.provider === 'github' ? await this.sync.githubAs(by) : null
-    if (r.provider === 'github' && !mine) throw githubLinkRequired(full, r)
+    if (r.provider === 'github' && !mine && !r.botWrites)
+      throw githubLinkRequired(full, r)
     return { r, forge, auth, write: mine ?? auth, asPerson: Boolean(mine) }
   }
 
@@ -811,7 +813,9 @@ export class RemoteItems {
       w.write,
       w.r.fullName,
       number,
-      w.asPerson ? body : `${body}\n\n<sub>@${by} on cobalt.</sub>`,
+      w.asPerson
+        ? body
+        : `${body}\n\n<sub>Written on cobalt by ${by} (a cobalt account, not a GitHub one).</sub>`,
     )
     const issue = await w.forge.getIssue(w.write, w.r.fullName, number)
     await this.issueIn(w.r, w.forge, w.write, issue, true).catch(() =>
@@ -935,5 +939,8 @@ export function githubLinkRequired(full: string, r: { fullName: string }) {
   return apiError(
     'link_required',
     `${full} is mirrored to GitHub (${r.fullName}): link your GitHub account to write to it, so it shows under your name there.`,
+    {
+      hint: 'Link GitHub in Settings, Accounts. Or an owner can let the cobalt app write for people without one (Settings, Contributions).',
+    },
   )
 }

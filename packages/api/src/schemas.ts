@@ -147,6 +147,11 @@ export const Repo = named(
       .describe(
         'Whether a change lands by itself once it can, under the account that turned this on',
       ),
+    github_bot_writes: z
+      .boolean()
+      .describe(
+        'On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text. Otherwise they need a linked account (`link_required`)',
+      ),
     vouched: z
       .array(z.string())
       .describe('Accounts the owners trust. Their changes come first'),

@@ -87,6 +87,7 @@ export abstract class DomainPresent extends DomainAccess {
       maintainers: [...r.maintainers].sort(),
       declined_models: [...(r.declinedModels ?? [])],
       auto_land: !!r.autoLand,
+      github_bot_writes: !!r.githubBotWrites,
       vouched: [...(r.vouched ?? [])].sort(),
       denounced: (r.denounced ?? []).map((d) => ({
         handle: d.handle,

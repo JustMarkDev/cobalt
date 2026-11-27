@@ -248,6 +248,7 @@ export interface DomainPort {
       install?: string | null
       declined_models?: Array<string>
       auto_land?: boolean
+      github_bot_writes?: boolean
       vouched?: Array<string>
       denounced?: Array<{ handle: string; reason: string }>
     },

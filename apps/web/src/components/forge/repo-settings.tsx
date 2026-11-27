@@ -696,6 +696,7 @@ function Contributions({ repo }: { repo: Repo }) {
   const [error, setError] = React.useState('')
   const save = (body: {
     auto_land?: boolean
+    github_bot_writes?: boolean
     declined_models?: Array<string>
     vouched?: Array<string>
     denounced?: Array<{ handle: string; reason: string }>
@@ -711,6 +712,15 @@ function Contributions({ repo }: { repo: Repo }) {
         label="Land changes when everything is green"
         hint="Checks pass, no open high finding, the policy is met: it lands under your account, with no button to press. Never a draft, a stacked change, or one that touches CI, policies or the env schema."
       />
+
+      {shown.upstream?.host === 'github' ? (
+        <SwitchRow
+          checked={shown.github_bot_writes}
+          onChange={(on) => save({ github_bot_writes: on })}
+          label="Let people without a GitHub account write"
+          hint="This repository is mirrored to GitHub. Off: issues, comments and changes need the writer's own linked GitHub account, so GitHub shows their name. On: the cobalt app posts for people who have none, with their cobalt name in the text. Commits always keep their author either way."
+        />
+      ) : null}
 
       <ListEditor
         label="Declined models"

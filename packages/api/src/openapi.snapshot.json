@@ -25552,6 +25552,10 @@
                     "description": "Land a change by itself once it can. You answer for what lands this way",
                     "type": "boolean"
                   },
+                  "github_bot_writes": {
+                    "description": "On a repository mirrored to GitHub, let people without a linked GitHub account write: the cobalt app posts for them, naming them",
+                    "type": "boolean"
+                  },
                   "vouched": {
                     "description": "Accounts you trust; their changes come first. Replaces the list",
                     "maxItems": 1000,
@@ -30760,6 +30764,10 @@
             "type": "boolean",
             "description": "Whether a change lands by itself once it can, under the account that turned this on"
           },
+          "github_bot_writes": {
+            "type": "boolean",
+            "description": "On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text. Otherwise they need a linked account (`link_required`)"
+          },
           "vouched": {
             "type": "array",
             "items": {
@@ -30839,6 +30847,7 @@
           "maintainers",
           "declined_models",
           "auto_land",
+          "github_bot_writes",
           "vouched",
           "denounced",
           "open_changes",

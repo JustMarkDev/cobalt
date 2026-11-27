@@ -181,6 +181,7 @@ export abstract class DomainRepos extends DomainAccounts {
       install?: string | null
       declined_models?: Array<string>
       auto_land?: boolean
+      github_bot_writes?: boolean
       vouched?: Array<string>
       denounced?: Array<{ handle: string; reason: string }>
     },
@@ -270,6 +271,7 @@ export abstract class DomainRepos extends DomainAccounts {
             : body.auto_land
               ? { by: p.handle }
               : null,
+        githubBotWrites: body.github_bot_writes ?? repo.githubBotWrites,
         vouched: body.vouched ?? repo.vouched,
         denounced: body.denounced ?? repo.denounced,
         maintainers: nextMaintainers
@@ -320,6 +322,13 @@ export abstract class DomainRepos extends DomainAccounts {
     if (body.auto_land !== undefined && body.auto_land !== !!repo.autoLand) {
       repo.autoLand = body.auto_land ? { by: p.handle } : null
       changed.push('auto_land')
+    }
+    if (
+      body.github_bot_writes !== undefined &&
+      body.github_bot_writes !== !!repo.githubBotWrites
+    ) {
+      repo.githubBotWrites = body.github_bot_writes
+      changed.push('github_bot_writes')
     }
     if (body.vouched !== undefined) {
       repo.vouched = [...new Set(body.vouched.map((h) => h.toLowerCase()))]

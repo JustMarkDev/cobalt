@@ -97,7 +97,7 @@ describe.skipIf(onConvex)('GitHub through the App', () => {
     expect(imports[0].warnings[0]).toContain('Access is decided here')
   })
 
-  test('pushing to a repository mirrored to GitHub takes your own GitHub account', async () => {
+  test('pushing to a repository mirrored to GitHub needs no GitHub account: commits carry their author', async () => {
     const h = harness()
     const access = await githubAccess(h)
     await h.call('POST', '/imports', {
@@ -107,12 +107,13 @@ describe.skipIf(onConvex)('GitHub through the App', () => {
         github_access: access,
       },
     })
-    const push = await sync(h)
-      .beforeGit('dana/dotfiles', true, 'dana')
-      .catch((e: unknown) => e as { code: string })
-    expect(push).toMatchObject({ code: 'link_required' })
-    // Reading needs no GitHub account.
-    await sync(h).beforeGit('dana/dotfiles', false, 'dana')
+    await sync(h).beforeGit('dana/dotfiles', true)
+    const off = (await h.call('GET', '/repos/dana/dotfiles')).json
+    expect(off.github_bot_writes).toBe(false)
+    const on = await h.call('PATCH', '/repos/dana/dotfiles', {
+      body: { github_bot_writes: true },
+    })
+    expect(on.json.github_bot_writes).toBe(true)
   })
 
   test('webhooks: the signature is checked, a push pulls, a redelivery does nothing', async () => {

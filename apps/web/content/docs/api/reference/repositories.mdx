@@ -423,6 +423,7 @@ ratelimit: "write";r=33;t=60
   "maintainers": ["dana"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": false,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
@@ -955,7 +956,7 @@ curl "https://api.cobaltforge.dev/v1/repos?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"6U4bUyNgm07Shdvs"
+etag: W/"XsuOiYbKHximPNjj"
 ratelimit: "read";r=1197;t=60
 ```
 
@@ -986,6 +987,7 @@ ratelimit: "read";r=1197;t=60
       "maintainers": ["dana", "hollis"],
       "declined_models": [],
       "auto_land": false,
+      "github_bot_writes": false,
       "vouched": [],
       "denounced": [],
       "open_changes": 3,
@@ -1019,6 +1021,7 @@ ratelimit: "read";r=1197;t=60
       "maintainers": ["dana"],
       "declined_models": [],
       "auto_land": false,
+      "github_bot_writes": false,
       "vouched": [],
       "denounced": [],
       "open_changes": 0,
@@ -1112,6 +1115,7 @@ ratelimit: "write";r=79;t=60
   "maintainers": ["dana"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": false,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
@@ -1252,6 +1256,7 @@ ratelimit: "read";r=1196;t=60
   "maintainers": ["dana", "hollis"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": false,
   "vouched": ["hollis", "ines"],
   "denounced": [],
   "open_changes": 5,
@@ -1296,21 +1301,22 @@ Owners of the account and admins of the organization only. Send `If-Match` with 
 
 **Request body**
 
-| Member            | Type                                                                   | Notes                                                                                                                                                                                                                      |
-| ----------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`            | string (pattern)                                                       |                                                                                                                                                                                                                            |
-| `description`     | string (up to 500 characters)                                          |                                                                                                                                                                                                                            |
-| `visibility`      | `public` or `private`                                                  |                                                                                                                                                                                                                            |
-| `default_branch`  | string (up to 200 characters, at least 1)                              |                                                                                                                                                                                                                            |
-| `maintainers`     | array of string                                                        | People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. |
-| `category`        | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
-| `website`         | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `docs_url`        | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `install`         | string (up to 1000 characters, at least 1) or null                     |                                                                                                                                                                                                                            |
-| `declined_models` | array of string (up to 80 characters, at least 1)                      | Declared models to take no changes from, compared without case. Replaces the list                                                                                                                                          |
-| `auto_land`       | boolean                                                                | Land a change by itself once it can. You answer for what lands this way                                                                                                                                                    |
-| `vouched`         | array of string (pattern)                                              | Accounts you trust; their changes come first. Replaces the list                                                                                                                                                            |
-| `denounced`       | array of object                                                        | Accounts that may not open changes or issues here. Replaces the list                                                                                                                                                       |
+| Member              | Type                                                                   | Notes                                                                                                                                                                                                                      |
+| ------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`              | string (pattern)                                                       |                                                                                                                                                                                                                            |
+| `description`       | string (up to 500 characters)                                          |                                                                                                                                                                                                                            |
+| `visibility`        | `public` or `private`                                                  |                                                                                                                                                                                                                            |
+| `default_branch`    | string (up to 200 characters, at least 1)                              |                                                                                                                                                                                                                            |
+| `maintainers`       | array of string                                                        | People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. |
+| `category`          | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
+| `website`           | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
+| `docs_url`          | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
+| `install`           | string (up to 1000 characters, at least 1) or null                     |                                                                                                                                                                                                                            |
+| `declined_models`   | array of string (up to 80 characters, at least 1)                      | Declared models to take no changes from, compared without case. Replaces the list                                                                                                                                          |
+| `auto_land`         | boolean                                                                | Land a change by itself once it can. You answer for what lands this way                                                                                                                                                    |
+| `github_bot_writes` | boolean                                                                | On a repository mirrored to GitHub, let people without a linked GitHub account write: the cobalt app posts for them, naming them                                                                                           |
+| `vouched`           | array of string (pattern)                                              | Accounts you trust; their changes come first. Replaces the list                                                                                                                                                            |
+| `denounced`         | array of object                                                        | Accounts that may not open changes or issues here. Replaces the list                                                                                                                                                       |
 
 **Errors**
 
@@ -1354,6 +1360,7 @@ ratelimit: "write";r=15;t=60
   "maintainers": ["dana"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": false,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
@@ -1629,6 +1636,7 @@ ratelimit: "read";r=1195;t=60
     "maintainers": ["dana", "hollis"],
     "declined_models": [],
     "auto_land": false,
+    "github_bot_writes": false,
     "vouched": ["hollis", "ines"],
     "denounced": [],
     "open_changes": 5,
@@ -3461,6 +3469,7 @@ ratelimit: "write";r=14;t=60
   "maintainers": [],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": false,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
