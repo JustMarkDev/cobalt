@@ -679,6 +679,25 @@ function LandingSettings({
           className="size-4"
         />
       </label>
+      <label className="flex items-center justify-between gap-3 px-4 py-3">
+        <div>
+          <p className="font-medium">Verify after landing</p>
+          <p className="text-xs text-muted-foreground">
+            A change lands when its rules are met, and the checks the landing
+            waits for are verified on what landed. A failure is fixed forward
+            instead of holding everything behind it.
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={landing.verify === 'after'}
+          disabled={!editable}
+          onChange={(e) =>
+            onChange({ verify: e.target.checked ? 'after' : 'before' })
+          }
+          className="size-4"
+        />
+      </label>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div>
           <p className="font-medium">Who settles a thread</p>

@@ -482,7 +482,7 @@ ratelimit: "write";r=109;t=60
 ```json
 {
   "object": "import_job",
-  "id": "imj_twm82smtqfew",
+  "id": "imj_87ko3ddgnb07",
   "provider": "github",
   "owner": "dana",
   "state": "running",
@@ -530,20 +530,20 @@ ratelimit: "write";r=109;t=60
 **Example**
 
 ```bash
-curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_kn3xydw000vq" \
+curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_yuttcfr0vn0n" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"wFfQ6aobTvbSHQ6M"
+etag: W/"ZB4AQI4fe0gb8z16"
 ratelimit: "read";r=1198;t=60
 ```
 
 ```json
 {
   "object": "import_job",
-  "id": "imj_kn3xydw000vq",
+  "id": "imj_yuttcfr0vn0n",
   "provider": "github",
   "owner": "dana",
   "state": "running",
@@ -1898,7 +1898,7 @@ ratelimit: "read";r=1194;t=60
 
 **Where a line of code came from**
 
-Follows a line to the conversation that produced it: the commit that wrote it (by blame, up to 200 commits back), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With `change`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.
+Follows a line to the conversation that produced it: the commit that wrote it (by the store's blame), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With `change`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |

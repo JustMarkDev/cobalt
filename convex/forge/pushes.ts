@@ -4,9 +4,14 @@ import { internalMutation } from '../_generated/server'
 import { markStale } from '../lib/usage'
 import { emit } from '../lib/events'
 import { branchOwner, hydrate, saveChange } from '../lib/changes'
-import { counters } from '../lib/events'
 import { pushReceipt } from '@cobaltforge/api/trailers'
 import { contributionRefusal } from '@cobaltforge/api/via'
+
+// Pushes to different branches of one repository run at the same time, and
+// every row they all write is a place they queue behind each other. The event
+// itself has to write the repository's counters, but `repos.updated` is only a
+// sort key for "recently active": once in a while is as good as every push.
+const TOUCH_EVERY_MS = 30_000
 
 const STORAGE_ACTOR = {
   id: 'acc_codestorage000000',
@@ -74,10 +79,6 @@ export const recordPush = internalMutation({
           c.updated = Math.max(Date.now(), c.updated + 1)
           c.version++
           await saveChange(ctx, l)
-          const k = await counters(ctx, repo)
-          await ctx.db.patch('repoCounters', k._id, {
-            changeRev: k.changeRev + 1,
-          })
           await emit(
             ctx,
             repo,
@@ -86,6 +87,7 @@ export const recordPush = internalMutation({
             { object: 'change', id: c.id, number: c.number },
             ['head.patch_set', 'policy.state', 'checks.state'],
             null,
+            ['changeRev'],
           )
           result = 'patch_set_added'
         }
@@ -103,6 +105,8 @@ export const recordPush = internalMutation({
         before: a.before,
         after: a.after,
       },
+      [],
+      a.pushedAt - repo.updated >= TOUCH_EVERY_MS,
     )
     return result
   },

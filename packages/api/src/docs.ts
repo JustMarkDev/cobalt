@@ -931,6 +931,20 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       .sha as string
     await call('git.commit', 'GET', `${R}/git/commits/${sha}`)
     await call('git.diff', 'GET', `${R}/git/commits/${sha}/diff`)
+    await call(
+      'git.blame',
+      'GET',
+      `${R}/git/blame?path=src/refs.rs&from=1&to=4`,
+    )
+    const root = (
+      ((await call(null, 'GET', `${R}/git/commits?limit=100`)).json as Json)
+        .data as Array<Json>
+    ).at(-1)!.sha as string
+    await call(
+      'git.compare',
+      'GET',
+      `${R}/git/compare?base=${root}&head=${sha}`,
+    )
     await call('repos.update', 'PATCH', '/repos/dana/notes2', {
       body: { name: 'scratch2', description: 'Scratch space' },
     })

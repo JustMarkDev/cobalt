@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
-import { structuredPatch } from 'diff'
+import { diffArrays, structuredPatch } from 'diff'
 import { contributingFor, licenseFor, readmeFor } from './sample-docs'
 import { createReadCache } from './cached'
 import { guarded } from './guarded'
 import { GitError } from './types'
 import { CredentialExists } from './stores'
-import type { CommitInfo, FileDiff, GitRepo } from './types'
+import type { Blame, CommitInfo, FileDiff, GitRepo } from './types'
 import type {
   GitCredential,
   GitStores,
@@ -413,6 +413,59 @@ function fileDiff(
   }
 }
 
+const touches = (c: Built, path: string) => {
+  const dir = `${path.replace(/\/+$/, '')}/`
+  for (const p of new Set([
+    ...Object.keys(c.parentTree),
+    ...Object.keys(c.tree),
+  ]))
+    if ((p === path || p.startsWith(dir)) && c.parentTree[p] !== c.tree[p])
+      return true
+  return false
+}
+
+const linesOf = (text: string | undefined) => {
+  if (text === undefined || text === '') return []
+  const out = text.split('\n')
+  if (out.at(-1) === '') out.pop()
+  return out
+}
+
+function indexOfCommit(id: string, ref: string | undefined) {
+  const commits = build(id)
+  const found = resolve(id, ref)
+  return { commits, at: commits.indexOf(found) }
+}
+
+function blameLines(id: string, path: string, ref: string | undefined) {
+  const { commits, at } = indexOfCommit(id, ref)
+  const text = commits[at].tree[path]
+  if (text === undefined) throw notFound(`file ${path}`)
+  let version = linesOf(text)
+  let pos = version.map((_, k) => k)
+  const owner: Array<number> = version.map(() => -1)
+  for (let j = at; j >= 0; j--) {
+    const before = linesOf(commits[j].parentTree[path])
+    const next: Array<number> = []
+    let vi = 0
+    for (const ch of diffArrays(before, version)) {
+      if (ch.added) {
+        for (let k = 0; k < ch.count; k++) {
+          if (pos[vi] >= 0) owner[pos[vi]] = j
+          vi++
+        }
+      } else if (ch.removed) {
+        for (let k = 0; k < ch.count; k++) next.push(-1)
+      } else {
+        for (let k = 0; k < ch.count; k++) next.push(pos[vi++])
+      }
+    }
+    version = before
+    pos = next
+  }
+  return { commits, at, owner, lines: linesOf(text) }
+}
+
 export function fakeRepo(id: string): GitRepo {
   return {
     async listFiles(opts) {
@@ -431,7 +484,11 @@ export function fakeRepo(id: string): GitRepo {
         : new Response(content)
     },
     async listCommits(opts) {
-      const commits = build(id)
+      const all = build(id)
+      const tip = opts?.branch ? all.indexOf(resolve(id, opts.branch)) : -1
+      const commits = all
+        .slice(0, tip === -1 ? all.length : tip + 1)
+        .filter((c) => !opts?.path || touches(c, opts.path))
         .map((c) => c.info)
         .reverse()
       return {
@@ -454,6 +511,51 @@ export function fakeRepo(id: string): GitRepo {
         sha: info.sha,
         baseSha: info.parentShas[0],
         files,
+      }
+    },
+    async blame(opts): Promise<Blame> {
+      const { commits, at, owner, lines } = blameLines(id, opts.path, opts.ref)
+      return {
+        ref: commits[at].info.sha,
+        sha: commits[at].info.sha,
+        path: opts.path,
+        lines: lines.map((_, k) => {
+          const info = commits[Math.max(owner[k], 0)].info
+          return {
+            line: k + 1,
+            sha: info.sha,
+            authorName: info.authorName,
+            authorEmail: info.authorEmail,
+            date: info.date,
+            summary: info.message.split('\n')[0],
+            originalPath: opts.path,
+            originalLine: k + 1,
+          }
+        }),
+      }
+    },
+    async compare(opts) {
+      const commits = build(id)
+      const head = resolve(id, opts.head)
+      const base = resolve(id, opts.base)
+      const fromHead = commits.indexOf(head)
+      const fromBase = commits.indexOf(base)
+      const split = commits[Math.min(fromHead, fromBase)]
+      const paths = [
+        ...new Set([...Object.keys(split.tree), ...Object.keys(head.tree)]),
+      ]
+        .sort()
+        .filter(
+          (p) =>
+            split.tree[p] !== head.tree[p] &&
+            (!opts.paths?.length ||
+              opts.paths.some((q) => p === q || p.startsWith(`${q}/`))),
+        )
+      return {
+        sha: head.info.sha,
+        baseSha: base.info.sha,
+        mergeBaseSha: split.info.sha,
+        files: paths.map((p) => fileDiff(p, split.tree[p], head.tree[p])),
       }
     },
   }

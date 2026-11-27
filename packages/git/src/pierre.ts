@@ -1,7 +1,11 @@
 import { NotFoundError, Pierre } from '@pierre/sdk'
 import { GitError } from './types'
-import type { Commit, FileDiff as WireDiff } from '@pierre/sdk'
-import type { CommitInfo, FileDiff, GitRepo } from './types'
+import type {
+  Commit,
+  BlameLine as WireBlame,
+  FileDiff as WireDiff,
+} from '@pierre/sdk'
+import type { BlameLine, CommitInfo, FileDiff, GitRepo } from './types'
 
 const commitOf = (c: Commit): CommitInfo => ({
   sha: c.sha,
@@ -23,6 +27,17 @@ const diffOf = (f: WireDiff): FileDiff => ({
   additions: f.additions,
   deletions: f.deletions,
   raw: f.raw,
+})
+
+const blameOf = (l: WireBlame): BlameLine => ({
+  line: l.line_number,
+  sha: l.commit_sha,
+  authorName: l.author_name,
+  authorEmail: l.author_email,
+  date: new Date(l.author_time),
+  summary: l.summary,
+  originalPath: l.original_path,
+  originalLine: l.original_line_number,
 })
 
 export class GitNotConfigured extends Error {
@@ -130,6 +145,35 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
         return {
           sha: d.sha,
           ...(base ? { baseSha: base } : {}),
+          files: d.files.map(diffOf),
+        }
+      }),
+    blame: (opts) =>
+      wrap(async () => {
+        const b = await pierre.repos.blame.get({
+          repo_name: storeId,
+          path: opts.path,
+          ...(opts.ref ? { ref: opts.ref } : {}),
+        })
+        return {
+          ref: b.ref,
+          sha: b.commit_sha,
+          path: b.path,
+          lines: b.lines.map(blameOf),
+        }
+      }),
+    compare: (opts) =>
+      wrap(async () => {
+        const d = await pierre.repos.diff.get({
+          repo_name: storeId,
+          ref: opts.head,
+          base_ref: opts.base,
+          ...(opts.paths?.length ? { path: opts.paths } : {}),
+        })
+        return {
+          sha: d.sha,
+          ...(d.base_sha ? { baseSha: d.base_sha } : {}),
+          ...(d.merge_base_sha ? { mergeBaseSha: d.merge_base_sha } : {}),
           files: d.files.map(diffOf),
         }
       }),

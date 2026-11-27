@@ -13542,6 +13542,149 @@
         "x-cb-secret-request": false
       }
     },
+    "/repos/{owner}/{repo}/git/blame": {
+      "get": {
+        "operationId": "git.blame",
+        "summary": "Who last wrote each line of a file",
+        "description": "Per line, from the store's own blame (it follows the file across renames): the commit that last wrote it, its author and date. `from` and `to` pick a range of lines; at most 5000 come back and `has_more` says when more follow. To go from a line to the change and agent run behind it, use `repos.provenance`. With a full commit id as `ref` the answer never changes and is cacheable for good.",
+        "tags": [
+          "git"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "description": "A file, without a leading slash"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A branch, or a commit id. Default: the default branch",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "First line, 1-based. Default: 1",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Last line, inclusive. Default: the end of the file",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitBlame"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "heavy",
+        "x-cb-cost": 2,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
     "/repos/{owner}/{repo}/git/blob": {
       "get": {
         "operationId": "git.blob",
@@ -13885,8 +14028,8 @@
     "/repos/{owner}/{repo}/git/commits": {
       "get": {
         "operationId": "git.commits",
-        "summary": "The history of the default branch, newest first",
-        "description": "Follows a cursor through the newest 1,000 commits.",
+        "summary": "The history of a branch, newest first",
+        "description": "Follows a cursor through the newest 1,000 commits of `ref` (default: the default branch). With `path`, only the commits that changed that file or directory.",
         "tags": [
           "git"
         ],
@@ -13928,6 +14071,27 @@
             "schema": {
               "description": "`next_cursor` from the previous page, exactly as returned",
               "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A branch, or a commit id. Default: the default branch",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Only commits that changed this file or directory, without a leading slash",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
             }
           }
         ],
@@ -14015,6 +14179,139 @@
           "backend_unavailable",
           "concurrency_limited",
           "cursor_mismatch",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "rate_limited",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/git/compare": {
+      "get": {
+        "operationId": "git.compare",
+        "summary": "What a branch or commit changed since it split from another",
+        "description": "As `git diff base...head`: the changes on `head` after it split from `base`, from their merge base. `merge_base` names that commit, so the answer doubles as \"how are these two related\": it equals `head` when `head` is already in `base`. Per file the unified diff is cut at 64 KB (`truncated` says so). With full commit ids on both sides the answer never changes and is cacheable for good.",
+        "tags": [
+          "git"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          },
+          {
+            "name": "base",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "A branch or a commit id"
+            }
+          },
+          {
+            "name": "head",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "A branch or a commit id"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Only this file or directory, without a leading slash",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitCompare"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified. Costs no rate-limit units."
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": [
+              "repo:read"
+            ]
+          }
+        ],
+        "x-cb-safety": "read",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "heavy",
+        "x-cb-cost": 2,
+        "x-cb-scopes": [
+          "repo:read"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
           "insufficient_scope",
           "internal",
           "invalid_request",
@@ -19835,6 +20132,13 @@
                                 "any_reviewer"
                               ]
                             },
+                            "verify": {
+                              "type": "string",
+                              "enum": [
+                                "before",
+                                "after"
+                              ]
+                            },
                             "steps": {
                               "maxItems": 20,
                               "type": "array",
@@ -20729,7 +21033,7 @@
       "get": {
         "operationId": "repos.provenance",
         "summary": "Where a line of code came from",
-        "description": "Follows a line to the conversation that produced it: the commit that wrote it (by blame, up to 200 commits back), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With `change`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.",
+        "description": "Follows a line to the conversation that produced it: the commit that wrote it (by the store's blame), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With `change`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.",
         "tags": [
           "git",
           "runs"
@@ -32853,6 +33157,54 @@
           },
           "landing": {
             "$ref": "#/components/schemas/Landing"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "checks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "pass",
+                            "fail",
+                            "pending"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "state"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "state",
+                  "checks"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `landing.verify: after`, whether the `wait_checks` hold on this change: `failed` is the signal to fix forward or revert. Null otherwise"
           }
         },
         "required": [
@@ -32863,7 +33215,8 @@
           "landable",
           "blockers",
           "requirements",
-          "landing"
+          "landing",
+          "verification"
         ]
       },
       "Requirement": {
@@ -32940,6 +33293,14 @@
             ],
             "description": "Who may settle a review thread"
           },
+          "verify": {
+            "type": "string",
+            "enum": [
+              "before",
+              "after"
+            ],
+            "description": "`before`: the `wait_checks` must pass before a change lands. `after`: it lands when its rules are met, and the `wait_checks` are verified on what landed (see `verification` on the landability)"
+          },
           "steps": {
             "type": "array",
             "items": {
@@ -32956,6 +33317,7 @@
           "strategy",
           "fresh_approvals",
           "resolve",
+          "verify",
           "steps"
         ]
       },
@@ -34055,6 +34417,92 @@
           "created_at"
         ]
       },
+      "GitBlame": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "blame"
+          },
+          "path": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string",
+            "description": "The commit the file was read at"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "1-based, in the file at `ref`"
+                },
+                "sha": {
+                  "type": "string",
+                  "description": "The commit that last wrote the line"
+                },
+                "author": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "email"
+                  ]
+                },
+                "date": {
+                  "type": "string",
+                  "description": "RFC 3339 time, UTC"
+                },
+                "summary": {
+                  "type": "string",
+                  "description": "The first line of that commit message"
+                },
+                "original_path": {
+                  "type": "string",
+                  "description": "Where the line was first written, if the file moved"
+                },
+                "original_line": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "line",
+                "sha",
+                "author",
+                "date",
+                "summary",
+                "original_path",
+                "original_line"
+              ]
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "True when more lines follow `to` and the answer was cut"
+          }
+        },
+        "required": [
+          "object",
+          "path",
+          "ref",
+          "lines",
+          "has_more"
+        ]
+      },
       "GitBlob": {
         "type": "object",
         "properties": {
@@ -34295,6 +34743,107 @@
           "actor",
           "change",
           "checks"
+        ]
+      },
+      "GitCompare": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "comparison"
+          },
+          "base": {
+            "type": "string",
+            "description": "The commit `base` was resolved to"
+          },
+          "head": {
+            "type": "string",
+            "description": "The commit `head` was resolved to"
+          },
+          "merge_base": {
+            "description": "The commit where the two histories split. The diff starts here, so it holds only what `head` changed since. Equal to `head` when `head` is already in `base`",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "additions": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deletions": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "files",
+              "additions",
+              "deletions"
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "added",
+                    "modified",
+                    "deleted"
+                  ]
+                },
+                "additions": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deletions": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "patch": {
+                  "type": "string",
+                  "description": "Unified diff hunks. Cut at 64 KB; see `truncated`"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "path",
+                "state",
+                "additions",
+                "deletions",
+                "patch",
+                "truncated"
+              ]
+            }
+          }
+        },
+        "required": [
+          "object",
+          "base",
+          "head",
+          "merge_base",
+          "stats",
+          "files"
         ]
       },
       "GitTree": {

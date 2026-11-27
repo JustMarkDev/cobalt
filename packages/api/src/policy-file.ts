@@ -44,6 +44,14 @@ export type Landing = {
   strategy: 'squash' | 'rebase' | 'merge'
   fresh_approvals: boolean
   resolve: 'author' | 'any_reviewer'
+  /**
+   * `before` (the default): a change lands once its `wait_checks` pass, so
+   * what is on the base has been checked. `after`: it lands when its rules
+   * are met and the `wait_checks` are verified on what landed. For repositories
+   * where changes land faster than a check can run, and a failure is fixed
+   * forward instead of holding everything behind it.
+   */
+  verify: 'before' | 'after'
   steps: Array<LandingStep>
 }
 
@@ -51,6 +59,7 @@ export const DEFAULT_LANDING: Landing = {
   strategy: 'squash',
   fresh_approvals: false,
   resolve: 'any_reviewer',
+  verify: 'before',
   steps: [],
 }
 
@@ -366,7 +375,9 @@ function readLanding(
 ): Landing {
   const out: Landing = { ...DEFAULT_LANDING, steps: [] }
   for (const k of Object.keys(l))
-    if (!['strategy', 'fresh_approvals', 'resolve', 'steps'].includes(k))
+    if (
+      !['strategy', 'fresh_approvals', 'resolve', 'verify', 'steps'].includes(k)
+    )
       err(k, `Unknown key ${k}.`)
   if (l.strategy !== undefined) {
     if (!['squash', 'rebase', 'merge'].includes(l.strategy as string))
@@ -382,6 +393,11 @@ function readLanding(
     if (!['author', 'any_reviewer'].includes(l.resolve as string))
       err('resolve', 'resolve is author or any_reviewer.')
     else out.resolve = l.resolve as Landing['resolve']
+  }
+  if (l.verify !== undefined) {
+    if (!['before', 'after'].includes(l.verify as string))
+      err('verify', 'verify is before or after.')
+    else out.verify = l.verify as Landing['verify']
   }
   if (l.steps !== undefined && l.steps !== null) {
     if (!Array.isArray(l.steps)) err('steps', 'steps is a list.')
@@ -651,6 +667,8 @@ export function landingWaits(
   }>,
   head: { tree: string },
 ) {
+  // Under `verify: after` the checks are not a gate: see `landingVerification`.
+  if (landing.verify === 'after') return []
   const out = []
   for (const step of landing.steps) {
     if (!('wait_checks' in step)) continue
@@ -677,4 +695,51 @@ export function landingWaits(
     }
   }
   return out
+}
+
+export type Verification = {
+  state: 'pending' | 'passed' | 'failed'
+  checks: Array<{ name: string; state: 'pass' | 'fail' | 'pending' }>
+}
+
+/**
+ * Where a change stands on the checks it is verified by after landing: each
+ * `wait_checks` name, on the newest patch set's tree. `null` when the
+ * repository verifies before landing, or names no checks.
+ */
+export function landingVerification(
+  landing: Landing,
+  checks: ReadonlyArray<{
+    key?: string
+    name: string
+    tree: string
+    state: 'pass' | 'fail' | 'pending'
+    updated: number
+  }>,
+  head: { tree: string },
+): Verification | null {
+  if (landing.verify !== 'after') return null
+  const names = [
+    ...new Set(
+      landing.steps.flatMap((s) => ('wait_checks' in s ? s.wait_checks : [])),
+    ),
+  ]
+  if (!names.length) return null
+  const results = names.map((name) => {
+    const run = checks
+      .filter(
+        (k) => (k.key === name || k.name === name) && k.tree === head.tree,
+      )
+      .sort((a, b) => b.updated - a.updated)
+      .at(0)
+    return { name, state: run?.state ?? ('pending' as const) }
+  })
+  return {
+    state: results.some((r) => r.state === 'fail')
+      ? 'failed'
+      : results.every((r) => r.state === 'pass')
+        ? 'passed'
+        : 'pending',
+    checks: results,
+  }
 }

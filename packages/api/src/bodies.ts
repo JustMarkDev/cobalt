@@ -242,6 +242,7 @@ export const bodies = {
             strategy: z.enum(['squash', 'rebase', 'merge']).optional(),
             fresh_approvals: z.boolean().optional(),
             resolve: z.enum(['author', 'any_reviewer']).optional(),
+            verify: z.enum(['before', 'after']).optional(),
             steps: z
               .array(
                 z.union([

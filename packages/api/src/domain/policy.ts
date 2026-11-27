@@ -5,6 +5,7 @@ import {
   DEFAULT_LANDING,
   POLICY_FILE,
   editPolicy,
+  landingVerification,
   landingWaits,
   lineStats,
   parsePolicy,
@@ -600,6 +601,11 @@ export abstract class DomainPolicy extends DomainPipelines {
       blockers,
       requirements,
       landing: repo.landing ?? DEFAULT_LANDING,
+      verification: landingVerification(
+        repo.landing ?? DEFAULT_LANDING,
+        c.checks,
+        head,
+      ),
     }
   }
 

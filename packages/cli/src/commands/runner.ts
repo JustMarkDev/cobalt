@@ -185,7 +185,29 @@ async function start(
   }
 }
 
-async function checkout(
+const CHECKOUT_PARALLEL = 16
+
+/** Run `work` over `items`, at most `limit` at a time; the first failure stops it. */
+export async function inParallel<T>(
+  items: ReadonlyArray<T>,
+  limit: number,
+  work: (item: T) => Promise<void>,
+) {
+  let next = 0
+  const lane = async () => {
+    while (next < items.length) await work(items[next++])
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => lane()),
+  )
+}
+
+/**
+ * Write the files of one commit into `dir`. The commit id is fixed, so every
+ * read is of something that never changes, and the files are fetched in
+ * parallel: a checkout is as slow as its slowest file, not the sum of them.
+ */
+export async function checkout(
   api: ApiClient,
   repo: string,
   sha: string,
@@ -196,22 +218,25 @@ async function checkout(
       query: { ref: sha, recursive: 'true' },
     })
   ).json as { entries: Array<{ path: string; type: string }> }
-  for (const e of tree.entries) {
-    if (e.type !== 'blob') continue
-    const res = await api.call('GET', `/repos/${repo}/git/blob`, {
-      query: { ref: sha, path: e.path },
-    })
-    const blob = res.json as { content: string; encoding: string } | null
-    if (!blob) continue
-    const path = join(dir, e.path)
-    mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(
-      path,
-      blob.encoding === 'base64'
-        ? Buffer.from(blob.content, 'base64')
-        : blob.content,
-    )
-  }
+  await inParallel(
+    tree.entries.filter((e) => e.type === 'blob'),
+    CHECKOUT_PARALLEL,
+    async (e) => {
+      const res = await api.call('GET', `/repos/${repo}/git/blob`, {
+        query: { ref: sha, path: e.path },
+      })
+      const blob = res.json as { content: string; encoding: string } | null
+      if (!blob) return
+      const path = join(dir, e.path)
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(
+        path,
+        blob.encoding === 'base64'
+          ? Buffer.from(blob.content, 'base64')
+          : blob.content,
+      )
+    },
+  )
 }
 
 async function stepsToRun(api: ApiClient, repo: string, job: Job) {

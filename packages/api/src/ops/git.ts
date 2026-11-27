@@ -4,7 +4,6 @@ import { Domain, Raw, defineOp, reply } from '../registry'
 import * as S from '../schemas'
 import { apiError } from '../problem'
 import { afterOf, fp, listOf, pageShape, repoParams } from './common'
-import { mapLines, splitLines } from '../lines'
 import type { GitCommit, GitData } from '../git'
 import { branchHidden, pathHidden } from '../access-rules'
 import type { DomainPort } from '../domain'
@@ -306,27 +305,51 @@ export const gitRaw = defineOp({
 export const gitCommits = defineOp({
   ...base,
   id: 'git.commits',
-  summary: 'The history of the default branch, newest first',
-  description: 'Follows a cursor through the newest 1,000 commits.',
+  summary: 'The history of a branch, newest first',
+  description:
+    'Follows a cursor through the newest 1,000 commits of `ref` (default: the default branch). With `path`, only the commits that changed that file or directory.',
   method: 'GET',
   path: '/repos/{owner}/{repo}/git/commits',
   params: repoParams,
-  query: z.strictObject({ ...pageShape }),
+  query: z.strictObject({
+    ...pageShape,
+    ref: refQuery,
+    path: z
+      .string()
+      .min(1)
+      .max(1000)
+      .optional()
+      .describe(
+        'Only commits that changed this file or directory, without a leading slash',
+      ),
+  }),
   response: S.listOf(S.GitCommit),
   errors: ['not_found', 'moved', 'cursor_mismatch'],
   handler: (ctx) =>
     Effect.gen(function* () {
       const { run } = yield* Domain
-      const f = fp('git.commits', ctx.params.owner, ctx.params.repo)
+      const path = ctx.query.path?.replace(/^\/+|\/+$/g, '')
+      const f = fp(
+        'git.commits',
+        ctx.params.owner,
+        ctx.params.repo,
+        ctx.query.ref,
+        path,
+      )
       const after = afterOf(ctx.query.cursor, f)
       const page = yield* run(async (d) => {
-        const full = await d.repoAccess(
+        const { full, hides } = await readable(
+          d,
           ctx.params.owner,
           ctx.params.repo,
           ctx.principal,
-          'read',
+          ctx.query.ref,
         )
-        const all = await d.svc.git.commits(full, 1000)
+        if (path && hides(path)) throw apiError('not_found', `No file ${path}.`)
+        const all = await d.svc.git.commits(full, 1000, {
+          ref: ctx.query.ref,
+          path,
+        })
         let start = 0
         if (after) {
           const at = all.findIndex((c) => c.sha === after.id)
@@ -422,29 +445,11 @@ export const gitDiff = defineOp({
           ctx.principal,
         )
         const diff = await d.svc.git.diff(full, ctx.params.sha)
-        const files = diff.files
-          .filter((f) => !pathHidden(hidden, f.path))
-          .map((f) => ({
-            path: f.path,
-            state: f.state,
-            additions: f.additions,
-            deletions: f.deletions,
-            patch:
-              f.patch.length > PATCH_MAX
-                ? f.patch.slice(0, PATCH_MAX)
-                : f.patch,
-            truncated: f.patch.length > PATCH_MAX,
-          }))
         return {
           object: 'commit_diff' as const,
           sha: diff.sha,
           base_sha: diff.base,
-          stats: {
-            files: files.length,
-            additions: files.reduce((n, f) => n + f.additions, 0),
-            deletions: files.reduce((n, f) => n + f.deletions, 0),
-          },
-          files,
+          ...cut(diff.files, (p) => pathHidden(hidden, p)),
         }
       })
       return reply(out, {
@@ -457,7 +462,179 @@ export const gitDiff = defineOp({
     }),
 })
 
-const BLAME_DEPTH = 200
+const cut = (
+  files: Array<{
+    path: string
+    state: 'added' | 'modified' | 'deleted'
+    additions: number
+    deletions: number
+    patch: string
+  }>,
+  hides: (path: string) => boolean,
+) => {
+  const shown = files
+    .filter((f) => !hides(f.path))
+    .map((f) => ({
+      path: f.path,
+      state: f.state,
+      additions: f.additions,
+      deletions: f.deletions,
+      patch: f.patch.length > PATCH_MAX ? f.patch.slice(0, PATCH_MAX) : f.patch,
+      truncated: f.patch.length > PATCH_MAX,
+    }))
+  return {
+    stats: {
+      files: shown.length,
+      additions: shown.reduce((n, f) => n + f.additions, 0),
+      deletions: shown.reduce((n, f) => n + f.deletions, 0),
+    },
+    files: shown,
+  }
+}
+
+export const gitCompare = defineOp({
+  ...base,
+  id: 'git.compare',
+  summary: 'What a branch or commit changed since it split from another',
+  description: `As \`git diff base...head\`: the changes on \`head\` after it split from \`base\`, from their merge base. \`merge_base\` names that commit, so the answer doubles as "how are these two related": it equals \`head\` when \`head\` is already in \`base\`. Per file the unified diff is cut at ${PATCH_MAX / 1024} KB (\`truncated\` says so). With full commit ids on both sides the answer never changes and is cacheable for good.`,
+  method: 'GET',
+  path: '/repos/{owner}/{repo}/git/compare',
+  params: repoParams,
+  query: z.strictObject({
+    base: z.string().min(1).max(200).describe('A branch or a commit id'),
+    head: z.string().min(1).max(200).describe('A branch or a commit id'),
+    path: z
+      .string()
+      .min(1)
+      .max(1000)
+      .optional()
+      .describe('Only this file or directory, without a leading slash'),
+  }),
+  pool: 'heavy',
+  cost: 2,
+  response: S.GitCompare,
+  errors: ['not_found', 'moved'],
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      const q = ctx.query
+      const out = yield* run(async (d) => {
+        const { owner, repo } = ctx.params
+        await readable(d, owner, repo, ctx.principal, q.base)
+        const { full, hides } = await readable(
+          d,
+          owner,
+          repo,
+          ctx.principal,
+          q.head,
+        )
+        const path = q.path?.replace(/^\/+|\/+$/g, '')
+        const c = await d.svc.git.compare(full, q.base, q.head, path)
+        return {
+          object: 'comparison' as const,
+          base: c.base ?? q.base,
+          head: c.sha,
+          merge_base: c.mergeBase,
+          ...cut(c.files, hides),
+        }
+      })
+      return reply(out, {
+        headers: {
+          'cache-control':
+            isFullSha(q.base) && isFullSha(q.head)
+              ? immutable()
+              : 'private, no-cache',
+        },
+      })
+    }),
+})
+
+const BLAME_MAX = 5000
+
+export const gitBlame = defineOp({
+  ...base,
+  id: 'git.blame',
+  summary: 'Who last wrote each line of a file',
+  description: `Per line, from the store's own blame (it follows the file across renames): the commit that last wrote it, its author and date. \`from\` and \`to\` pick a range of lines; at most ${BLAME_MAX} come back and \`has_more\` says when more follow. To go from a line to the change and agent run behind it, use \`repos.provenance\`. With a full commit id as \`ref\` the answer never changes and is cacheable for good.`,
+  method: 'GET',
+  path: '/repos/{owner}/{repo}/git/blame',
+  params: repoParams,
+  query: z.strictObject({
+    path: z
+      .string()
+      .min(1)
+      .max(1000)
+      .describe('A file, without a leading slash'),
+    ref: refQuery,
+    from: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('First line, 1-based. Default: 1'),
+    to: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('Last line, inclusive. Default: the end of the file'),
+  }),
+  pool: 'heavy',
+  cost: 2,
+  response: S.GitBlame,
+  errors: ['not_found', 'moved', 'invalid_request'],
+  handler: (ctx) =>
+    Effect.gen(function* () {
+      const { run } = yield* Domain
+      const q = ctx.query
+      const out = yield* run(async (d) => {
+        const path = q.path.replace(/^\/+/, '')
+        const { full, hides } = await readable(
+          d,
+          ctx.params.owner,
+          ctx.params.repo,
+          ctx.principal,
+          q.ref,
+        )
+        if (hides(path)) throw apiError('not_found', `No file ${path}.`)
+        const b = await d.svc.git.blame(full, path, q.ref)
+        const from = q.from ?? 1
+        if (q.to !== undefined && q.to < from)
+          throw apiError('invalid_request', '`to` is before `from`.', {
+            errors: [
+              {
+                pointer: '/query/to',
+                code: 'out_of_range',
+                message: 'Give a line at or after `from`.',
+              },
+            ],
+          })
+        const wanted = b.lines.filter(
+          (l) => l.line >= from && (q.to === undefined || l.line <= q.to),
+        )
+        return {
+          object: 'blame' as const,
+          path,
+          ref: b.ref,
+          lines: wanted.slice(0, BLAME_MAX).map((l) => ({
+            line: l.line,
+            sha: l.sha,
+            author: l.author,
+            date: l.date,
+            summary: l.summary,
+            original_path: l.originalPath,
+            original_line: l.originalLine,
+          })),
+          has_more: wanted.length > BLAME_MAX,
+        }
+      })
+      return reply(out, {
+        headers: {
+          'cache-control': isFullSha(q.ref) ? immutable() : 'private, no-cache',
+        },
+      })
+    }),
+})
 
 async function blame(
   git: GitData,
@@ -466,41 +643,23 @@ async function blame(
   line: number,
   ref: string | undefined,
 ): Promise<{ at: string; commit: GitCommit }> {
-  const at = (await git.files(full, ref)).ref
-  let sha = at
-  let text = await git.blob(full, path, sha)
-  if (!text)
-    throw apiError('not_found', `No file ${path} at ${sha.slice(0, 7)}.`)
-  const decode = (b: Uint8Array) => splitLines(new TextDecoder().decode(b))
-  let lines = decode(text)
-  if (line > lines.length)
+  const b = await git.blame(full, path, ref)
+  const hit = b.lines.find((l) => l.line === line)
+  if (!hit)
     throw apiError(
       'invalid_request',
-      `${path} has ${lines.length} lines at ${sha.slice(0, 7)}.`,
+      `${path} has ${b.lines.length} lines at ${b.ref.slice(0, 7)}.`,
       {
         errors: [
           {
             pointer: '/query/line',
             code: 'out_of_range',
-            message: `Lines run from 1 to ${lines.length}.`,
+            message: `Lines run from 1 to ${b.lines.length}.`,
           },
         ],
       },
     )
-  let idx = line - 1
-  for (let depth = 0; ; depth++) {
-    const c = await git.commit(full, sha)
-    const parent = c.parents[0] as string | undefined
-    if (!parent || depth >= BLAME_DEPTH) return { at, commit: c }
-    text = await git.blob(full, path, parent).catch(() => null)
-    if (!text) return { at, commit: c }
-    const before = decode(text)
-    const from = mapLines(before, lines).indexOf(idx)
-    if (from < 0) return { at, commit: c }
-    idx = from
-    lines = before
-    sha = parent
-  }
+  return { at: b.ref, commit: await git.commit(full, hit.sha) }
 }
 
 export const provenance = defineOp({
@@ -508,7 +667,7 @@ export const provenance = defineOp({
   tags: ['git', 'runs'],
   id: 'repos.provenance',
   summary: 'Where a line of code came from',
-  description: `Follows a line to the conversation that produced it: the commit that wrote it (by blame, up to ${BLAME_DEPTH} commits back), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With \`change\`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.`,
+  description: `Follows a line to the conversation that produced it: the commit that wrote it (by the store's blame), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With \`change\`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.`,
   method: 'GET',
   path: '/repos/{owner}/{repo}/provenance',
   params: repoParams,
@@ -596,5 +755,7 @@ export const gitOps = [
   gitCommits,
   gitCommit,
   gitDiff,
+  gitCompare,
+  gitBlame,
   provenance,
 ]
