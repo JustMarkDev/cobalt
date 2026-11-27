@@ -2,12 +2,19 @@ import { v } from 'convex/values'
 import { tally } from '../lib/stats'
 import { internalMutation } from '../_generated/server'
 import type { MutationCtx } from '../_generated/server'
+import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
 import { system } from '../lib/actor'
 import { out } from '../lib/errors'
 import { markStale } from '../lib/usage'
 import { emit } from '../lib/events'
-import { branchOwner, hydrate, saveChange } from '../lib/changes'
+import {
+  branchOwner,
+  fileStatsValidator,
+  filesOfStats,
+  hydrate,
+  saveChange,
+} from '../lib/changes'
 import { actorFor, counters } from '../lib/events'
 import { pushReceipt } from '@cobaltforge/api/trailers'
 import { contributionRefusal } from '@cobaltforge/api/via'
@@ -26,6 +33,8 @@ const pushArgs = {
   message: v.optional(v.string()),
   /** Who pushed, when the push came through cobalt; else Code Storage. */
   by: v.optional(v.string()),
+  /** What the pushed branch changes against its change's base, from git. */
+  stats: v.optional(fileStatsValidator),
 }
 
 type PushArgs = {
@@ -36,9 +45,13 @@ type PushArgs = {
   pushedAt: number
   message?: string
   by?: string
+  stats?: Array<{ path: string; add: number; del: number }>
 }
 
-async function record(ctx: MutationCtx, { message, by, ...a }: PushArgs) {
+async function record(
+  ctx: MutationCtx,
+  { message, by, stats, ...a }: PushArgs,
+) {
   const seen = await ctx.db
     .query('pushes')
     .withIndex('by_storeId_and_ref_and_after', (q) =>
@@ -82,7 +95,7 @@ async function record(ctx: MutationCtx, { message, by, ...a }: PushArgs) {
           note: 'Pushed',
           author: c.author,
           created: a.pushedAt,
-          files: prev.files,
+          files: stats ? filesOfStats(stats, a.after) : prev.files,
           kind: 'update',
           via,
         })
@@ -140,5 +153,21 @@ export const recordPushFromApi = mutation({
   handler: async (ctx, a) => {
     await system(ctx)
     return out(await record(ctx, a))
+  },
+})
+
+/** The base of the open change on a branch, so the API can diff a push against it. */
+export const baseOfBranch = query({
+  args: { storeId: v.string(), branch: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
+      .unique()
+    if (!repo || a.branch === repo.defaultBranch) return out(null)
+    const doc = await branchOwner(ctx, repo, a.branch)
+    return out(doc ? (await hydrate(ctx, doc)).rec.base : null)
   },
 })

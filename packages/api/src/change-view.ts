@@ -143,7 +143,11 @@ export function evaluateRules(
   const objections = reviews.filter(
     (r) => r.state === 'changes' && r.actor.handle !== c.author.handle,
   )
-  const run = latestRun(c, head, (k) => k.name === 'ci/test')
+  const run = latestRun(
+    c,
+    head,
+    (k) => k.key === 'ci/test' || k.name === 'ci/test',
+  )
   const remote = run ? null : providerChecks(c, head)
   const ciState =
     assume.checks?.['ci/test'] ?? run?.state ?? remote?.state ?? 'pending'

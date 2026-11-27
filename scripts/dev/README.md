@@ -15,11 +15,12 @@ Setup, once: `.env.local` and `apps/web/.env.local` as in the main README
 `CB_SECRETS_KEY` of 32 bytes, base64 or hex; `CB_TOKEN_KEYS` to keep users'
 GitHub tokens). Then `bun run dev`.
 
-| Command                                                       | What it does                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun scripts/dev/token.ts mark`                               | An API token for `mark` on the dev deployment (for curl, `cb`, MCP).                                                                                                                                                                                                 |
-| `bun scripts/dev/check-import.ts mark/music-companion --sync` | Reads the repository here and on GitHub and lists every difference: about, pull requests (state, branch, head, files, landability), issues (state, comments, labels, close reason), releases, default branch head, contributors. Read only. Exits 1 on a difference. |
-| `bun scripts/dev/cli-smoke.ts`                                | Runs every `cb` command against the local app: on a new scratch repository (create, push, change, issue with screenshots, env secrets, runner, MCP) and read only on `--read owner/name`.                                                                            |
+| Command                                                       | What it does                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun scripts/dev/token.ts mark`                               | An API token for `mark` on the dev deployment (for curl, `cb`, MCP).                                                                                                                                                                                                  |
+| `bun scripts/dev/check-import.ts mark/music-companion --sync` | Reads the repository here and on GitHub and lists every difference: about, pull requests (state, branch, head, files, landability), issues (state, comments, labels, close reason), releases, default branch head, contributors. Read only. Exits 1 on a difference.  |
+| `bun scripts/dev/cli-smoke.ts`                                | Runs every `cb` command against the local app: on a scratch repository it deletes at the end (`--keep` leaves it), and read only on `--read owner/name`.                                                                                                              |
+| `bun scripts/dev/seed-native.ts --fresh`                      | Builds `mark/cobalt-native-lab`, a repository only on cobalt (no GitHub link): changes with patch sets, a stack, findings, a guide, checks, a landed change that fires a trigger, policies, an access rule, secrets, receipts, a release, runners and a waiting step. |
 
 Pipelines: register a runner with labels that cover the workflows' `runs-on`
 (`cb runner register mac --labels ubuntu-latest,self-hosted`), then
@@ -29,3 +30,8 @@ Pipelines: register a runner with labels that cover the workflows' `runs-on`
 What cannot happen locally: GitHub's and Code Storage's webhooks do not reach
 localhost. Pushes through cobalt count at once anyway; changes made on GitHub
 arrive with `--sync`, a `cb mirror sync`, or the scheduled pull.
+
+## The two test repositories
+
+- `mark/cobalt-e2e-playground`: linked to GitHub (`JustMarkDev/cobalt-e2e-playground`), for everything that syncs. The only repository that tests may write to on GitHub.
+- `mark/cobalt-native-lab`: only on cobalt, for what GitHub has no equivalent of. `seed-native.ts --fresh` rebuilds it. Production values wait for a confirmation: the script stops with the link; confirm it, then run it again or set them with `cb env set`.

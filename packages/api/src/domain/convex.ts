@@ -1,4 +1,6 @@
 import { handoffPlan, reviewPlan } from '../agent-runs'
+import { isTriggerFile } from '../trigger-file'
+import { POLICY_FILE } from '../policy-file'
 import type { Planned } from '../actions'
 import { LICENSE_FILES, languagesOf, licenseOf } from '../detect'
 import { isWorkflowFile, planPush, runOf } from '../actions'
@@ -795,7 +797,47 @@ export class ConvexDomain implements DomainPort {
         }
       }
     }
-    return this.m('changes:create', { owner, name, ...rest, dry: dry_run }, p)
+    // The branch's real head and files, read from git; the sample has none.
+    const real =
+      !body.sha && p ? await this.branchDiff(owner, name, p, body) : null
+    return this.m(
+      'changes:create',
+      {
+        owner,
+        name,
+        ...rest,
+        ...(real ? { sha: real.sha, stats: real.stats } : {}),
+        dry: dry_run,
+      },
+      p,
+    )
+  }
+
+  /** What `branch` changes against `base`, as git says: its head and files. */
+  private async branchDiff(
+    owner: string,
+    name: string,
+    p: Viewer,
+    body: { branch: string; base?: string },
+  ) {
+    try {
+      const full = await this.repoAccess(owner, name, p, 'write')
+      const base =
+        body.base ??
+        (
+          await this.q<{ default_branch: string }>(
+            'repos:get',
+            { owner, name, at: this.now() },
+            p,
+          )
+        ).default_branch
+      const sha = await this.svc.git.head?.(full, body.branch)
+      if (!sha) return null
+      const d = await this.svc.git.diff(full, sha, base)
+      return { sha, stats: statsOf(d.files) }
+    } catch {
+      return null
+    }
   }
   updateChange: Port['updateChange'] = (
     owner,
@@ -1622,7 +1664,12 @@ export class ConvexDomain implements DomainPort {
    * After a push to the default branch of a repository made here: its
    * languages and license, read from its files.
    */
-  async detectFacts(e: { repo: string; ref: string; after: string }) {
+  async detectFacts(e: {
+    repo: string
+    ref: string
+    after: string
+    by?: string
+  }) {
     if (/^0+$/.test(e.after) || !e.ref.startsWith('refs/heads/')) return
     const storeId = await this.storeIdOf(e.repo)
     if (!storeId) return
@@ -1645,6 +1692,34 @@ export class ConvexDomain implements DomainPort {
         ref: e.ref,
         languages: languagesOf(listed.paths.map((path) => ({ path }))),
         license: text ? licenseOf(text) : null,
+      },
+      'system',
+    )
+    // The policy and triggers the branch now has (applied on the default
+    // branch only; the mutation checks).
+    const read = (path: string) =>
+      this.svc.git
+        .blob(e.repo, path, e.after)
+        .then((b) => (b ? new TextDecoder().decode(b) : null))
+        .catch(() => null)
+    const triggerPaths = listed.paths.filter(isTriggerFile)
+    const [policy, ...triggers] = await Promise.all([
+      listed.paths.includes(POLICY_FILE) ? read(POLICY_FILE) : null,
+      ...triggerPaths.map(read),
+    ])
+    await run(
+      this.call,
+      'mutation',
+      'forge/sourceFiles:fromGit',
+      {
+        storeId,
+        ref: e.ref,
+        sha: e.after,
+        ...(e.by ? { by: e.by } : {}),
+        policy,
+        triggers: triggerPaths.flatMap((path, i) =>
+          typeof triggers[i] === 'string' ? [{ path, text: triggers[i] }] : [],
+        ),
       },
       'system',
     )
@@ -1774,6 +1849,53 @@ export class ConvexDomain implements DomainPort {
     )
   }
 
+  /**
+   * A landed change's code on its base branch: the change's branch merged in
+   * the store at the commit that was checked, with the repository's landing
+   * strategy, as whoever landed it. Then it counts as a push to the base, so
+   * the workflows it takes start. A repository linked to a host lands there.
+   */
+  async landInGit(e: { repo: string; number: number; by: string }) {
+    const [owner, name] = e.repo.split('/')
+    if (!this.svc.git.merge) return null
+    const link = await this.svc.providers?.store
+      .remoteOfRepo(e.repo)
+      .catch(() => null)
+    if (link) return null
+    const c = await this.q<{
+      number: number
+      title: string
+      branch: string
+      base: string
+      state: string
+      head: { sha: string }
+      policy?: { landing?: { strategy?: 'squash' | 'merge' | 'rebase' } }
+    }>(
+      'changes:get',
+      { owner, name, ref: String(e.number), expand: [], at: this.now() },
+      'system',
+    )
+    if (c.state !== 'landed') return null
+    const r = await this.svc.git.merge(e.repo, {
+      source: c.branch,
+      sha: c.head.sha,
+      target: c.base,
+      strategy: c.policy?.landing?.strategy ?? 'squash',
+      author: { name: e.by, email: `${e.by}@users.cobaltforge.dev` },
+      message: `${c.title} (#${c.number})\n\nLanded-by: ${e.by}`,
+    })
+    const storeId = await this.storeIdOf(e.repo)
+    if (storeId && r.before !== r.sha)
+      await this.recordPushes({ full: e.repo, storeId, by: e.by }, [
+        {
+          ref: `refs/heads/${c.base}`,
+          before: r.before ?? '0'.repeat(40),
+          after: r.sha,
+        },
+      ])
+    return r
+  }
+
   /** Pushes that went through the API's git endpoint, with their messages. */
   async recordPushes(
     at: { full: string; storeId: string; by?: string },
@@ -1787,6 +1909,26 @@ export class ConvexDomain implements DomainPort {
             .commit(at.full, u.after)
             .then((c) => c.message.slice(0, 65536))
             .catch(() => undefined)
+      // A push to a change's branch is its next patch set: its files, from git.
+      const branch = u.ref.startsWith('refs/heads/')
+        ? u.ref.slice('refs/heads/'.length)
+        : null
+      const base =
+        deleted || !branch
+          ? null
+          : await run<string | null>(
+              this.call,
+              'query',
+              'forge/pushes:baseOfBranch',
+              { storeId: at.storeId, branch },
+              'system',
+            ).catch(() => null)
+      const stats = base
+        ? await this.svc.git
+            .diff(at.full, u.after, base)
+            .then((d) => statsOf(d.files))
+            .catch(() => undefined)
+        : undefined
       await run(
         this.call,
         'mutation',
@@ -1799,6 +1941,7 @@ export class ConvexDomain implements DomainPort {
           pushedAt: this.now(),
           ...(at.by ? { by: at.by } : {}),
           ...(message === undefined ? {} : { message }),
+          ...(stats ? { stats } : {}),
         },
         'system',
       )
@@ -2777,3 +2920,12 @@ export class ConvexDomain implements DomainPort {
       dry,
     )
 }
+
+const statsOf = (
+  files: ReadonlyArray<{ path: string; additions: number; deletions: number }>,
+) =>
+  files.slice(0, 1000).map((f) => ({
+    path: f.path,
+    add: f.additions,
+    del: f.deletions,
+  }))

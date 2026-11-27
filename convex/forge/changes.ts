@@ -58,6 +58,8 @@ import type { Anchor } from '@cobaltforge/api/anchors'
 import { iso, repoUrl, urls } from '../lib/present'
 import {
   branchOwner,
+  fileStatsValidator,
+  filesOfStats,
   findChange,
   hydrate,
   insertChange,
@@ -581,6 +583,8 @@ export const create = mutation({
     addresses: v.optional(
       v.array(v.object({ comment: v.string(), note: v.optional(v.string()) })),
     ),
+    /** What the branch changes against its base, read from git by the API. */
+    stats: v.optional(fileStatsValidator),
     dry: v.optional(v.boolean()),
   },
   returns: v.string(),
@@ -588,6 +592,7 @@ export const create = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     assertMayContribute(repo, p, 'change')
+    const real = a.stats && a.sha ? filesOfStats(a.stats, a.sha) : undefined
     await assertMayTouch(ctx, repo, p, a.branch, [])
     const by = await actorFor(ctx, p.handle)
     const via = await viaOf(ctx)
@@ -607,6 +612,7 @@ export const create = mutation({
         sha,
         kind: 'update',
         note: 'Updated from branch',
+        ...(real ? { files: real } : {}),
         via,
         addresses: a.addresses,
       })
@@ -646,7 +652,8 @@ export const create = mutation({
           note: 'Initial version',
           author: by,
           created: at,
-          files: {
+          // Without git (the sample), a stand-in file.
+          files: real ?? {
             [`src/${a.branch.replace(/\W+/g, '_')}.rs`]: {
               hash: sha.slice(0, 6),
               add: 10,

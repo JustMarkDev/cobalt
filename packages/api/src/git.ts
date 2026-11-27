@@ -1,7 +1,7 @@
 import { getGitRepo } from '@cobaltforge/git'
 import type { GitStores, ProvisionOptions } from '@cobaltforge/git/stores'
 import { apiError } from './problem'
-import type { GitRepo } from '@cobaltforge/git'
+import type { GitRepo, MergeOptions } from '@cobaltforge/git'
 
 export type GitCommit = {
   sha: string
@@ -28,6 +28,13 @@ export interface GitData {
   blob: (repo: string, path: string, ref?: string) => Promise<Uint8Array | null>
   commits: (repo: string, limit: number) => Promise<Array<GitCommit>>
   commit: (repo: string, sha: string) => Promise<GitCommit>
+  /** The commit a branch points at, or null when it has none. */
+  head?: (repo: string, branch: string) => Promise<string | null>
+  /** Land a branch on another in the store. */
+  merge?: (
+    repo: string,
+    o: MergeOptions,
+  ) => Promise<{ sha: string; before: string | null }>
   diff: (
     repo: string,
     sha: string,
@@ -145,6 +152,23 @@ export class StoreGit implements GitData {
         commitOf,
       ),
     )
+  }
+
+  merge(repo: string, o: MergeOptions) {
+    return guarded(`Landing ${o.source}`, async () => {
+      const store = await this.repo(repo)
+      if (!store.merge) throw new Error('This git store cannot merge.')
+      return store.merge(o)
+    })
+  }
+
+  head(repo: string, branch: string) {
+    return guarded(`Branch ${branch}`, async () => {
+      const page = await (
+        await this.repo(repo)
+      ).listCommits({ branch, limit: 1 })
+      return page.commits[0]?.sha ?? null
+    })
   }
 
   commit(repo: string, sha: string) {

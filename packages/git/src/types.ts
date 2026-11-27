@@ -30,6 +30,16 @@ export type ListCommitsOptions = {
   path?: string
 }
 
+export type MergeOptions = {
+  /** The branch to merge from, at exactly this commit. */
+  source: string
+  sha: string
+  target: string
+  strategy: 'squash' | 'merge' | 'rebase'
+  author: { name: string; email: string }
+  message: string
+}
+
 export interface GitRepo {
   listFiles: (opts?: ListFilesOptions) => Promise<{
     ref: string
@@ -44,6 +54,10 @@ export interface GitRepo {
     nextCursor?: string
   }>
   getCommit: (opts: { sha: string }) => Promise<{ commit: CommitInfo }>
+  /** Land `source` on `target` in the store; the commit `target` now points at. */
+  merge?: (
+    opts: MergeOptions,
+  ) => Promise<{ sha: string; before: string | null }>
   /** Against the first parent, or with `base` from where `sha` and `base` split (`git diff base...sha`). */
   getCommitDiff: (opts: { sha: string; base?: string }) => Promise<{
     sha: string

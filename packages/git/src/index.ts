@@ -10,6 +10,7 @@ export type {
   GitRepo,
   ListCommitsOptions,
   ListFilesOptions,
+  MergeOptions,
 } from './types'
 export { GitNotConfigured } from './pierre'
 

@@ -90,6 +90,22 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
         return wrap(() => Promise.reject(e))
       }
     },
+    merge: (o) =>
+      wrap(async () => {
+        const r = await pierre.repos.merge({
+          repo_name: storeId,
+          source_ref: o.source,
+          expected_source_sha: o.sha,
+          target_branch: o.target,
+          // A rebase lands the change's commits on the target as they are,
+          // which is a fast-forward when the target has not moved.
+          strategy: o.strategy === 'merge' ? 'merge' : 'ff_prefer',
+          ...(o.strategy === 'squash' ? { squash: true } : {}),
+          author: o.author,
+          commit_message: o.message,
+        })
+        return { sha: r.commit_sha, before: r.target.old_sha || null }
+      }),
     listCommits: (opts) =>
       wrap(async () => {
         const page = await pierre.repos.commits.list({

@@ -123,6 +123,33 @@ export function createConvexApi(o: ConvexApiOptions) {
         .catch((err: unknown) =>
           console.error('[review] could not queue', e.repo, err),
         )
+    if (
+      e.type === 'change.landed' &&
+      e.repo &&
+      e.subject.number !== null &&
+      now() - Date.parse(e.created_at) < 10 * 60_000
+    )
+      void d
+        .landInGit({
+          repo: e.repo,
+          number: e.subject.number,
+          by: e.actor.handle,
+        })
+        .then((r) => {
+          if (r)
+            console.log(
+              '[land]',
+              JSON.stringify({ repo: e.repo, change: e.subject.number, ...r }),
+            )
+        })
+        .catch((err: unknown) =>
+          console.error(
+            '[land] could not merge',
+            e.repo,
+            e.subject.number,
+            err,
+          ),
+        )
     if (e.type !== 'repository.pushed' || !e.repo) return
     if (now() - Date.parse(e.created_at) > 10 * 60_000) return
     const data = e.data as { ref?: string; after?: string } | null
@@ -145,7 +172,12 @@ export function createConvexApi(o: ConvexApiOptions) {
         console.error('[pipelines] could not start workflows', e.repo, err),
       )
     void d
-      .detectFacts({ repo: e.repo, ref: data.ref, after: data.after })
+      .detectFacts({
+        repo: e.repo,
+        ref: data.ref,
+        after: data.after,
+        by: e.actor.handle,
+      })
       .catch((err: unknown) =>
         console.error(
           '[repos] could not read languages and license',

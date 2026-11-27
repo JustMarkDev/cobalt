@@ -902,11 +902,13 @@ export const itemsDue = query({
         q.gte('itemsDue', 0).lte('itemsDue', a.now),
       )
       .take(Math.min(a.max, 50))
-    return out(
+    // A link whose repository was deleted has nothing to sync.
+    const live = (
       await Promise.all(
         rs.filter((r) => r.state !== 'gone').map((r) => remote(ctx, r)),
-      ),
-    )
+      )
+    ).filter((r) => r.repo !== '')
+    return out(live)
   },
 })
 

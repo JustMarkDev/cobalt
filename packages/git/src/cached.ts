@@ -57,19 +57,31 @@ export function createReadCache(opts: ReadCacheOptions = {}) {
   ) =>
     read(keyOf(id, method, args), pinned, load).then((v) => structuredClone(v))
 
+  const invalidate = (id: string) => {
+    for (const [key, entry] of entries)
+      if (key.startsWith(`${id}\u0000`) && entry.expires !== null)
+        entries.delete(key)
+  }
   return {
     stats,
-    invalidate(id: string) {
-      for (const [key, entry] of entries)
-        if (key.startsWith(`${id}\u0000`) && entry.expires !== null)
-          entries.delete(key)
-    },
+    invalidate,
     purge(id: string) {
       for (const key of entries.keys())
         if (key.startsWith(`${id}\u0000`)) entries.delete(key)
     },
     wrap(id: string, repo: GitRepo): GitRepo {
+      const merge = repo.merge?.bind(repo)
       return {
+        // A merge moves a branch: what was read of it is stale.
+        ...(merge
+          ? {
+              merge: async (o) => {
+                const r = await merge(o)
+                invalidate(id)
+                return r
+              },
+            }
+          : {}),
         listFiles: (o) =>
           data(
             id,

@@ -4,7 +4,8 @@
 //   bun scripts/dev/cli-smoke.ts --as mark --read mark/music-companion
 //
 // Writes only to a new scratch repository (<you>/cb-smoke-<time>), which it
-// leaves behind for a look; --read names a repository it only reads.
+// deletes at the end (--keep leaves it for a look); --read names a
+// repository it only reads.
 // Exits 1 when a step does not do what it should.
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -293,7 +294,13 @@ console.log(
 )
 
 const bad = steps.filter((s) => !s.want.includes(s.code))
+const keep = process.argv.includes('--keep')
+if (!keep)
+  await fetch(`${API}/repos/${repo}?confirm=${encodeURIComponent(repo)}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${token}` },
+  })
 console.log(
-  `\n${steps.length - bad.length}/${steps.length} steps did what they should. Scratch repository: ${host}/${repo}`,
+  `\n${steps.length - bad.length}/${steps.length} steps did what they should. Scratch repository: ${keep ? `${host}/${repo}` : 'deleted'}`,
 )
 process.exit(bad.length ? 1 : 0)

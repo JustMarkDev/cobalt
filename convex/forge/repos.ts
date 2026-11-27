@@ -593,6 +593,12 @@ export const remove = mutation({
     const acct = await ctx.db.get('accounts', repo.ownerId)
     if (acct) await bumpAcl(ctx, acct)
     await dropRepoHooks(ctx, repo._id)
+    // Its link to another host goes too, or the sync keeps reading it.
+    for (const r of await ctx.db
+      .query('remoteRepos')
+      .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+      .take(10))
+      await ctx.db.delete('remoteRepos', r._id)
     for (const x of await ctx.db
       .query('repoExtras')
       .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
