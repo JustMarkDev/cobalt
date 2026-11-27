@@ -25,15 +25,29 @@ export class SecretBox {
 
   private constructor(private readonly master: CryptoKey) {}
 
+  /**
+   * The key from CB_SECRETS_KEY: 32 bytes, as base64 or hex (what `openssl
+   * rand -hex 32` prints). Anything else leaves the server without secret
+   * values, and says so in the log.
+   */
   static async fromBase64(text: string | undefined | null) {
     if (!text) return null
-    let raw: Uint8Array
-    try {
-      raw = b64url.decode(text.trim())
-    } catch {
+    const t = text.trim()
+    let raw: Uint8Array | null = null
+    if (/^[0-9a-f]{64}$/i.test(t))
+      raw = Uint8Array.from(t.match(/../g)!.map((h) => parseInt(h, 16)))
+    else
+      try {
+        raw = b64url.decode(t)
+      } catch {
+        raw = null
+      }
+    if (raw?.length !== 32) {
+      console.error(
+        `[secrets] CB_SECRETS_KEY is not 32 bytes as base64 or hex (${raw ? `${raw.length} bytes` : 'not base64'}): secret values are off.`,
+      )
       return null
     }
-    if (raw.length !== 32) return null
     return SecretBox.fromBytes(raw)
   }
 

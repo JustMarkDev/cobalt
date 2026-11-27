@@ -19,17 +19,33 @@ export async function readLandedTriggers(
   by: ActorRef,
 ) {
   const head = c.patchSets[c.patchSets.length - 1]
+  await readTriggerSource(ctx, repo, head, by)
+}
+
+/**
+ * Trigger files as a commit has them. With `complete`, `contents` holds every
+ * trigger file there is (the default branch, read from git), so the others go.
+ */
+export async function readTriggerSource(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  head: { sha: string; contents?: Record<string, string | null> },
+  by: ActorRef,
+  complete = false,
+) {
   const touched = Object.entries(head.contents ?? {}).filter(([path]) =>
     isTriggerFile(path),
   )
-  if (!touched.length) return
   const had = await loadTriggers(ctx, repo)
-  const files = had
+  if (!touched.length && !(complete && had)) return
+  const before = had
     ? (JSON.parse(had.sourceText) as Record<string, string>)
     : {}
+  const files: Record<string, string> = complete ? {} : { ...before }
   for (const [path, text] of touched)
     if (typeof text === 'string') files[path] = text
     else delete files[path]
+  if (had && JSON.stringify(files) === JSON.stringify(before)) return
   const { triggers, errors } = parseTriggerFiles(files)
   const fields = {
     sourceText: JSON.stringify(files),

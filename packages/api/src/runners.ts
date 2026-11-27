@@ -54,5 +54,25 @@ export function waitingForLabels(
   return ok ? null : [...runsOn]
 }
 
+/**
+ * Whether a job may start: every job it needs has succeeded. `blocked` when
+ * one of them failed or was skipped, so it never will.
+ */
+export function needsState(
+  job: { needs?: ReadonlyArray<string> },
+  jobs: ReadonlyArray<{ name: string; status: string }>,
+): 'ready' | 'waiting' | 'blocked' {
+  let waiting = false
+  for (const n of job.needs ?? []) {
+    const dep = jobs.find((j) => j.name === n)
+    if (!dep) continue
+    if (dep.status === 'success') continue
+    if (['failure', 'skipped', 'cancelled'].includes(dep.status))
+      return 'blocked'
+    waiting = true
+  }
+  return waiting ? 'waiting' : 'ready'
+}
+
 export const holds = (status: string) =>
   status === 'running' || status === 'waiting'

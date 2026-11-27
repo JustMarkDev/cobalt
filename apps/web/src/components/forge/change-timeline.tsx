@@ -1,15 +1,15 @@
 import * as React from 'react'
 import {
-  ArrowUpTrayIcon,
-  ArrowsRightLeftIcon,
-  BeakerIcon,
-  ChatBubbleLeftRightIcon,
-  CpuChipIcon,
-  ExclamationTriangleIcon,
-  PhotoIcon,
+  ArrowsLeftRightIcon,
+  ChatsCircleIcon,
+  CpuIcon,
+  FlaskIcon,
+  ImageIcon,
   PlusCircleIcon,
   RocketLaunchIcon,
-} from '@heroicons/react/24/outline'
+  UploadSimpleIcon,
+  WarningIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { ReceiptNote, Tile } from './bits'
 import type { Via } from './bits'
@@ -43,13 +43,13 @@ const icon: Record<
   React.ComponentType<{ className?: string }>
 > = {
   opened: PlusCircleIcon,
-  patchset: ArrowUpTrayIcon,
-  review: ChatBubbleLeftRightIcon,
-  finding: ExclamationTriangleIcon,
-  ci: BeakerIcon,
-  mirror: ArrowsRightLeftIcon,
-  evidence: PhotoIcon,
-  agent: CpuChipIcon,
+  patchset: UploadSimpleIcon,
+  review: ChatsCircleIcon,
+  finding: WarningIcon,
+  ci: FlaskIcon,
+  mirror: ArrowsLeftRightIcon,
+  evidence: ImageIcon,
+  agent: CpuIcon,
   land: RocketLaunchIcon,
 }
 

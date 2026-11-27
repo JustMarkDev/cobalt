@@ -58,6 +58,8 @@ import type { Anchor } from '@cobaltforge/api/anchors'
 import { iso, repoUrl, urls } from '../lib/present'
 import {
   branchOwner,
+  fileStatsValidator,
+  filesOfStats,
   findChange,
   hydrate,
   insertChange,
@@ -581,6 +583,8 @@ export const create = mutation({
     addresses: v.optional(
       v.array(v.object({ comment: v.string(), note: v.optional(v.string()) })),
     ),
+    /** What the branch changes against its base, read from git by the API. */
+    stats: v.optional(fileStatsValidator),
     dry: v.optional(v.boolean()),
   },
   returns: v.string(),
@@ -588,6 +592,7 @@ export const create = mutation({
     const p = await signedIn(ctx)
     const repo = await resolve(ctx, a.owner, a.name, p, 'write')
     assertMayContribute(repo, p, 'change')
+    const real = a.stats && a.sha ? filesOfStats(a.stats, a.sha) : undefined
     await assertMayTouch(ctx, repo, p, a.branch, [])
     const by = await actorFor(ctx, p.handle)
     const via = await viaOf(ctx)
@@ -607,6 +612,7 @@ export const create = mutation({
         sha,
         kind: 'update',
         note: 'Updated from branch',
+        ...(real ? { files: real } : {}),
         via,
         addresses: a.addresses,
       })
@@ -646,7 +652,8 @@ export const create = mutation({
           note: 'Initial version',
           author: by,
           created: at,
-          files: {
+          // Without git (the sample), a stand-in file.
+          files: real ?? {
             [`src/${a.branch.replace(/\W+/g, '_')}.rs`]: {
               hash: sha.slice(0, 6),
               add: 10,
@@ -1087,7 +1094,18 @@ export const raiseFinding = mutation({
   returns: v.string(),
   handler: async (ctx, a) => {
     const p = await signedIn(ctx)
-    const repo = await resolve(ctx, a.owner, a.name, p, 'write')
+    // A reviewer runner (labelled reviewer, so its token has pulls:comment)
+    // writes nothing but findings, on changes of its own account.
+    const reviewer = Boolean(p.runnerId) && p.scopes.has('pulls:comment')
+    const repo = await resolve(
+      ctx,
+      a.owner,
+      a.name,
+      p,
+      reviewer ? 'read' : 'write',
+    )
+    if (reviewer && repo.owner.toLowerCase() !== p.actingAs.toLowerCase())
+      fail('forbidden', 'A runner reviews only its own account.')
     const l = await loadChange(ctx, repo, a.ref, p)
     const c = l.rec
     if (!isOpen(c.state))
@@ -1107,7 +1125,15 @@ export const raiseFinding = mutation({
           ],
         },
       )
-    const by = await actorFor(ctx, p.handle)
+    // A reviewer runner signs as itself (`mac-mini[bot]`), not as the
+    // account that registered it.
+    const bot = reviewer
+      ? await ctx.db
+          .query('runners')
+          .withIndex('by_publicId', (q) => q.eq('publicId', p.runnerId!))
+          .unique()
+      : null
+    const by = await actorFor(ctx, bot ? `${bot.name}[bot]` : p.handle)
     const at = Date.now()
     const n =
       Math.max(
@@ -2647,6 +2673,22 @@ export const importPull = mutation({
       c.updated = Math.max(c.updated, a.updated)
       c.version++
       await commit(ctx, repo, l, was, null)
+      // What changed on the provider is an event here too: reviews,
+      // automations and webhooks see a new patch set or a closed change.
+      const changed = [
+        ...(head.sha !== a.headSha ? ['head.patch_set'] : []),
+        ...(to !== was ? ['state'] : []),
+      ]
+      if (changed.length)
+        await emit(
+          ctx,
+          repo,
+          'change.updated',
+          await actorFor(ctx, author.handle),
+          { object: 'change', id: c.id, number: c.number },
+          changed,
+          null,
+        )
       return out('updated')
     }
     const issue = await ctx.db
@@ -2695,6 +2737,17 @@ export const importPull = mutation({
     await reserveNumber(ctx, repo, a.number)
     const l = { rec, parts: new Map() } as unknown as Loaded
     await commit(ctx, repo, l, null, null)
+    // Only a change that is open now: an import of old history is quiet.
+    if (a.state === 'open' || a.state === 'draft')
+      await emit(
+        ctx,
+        repo,
+        'change.opened',
+        await actorFor(ctx, author.handle),
+        { object: 'change', id: rec.id, number: rec.number },
+        ['state'],
+        null,
+      )
     return out('created')
   },
 })
@@ -2751,5 +2804,69 @@ export const importChecks = mutation({
     c.version++
     await commit(ctx, repo, l, c.state, null)
     return out('updated')
+  },
+})
+
+async function systemChange(
+  ctx: QueryCtx,
+  a: { owner: string; name: string; number: number },
+) {
+  const repo = await repoByKey(ctx, `${a.owner}/${a.name}`)
+  if (!repo) return null
+  const doc = await findChange(ctx, repo, String(a.number))
+  return doc ? { repo, l: await hydrate(ctx, doc) } : null
+}
+
+/**
+ * The newest patch set of a change whose files were written here (an edit in
+ * the browser, a policy proposal), for the API to commit to git: its branch,
+ * base and the files as they stand. Null when it came from git.
+ */
+export const headSource = query({
+  args: { owner: v.string(), name: v.string(), number: v.number() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const found = await systemChange(ctx, a)
+    if (!found) return out(null)
+    const c = found.l.rec
+    const head = c.patchSets[c.patchSets.length - 1]
+    if (!head.contents || !Object.keys(head.contents).length) return out(null)
+    return out({
+      n: head.n,
+      sha: head.sha,
+      branch: c.branch,
+      base: c.base,
+      title: c.title,
+      author: head.author.handle,
+      contents: head.contents,
+    })
+  },
+})
+
+/** The commit the API made in git for a patch set written here. */
+export const setPatchSetSha = mutation({
+  args: {
+    owner: v.string(),
+    name: v.string(),
+    number: v.number(),
+    n: v.number(),
+    was: v.string(),
+    sha: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const found = await systemChange(ctx, a)
+    if (!found) return out(false)
+    const ps = found.l.rec.patchSets.find((x) => x.n === a.n)
+    if (!ps || ps.sha !== a.was) return out(false)
+    ps.sha = a.sha
+    ps.tree = a.sha.slice(0, 7)
+    found.l.rec.version++
+    await saveChange(ctx, found.l)
+    const k = await counters(ctx, found.repo)
+    await ctx.db.patch('repoCounters', k._id, { changeRev: k.changeRev + 1 })
+    return out(true)
   },
 })

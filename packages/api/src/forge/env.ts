@@ -6,6 +6,7 @@ import { ProviderSync } from './sync'
 import { TokenVault } from './vault'
 import type { GitStores } from '@cobaltforge/git/stores'
 import type { ConvexCall } from '../domain/convex'
+import { githubUserOAuth } from '../github'
 import type { Github } from '../github'
 import type { ForgeProvider, ProviderId, ProviderOAuth } from './types'
 
@@ -24,6 +25,14 @@ export function providersFromEnv(
   const oauth: Partial<Record<ProviderId, ProviderOAuth>> = {}
   const app = githubAppFromEnv(env)
   if (app && o.github) forges.github = createGithubForge({ app, now: o.now })
+  if (env.GITHUB_APP_CLIENT_ID && env.GITHUB_APP_CLIENT_SECRET)
+    oauth.github = githubUserOAuth(
+      {
+        clientId: env.GITHUB_APP_CLIENT_ID,
+        clientSecret: env.GITHUB_APP_CLIENT_SECRET,
+      },
+      { now: o.now },
+    )
   if (env.GITLAB_CLIENT_ID && env.GITLAB_CLIENT_SECRET) {
     const g = createGitlab({
       clientId: env.GITLAB_CLIENT_ID,

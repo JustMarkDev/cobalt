@@ -10,6 +10,64 @@ description: Pipeline runs, their jobs, steps and logs; steps that wait on a per
   Examples are real responses from the sample data the preview serves.
 </Callout>
 
+### `handoffs.start`
+
+`POST /repos/{owner}/{repo}/handoffs`
+
+**Hand an issue, a change or a failed run to your agent**
+
+What the Hand off button does: queues a job for your own agent, a runner labelled `t3` (`cb runner register <name> --labels t3`, then `cb runner start`), which opens a T3 Code thread on its machine with the prompt built from the issue or change. Nothing to copy or run by hand. `agent` says whether such a runner exists; without one the job waits for it. The same subject on the same commit is queued once.
+
+| About      |                         |
+| ---------- | ----------------------- |
+| Safety     | `write`, safe to repeat |
+| Needs      | a token                 |
+| Scopes     | `repo:write`            |
+| Rate limit | `write` pool, 1 unit    |
+| Success    | `202`, a `handoff`      |
+
+**Path parameters**
+
+| Name    | Type   | Notes |
+| ------- | ------ | ----- |
+| `owner` | string |       |
+| `repo`  | string |       |
+
+**Request body**
+
+| Member    | Type             | Notes                                                            |
+| --------- | ---------------- | ---------------------------------------------------------------- |
+| `subject` | string (pattern) | Required. An issue or change number, or run:N for a pipeline run |
+| `to`      | `t3`             | Default `"t3"`.                                                  |
+
+**Errors**
+
+[`backend_unavailable`](/docs/api/errors#backend_unavailable), [`concurrency_limited`](/docs/api/errors#concurrency_limited), [`forbidden`](/docs/api/errors#forbidden), [`idempotency_key_reused`](/docs/api/errors#idempotency_key_reused), [`insufficient_scope`](/docs/api/errors#insufficient_scope), [`invalid_request`](/docs/api/errors#invalid_request), [`moved`](/docs/api/errors#moved), [`not_found`](/docs/api/errors#not_found), [`payload_too_large`](/docs/api/errors#payload_too_large), [`request_in_progress`](/docs/api/errors#request_in_progress), [`token_expired`](/docs/api/errors#token_expired), [`token_invalid`](/docs/api/errors#token_invalid), [`token_revoked`](/docs/api/errors#token_revoked), [`unauthenticated`](/docs/api/errors#unauthenticated), [`unsupported_media_type`](/docs/api/errors#unsupported_media_type), [`unsupported_version`](/docs/api/errors#unsupported_version)
+
+**Example**
+
+```bash
+curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/handoffs" \
+  -H "Authorization: Bearer $CB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"4","to":"t3"}'
+```
+
+```http
+HTTP/1.1 202
+ratelimit: "write";r=61;t=60
+```
+
+```json
+{
+  "object": "handoff",
+  "subject": "4",
+  "to": "t3",
+  "run": null,
+  "agent": false
+}
+```
+
 ### `pipelines.list`
 
 `GET /repos/{owner}/{repo}/pipelines`
@@ -186,13 +244,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=61;t=60
+ratelimit: "write";r=60;t=60
 ```
 
 ```json
 {
   "object": "pipeline_run",
-  "id": "pip_01m6tq6r80tbap36zh",
+  "id": "pip_01m6tq6r80qtsn506q",
   "number": 1844,
   "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1844",
   "html_url": "https://cobaltforge.dev/dana/gitfs/pipelines?n=1844",
@@ -605,7 +663,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/job
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=59;t=60
+ratelimit: "write";r=58;t=60
 ```
 
 ```json
@@ -814,7 +872,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/job
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=56;t=60
+ratelimit: "write";r=55;t=60
 ```
 
 ```json
@@ -960,7 +1018,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/job
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=57;t=60
+ratelimit: "write";r=56;t=60
 ```
 
 ```json
@@ -1237,7 +1295,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/claim" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=60;t=60
+ratelimit: "write";r=59;t=60
 ```
 
 ```json
@@ -1356,7 +1414,7 @@ curl "https://api.cobaltforge.dev/v1/runners" \
 
 ```http
 HTTP/1.1 200
-etag: W/"hMZteMdn3mkqIHMS"
+etag: W/"GPi_fUNoS-PicidP"
 ratelimit: "read";r=1142;t=60
 ```
 
@@ -1366,7 +1424,7 @@ ratelimit: "read";r=1142;t=60
   "data": [
     {
       "object": "runner",
-      "id": "rnr_01m6tq6r80196dnvvs",
+      "id": "rnr_01m6tq6r80djs5h7g2",
       "name": "mac-mini",
       "account": "dana",
       "kind": "self-hosted",
@@ -1380,8 +1438,8 @@ ratelimit: "read";r=1142;t=60
       "created_at": "2026-11-07T10:00:00.000Z",
       "created_by": "dana",
       "secret": null,
-      "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
-      "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+      "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2",
+      "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80djs5h7g2"
     }
   ],
   "has_more": false,
@@ -1439,14 +1497,14 @@ curl -X POST "https://api.cobaltforge.dev/v1/runners" \
 
 ```http
 HTTP/1.1 201
-location: https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs
-ratelimit: "write";r=53;t=60
+location: https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2
+ratelimit: "write";r=52;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80196dnvvs",
+  "id": "rnr_01m6tq6r80djs5h7g2",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1460,8 +1518,8 @@ ratelimit: "write";r=53;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": "cbr_…",
-  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80djs5h7g2"
 }
 ```
 
@@ -1501,19 +1559,19 @@ Disables it and revokes its token in the same write: its next request is refused
 **Example**
 
 ```bash
-curl -X DELETE "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
+curl -X DELETE "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=47;t=60
+ratelimit: "write";r=46;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80196dnvvs",
+  "id": "rnr_01m6tq6r80djs5h7g2",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1527,8 +1585,8 @@ ratelimit: "write";r=47;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80djs5h7g2"
 }
 ```
 
@@ -1559,20 +1617,20 @@ ratelimit: "write";r=47;t=60
 **Example**
 
 ```bash
-curl "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
+curl "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"O2jXgDuEl0kvKMtb"
+etag: W/"oSj5GwlrLnTqRHKu"
 ratelimit: "read";r=1141;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80196dnvvs",
+  "id": "rnr_01m6tq6r80djs5h7g2",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1586,8 +1644,8 @@ ratelimit: "read";r=1141;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80djs5h7g2"
 }
 ```
 
@@ -1636,7 +1694,7 @@ Its name, labels, repositories or concurrency. Its token follows the repositorie
 **Example**
 
 ```bash
-curl -X PATCH "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
+curl -X PATCH "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2" \
   -H "Authorization: Bearer $CB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"labels":["macos","arm64","xcode-16","xcode-15"]}'
@@ -1644,13 +1702,13 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=52;t=60
+ratelimit: "write";r=51;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80196dnvvs",
+  "id": "rnr_01m6tq6r80djs5h7g2",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1664,8 +1722,8 @@ ratelimit: "write";r=52;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80djs5h7g2"
 }
 ```
 
@@ -1698,7 +1756,7 @@ Running or waiting. Readable by the runner itself and by members of its account.
 **Example**
 
 ```bash
-curl "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs/jobs" \
+curl "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2/jobs" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
@@ -1757,7 +1815,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/runners/claim" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=50;t=60
+ratelimit: "write";r=49;t=60
 ```
 
 ```json
@@ -1783,7 +1841,7 @@ ratelimit: "write";r=50;t=60
   ],
   "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/pipelines/1837/jobs/2",
   "runs_on": [],
-  "runner_id": "rnr_01m6tq6r80196dnvvs",
+  "runner_id": "rnr_01m6tq6r80djs5h7g2",
   "lease_expires_at": "2026-11-07T10:15:00.000Z"
 }
 ```
@@ -1817,13 +1875,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/runners/heartbeat" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=51;t=60
+ratelimit: "write";r=50;t=60
 ```
 
 ```json
 {
   "object": "runner",
-  "id": "rnr_01m6tq6r80196dnvvs",
+  "id": "rnr_01m6tq6r80djs5h7g2",
   "name": "mac-mini",
   "account": "dana",
   "kind": "self-hosted",
@@ -1837,8 +1895,8 @@ ratelimit: "write";r=51;t=60
   "created_at": "2026-11-07T10:00:00.000Z",
   "created_by": "dana",
   "secret": null,
-  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80196dnvvs",
-  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80196dnvvs"
+  "url": "https://api.cobaltforge.dev/v1/runners/rnr_01m6tq6r80djs5h7g2",
+  "html_url": "https://cobaltforge.dev/settings?section=runners&runner=rnr_01m6tq6r80djs5h7g2"
 }
 ```
 
@@ -1885,7 +1943,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/runners/report" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=49;t=60
+ratelimit: "write";r=48;t=60
 ```
 
 ```json
@@ -1943,7 +2001,7 @@ ratelimit: "write";r=49;t=60
       "status": "running",
       "duration_ms": 0,
       "runs_on": [],
-      "runner_id": "rnr_01m6tq6r80196dnvvs",
+      "runner_id": "rnr_01m6tq6r80djs5h7g2",
       "lease_expires_at": "2026-11-07T10:15:00.000Z",
       "waiting_for_labels": null,
       "wait": null,
@@ -2018,7 +2076,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/runners/wait" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=48;t=60
+ratelimit: "write";r=47;t=60
 ```
 
 ```json
@@ -2076,7 +2134,7 @@ ratelimit: "write";r=48;t=60
       "status": "waiting",
       "duration_ms": 0,
       "runs_on": [],
-      "runner_id": "rnr_01m6tq6r80196dnvvs",
+      "runner_id": "rnr_01m6tq6r80djs5h7g2",
       "lease_expires_at": null,
       "waiting_for_labels": null,
       "wait": {

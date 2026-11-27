@@ -82,7 +82,7 @@ export function gitWith(files: Record<string, string>): GitData {
     blame: (repo, path, ref) => base.blame(repo, path, ref),
     compare: (repo, b, head, path) => base.compare(repo, b, head, path),
     commit: (repo, sha) => base.commit(repo, sha),
-    diff: (repo, sha) => base.diff(repo, sha),
+    diff: (repo, sha, b) => base.diff(repo, sha, b),
     setRepo: (repo, id) => base.setRepo(repo, id),
     dropRepo: (repo) => base.dropRepo(repo),
     storeOf: (repo) => base.storeOf(repo),

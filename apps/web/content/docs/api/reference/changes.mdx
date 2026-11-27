@@ -3266,15 +3266,15 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/stacky/stacks/stk_stacky
 
 ```http
 HTTP/1.1 202
-location: https://api.cobaltforge.dev/v1/operations/op_01m6tq6r80ag15a60g
+location: https://api.cobaltforge.dev/v1/operations/op_01m6tq6r800wp4ra4g
 retry-after: 1
-ratelimit: "write";r=4;t=60
+ratelimit: "write";r=3;t=60
 ```
 
 ```json
 {
   "object": "operation",
-  "id": "op_01m6tq6r80ag15a60g",
+  "id": "op_01m6tq6r800wp4ra4g",
   "kind": "stack.land",
   "state": "queued",
   "progress": {
@@ -3283,7 +3283,7 @@ ratelimit: "write";r=4;t=60
   },
   "result": null,
   "error": null,
-  "url": "https://api.cobaltforge.dev/v1/operations/op_01m6tq6r80ag15a60g",
+  "url": "https://api.cobaltforge.dev/v1/operations/op_01m6tq6r800wp4ra4g",
   "created_at": "2026-11-07T10:00:00.000Z",
   "finished_at": null,
   "steps": [

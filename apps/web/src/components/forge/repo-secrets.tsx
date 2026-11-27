@@ -2,11 +2,11 @@ import * as React from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { File } from '@pierre/diffs/react'
 import {
-  ComputerDesktopIcon,
-  LockClosedIcon,
-  ShieldExclamationIcon,
-  UserGroupIcon,
-} from '@heroicons/react/24/outline'
+  DesktopIcon,
+  LockIcon,
+  ShieldWarningIcon,
+  UsersThreeIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, Modal, Panel, SectionLabel, Seg } from './bits'
 import { CopyField } from './repo-shell'
@@ -52,7 +52,7 @@ function Variables({
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2 font-mono text-xs font-semibold">
                     {v.sensitive && (
-                      <LockClosedIcon className="size-3 text-muted-foreground" />
+                      <LockIcon className="size-3 text-muted-foreground" />
                     )}
                     {v.name}
                   </div>
@@ -226,7 +226,7 @@ function Confirmations({ repo }: { repo: Repo }) {
                 c.id === asked?.id && 'bg-warning/8',
               )}
             >
-              <ComputerDesktopIcon className="size-5 shrink-0 text-muted-foreground" />
+              <DesktopIcon className="size-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <div className="font-medium">
                   {c.device ?? 'A token'}
@@ -296,7 +296,7 @@ function WhoReads({ repo }: { repo: Repo }) {
   return (
     <Panel className="space-y-3 p-5 text-sm">
       <div className="flex items-center gap-2 font-medium">
-        <UserGroupIcon className="size-4" />
+        <UsersThreeIcon className="size-4" />
         The team reads values. Nobody else does.
       </div>
       <p className="text-muted-foreground">
@@ -451,7 +451,7 @@ export function SecretsPage({ repo }: { repo: Repo }) {
 
         <Panel className="space-y-3 p-5">
           <div className="flex items-center gap-2 font-medium">
-            <ShieldExclamationIcon className="size-4" />
+            <ShieldWarningIcon className="size-4" />
             What this cannot do
           </div>
           <ul className="grid grid-cols-1 gap-3 text-sm text-muted-foreground md:grid-cols-3">

@@ -234,6 +234,14 @@ export interface ForgeProvider {
   installationOf?: (slug: string) => Promise<number | null>
   gitCredential: (auth: ProviderAuth, login: string) => GitCredential | null
 
+  /**
+   * Make an empty repository `owner/name` as the signed-in user, under their
+   * own account or an organization of theirs. Only with a user token.
+   */
+  createRepo?: (
+    auth: ProviderAuth,
+    o: { owner: string; name: string; private: boolean; description: string },
+  ) => Promise<RemoteRepo>
   createWebhook: (
     auth: ProviderAuth,
     slug: string,
@@ -252,6 +260,65 @@ export interface ForgeProvider {
     slug: string,
     o: { cursor?: string | null; etag?: Etag },
   ) => Promise<Listed<RemotePull> & { next: string | null }>
+  /**
+   * Open a pull request for `head`, or answer the open one there already is
+   * for it.
+   */
+  createPull?: (
+    auth: ProviderAuth,
+    slug: string,
+    pr: {
+      head: string
+      base: string
+      title: string
+      body: string
+      draft: boolean
+    },
+  ) => Promise<RemotePull>
+  /**
+   * Write a secret's value there, encrypted for the provider; in one of its
+   * environments, or for the whole repository when `environment` is null.
+   */
+  setSecret?: (
+    auth: ProviderAuth,
+    slug: string,
+    secret: { name: string; value: string; environment: string | null },
+  ) => Promise<void>
+  /** Open an issue there (as the app, on GitHub). */
+  createIssue?: (
+    auth: ProviderAuth,
+    slug: string,
+    issue: { title: string; body: string; labels: Array<string> },
+  ) => Promise<RemoteIssue>
+  /** Open issues `login` opened since `since`, newest first (to not open one twice). */
+  recentIssuesBy?: (
+    auth: ProviderAuth,
+    slug: string,
+    login: string,
+    since: number,
+  ) => Promise<Array<RemoteIssue>>
+  getIssue?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+  ) => Promise<RemoteIssue>
+  updateIssue?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+    patch: {
+      title?: string
+      body?: string
+      labels?: Array<string>
+      state?: 'open' | 'closed'
+    },
+  ) => Promise<RemoteIssue>
+  createComment?: (
+    auth: ProviderAuth,
+    slug: string,
+    number: number,
+    body: string,
+  ) => Promise<{ id: string }>
   listIssues: (
     auth: ProviderAuth,
     slug: string,

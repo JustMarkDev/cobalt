@@ -253,6 +253,7 @@ export const update = mutation({
       install: nullable(v.string()),
       declined_models: v.optional(v.array(v.string())),
       auto_land: v.optional(v.boolean()),
+      github_bot_writes: v.optional(v.boolean()),
       vouched: v.optional(v.array(v.string())),
       denounced: v.optional(
         v.array(v.object({ handle: v.string(), reason: v.string() })),
@@ -330,6 +331,13 @@ export const update = mutation({
     if (body.auto_land !== undefined && body.auto_land !== !!repo.autoLand) {
       patch.autoLand = body.auto_land ? { by: p.handle } : null
       changed.push('auto_land')
+    }
+    if (
+      body.github_bot_writes !== undefined &&
+      body.github_bot_writes !== (repo.githubBotWrites !== false)
+    ) {
+      patch.githubBotWrites = body.github_bot_writes
+      changed.push('github_bot_writes')
     }
     if (body.vouched !== undefined) {
       patch.vouched = [...new Set(body.vouched.map((h) => h.toLowerCase()))]
@@ -593,6 +601,12 @@ export const remove = mutation({
     const acct = await ctx.db.get('accounts', repo.ownerId)
     if (acct) await bumpAcl(ctx, acct)
     await dropRepoHooks(ctx, repo._id)
+    // Its link to another host goes too, or the sync keeps reading it.
+    for (const r of await ctx.db
+      .query('remoteRepos')
+      .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))
+      .take(10))
+      await ctx.db.delete('remoteRepos', r._id)
     for (const x of await ctx.db
       .query('repoExtras')
       .withIndex('by_repoId', (q) => q.eq('repoId', repo._id))

@@ -1,3 +1,4 @@
+import { isBot } from './contributors'
 import { describe, expect, test } from 'bun:test'
 import { harness } from './testing'
 
@@ -136,7 +137,7 @@ describe('stars', () => {
 })
 
 describe('contributors', () => {
-  test('authors of the history, most commits first, one per email', async () => {
+  test('people who wrote the history, most commits first, bots left out', async () => {
     const h = harness()
     const res = await h.call('GET', `${R}/contributors`, { token: null })
     expect(res.status).toBe(200)
@@ -144,12 +145,14 @@ describe('contributors', () => {
     expect(people.length).toBeGreaterThan(0)
     const commits = (await h.call('GET', `${R}/git/commits?limit=200`)).json
       .data
+    const human = commits.filter((c: any) => !isBot(c.author))
     expect(people.reduce((n: number, p: any) => n + p.commits, 0)).toBe(
-      commits.length,
+      human.length,
     )
     expect(new Set(people.map((p: any) => p.email.toLowerCase())).size).toBe(
       people.length,
     )
+    expect(people.every((p: any) => !isBot(p))).toBe(true)
     for (let i = 1; i < people.length; i++)
       expect(people[i - 1].commits).toBeGreaterThanOrEqual(people[i].commits)
     expect(people[0].object).toBe('contributor')

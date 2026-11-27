@@ -191,6 +191,23 @@ export function createGithubForge(
   const installationToken =
     o.installationToken ?? (tokens ? (i: number) => tokens.token(i) : null)
 
+  /** A write as the installation, once more with a new token if refused. */
+  async function fresh<T>(auth: ProviderAuth, write: () => Promise<T>) {
+    try {
+      return await write()
+    } catch (e) {
+      if (
+        auth.kind !== 'installation' ||
+        !tokens ||
+        !(e instanceof ProviderError) ||
+        e.status !== 403
+      )
+        throw e
+      tokens.forget(auth.installation)
+      return write()
+    }
+  }
+
   async function headers(auth: ProviderAuth) {
     if (auth.kind === 'user')
       return { ...base, authorization: `Bearer ${auth.token}` }
@@ -328,6 +345,28 @@ export function createGithubForge(
       tokens ? tokens.installationOf(slug) : Promise.resolve(null),
     gitCredential: () => null,
 
+    async createRepo(auth, repo) {
+      const me = await get<{ login: string }>(auth, '/user')
+      const mine = me.body.login.toLowerCase() === repo.owner.toLowerCase()
+      const r = await call<GhRepo>(
+        'github',
+        f,
+        mine ? `${API}/user/repos` : `${API}/orgs/${repo.owner}/repos`,
+        {
+          method: 'POST',
+          headers: await headers(auth),
+          body: {
+            name: repo.name,
+            private: repo.private,
+            description: repo.description,
+            auto_init: false,
+            has_wiki: false,
+          },
+        },
+      )
+      return repoOfGithub(r.body)
+    },
+
     async createWebhook(auth, slug, hook) {
       const r = await call<{ id: number }>(
         'github',
@@ -420,6 +459,118 @@ export function createGithubForge(
         notModified: r.notModified,
         next: r.next,
       }
+    },
+
+    async setSecret(auth, slug, secret) {
+      return fresh(auth, async () => {
+        const h = await headers(auth)
+        let where = `${API}/repos/${slug}/actions/secrets`
+        if (secret.environment) {
+          // Environments are made on first use (Administration permission).
+          // GitHub has none for private repositories on free plans, and then
+          // answers 403 with a misleading "rate limit exceeded".
+          await call(
+            'github',
+            f,
+            `${API}/repos/${slug}/environments/${encodeURIComponent(secret.environment)}`,
+            { method: 'PUT', headers: h, body: {} },
+          ).catch((e: unknown) => {
+            if (
+              e instanceof ProviderError &&
+              (e.status === 403 || e.status === 404)
+            )
+              throw new ProviderError(
+                'github',
+                e.status,
+                `GitHub has no environments for this repository (private repositories need a paid plan for them), so the ${secret.environment} value stays on cobalt only. Production values go to the repository's secrets.`,
+                false,
+              )
+            throw e
+          })
+          where = `${API}/repos/${slug}/environments/${encodeURIComponent(secret.environment)}/secrets`
+        }
+        const key = await call<{ key: string; key_id: string }>(
+          'github',
+          f,
+          `${where}/public-key`,
+          { headers: h },
+        )
+        await call('github', f, `${where}/${encodeURIComponent(secret.name)}`, {
+          method: 'PUT',
+          headers: h,
+          body: {
+            encrypted_value: await sealForGithub(key.body.key, secret.value),
+            key_id: key.body.key_id,
+          },
+        })
+      })
+    },
+
+    async createPull(auth, slug, pr) {
+      const owner = slug.split('/')[0]
+      const open = await get<Array<GhPull>>(
+        auth,
+        `/repos/${slug}/pulls?${new URLSearchParams({ head: `${owner}:${pr.head}`, state: 'open' })}`,
+      )
+      if (open.body[0]) return pullOf(open.body[0])
+      const r = await call<GhPull>('github', f, `${API}/repos/${slug}/pulls`, {
+        method: 'POST',
+        headers: await headers(auth),
+        body: pr,
+      })
+      return pullOf(r.body)
+    },
+
+    async createIssue(auth, slug, issue) {
+      const r = await call<GhIssue>(
+        'github',
+        f,
+        `${API}/repos/${slug}/issues`,
+        {
+          method: 'POST',
+          headers: await headers(auth),
+          body: issue,
+        },
+      )
+      return issueOf(r.body)
+    },
+
+    async recentIssuesBy(auth, slug, login, since) {
+      const q = new URLSearchParams({
+        creator: login,
+        state: 'open',
+        since: new Date(since).toISOString(),
+        sort: 'created',
+        per_page: '30',
+      })
+      const r = await get<Array<GhIssue>>(auth, `/repos/${slug}/issues?${q}`)
+      return r.body.filter((i) => !i.pull_request).map(issueOf)
+    },
+
+    async getIssue(auth, slug, number) {
+      return issueOf(
+        (await get<GhIssue>(auth, `/repos/${slug}/issues/${number}`)).body,
+      )
+    },
+
+    async updateIssue(auth, slug, number, patch) {
+      const r = await call<GhIssue>(
+        'github',
+        f,
+        `${API}/repos/${slug}/issues/${number}`,
+        { method: 'PATCH', headers: await headers(auth), body: patch },
+      )
+      return issueOf(r.body)
+    },
+
+    async createComment(auth, slug, number, body) {
+      const r = await call<{ id: number }>(
+        'github',
+        f,
+        `${API}/repos/${slug}/issues/${number}/comments`,
+        { method: 'POST', headers: await headers(auth), body: { body } },
+      )
+      return { id: String(r.body.id) }
     },
 
     async listComments(auth, slug, number) {
@@ -917,3 +1068,17 @@ export function githubEvent(kind: string, body: string): WebhookEvent {
 }
 
 export type { Delivery }
+
+/**
+ * A value as GitHub takes a secret: a libsodium sealed box for the
+ * repository's (or environment's) public key, in base64. Only GitHub opens it.
+ */
+export async function sealForGithub(publicKey: string, value: string) {
+  const { default: sodium } = await import('libsodium-wrappers')
+  await sodium.ready
+  const sealed = sodium.crypto_box_seal(
+    sodium.from_string(value),
+    sodium.from_base64(publicKey, sodium.base64_variants.ORIGINAL),
+  )
+  return sodium.to_base64(sealed, sodium.base64_variants.ORIGINAL)
+}

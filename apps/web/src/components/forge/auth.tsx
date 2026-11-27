@@ -1,10 +1,10 @@
 import * as React from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  ArrowPathIcon,
+  ArrowClockwiseIcon,
   EyeIcon,
   EyeSlashIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Logo } from './chrome'
 import { Stagger } from '~/components/motion'
@@ -115,7 +115,7 @@ export function SubmitButton({
       disabled={pending}
       className="w-full"
     >
-      {pending && <ArrowPathIcon className="animate-spin" />}
+      {pending && <ArrowClockwiseIcon className="animate-spin" />}
       {children}
     </Button>
   )

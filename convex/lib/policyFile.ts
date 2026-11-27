@@ -14,9 +14,20 @@ export async function readLandedPolicy(
   by: ActorRef,
 ) {
   const head = c.patchSets[c.patchSets.length - 1]
+  await readPolicySource(ctx, repo, head, by)
+}
+
+/** The policy file as a commit has it: a landed change's, or the default branch's. */
+export async function readPolicySource(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  head: { sha: string; contents?: Record<string, string | null> },
+  by: ActorRef,
+) {
   const text = head.contents?.[POLICY_FILE]
   if (typeof text !== 'string') return
   const pol = await loadPolicy(ctx, repo)
+  if (pol.file?.text === text) return
   const { content, errors } = parsePolicy(text, policyRules)
   pol.file = { text, sha: head.sha, errors }
   if (content) {

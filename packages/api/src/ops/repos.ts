@@ -6,6 +6,7 @@ import { bodies } from '../bodies'
 import { contextMarkdown } from '../markdown'
 import { ApiError, apiError } from '../problem'
 import { afterOf, fp, listOf, pageShape, repoParams, repoTopic } from './common'
+import { groupAuthors, loginsOf, mergeByHandle } from '../contributors'
 
 const common = {
   auth: 'optional' as const,
@@ -386,7 +387,7 @@ export const listContributors = defineOp({
   ...common,
   id: 'repos.contributors',
   summary: 'Who wrote the code',
-  description: `Authors of the newest 1,000 commits on the default branch, by email, most commits first. Up to ${CONTRIBUTORS_MAX}. A repository with no history answers an empty list.`,
+  description: `People who wrote the newest 1,000 commits on the default branch, most commits first. One person's addresses count once: a GitHub no-reply address and a commit signed with that login are one contributor, and so are identities a cobalt account proved its own (\`handle\`). Bots are left out. Up to ${CONTRIBUTORS_MAX}. A repository with no history answers an empty list.`,
   scopes: ['repo:read'],
   tags: ['repositories'],
   method: 'GET',
@@ -413,23 +414,29 @@ export const listContributors = defineOp({
           if (e instanceof ApiError && e.code === 'not_found') return []
           throw e
         })
-        const by = new Map<string, z.infer<typeof S.Contributor>>()
-        for (const c of commits) {
-          const key = c.author.email.toLowerCase()
-          const have = by.get(key)
-          if (have) have.commits++
-          else
-            by.set(key, {
-              object: 'contributor',
-              name: c.author.name,
-              email: c.author.email,
-              commits: 1,
-              last_commit_at: c.date,
-            })
-        }
-        return [...by.values()]
-          .sort((a, b) => b.commits - a.commits || (a.name < b.name ? -1 : 1))
+        const groups = groupAuthors(
+          commits.map((c) => ({ ...c.author, date: c.date })),
+        )
+        const handles = await d.handlesOfLogins(
+          'github',
+          groups.flatMap(loginsOf),
+        )
+        return mergeByHandle(groups, (g) => {
+          for (const l of loginsOf(g)) {
+            const h = handles[l.toLowerCase()]
+            if (h) return h
+          }
+          return null
+        })
           .slice(0, CONTRIBUTORS_MAX)
+          .map((g): z.infer<typeof S.Contributor> => ({
+            object: 'contributor',
+            name: g.name,
+            email: g.email,
+            handle: g.handle,
+            commits: g.commits,
+            last_commit_at: g.last,
+          }))
       })
       return {
         object: 'list' as const,

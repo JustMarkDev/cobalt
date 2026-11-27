@@ -13,7 +13,7 @@ import {
   settlePipeline,
   waitStep,
 } from '../lifecycles'
-import { runnerScopes } from '../auth'
+import { scopesForRunner } from '../auth'
 import {
   LEASE_MS,
   MAX_CONCURRENCY,
@@ -722,6 +722,20 @@ export abstract class DomainPipelines extends DomainReleases {
     return { labels, repos }
   }
 
+  async startHandoff(
+    owner: string,
+    name: string,
+    p: Principal,
+    subject: string,
+  ) {
+    this.resolve(owner, name, p)
+    const agent = [...this.runners.values()].some(
+      (r) => r.account === owner && r.labels.includes('t3') && !r.disabled,
+    )
+    void subject
+    return { run: null, agent }
+  }
+
   async createRunner(p: Viewer, body: RunnerBody, dry: boolean) {
     if (!p) throw apiError('unauthenticated', 'Sign in to register a runner.')
     const account = body.account ?? p.actingAs
@@ -772,7 +786,7 @@ export abstract class DomainPipelines extends DomainReleases {
       kind: 'runner',
       handle: account,
       actingAs: account,
-      scopes: runnerScopes,
+      scopes: scopesForRunner(rec.labels),
       repos: rec.repos,
       runnerId: rec.id,
       device: body.name,

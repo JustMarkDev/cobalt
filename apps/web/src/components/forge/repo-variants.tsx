@@ -1,16 +1,16 @@
 import { Popover } from '@base-ui/react/popover'
 import {
-  ChevronDownIcon,
-  CommandLineIcon,
+  CaretDownIcon,
+  GitBranchIcon,
   MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline'
+  TerminalWindowIcon,
+} from '@phosphor-icons/react'
 import { CodeBrowser } from './repo-code-browser'
 import { HistoryView } from './repo-history'
 import { DownloadButton } from './download-button'
 import { CopyField } from './repo-shell'
 import { useDownload } from './repo-releases'
 import type { Repo } from '~/lib/model/data'
-import { GitBranchIcon } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { Tip } from '~/components/ui/tooltip'
 import { latestStable } from '~/lib/model/data'
@@ -105,9 +105,9 @@ function ClonePopover({ repo }: { repo: Repo }) {
   return (
     <Popover.Root>
       <Popover.Trigger className="raised inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3.5 text-sm hover:bg-muted">
-        <CommandLineIcon className="size-4" />
+        <TerminalWindowIcon className="size-4" />
         Clone
-        <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+        <CaretDownIcon className="size-3.5 text-muted-foreground" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner align="end" sideOffset={6} className="z-50">

@@ -1,11 +1,11 @@
 import * as React from 'react'
 import {
+  CaretDownIcon,
   CheckCircleIcon,
-  ChevronDownIcon,
+  HardDriveIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  ServerIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Modal } from './bits'
 import type { Integration, IntegrationGroup } from '~/lib/model/hub'
@@ -37,7 +37,7 @@ function Logo({ i, muted }: { i: Integration; muted?: boolean }) {
           fade,
         )}
       >
-        <ServerIcon className="size-5 text-muted-foreground" />
+        <HardDriveIcon className="size-5 text-muted-foreground" />
       </span>
     )
   return <BrandTile id={i.id} className={fade} />
@@ -317,7 +317,7 @@ export function IntegrationsPanel({ repo }: { repo?: string }) {
                       onClick={() => setOpen(open === i.id ? null : i.id)}
                     >
                       Settings
-                      <ChevronDownIcon
+                      <CaretDownIcon
                         className={cn(
                           'size-3.5 transition-transform',
                           open === i.id && 'rotate-180',

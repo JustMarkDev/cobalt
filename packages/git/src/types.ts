@@ -55,6 +55,25 @@ export type ListCommitsOptions = {
   path?: string
 }
 
+export type MergeOptions = {
+  /** The branch to merge from, at exactly this commit. */
+  source: string
+  sha: string
+  target: string
+  strategy: 'squash' | 'merge' | 'rebase'
+  author: { name: string; email: string }
+  message: string
+}
+
+export type CommitFilesOptions = {
+  /** Made from `base` when it does not exist yet. */
+  branch: string
+  base: string
+  files: Array<{ path: string; content: string | null }>
+  message: string
+  author: { name: string; email: string }
+}
+
 export interface GitRepo {
   listFiles: (opts?: ListFilesOptions) => Promise<{
     ref: string
@@ -69,7 +88,14 @@ export interface GitRepo {
     nextCursor?: string
   }>
   getCommit: (opts: { sha: string }) => Promise<{ commit: CommitInfo }>
-  getCommitDiff: (opts: { sha: string }) => Promise<{
+  /** Land `source` on `target` in the store; the commit `target` now points at. */
+  merge?: (
+    opts: MergeOptions,
+  ) => Promise<{ sha: string; before: string | null }>
+  /** A commit of these files on `branch`; its sha. */
+  commitFiles?: (opts: CommitFilesOptions) => Promise<string>
+  /** Against the first parent, or with `base` from where `sha` and `base` split (`git diff base...sha`). */
+  getCommitDiff: (opts: { sha: string; base?: string }) => Promise<{
     sha: string
     baseSha?: string
     files: Array<FileDiff>

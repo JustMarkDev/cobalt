@@ -547,6 +547,76 @@ describe('hand-off', () => {
   })
 })
 
+describe('issues', () => {
+  test('a new issue takes a body and screenshots, and attach adds more', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cb-shot-'))
+    const png = join(dir, 'crash.png')
+    // The smallest PNG: the server checks the first bytes against the type.
+    await Bun.write(
+      png,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    )
+    try {
+      const made = await cb(
+        'issue',
+        'create',
+        'Crash on an empty repository',
+        '-R',
+        'dana/gitfs',
+        '--body',
+        'Open an empty repository and it crashes.',
+        '--screenshot',
+        png,
+        '--caption',
+        'The crash',
+      )
+      expect(made.code).toBe(0)
+      const issue = JSON.parse(made.out)
+      expect(issue.body).toBe('Open an empty repository and it crashes.')
+      expect(issue.attached).toEqual(['crash.png'])
+      const more = await cb(
+        'issue',
+        'attach',
+        String(issue.number),
+        png,
+        '-R',
+        'dana/gitfs',
+      )
+      expect(more.code).toBe(0)
+      const wrong = await cb(
+        'issue',
+        'attach',
+        String(issue.number),
+        join(dir, 'notes.txt'),
+        '-R',
+        'dana/gitfs',
+      )
+      expect(JSON.parse(wrong.err).error.code).toBe('unsupported_file')
+      const handed = JSON.parse(
+        (
+          await cb(
+            'handoff',
+            String(issue.number),
+            '-R',
+            'dana/gitfs',
+            '--to',
+            'boat',
+          )
+        ).out,
+      )
+      expect(handed.prompt).toContain(
+        'Open an empty repository and it crashes.',
+      )
+      expect(handed.prompt).toContain('image "The crash"')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('import', () => {
   test('from a host and owner/name, or from its address, once', async () => {
     const made = await cb('import', 'github', 'dana-okafor/dotfiles')
@@ -650,10 +720,14 @@ describe('runners', () => {
     process.env.CB_RUNNER_TOKEN = r.secret
     try {
       const ran = await cb('runner', 'start', '--once', '--workdir', dir)
-      expect(ran.code).toBe(0)
       const out = JSON.parse(ran.out)
       expect(out.ran === null || typeof out.ran.run === 'number').toBe(true)
-      if (out.ran) expect(out.status).toBe('success')
+      // The sample's workflow really runs (make test, with no Makefile), so
+      // the job ends one way or the other, and the exit code says which.
+      if (out.ran) {
+        expect(['success', 'failure']).toContain(out.status)
+        expect(ran.code).toBe(out.status === 'success' ? 0 : 1)
+      } else expect(ran.code).toBe(0)
       expect((await cb('runner', 'revoke', r.id)).code).toBe(0)
       const after = await cb('runner', 'start', '--once', '--workdir', dir)
       expect(after.code).toBe(4)
@@ -666,5 +740,22 @@ describe('runners', () => {
   test('pipeline resume says what it needs', async () => {
     const r = await cb('pipeline', 'resume', 'x')
     expect(r.code).toBe(2)
+  })
+})
+
+describe('remotes', () => {
+  test('a clone of the public site or of the server cb talks to', async () => {
+    const { slugOfRemote } = await import('./repo')
+    const hosts = ['cobaltforge.dev', 'localhost:3000', 'git.example.com']
+    for (const [url, slug] of [
+      ['https://cobaltforge.dev/dana/gitfs.git', 'dana/gitfs'],
+      ['git@cobaltforge.dev:dana/gitfs.git', 'dana/gitfs'],
+      ['http://x:cbp_secret@localhost:3000/mark/notes.git', 'mark/notes'],
+      ['http://localhost:3000/mark/notes', 'mark/notes'],
+      ['https://git.example.com/team/app.git/', 'team/app'],
+      ['https://github.com/dana/gitfs.git', undefined],
+      ['http://localhost:30001/mark/notes.git', undefined],
+    ] as const)
+      expect(slugOfRemote(url, hosts)).toBe(slug)
   })
 })

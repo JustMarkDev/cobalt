@@ -35,6 +35,24 @@ export const runnerScopes: ReadonlyArray<Scope> = [
   'runners:report',
 ]
 
+/**
+ * What a runner's token may do, by its labels: every runner reads code and
+ * takes jobs; one labelled `reviewer` also reads changes and writes
+ * findings (the AI review), one labelled `t3` reads issues and changes to
+ * hand them off.
+ */
+export function scopesForRunner(
+  labels: ReadonlyArray<string> | null | undefined,
+): Array<Scope> {
+  const out = new Set<Scope>(runnerScopes)
+  const has = (l: string) => (labels ?? []).includes(l)
+  if (has('reviewer'))
+    for (const s of ['pulls:read', 'pulls:comment'] as const) out.add(s)
+  if (has('t3'))
+    for (const s of ['issues:read', 'pulls:read'] as const) out.add(s)
+  return [...out]
+}
+
 export const oauthScopes: ReadonlyArray<Scope> = allScopes.filter(
   (s) =>
     s !== 'tokens:manage' &&

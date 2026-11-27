@@ -6,11 +6,13 @@ import type { GitRepo } from './types'
 
 export { GitError } from './types'
 export type {
+  CommitFilesOptions,
   CommitInfo,
   FileDiff,
   GitRepo,
   ListCommitsOptions,
   ListFilesOptions,
+  MergeOptions,
 } from './types'
 export { GitNotConfigured } from './pierre'
 export type { SharedTier } from './cached'

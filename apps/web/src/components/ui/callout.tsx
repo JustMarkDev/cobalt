@@ -1,17 +1,17 @@
 import * as React from 'react'
 import {
   CheckCircleIcon,
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
-} from '@heroicons/react/24/outline'
+  InfoIcon,
+  WarningCircleIcon,
+  WarningIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 
 const tones = {
-  info: { icon: InformationCircleIcon, cls: 'bg-info/8 text-info' },
+  info: { icon: InfoIcon, cls: 'bg-info/8 text-info' },
   success: { icon: CheckCircleIcon, cls: 'bg-success/8 text-success' },
-  warning: { icon: ExclamationTriangleIcon, cls: 'bg-warning/8 text-warning' },
-  danger: { icon: ExclamationCircleIcon, cls: 'bg-danger/8 text-danger' },
+  warning: { icon: WarningIcon, cls: 'bg-warning/8 text-warning' },
+  danger: { icon: WarningCircleIcon, cls: 'bg-danger/8 text-danger' },
 } as const
 
 function Callout({

@@ -500,7 +500,8 @@ export function fakeRepo(id: string): GitRepo {
       return { commit: resolve(id, opts.sha).info }
     },
     async getCommitDiff(opts) {
-      const { info, tree, parentTree } = resolve(id, opts.sha)
+      const { info, tree, parentTree: parent } = resolve(id, opts.sha)
+      const parentTree = opts.base ? resolve(id, opts.base).tree : parent
       const paths = [
         ...new Set([...Object.keys(parentTree), ...Object.keys(tree)]),
       ].sort()
@@ -509,7 +510,9 @@ export function fakeRepo(id: string): GitRepo {
         .map((p) => fileDiff(p, parentTree[p], tree[p]))
       return {
         sha: info.sha,
-        baseSha: info.parentShas[0],
+        baseSha: opts.base
+          ? resolve(id, opts.base).info.sha
+          : info.parentShas[0],
         files,
       }
     },

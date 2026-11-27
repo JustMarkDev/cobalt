@@ -48,6 +48,7 @@ async function remote(ctx: QueryCtx, r: Doc<'remoteRepos'>) {
     connectionId: (r.connectionId as string | null) ?? null,
     etags: r.etags ?? {},
     importedAt: r.importedAt ?? null,
+    botWrites: repo?.githubBotWrites !== false,
   }
 }
 
@@ -709,6 +710,7 @@ const auditAction = v.union(
   v.literal('adopted'),
   v.literal('unlinked'),
   v.literal('relinked'),
+  v.literal('published'),
   v.literal('needs_reconnect'),
 )
 
@@ -901,11 +903,13 @@ export const itemsDue = query({
         q.gte('itemsDue', 0).lte('itemsDue', a.now),
       )
       .take(Math.min(a.max, 50))
-    return out(
+    // A link whose repository was deleted has nothing to sync.
+    const live = (
       await Promise.all(
         rs.filter((r) => r.state !== 'gone').map((r) => remote(ctx, r)),
-      ),
-    )
+      )
+    ).filter((r) => r.repo !== '')
+    return out(live)
   },
 })
 
@@ -1209,5 +1213,38 @@ export const jobProgress = query({
         error: i.error,
       })),
     })
+  },
+})
+
+/**
+ * Languages and license read from a repository's own files, after a push to
+ * its default branch. A repository linked to a provider takes both from it.
+ */
+export const setDetected = mutation({
+  args: {
+    storeId: v.string(),
+    ref: v.string(),
+    languages: v.array(v.array(v.union(v.string(), v.number()))),
+    license: v.union(v.null(), v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
+      .unique()
+    if (!repo || repo.upstream || a.ref !== `refs/heads/${repo.defaultBranch}`)
+      return out(null)
+    const patch: Partial<Doc<'repos'>> = {}
+    if (JSON.stringify(repo.languages) !== JSON.stringify(a.languages))
+      patch.languages = a.languages
+    if (repo.license !== a.license) patch.license = a.license
+    if (Object.keys(patch).length)
+      await ctx.db.patch('repos', repo._id, {
+        ...patch,
+        version: repo.version + 1,
+      })
+    return out(null)
   },
 })

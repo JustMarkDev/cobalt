@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { PlusIcon, UserPlusIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { CopyAddress, EmptyState, Tile } from './bits'
 import { RepoRow } from './repo-card'
 import { randomHandle } from '@cobaltforge/api/handles'

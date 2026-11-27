@@ -1,4 +1,4 @@
-import { HomeIcon } from '@heroicons/react/24/outline'
+import { HouseIcon } from '@phosphor-icons/react'
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared'
 import { BrandMark } from '~/components/brand-mark'
 
@@ -14,6 +14,6 @@ export function baseOptions(): BaseLayoutProps {
       url: '/',
     },
     themeSwitch: { enabled: false },
-    links: [{ text: 'Home', url: '/', icon: <HomeIcon /> }],
+    links: [{ text: 'Home', url: '/', icon: <HouseIcon /> }],
   }
 }

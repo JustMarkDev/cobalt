@@ -10,5 +10,5 @@
     "agents",
     "agent-guide"
   ],
-  "icon": "CommandLineIcon"
+  "icon": "TerminalWindowIcon"
 }

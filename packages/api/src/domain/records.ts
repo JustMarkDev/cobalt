@@ -287,6 +287,8 @@ export type RepoRec = {
   docsUrl: string | null
   declinedModels?: Array<string>
   autoLand?: { by: string } | null
+  /** On unless false. */
+  githubBotWrites?: boolean
   vouched?: Array<string>
   denounced?: Array<{ handle: string; reason: string }>
   created: number
@@ -519,6 +521,8 @@ export type PipelineRunRec = {
     status: PipelineStatus | 'skipped'
     duration: number
     runsOn?: Array<string>
+    /** Names of the jobs this one waits for (GitHub Actions `needs`). */
+    needs?: Array<string>
     runnerId?: string | null
     lease?: number | null
     steps: Array<{

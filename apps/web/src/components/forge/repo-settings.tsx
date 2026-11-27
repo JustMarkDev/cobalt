@@ -1,11 +1,11 @@
 import * as React from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ArrowPathIcon,
+  ArrowClockwiseIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
   PlusIcon,
-} from '@heroicons/react/24/outline'
+  WarningIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { IntegrationsPanel } from './integrations-panel'
 import { PoliciesPage } from './repo-policies'
@@ -356,7 +356,7 @@ function MirrorRow({
         ) : (
           <Badge tone={stateTone[m.state]}>
             {m.state === 'in-sync' && <CheckCircleIcon />}
-            {m.state === 'failing' && <ExclamationTriangleIcon />}
+            {m.state === 'failing' && <WarningIcon />}
             {stateLabel[m.state]}
           </Badge>
         )}
@@ -371,7 +371,7 @@ function MirrorRow({
             void onSync().finally(() => setBusy(false))
           }}
         >
-          <ArrowPathIcon className={cn(busy && 'animate-spin')} />
+          <ArrowClockwiseIcon className={cn(busy && 'animate-spin')} />
           {m.state === 'failing' ? 'Reconnect' : 'Sync now'}
         </Button>
       </div>
@@ -696,6 +696,7 @@ function Contributions({ repo }: { repo: Repo }) {
   const [error, setError] = React.useState('')
   const save = (body: {
     auto_land?: boolean
+    github_bot_writes?: boolean
     declined_models?: Array<string>
     vouched?: Array<string>
     denounced?: Array<{ handle: string; reason: string }>
@@ -711,6 +712,15 @@ function Contributions({ repo }: { repo: Repo }) {
         label="Land changes when everything is green"
         hint="Checks pass, no open high finding, the policy is met: it lands under your account, with no button to press. Never a draft, a stacked change, or one that touches CI, policies or the env schema."
       />
+
+      {shown.upstream?.host === 'github' ? (
+        <SwitchRow
+          checked={shown.github_bot_writes}
+          onChange={(on) => save({ github_bot_writes: on })}
+          label="Let people without a GitHub account write"
+          hint="This repository is mirrored to GitHub. On (the default): the cobalt app posts issues, comments and changes for people with no linked GitHub account, with their cobalt name in the text. Off: they need their own linked GitHub account first. People who linked one always post as themselves, and commits always keep their author."
+        />
+      ) : null}
 
       <ListEditor
         label="Declined models"

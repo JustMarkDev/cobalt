@@ -44,6 +44,12 @@ export const bodies = {
       .describe(
         'Land a change by itself once it can. You answer for what lands this way',
       ),
+    github_bot_writes: z
+      .boolean()
+      .optional()
+      .describe(
+        'On a repository mirrored to GitHub, let people without a linked GitHub account write: the cobalt app posts for them, naming them',
+      ),
     vouched: z
       .array(z.string().regex(/^[a-z0-9][a-z0-9-]{0,38}$/i))
       .max(1000)

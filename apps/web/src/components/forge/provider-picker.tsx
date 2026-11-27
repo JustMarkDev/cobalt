@@ -2,12 +2,12 @@ import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from 'convex/react'
 import {
-  ArchiveBoxIcon,
-  ArrowPathIcon,
+  ArchiveIcon,
+  ArrowClockwiseIcon,
   CheckIcon,
-  LockClosedIcon,
+  LockIcon,
   MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { api } from '../../../../../convex/_generated/api'
 import { Button } from '~/components/ui/button'
@@ -18,6 +18,14 @@ import { manages, useAccounts } from '~/lib/auth/accounts'
 import { useWrite } from '~/lib/forge'
 
 export type ProviderId = 'github' | 'gitlab' | 'codeberg'
+
+/**
+ * Hosts you can link and import from today. The others are built but not
+ * offered until they are tested end to end; they show as Planned.
+ */
+export const liveProviders: ReadonlySet<string> = new Set<ProviderId>([
+  'github',
+])
 
 export const providerLabel: Record<ProviderId, string> = {
   github: 'GitHub',
@@ -224,7 +232,7 @@ export function ProviderPicker({
             onClick={() => void page(null)}
             aria-label="Refresh the list"
           >
-            <ArrowPathIcon className="size-4" />
+            <ArrowClockwiseIcon className="size-4" />
           </Button>
           {actions}
         </div>
@@ -321,13 +329,13 @@ export function ProviderPicker({
                         {r.slug}
                       </span>
                       {r.archived && (
-                        <ArchiveBoxIcon
+                        <ArchiveIcon
                           className="size-4 shrink-0 text-muted-foreground"
                           aria-label="Archived"
                         />
                       )}
                       {r.private && (
-                        <LockClosedIcon
+                        <LockIcon
                           className="size-4 shrink-0 text-muted-foreground"
                           aria-label="Private"
                         />

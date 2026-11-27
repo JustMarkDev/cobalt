@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { File } from '@pierre/diffs/react'
-import { PlusIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, Modal, Panel, SectionLabel, Seg } from './bits'
 import type { Repo } from '~/lib/model/data'
