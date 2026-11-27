@@ -1548,6 +1548,7 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
       'forbidden',
       'session_required',
       'confirmation_required',
+      'link_required',
       'denounced',
       'model_declined',
     ],

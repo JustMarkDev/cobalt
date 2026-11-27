@@ -38465,6 +38465,11 @@
       "retryable": false,
       "exit_code": 6
     },
+    "link_required": {
+      "status": 403,
+      "retryable": false,
+      "exit_code": 6
+    },
     "session_required": {
       "status": 403,
       "retryable": false,

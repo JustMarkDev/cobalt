@@ -762,8 +762,9 @@ export class RemoteItems {
 
   /**
    * The provider of a linked repository that can take issue writes, as the
-   * person when cobalt holds their own GitHub token (their name on GitHub),
-   * else as the app (`as: null`), which then says who wrote it.
+   * person: on GitHub, with their own token, so it is their name there. A
+   * person without a linked GitHub account cannot write to a repository
+   * mirrored to GitHub (link_required); other hosts write as the link.
    */
   private async writable(full: string, by: string) {
     const r = await this.store.remoteOfRepo(full)
@@ -772,6 +773,7 @@ export class RemoteItems {
     const auth = await this.sync.authOf(r)
     if (!auth) return null
     const mine = r.provider === 'github' ? await this.sync.githubAs(by) : null
+    if (r.provider === 'github' && !mine) throw githubLinkRequired(full, r)
     return { r, forge, auth, write: mine ?? auth, asPerson: Boolean(mine) }
   }
 
@@ -926,4 +928,12 @@ export class RemoteItems {
       await this.store.patchRemote(r.id, { importedAt: null })
     await this.store.setItemsDue(r.repo, this.sync.now())
   }
+}
+
+/** Writing to a repository mirrored to GitHub takes the writer's own GitHub account. */
+export function githubLinkRequired(full: string, r: { fullName: string }) {
+  return apiError(
+    'link_required',
+    `${full} is mirrored to GitHub (${r.fullName}): link your GitHub account to write to it, so it shows under your name there.`,
+  )
 }

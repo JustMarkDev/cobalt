@@ -308,7 +308,7 @@ export function createConvexApi(o: ConvexApiOptions) {
     verifyToken: api.verifyToken,
     domain,
     remotes: o.gitRemotes ?? codeStorageRemotes(),
-    beforeGit: (full, write) => providers.beforeGit(full, write),
+    beforeGit: (full, write, by) => providers.beforeGit(full, write, by),
     afterPush: (at, updates) => d.recordPushes(at, updates),
     log: (line) => console.log('[git]', JSON.stringify(line)),
   })

@@ -78,6 +78,13 @@ export const errorCatalog = {
     exit: 6,
     hint: 'Open confirm_url on a device where you are signed in, confirm, then retry. A confirmation covers this one login for a while.',
   },
+  link_required: {
+    status: 403,
+    title: 'Link your GitHub account first',
+    retryable: false,
+    exit: 6,
+    hint: 'This repository is mirrored to GitHub, and what you write there appears under your own name. Link GitHub in Settings, Accounts (or cb auth login on a new machine), then retry.',
+  },
   session_required: {
     status: 403,
     title: 'Confirm this from a signed-in page',

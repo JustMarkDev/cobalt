@@ -4,7 +4,7 @@ import { CredentialExists } from '@cobaltforge/git/stores'
 import { webhookSecret } from './vault'
 import type { TokenVault } from './vault'
 import { PROVIDERS, ProviderError } from './types'
-import { RemoteItems } from './items'
+import { RemoteItems, githubLinkRequired } from './items'
 import { aboutOf } from './about'
 import type { About } from './about'
 import type { Materialize } from './items'
@@ -1045,9 +1045,18 @@ export class ProviderSync {
     return (await this.store.remoteOfRepo(full))!
   }
 
-  async beforeGit(full: string, write: boolean) {
+  async beforeGit(full: string, write: boolean, by?: string) {
     const r = await this.store.remoteOfRepo(full)
     if (!r || r.state === 'gone') return
+    // A push lands on GitHub too: under the pusher's own account, or not at all.
+    if (
+      write &&
+      by &&
+      r.provider === 'github' &&
+      r.state !== 'archived' &&
+      !(await this.githubAs(by))
+    )
+      throw githubLinkRequired(full, r)
     if (r.state === 'broken' && write)
       throw apiError(
         'invalid_state',
