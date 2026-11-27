@@ -1581,6 +1581,21 @@ export class ConvexDomain implements DomainPort {
         .catch(() => null)
       if (bytes) files[path] = new TextDecoder().decode(bytes)
     }
+    // Reusable workflows of other repositories, read from GitHub (public ones).
+    for (const text of Object.values({ ...files })) {
+      for (const m of text.matchAll(
+        /^\s{2,}uses:\s*['"]?([\w.-]+\/[\w.-]+\/\.github\/workflows\/[\w.-]+\.ya?ml@[\w./-]+)/gm,
+      )) {
+        const uses = m[1]
+        if (uses in files) continue
+        const at = /^([\w.-]+)\/([\w.-]+)\/(.+)@(.+)$/.exec(uses)
+        if (!at) continue
+        const res = await fetch(
+          `https://raw.githubusercontent.com/${at[1]}/${at[2]}/${at[4]}/${at[3]}`,
+        ).catch(() => null)
+        if (res?.ok) files[uses] = await res.text()
+      }
+    }
     const planned = planPush(files, {
       ref: e.ref,
       sha: e.after,

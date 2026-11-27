@@ -389,6 +389,65 @@ async function spawn(
   return code
 }
 
+/**
+ * A container step as GitHub's runner runs it: the workspace at
+ * /github/workspace, the runner's files (GITHUB_ENV, GITHUB_OUTPUT, …) at
+ * the same paths, inputs as INPUT_ variables.
+ */
+async function docker(
+  o: {
+    image: string
+    args: Array<string>
+    entrypoint?: string
+    env: Env
+    inputs: Env
+  },
+  rt: Runtime,
+  timeoutMs?: number,
+): Promise<number> {
+  if (!Bun.which('docker', { PATH: o.env.PATH })) {
+    rt.log({
+      text: 'This step runs in a container and this machine has no docker. Install Docker Desktop, OrbStack or colima, then run the job again.',
+      level: 'error',
+    })
+    return 1
+  }
+  const pass: Env = {
+    ...o.env,
+    GITHUB_WORKSPACE: '/github/workspace',
+    HOME: '/github/home',
+  }
+  for (const [k, v] of Object.entries(o.inputs))
+    pass[`INPUT_${k.replace(/ /g, '_').toUpperCase()}`] = v
+  // Only what the job set, not the whole environment of this machine.
+  const keep = Object.keys(pass).filter(
+    (k) =>
+      /^(GITHUB_|RUNNER_|INPUT_|CI$|HOME$)/.test(k) ||
+      !(k in process.env) ||
+      pass[k] !== process.env[k],
+  )
+  const argv = [
+    'docker',
+    'run',
+    '--rm',
+    '--workdir',
+    '/github/workspace',
+    '-v',
+    `${rt.workspace}:/github/workspace`,
+    '-v',
+    `${rt.temp}:${rt.temp}`,
+    ...keep.flatMap((k) => ['-e', k]),
+    ...(o.entrypoint ? ['--entrypoint', o.entrypoint] : []),
+    o.image,
+    ...o.args,
+  ]
+  rt.log({
+    text: `docker run ${o.image} ${o.args.join(' ')}`.trim(),
+    level: 'cmd',
+  })
+  return spawn(argv, { cwd: rt.workspace, env: pass, timeoutMs }, rt.log)
+}
+
 /** Run one step (a run: or a uses:). Its outputs land in ctx.steps[id]. */
 export async function runStep(
   step: Obj,
@@ -475,11 +534,18 @@ export async function runStep(
       level: 'info',
     })
   } else if (uses?.startsWith('docker://')) {
-    rt.log({
-      text: `${uses} runs in a container, which this runner does not do yet.`,
-      level: 'warn',
-    })
-    return 'skipped'
+    const args = withs.args ? withs.args.split(/\s+/).filter(Boolean) : []
+    code = await docker(
+      {
+        image: uses.slice('docker://'.length),
+        args,
+        entrypoint: withs.entrypoint,
+        env: baseEnv(),
+        inputs: {},
+      },
+      rt,
+      timeoutMs,
+    )
   } else if (uses) {
     let dir: string
     try {
@@ -548,6 +614,48 @@ export async function runStep(
       ))
         if (isObj(v) && typeof v.value === 'string')
           outputs[k] = interpolate(v.value, inner)
+    } else if (using === 'docker') {
+      const image = asText(runs.image)
+      let tag: string
+      if (image.startsWith('docker://')) tag = image.slice('docker://'.length)
+      else {
+        // Built from the action's Dockerfile, once per action version.
+        tag = `cobalt-action-${Bun.hash(dir).toString(36)}`
+        if (!Bun.which('docker', { PATH: baseEnv().PATH }))
+          code = await docker({ image: tag, args: [], env: {}, inputs: {} }, rt)
+        else {
+          rt.log({ text: `docker build ${image}`, level: 'cmd' })
+          code = await spawn(
+            ['docker', 'build', '-q', '-t', tag, '-f', join(dir, image), dir],
+            { cwd: dir, env: process.env as Env },
+            rt.log,
+          )
+        }
+      }
+      if (code === 0) {
+        const inner: Context = { ...ctx, inputs }
+        code = await docker(
+          {
+            image: tag,
+            args: (Array.isArray(runs.args) ? runs.args : []).map((a) =>
+              interpolate(asText(a), inner),
+            ),
+            entrypoint:
+              typeof runs.entrypoint === 'string' ? runs.entrypoint : undefined,
+            env: {
+              ...baseEnv(),
+              ...Object.fromEntries(
+                Object.entries(isObj(runs.env) ? runs.env : {}).map(
+                  ([k, v]) => [k, interpolate(asText(v), inner)],
+                ),
+              ),
+            },
+            inputs,
+          },
+          rt,
+          timeoutMs,
+        )
+      }
     } else {
       rt.log({
         text: `${uses} uses ${using || 'an unknown runtime'}, which this runner does not run.`,
@@ -586,21 +694,58 @@ export async function runStep(
  * The job of a workflow file the runner took, with its matrix values, worked
  * out the way the server named it.
  */
-export function findJob(
+export type FoundJob = {
+  job: Obj
+  matrix: Obj
+  workflowEnv: Obj
+  /** For a job of a reusable workflow: what its caller passed (`with:`). */
+  inputs: Obj
+}
+
+/**
+ * The job of a workflow file the runner took, with its matrix values, worked
+ * out the way the server named it. `Caller / job` is a job of the reusable
+ * workflow the caller's job calls; `load` reads that workflow.
+ */
+export async function findJob(
   yamlText: string,
   name: string,
-): { job: Obj; matrix: Obj; workflowEnv: Obj } | null {
+  load: (uses: string) => Promise<string | null> = () => Promise.resolve(null),
+  prefix = '',
+  depth = 0,
+): Promise<FoundJob | null> {
   const doc = parseYaml(yamlText) as Obj
   const jobs = isObj(doc.jobs) ? doc.jobs : {}
   for (const [key, raw] of Object.entries(jobs)) {
     if (!isObj(raw)) continue
-    const base = typeof raw.name === 'string' && raw.name ? raw.name : key
+    const base = `${prefix}${typeof raw.name === 'string' && raw.name ? raw.name : key}`
+    if (typeof raw.uses === 'string') {
+      if (depth >= 4 || !name.startsWith(`${base} / `)) continue
+      const text = await load(raw.uses)
+      if (!text) return null
+      const inner = await findJob(text, name, load, `${base} / `, depth + 1)
+      if (!inner) return null
+      // Inputs: the caller's with:, over the called workflow's defaults.
+      const called = parseYaml(text) as Obj
+      const on = isObj(called.on) ? called.on : {}
+      const call = isObj(on.workflow_call) ? on.workflow_call : {}
+      const defaults: Obj = {}
+      for (const [k, v] of Object.entries(
+        isObj(call.inputs) ? call.inputs : {},
+      ))
+        if (isObj(v) && v.default !== undefined) defaults[k] = v.default
+      return {
+        ...inner,
+        inputs: { ...defaults, ...(isObj(raw.with) ? raw.with : {}) },
+      }
+    }
     for (const m of matrixOf(raw))
       if (jobName(base, m) === name)
         return {
           job: raw,
           matrix: m,
           workflowEnv: isObj(doc.env) ? doc.env : {},
+          inputs: {},
         }
   }
   return null

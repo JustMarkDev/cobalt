@@ -1118,7 +1118,15 @@ export const raiseFinding = mutation({
           ],
         },
       )
-    const by = await actorFor(ctx, p.handle)
+    // A reviewer runner signs as itself (`mac-mini[bot]`), not as the
+    // account that registered it.
+    const bot = reviewer
+      ? await ctx.db
+          .query('runners')
+          .withIndex('by_publicId', (q) => q.eq('publicId', p.runnerId!))
+          .unique()
+      : null
+    const by = await actorFor(ctx, bot ? `${bot.name}[bot]` : p.handle)
     const at = Date.now()
     const n =
       Math.max(

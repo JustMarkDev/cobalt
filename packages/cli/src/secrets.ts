@@ -152,23 +152,23 @@ export function withVarlock(
     .stdout.toString()
     .trim()
   if (!root || !existsSync(join(root, '.env.schema'))) return command
-  let bin: string | null = null
-  try {
-    bin = join(
-      dirname(require.resolve('varlock/package.json')),
-      'bin',
-      'cli.js',
-    )
-  } catch {
-    bin = Bun.which('varlock')
-  }
-  if (!bin || !existsSync(bin)) return command
-  return [
-    ...(bin.endsWith('.js') ? [process.execPath, bin] : [bin]),
-    'run',
-    '--path',
-    root,
-    '--',
-    ...command,
-  ]
+  // varlock on the PATH (installed with cb), else the package's own script
+  // through bun: in a compiled cb, process.execPath is cb itself.
+  let argv: Array<string> | null = null
+  const onPath = Bun.which('varlock')
+  if (onPath) argv = [onPath]
+  else
+    try {
+      const script = join(
+        dirname(require.resolve('varlock/package.json')),
+        'bin',
+        'cli.js',
+      )
+      const bun = Bun.which('bun')
+      if (existsSync(script) && bun) argv = [bun, script]
+    } catch {
+      argv = null
+    }
+  if (!argv) return command
+  return [...argv, 'run', '--path', root, '--', ...command]
 }

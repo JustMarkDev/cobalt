@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve as resolvePath } from 'node:path'
 import { tmpdir } from 'node:os'
 import { agentJobOf } from '@cobaltforge/api/agent-runs'
@@ -305,7 +305,21 @@ async function runJob(
     return 'failure'
   }
   const text = await workflowText(api, repo, job)
-  const found = text ? findJob(text, job.name) : null
+  // A reusable workflow: from the checkout (./…), or from GitHub.
+  const load = async (uses: string) => {
+    const local = /^\.\/(.+)$/.exec(uses)
+    if (local)
+      return existsSync(join(dir, local[1]))
+        ? readFileSync(join(dir, local[1]), 'utf8')
+        : null
+    const at = /^([\w.-]+)\/([\w.-]+)\/(.+)@(.+)$/.exec(uses)
+    if (!at) return null
+    const res = await fetch(
+      `https://raw.githubusercontent.com/${at[1]}/${at[2]}/${at[4]}/${at[3]}`,
+    ).catch(() => null)
+    return res?.ok ? res.text() : null
+  }
+  const found = text ? await findJob(text, job.name, load) : null
   if (!found) {
     for (const step of job.steps)
       await report({
@@ -330,6 +344,12 @@ async function runJob(
     temp,
     matrix: found.matrix,
   })
+  context.inputs = Object.fromEntries(
+    Object.entries(found.inputs).map(([k, v]) => [
+      k,
+      typeof v === 'string' ? interpolate(v, context) : v,
+    ]),
+  )
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries({
     ...found.workflowEnv,

@@ -185,76 +185,13 @@ export function planPush(
     const annotations: Planned['annotations'] = []
     if (takes.note)
       annotations.push({ level: 'warn', text: takes.note, job: '', step: '' })
-    const jobs: Planned['jobs'] = []
-    const all = isObj(doc.jobs) ? doc.jobs : {}
-    // A job is named by its name, and once per matrix combination.
-    const namesOf = (key: string): Array<string> => {
-      const raw = all[key]
-      if (!isObj(raw)) return []
-      const base = typeof raw.name === 'string' && raw.name ? raw.name : key
-      return matrixOf(raw).map((m) => jobName(base, m))
-    }
-    for (const [key, raw] of Object.entries(all)) {
-      if (!isObj(raw)) continue
-      const base = typeof raw.name === 'string' && raw.name ? raw.name : key
-      if ('uses' in raw) {
-        annotations.push({
-          level: 'warn',
-          text: `Job ${base} calls a reusable workflow (${String(raw.uses)}), which cobalt runners do not run yet.`,
-          job: base,
-          step: '',
-        })
-        continue
-      }
-      const needs = (strings(raw.needs) ?? []).flatMap(namesOf)
-      for (const m of matrixOf(raw)) {
-        const name = jobName(base, m)
-        const labels = (strings(raw['runs-on']) ?? []).map((l) =>
-          substituteMatrix(l, m).toLowerCase(),
-        )
-        const steps = (Array.isArray(raw.steps) ? raw.steps : [])
-          .filter(isObj)
-          .map((s, i) => {
-            const uses = typeof s.uses === 'string' ? s.uses : null
-            const run = typeof s.run === 'string' ? s.run : null
-            const stepName = substituteMatrix(
-              typeof s.name === 'string' && s.name
-                ? s.name
-                : run
-                  ? (run.split('\n')[0] ?? '').slice(0, 80)
-                  : uses
-                    ? `Run ${uses}`
-                    : `Step ${i + 1}`,
-              m,
-            )
-            if (uses?.startsWith('docker://'))
-              annotations.push({
-                level: 'warn',
-                text: `${uses} runs in a container, which cobalt runners do not do yet: the step is skipped.`,
-                job: name,
-                step: stepName,
-              })
-            return {
-              name: stepName,
-              status: 'queued' as const,
-              duration: 0,
-              lines: [],
-              wait: null,
-            }
-          })
-        jobs.push({
-          name,
-          runner: '',
-          status: 'queued',
-          duration: 0,
-          runsOn: labels,
-          ...(needs.length ? { needs } : {}),
-          runnerId: null,
-          lease: null,
-          steps,
-        })
-      }
-    }
+    const jobs = planJobs(isObj(doc.jobs) ? doc.jobs : {}, {
+      files,
+      prefix: '',
+      needs: [],
+      annotations,
+      depth: 0,
+    })
     if (!jobs.length) continue
     out.push({
       workflow:
@@ -270,6 +207,123 @@ export function planPush(
     })
   }
   return out
+}
+
+/** A reusable workflow a job calls, as the runner and the planner find it. */
+export function calledWorkflow(
+  uses: string,
+  files: Record<string, string>,
+): string | null {
+  const local = /^\.\/(.+)$/.exec(uses)
+  if (local) return files[local[1]] ?? null
+  return files[uses] ?? null
+}
+
+/**
+ * The jobs of a workflow, each matrix combination its own job. A job that
+ * calls a reusable workflow (jobs.<id>.uses) is that workflow's jobs, named
+ * `Caller / job` as GitHub names them, after what the caller needs.
+ */
+function planJobs(
+  all: Record<string, unknown>,
+  o: {
+    files: Record<string, string>
+    prefix: string
+    needs: Array<string>
+    annotations: Planned['annotations']
+    depth: number
+  },
+): Planned['jobs'] {
+  const jobs: Planned['jobs'] = []
+  const baseOf = (key: string) => {
+    const raw = all[key]
+    const b =
+      isObj(raw) && typeof raw.name === 'string' && raw.name ? raw.name : key
+    return `${o.prefix}${b}`
+  }
+  // What a needed job is called once planned: its matrix names, or for a
+  // reusable call, every job it expands to.
+  const planned = new Map<string, Array<string>>()
+  const namesOf = (key: string): Array<string> =>
+    planned.get(key) ??
+    (isObj(all[key])
+      ? matrixOf(all[key]).map((m) => jobName(baseOf(key), m))
+      : [])
+  for (const [key, raw] of Object.entries(all)) {
+    if (!isObj(raw)) continue
+    const base = baseOf(key)
+    const needs = [...o.needs, ...(strings(raw.needs) ?? []).flatMap(namesOf)]
+    if (typeof raw.uses === 'string') {
+      const text = o.depth < 4 ? calledWorkflow(raw.uses, o.files) : null
+      let called: unknown = null
+      try {
+        called = text ? parse(text) : null
+      } catch {
+        called = null
+      }
+      if (!isObj(called) || !isObj(called.jobs)) {
+        o.annotations.push({
+          level: 'warn',
+          text: `Job ${base} calls ${raw.uses}, which cobalt could not read, so it does not run.`,
+          job: base,
+          step: '',
+        })
+        continue
+      }
+      const inner = planJobs(called.jobs, {
+        ...o,
+        prefix: `${base} / `,
+        needs,
+        depth: o.depth + 1,
+      })
+      planned.set(
+        key,
+        inner.map((j) => j.name),
+      )
+      jobs.push(...inner)
+      continue
+    }
+    for (const m of matrixOf(raw)) {
+      const name = jobName(base, m)
+      const labels = (strings(raw['runs-on']) ?? []).map((l) =>
+        substituteMatrix(l, m).toLowerCase(),
+      )
+      const steps = (Array.isArray(raw.steps) ? raw.steps : [])
+        .filter(isObj)
+        .map((st, i) => {
+          const uses = typeof st.uses === 'string' ? st.uses : null
+          const run = typeof st.run === 'string' ? st.run : null
+          return {
+            name: substituteMatrix(
+              typeof st.name === 'string' && st.name
+                ? st.name
+                : run
+                  ? (run.split('\n')[0] ?? '').slice(0, 80)
+                  : uses
+                    ? `Run ${uses}`
+                    : `Step ${i + 1}`,
+              m,
+            ),
+            status: 'queued' as const,
+            duration: 0,
+            lines: [],
+            wait: null,
+          }
+        })
+      jobs.push({
+        name,
+        runner: '',
+        status: 'queued',
+        duration: 0,
+        runsOn: labels,
+        ...(needs.length ? { needs } : {}),
+        runnerId: null,
+        lease: null,
+        steps,
+      })
+    }
+  }
+  return jobs
 }
 
 /** A queued run of a planned workflow, numbered `number`. */

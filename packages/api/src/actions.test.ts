@@ -60,7 +60,9 @@ test('a push to a matching branch starts the workflow, with what cobalt skips sa
   ])
   const notes = p.annotations.map((a) => a.text).join('\n')
   expect(notes).toContain('path filters')
-  expect(notes).toContain('reusable workflow')
+  expect(notes).toContain(
+    'org/repo/.github/workflows/shared.yml@main, which cobalt could not read',
+  )
   expect(notes).not.toContain('setup-bun')
   expect(notes).not.toContain('matrix')
   const run = runOf(p, { number: 7, actor: 'dana', at: 0 })
@@ -129,4 +131,42 @@ test('on: as a word, a list, branches-ignore and tags', () => {
       { ref: 'refs/heads/feature', sha: 'a', actor: 'd' },
     ),
   ).toEqual([])
+})
+
+test("a job calling a reusable workflow is that workflow's jobs, after what it needs", () => {
+  const caller = `on: push
+jobs:
+  test:
+    runs-on: self-hosted
+    steps: [{ run: echo test }]
+  release:
+    name: Release
+    needs: test
+    uses: ./.github/workflows/release.yml
+    with: { channel: beta }
+`
+  const called = `on: workflow_call
+jobs:
+  build:
+    name: Build
+    runs-on: [self-hosted, macos]
+    steps: [{ run: echo build }]
+  publish:
+    name: Publish
+    needs: build
+    runs-on: self-hosted
+    steps: [{ run: echo publish }]
+`
+  const [p] = planPush(
+    {
+      '.github/workflows/deploy.yml': caller,
+      '.github/workflows/release.yml': called,
+    },
+    { ref: 'refs/heads/main', sha: 'a', actor: 'd' },
+  ).filter((x) => x.file.endsWith('deploy.yml'))
+  expect(p.jobs.map((j) => [j.name, j.runsOn, j.needs ?? []])).toEqual([
+    ['test', ['self-hosted'], []],
+    ['Release / Build', ['self-hosted', 'macos'], ['test']],
+    ['Release / Publish', ['self-hosted'], ['test', 'Release / Build']],
+  ])
 })

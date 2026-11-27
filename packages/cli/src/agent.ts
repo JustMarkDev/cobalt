@@ -170,7 +170,29 @@ export async function reviewHere(
       level: 'info',
     },
   ]
-  for (const f of findings) {
+  // What an earlier review raised and is still open is not raised again.
+  const open =
+    (
+      (
+        await api
+          .get(`/repos/${repo}/changes/${number}/findings`)
+          .catch(() => null)
+      )?.json as {
+        data: Array<{
+          file: string
+          line: number
+          title: string
+          state: string
+        }>
+      } | null
+    )?.data.filter((f) => f.state === 'open') ?? []
+  const fresh = findings.filter((f) => !open.some((o) => sameFinding(o, f)))
+  if (fresh.length < findings.length)
+    lines.push({
+      text: `${findings.length - fresh.length} already open from an earlier review, not raised again.`,
+      level: 'info',
+    })
+  for (const f of fresh) {
     try {
       await api.post(`/repos/${repo}/changes/${number}/findings`, {
         body: {
@@ -201,4 +223,23 @@ export async function reviewHere(
         .map((t) => ({ text: t.slice(0, 2000), level: null })),
     )
   return lines
+}
+
+const words = (t: string) =>
+  new Set(t.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [])
+
+/**
+ * The same problem as one already raised: same file, and a nearby line or a
+ * title that says mostly the same thing.
+ */
+export function sameFinding(
+  a: { file: string; line: number; title: string },
+  b: { file: string; line: number; title: string },
+) {
+  if (a.file !== b.file) return false
+  if (Math.abs(a.line - b.line) <= 2) return true
+  const x = words(a.title)
+  const y = words(b.title)
+  const both = [...x].filter((w) => y.has(w)).length
+  return both / Math.max(1, Math.min(x.size, y.size)) >= 0.6
 }

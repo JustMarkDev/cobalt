@@ -4,9 +4,16 @@ These scripts let an agent (or you) check the whole forge on your machine,
 with real GitHub data, before anything goes to Railway. They only run against
 a `dev:` Convex deployment, never production.
 
+Use the **dev GitHub App** (Cobalt Forge Sync Dev), not production's: the two
+apps have separate rate limits, so testing here never slows production's sync.
+Its keys go in `apps/web/.env.local` (`GITHUB_APP_*`), and after switching app,
+`bun scripts/dev/use-installation.ts <installation id>` points the links the
+dev deployment already has at the dev app's installation.
+
 Setup, once: `.env.local` and `apps/web/.env.local` as in the main README
 (the dev deployment, its API key, the GitHub App and Code Storage keys; a
-`CB_SECRETS_KEY` of 32 bytes, base64 or hex). Then `bun run dev`.
+`CB_SECRETS_KEY` of 32 bytes, base64 or hex; `CB_TOKEN_KEYS` to keep users'
+GitHub tokens). Then `bun run dev`.
 
 | Command                                                       | What it does                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
