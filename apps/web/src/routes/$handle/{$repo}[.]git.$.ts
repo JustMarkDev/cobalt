@@ -1,13 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getApi } from '~/lib/api/instance'
-
-const handle = async ({ request }: { request: Request }) => {
-  const api = getApi(request.url)
-  if (!api.gitHttp) return new Response('Not found\n', { status: 404 })
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  return api.gitHttp(request, ip)
-}
+import { serveGit } from '~/lib/api/git-route'
 
 export const Route = createFileRoute('/$handle/{$repo}.git/$')({
-  server: { handlers: { GET: handle, POST: handle } },
+  server: { handlers: { GET: serveGit, POST: serveGit } },
 })

@@ -1,7 +1,16 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve as resolvePath } from 'node:path'
 import { tmpdir } from 'node:os'
-import { parse as parseYaml } from 'yaml'
+import { agentJobOf } from '@cobaltforge/api/agent-runs'
+import type { AgentJob } from '@cobaltforge/api/agent-runs'
+import {
+  condition,
+  findJob,
+  interpolate,
+  newContext,
+  runStep,
+} from '../workflow-runner'
+import { handOffHere, reviewHere } from '../agent'
 import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
 import { runnerClient } from '../client'
@@ -164,7 +173,18 @@ async function start(
   const timer = opts.once ? null : setInterval(() => void beat(), 30_000)
   try {
     for (;;) {
-      const r = await api.post('/runners/claim')
+      // A long-running runner outlives a failed claim or job: the server
+      // restarting, or a repository deleted while its job ran. It says so
+      // and goes on. With --once the error is the answer.
+      const r = await api.post('/runners/claim').catch((e: unknown) => {
+        if (opts.once) throw e
+        ctx.err(`claim failed, retrying: ${errText(e)}`)
+        return null
+      })
+      if (r === null) {
+        await new Promise((x) => setTimeout(x, 5_000))
+        continue
+      }
       if (r.status === 204) {
         if (opts.once) {
           print(ctx, { ran: null }, () => 'nothing to run')
@@ -174,7 +194,15 @@ async function start(
         continue
       }
       const job = r.json as Job
-      const result = await runJob(api, ctx, job, opts.workdir)
+      const result = await runJob(api, ctx, job, opts.workdir).catch(
+        (e: unknown) => {
+          if (opts.once) throw e
+          ctx.err(
+            `${job.workflow} / ${job.name} (run ${job.run}): ${errText(e)}`,
+          )
+          return 'failure' as const
+        },
+      )
       if (opts.once) {
         print(ctx, { ran: job, status: result }, () => `${job.name}: ${result}`)
         return result === 'success' ? exit.ok : exit.error
@@ -185,12 +213,47 @@ async function start(
   }
 }
 
-async function checkout(
+/**
+ * The repository at `sha` in `dir`: a git clone through cobalt with the
+ * runner's token when the server is reachable, else the files one by one.
+ */
+export async function checkout(
   api: ApiClient,
   repo: string,
   sha: string,
   dir: string,
 ) {
+  if (api.mode === 'network' && Bun.which('git')) {
+    const origin = api.base.replace(/\/api\/v1$/, '').replace(/\/v1$/, '')
+    const url = new URL(`${origin}/${repo}.git`)
+    url.username = 'runner'
+    url.password = process.env.CB_RUNNER_TOKEN ?? ''
+    const git = (args: Array<string>, cwd?: string) =>
+      Bun.spawnSync(['git', ...args], { cwd, stderr: 'pipe', stdout: 'pipe' })
+    if (!existsSync(join(dir, '.git'))) {
+      mkdirSync(dir, { recursive: true })
+      if (git(['clone', '--quiet', url.href, dir]).exitCode !== 0)
+        throw new Error(`git clone of ${repo} failed`)
+    } else
+      git(
+        [
+          'fetch',
+          '--quiet',
+          '--tags',
+          url.href,
+          '+refs/heads/*:refs/remotes/origin/*',
+        ],
+        dir,
+      )
+    if (
+      git(['checkout', '--quiet', '--force', '--detach', sha], dir).exitCode !==
+      0
+    )
+      throw new Error(`commit ${sha.slice(0, 7)} is not in ${repo}`)
+    // The token stays out of the clone's remote.
+    git(['remote', 'set-url', 'origin', `${origin}/${repo}.git`], dir)
+    return
+  }
   const tree = (
     await api.get(`/repos/${repo}/git/tree`, {
       query: { ref: sha, recursive: 'true' },
@@ -214,30 +277,17 @@ async function checkout(
   }
 }
 
-async function stepsToRun(api: ApiClient, repo: string, job: Job) {
+async function workflowText(api: ApiClient, repo: string, job: Job) {
   const res = await api
     .call('GET', `/repos/${repo}/git/blob`, {
       query: { ref: job.sha, path: job.file },
     })
     .catch(() => null)
-  const text = (res?.json as { content?: string; encoding?: string } | null)
-    ?.content
-  if (!text) return []
-  const yaml = parseYaml(
-    (res!.json as { encoding?: string }).encoding === 'base64'
-      ? Buffer.from(text, 'base64').toString('utf8')
-      : text,
-  ) as {
-    jobs?: Partial<
-      Record<string, { name?: string; steps?: Array<{ run?: string }> }>
-    >
-  }
-  const jobs = yaml.jobs ?? {}
-  const found =
-    jobs[job.name] ?? Object.values(jobs).find((j) => j?.name === job.name)
-  return (found?.steps ?? []).map((s) =>
-    typeof s.run === 'string' ? s.run : null,
-  )
+  const b = res?.json as { content?: string; encoding?: string } | null
+  if (!b?.content) return null
+  return b.encoding === 'base64'
+    ? Buffer.from(b.content, 'base64').toString('utf8')
+    : b.content
 }
 
 async function runJob(
@@ -251,61 +301,168 @@ async function runJob(
     .split('/')
     .slice(0, 2)
     .join('/')
-  const dir = join(workdir, `${repo.replace('/', '-')}-${job.run}-${job.job}`)
-  mkdirSync(dir, { recursive: true })
   const report = (body: Record<string, unknown>) =>
     api.post('/runners/report', {
       body: { repo, run: job.run, job: job.job, ...body },
     })
+  const agent = agentJobOf(job.file)
+  if (agent) return runAgentJob(api, ctx, job, repo, agent, workdir, report)
+
+  const dir = join(workdir, `${repo.replace('/', '-')}-${job.run}-${job.job}`)
+  mkdirSync(dir, { recursive: true })
   ctx.err(
     `${repo} #${job.run} ${job.name}: checking out ${job.sha.slice(0, 7)}`,
   )
-  await checkout(api, repo, job.sha, dir).catch(() => {})
-  const runs = await stepsToRun(api, repo, job)
-  for (const step of job.steps) {
-    const cmd = runs[step.number - 1] ?? null
-    if (!cmd) {
+  try {
+    await checkout(api, repo, job.sha, dir)
+  } catch (e) {
+    await report({
+      step: 1,
+      status: 'failure',
+      lines: [{ text: String(e), level: 'error' }],
+    })
+    return 'failure'
+  }
+  const text = await workflowText(api, repo, job)
+  // A reusable workflow: from the checkout (./…), or from GitHub.
+  const load = async (uses: string) => {
+    const local = /^\.\/(.+)$/.exec(uses)
+    if (local)
+      return existsSync(join(dir, local[1]))
+        ? readFileSync(join(dir, local[1]), 'utf8')
+        : null
+    const at = /^([\w.-]+)\/([\w.-]+)\/(.+)@(.+)$/.exec(uses)
+    if (!at) return null
+    const res = await fetch(
+      `https://raw.githubusercontent.com/${at[1]}/${at[2]}/${at[4]}/${at[3]}`,
+    ).catch(() => null)
+    return res?.ok ? res.text() : null
+  }
+  const found = text ? await findJob(text, job.name, load) : null
+  if (!found) {
+    for (const step of job.steps)
       await report({
         step: step.number,
         status: 'skipped',
-        lines: [{ text: 'Nothing to run on this runner.', level: 'info' }],
+        lines: [
+          {
+            text: `${job.file} has no job ${job.name} at ${job.sha.slice(0, 7)}.`,
+            level: 'error',
+          },
+        ],
+      })
+    return 'failure'
+  }
+  const temp = join(workdir, '_temp', `${job.run}-${job.job}`)
+  mkdirSync(temp, { recursive: true })
+  const context = newContext({
+    sha: job.sha,
+    branch: job.branch,
+    repository: repo,
+    workspace: dir,
+    temp,
+    matrix: found.matrix,
+  })
+  context.inputs = Object.fromEntries(
+    Object.entries(found.inputs).map(([k, v]) => [
+      k,
+      typeof v === 'string' ? interpolate(v, context) : v,
+    ]),
+  )
+  const env: Record<string, string> = {}
+  for (const [k, v] of Object.entries({
+    ...found.workflowEnv,
+    ...(found.job.env && typeof found.job.env === 'object'
+      ? found.job.env
+      : {}),
+  }))
+    env[k] = interpolate(String(v), context)
+  context.env = env
+  const steps = (
+    Array.isArray(found.job.steps) ? found.job.steps : []
+  ) as Array<Record<string, unknown>>
+  for (const step of job.steps) {
+    const spec = steps[step.number - 1] ?? {}
+    const id = typeof spec.id === 'string' ? spec.id : `step${step.number}`
+    context.env = { ...env }
+    if (!condition(spec.if, context)) {
+      await report({
+        step: step.number,
+        status: 'skipped',
+        lines: [{ text: 'Skipped: its if: is false.', level: 'info' }],
       })
       continue
     }
     await report({ step: step.number, status: 'running' })
+    const lines: Array<{ text: string; level: string | null }> = []
     const began = Date.now()
-    const proc = Bun.spawn(['sh', '-c', cmd], {
-      cwd: dir,
-      stdout: 'pipe',
-      stderr: 'pipe',
-      env: { ...process.env, CB_RUNNER_TOKEN: '' },
+    const outcome = await runStep(
+      spec,
+      context,
+      {
+        workspace: dir,
+        temp,
+        cache: workdir,
+        env,
+        path: [],
+        log: (l) => lines.push(l),
+      },
+      id,
+    ).catch((e: unknown) => {
+      lines.push({ text: String(e), level: 'error' })
+      return 'failure' as const
     })
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ])
-    const lines = [
-      { text: `$ ${cmd}`, level: 'cmd' },
-      ...out
-        .split('\n')
-        .filter(Boolean)
-        .map((t) => ({ text: t.slice(0, 4000), level: null })),
-      ...err
-        .split('\n')
-        .filter(Boolean)
-        .map((t) => ({
-          text: t.slice(0, 4000),
-          level: code === 0 ? 'warn' : 'error',
-        })),
-    ].slice(-1000)
     await report({
       step: step.number,
-      status: code === 0 ? 'success' : 'failure',
+      status: outcome,
+      lines: lines.slice(-1000),
+      duration_ms: Date.now() - began,
+    })
+    if (outcome === 'failure' && spec['continue-on-error'] !== true)
+      context.job = { status: 'failure' }
+  }
+  return context.job.status === 'failure' ? 'failure' : 'success'
+}
+
+/** A job for the agent on this machine: a hand-off or an AI review. */
+async function runAgentJob(
+  api: ApiClient,
+  ctx: Ctx,
+  job: Job,
+  repo: string,
+  agent: AgentJob,
+  workdir: string,
+  report: (body: Record<string, unknown>) => Promise<unknown>,
+): Promise<'success' | 'failure'> {
+  const dir = join(workdir, 'repos', repo.replace('/', '-'))
+  await report({ step: 1, status: 'running' })
+  const began = Date.now()
+  try {
+    await checkout(api, repo, job.sha, dir)
+    const lines =
+      agent.kind === 'handoff'
+        ? await handOffHere(api, repo, agent.subject, job.branch, dir)
+        : await reviewHere(api, repo, agent.change, agent.patchSet, dir)
+    for (const l of lines) ctx.err(`${repo} ${job.name}: ${l.text}`)
+    await report({
+      step: 1,
+      status: 'success',
       lines,
       duration_ms: Date.now() - began,
     })
-    if (code !== 0) return 'failure'
+    return 'success'
+  } catch (e) {
+    await report({
+      step: 1,
+      status: 'failure',
+      lines: [
+        { text: e instanceof Error ? e.message : String(e), level: 'error' },
+      ],
+      duration_ms: Date.now() - began,
+    })
+    return 'failure'
   }
-  return 'success'
 }
+
+const errText = (e: unknown) =>
+  e instanceof Error ? e.message : JSON.stringify(e)

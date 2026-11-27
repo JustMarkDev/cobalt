@@ -248,6 +248,7 @@ export interface DomainPort {
       install?: string | null
       declined_models?: Array<string>
       auto_land?: boolean
+      github_bot_writes?: boolean
       vouched?: Array<string>
       denounced?: Array<{ handle: string; reason: string }>
     },
@@ -617,6 +618,13 @@ export interface DomainPort {
     } | null,
   ) => Promise<void>
 
+  /** Queue a hand-off for the person's own agent (a runner labelled t3). */
+  startHandoff: (
+    owner: string,
+    name: string,
+    p: Principal,
+    subject: string,
+  ) => Promise<{ run: number | null; agent: boolean }>
   createRunner: (
     p: Viewer,
     body: RunnerBody,
@@ -755,6 +763,11 @@ export interface DomainPort {
     dry: Dry,
   ) => Promise<Out<typeof S.RepoIntegration>>
 
+  /** Accounts that proved these logins theirs, keyed by lowercased login. */
+  handlesOfLogins: (
+    host: 'github' | 'gitlab' | 'codeberg' | 'gitea',
+    logins: ReadonlyArray<string>,
+  ) => Promise<Record<string, string>>
   listLinks: (
     handle: string,
     p: Viewer,
@@ -765,10 +778,12 @@ export interface DomainPort {
     p: Viewer,
     body: { login: string; instance?: string },
   ) => Promise<Out<typeof S.LinkedAccount>>
+  /** One login on the host, or every linked account there when `login` is left out. */
   unlinkAccount: (
     handle: string,
     host: 'github' | 'gitlab' | 'codeberg' | 'gitea',
     p: Viewer,
+    login?: string,
   ) => Promise<void>
   importRepo: (
     p: Principal,

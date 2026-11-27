@@ -369,6 +369,8 @@ export type Contributor = {
   object: 'contributor'
   name: string
   email: string
+  /** The cobalt account that proved one of these commit identities its own, or null */
+  handle: string | null
   commits: number
   /** RFC 3339 time, UTC */
   last_commit_at: string
@@ -1542,6 +1544,7 @@ export type ProviderAudit = {
     | 'adopted'
     | 'unlinked'
     | 'relinked'
+    | 'published'
     | 'needs_reconnect'
   repo: string | null
   detail: string | null
@@ -1850,6 +1853,8 @@ export type Repo = {
   declined_models: Array<string>
   /** Whether a change lands by itself once it can, under the account that turned this on */
   auto_land: boolean
+  /** On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text (the default). Off, they need a linked account (`link_required`) */
+  github_bot_writes: boolean
   /** Accounts the owners trust. Their changes come first */
   vouched: Array<string>
   /** Accounts that may not open changes or issues here */
@@ -2912,6 +2917,8 @@ export interface Operations {
       environment: 'development' | 'preview' | 'production'
       body: {
         value: string
+        /** Add the name when the schema on the default branch does not have it yet: for a value whose .env.schema line is in a commit that has not landed (cb env commit sends both). */
+        declare?: boolean
       }
     }
     output: EnvVar
@@ -3222,6 +3229,27 @@ export interface Operations {
       data: Array<GithubRepo>
       has_more: boolean
       next_cursor: string | null
+    }
+  }
+  /** Hand an issue, a change or a failed run to your agent (`POST /repos/{owner}/{repo}/handoffs`) */
+  'handoffs.start': {
+    input: {
+      owner: string
+      repo: string
+      body: {
+        /** An issue or change number, or run:N for a pipeline run */
+        subject: string
+        to?: 't3'
+      }
+    }
+    output: {
+      object: 'handoff'
+      subject: string
+      to: 't3'
+      /** The pipeline run that carries it, or null when it was already queued */
+      run: number | null
+      /** Whether a runner labelled t3 exists to take it */
+      agent: boolean
     }
   }
   /** Import many repositories at once (`POST /imports/batch`) */
@@ -3605,6 +3633,8 @@ export interface Operations {
     input: {
       handle: string
       host: 'github' | 'gitlab' | 'codeberg' | 'gitea'
+      /** Forget only this account. Without it, every account linked on the host. */
+      login?: string
     }
     output: void
   }
@@ -4677,6 +4707,8 @@ export interface Operations {
         declined_models?: Array<string>
         /** Land a change by itself once it can. You answer for what lands this way */
         auto_land?: boolean
+        /** On a repository mirrored to GitHub, let people without a linked GitHub account write: the cobalt app posts for them, naming them */
+        github_bot_writes?: boolean
         /** Accounts you trust; their changes come first. Replaces the list */
         vouched?: Array<string>
         /** Accounts that may not open changes or issues here. Replaces the list */
@@ -6070,6 +6102,17 @@ const OPERATIONS = {
     secretResponse: false,
     safety: 'read',
   },
+  'handoffs.start': {
+    method: 'POST',
+    path: '/repos/{owner}/{repo}/handoffs',
+    query: [],
+    body: true,
+    rawBody: false,
+    json: true,
+    idempotent: true,
+    secretResponse: false,
+    safety: 'write',
+  },
   'imports.batch': {
     method: 'POST',
     path: '/imports/batch',
@@ -6381,7 +6424,7 @@ const OPERATIONS = {
   'links.remove': {
     method: 'DELETE',
     path: '/accounts/{handle}/links/{host}',
-    query: [],
+    query: ['login'],
     body: false,
     rawBody: false,
     json: true,
@@ -8088,6 +8131,12 @@ export interface Client extends Core {
         options?: RequestOptions,
       ) => Promise<Operations['github.repos.list']['output']>
     }
+  }
+  handoffs: {
+    start: (
+      input: Operations['handoffs.start']['input'],
+      options?: RequestOptions,
+    ) => Promise<Operations['handoffs.start']['output']>
   }
   imports: {
     batch: (

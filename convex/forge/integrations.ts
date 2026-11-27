@@ -296,6 +296,26 @@ const presentLink = (l: {
   linked_at: iso(l.linked),
 })
 
+/** Verified links for these logins on a host: who wrote a commit, by login. */
+export const handlesOfLogins = query({
+  args: { host: v.string(), logins: v.array(v.string()) },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const found: Record<string, string> = {}
+    for (const login of [...new Set(a.logins)].slice(0, 200)) {
+      const l = await ctx.db
+        .query('links')
+        .withIndex('by_host_and_login', (q) =>
+          q.eq('host', a.host).eq('login', login),
+        )
+        .first()
+      if (l?.verified) found[login.toLowerCase()] = l.handle
+    }
+    return out(found)
+  },
+})
+
 export const listLinks = query({
   args: { handle: v.string() },
   returns: v.string(),
@@ -336,12 +356,15 @@ export const link = mutation({
           },
         ],
       })
-    const had = await ctx.db
-      .query('links')
-      .withIndex('by_handle_and_host', (q) =>
-        q.eq('handle', a.handle).eq('host', a.host),
-      )
-      .unique()
+    // Several accounts on one host may be linked; the same login once.
+    const had = (
+      await ctx.db
+        .query('links')
+        .withIndex('by_handle_and_host', (q) =>
+          q.eq('handle', a.handle).eq('host', a.host),
+        )
+        .take(50)
+    ).find((l) => l.login.toLowerCase() === a.login.toLowerCase())
     if (had) await ctx.db.delete('links', had._id)
     const l = {
       handle: a.handle,
@@ -361,12 +384,26 @@ export const markVerified = mutation({
   returns: v.null(),
   handler: async (ctx, a) => {
     await system(ctx)
-    const had = await ctx.db
+    const had =
+      (
+        await ctx.db
+          .query('links')
+          .withIndex('by_handle_and_host', (q) =>
+            q.eq('handle', a.handle).eq('host', 'github'),
+          )
+          .take(50)
+      ).find((x) => x.login.toLowerCase() === a.login.toLowerCase()) ?? null
+    // Whoever proves a login theirs has it: it leaves any other account.
+    for (const other of await ctx.db
       .query('links')
-      .withIndex('by_handle_and_host', (q) =>
-        q.eq('handle', a.handle).eq('host', 'github'),
+      .withIndex('by_host_and_login', (q) =>
+        q.eq('host', 'github').eq('login', a.login),
       )
-      .unique()
+      .take(10))
+      if (other.handle !== a.handle) {
+        await ctx.db.delete('links', other._id)
+        await bump(ctx, `~${other.handle}`)
+      }
     const l = {
       handle: a.handle,
       host: 'github',
@@ -422,17 +459,19 @@ export const unlinkGithub = mutation({
 })
 
 export const unlink = mutation({
-  args: { handle: v.string(), host: v.string() },
+  args: { handle: v.string(), host: v.string(), login: v.optional(v.string()) },
   returns: v.string(),
   handler: async (ctx, a) => {
     await self(ctx, a.handle, await signedIn(ctx))
-    const had = await ctx.db
+    // One login, or every account on the host when none is named.
+    for (const had of await ctx.db
       .query('links')
       .withIndex('by_handle_and_host', (q) =>
         q.eq('handle', a.handle).eq('host', a.host),
       )
-      .unique()
-    if (had) await ctx.db.delete('links', had._id)
+      .take(50))
+      if (!a.login || had.login.toLowerCase() === a.login.toLowerCase())
+        await ctx.db.delete('links', had._id)
     await bump(ctx, `~${a.handle}`)
     return out(null)
   },

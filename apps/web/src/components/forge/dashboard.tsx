@@ -17,6 +17,7 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Segmented } from '~/components/ui/tabs'
 import { compact } from '~/lib/model/data'
+import { installCommand } from '~/lib/install-script'
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 
@@ -543,8 +544,10 @@ export function GettingStarted({
         }
       : {
           title: 'Install the CLI',
-          body: 'It never asks a question and every command speaks JSON, so scripts and agents can use it.',
-          action: <CopyField value="bun add -g @cobaltforge/cli" />,
+          body: 'One file, nothing else to install. It never asks a question and every command speaks JSON, so scripts and agents can use it.',
+          action: (
+            <CopyField value={installCommand('https://cobaltforge.dev')} />
+          ),
         },
     org
       ? {

@@ -17,6 +17,8 @@ import { Route as DesignRouteImport } from './routes/design'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as InstallDotps1RouteImport } from './routes/install[.]ps1'
+import { Route as InstallDotshRouteImport } from './routes/install[.]sh'
 import { Route as LlmsFullDottxtRouteImport } from './routes/llms-full[.]txt'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as McpRouteImport } from './routes/mcp'
@@ -41,14 +43,19 @@ import { Route as HooksProviderRouteImport } from './routes/hooks/$provider'
 import { Route as OrganizationsJoinRouteImport } from './routes/organizations/join'
 import { Route as OrganizationsNewRouteImport } from './routes/organizations/new'
 import { Route as SettingsSectionRouteImport } from './routes/settings/$section'
+import { Route as UploadsIdRouteImport } from './routes/uploads.$id'
 import { Route as HandleRepoIndexRouteImport } from './routes/$handle/$repo/index'
 import { Route as HandleRepoTabRouteImport } from './routes/$handle/$repo/$tab'
 import { Route as HandleChar123repoChar125DotgitSplatRouteImport } from './routes/$handle/{$repo}[.]git.$'
+import { Route as HandleChar123repoChar125DotgitGitReceivePackRouteImport } from './routes/$handle/{$repo}[.]git.git-receive-pack'
+import { Route as HandleChar123repoChar125DotgitGitUploadPackRouteImport } from './routes/$handle/{$repo}[.]git.git-upload-pack'
 import { Route as DotwellKnownOauthProtectedResourceMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource_.mcp'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as OrganizationsHandleSectionRouteImport } from './routes/organizations/$handle.$section'
+import { Route as HandleRepoChangesNRouteImport } from './routes/$handle/$repo/changes.$n'
 import { Route as HandleRepoCommitShaRouteImport } from './routes/$handle/$repo/commit/$sha'
+import { Route as HandleRepoIssuesNRouteImport } from './routes/$handle/$repo/issues.$n'
 import { Route as HandleRepoReleasesDownloadTagAssetRouteImport } from './routes/$handle/$repo/releases.download.$tag.$asset'
 
 const IndexRoute = IndexRouteImport.update({
@@ -89,6 +96,16 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallDotps1Route = InstallDotps1RouteImport.update({
+  id: '/install.ps1',
+  path: '/install.ps1',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallDotshRoute = InstallDotshRouteImport.update({
+  id: '/install.sh',
+  path: '/install.sh',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmsFullDottxtRoute = LlmsFullDottxtRouteImport.update({
@@ -213,6 +230,11 @@ const SettingsSectionRoute = SettingsSectionRouteImport.update({
   path: '/settings/$section',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UploadsIdRoute = UploadsIdRouteImport.update({
+  id: '/uploads/$id',
+  path: '/uploads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HandleRepoIndexRoute = HandleRepoIndexRouteImport.update({
   id: '/$handle/$repo/',
   path: '/$handle/$repo/',
@@ -227,6 +249,18 @@ const HandleChar123repoChar125DotgitSplatRoute =
   HandleChar123repoChar125DotgitSplatRouteImport.update({
     id: '/$handle/{$repo}.git/$',
     path: '/$handle/{$repo}.git/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const HandleChar123repoChar125DotgitGitReceivePackRoute =
+  HandleChar123repoChar125DotgitGitReceivePackRouteImport.update({
+    id: '/$handle/{$repo}.git/git-receive-pack',
+    path: '/$handle/{$repo}.git/git-receive-pack',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const HandleChar123repoChar125DotgitGitUploadPackRoute =
+  HandleChar123repoChar125DotgitGitUploadPackRouteImport.update({
+    id: '/$handle/{$repo}.git/git-upload-pack',
+    path: '/$handle/{$repo}.git/git-upload-pack',
     getParentRoute: () => rootRouteImport,
   } as any)
 const DotwellKnownOauthProtectedResourceMcpRoute =
@@ -251,9 +285,19 @@ const OrganizationsHandleSectionRoute =
     path: '/organizations/$handle/$section',
     getParentRoute: () => rootRouteImport,
   } as any)
+const HandleRepoChangesNRoute = HandleRepoChangesNRouteImport.update({
+  id: '/$handle/$repo/changes/$n',
+  path: '/$handle/$repo/changes/$n',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HandleRepoCommitShaRoute = HandleRepoCommitShaRouteImport.update({
   id: '/$handle/$repo/commit/$sha',
   path: '/$handle/$repo/commit/$sha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HandleRepoIssuesNRoute = HandleRepoIssuesNRouteImport.update({
+  id: '/$handle/$repo/issues/$n',
+  path: '/$handle/$repo/issues/$n',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HandleRepoReleasesDownloadTagAssetRoute =
@@ -272,6 +316,8 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/inbox': typeof InboxRoute
+  '/install.ps1': typeof InstallDotps1Route
+  '/install.sh': typeof InstallDotshRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
@@ -295,15 +341,20 @@ export interface FileRoutesByFullPath {
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
+  '/uploads/$id': typeof UploadsIdRoute
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
+  '/$handle/{$repo}.git/git-receive-pack': typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  '/$handle/{$repo}.git/git-upload-pack': typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo/': typeof HandleRepoIndexRoute
+  '/$handle/$repo/changes/$n': typeof HandleRepoChangesNRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
+  '/$handle/$repo/issues/$n': typeof HandleRepoIssuesNRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRoutesByTo {
@@ -315,6 +366,8 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/inbox': typeof InboxRoute
+  '/install.ps1': typeof InstallDotps1Route
+  '/install.sh': typeof InstallDotshRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
@@ -338,15 +391,20 @@ export interface FileRoutesByTo {
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
+  '/uploads/$id': typeof UploadsIdRoute
   '/$handle': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
+  '/$handle/{$repo}.git/git-receive-pack': typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  '/$handle/{$repo}.git/git-upload-pack': typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo': typeof HandleRepoIndexRoute
+  '/$handle/$repo/changes/$n': typeof HandleRepoChangesNRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
+  '/$handle/$repo/issues/$n': typeof HandleRepoIssuesNRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRoutesById {
@@ -359,6 +417,8 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/inbox': typeof InboxRoute
+  '/install.ps1': typeof InstallDotps1Route
+  '/install.sh': typeof InstallDotshRoute
   '/llms-full.txt': typeof LlmsFullDottxtRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/mcp': typeof McpRoute
@@ -382,15 +442,20 @@ export interface FileRoutesById {
   '/organizations/join': typeof OrganizationsJoinRoute
   '/organizations/new': typeof OrganizationsNewRoute
   '/settings/$section': typeof SettingsSectionRoute
+  '/uploads/$id': typeof UploadsIdRoute
   '/$handle/': typeof HandleIndexRoute
   '/$handle/$repo/$tab': typeof HandleRepoTabRoute
   '/$handle/{$repo}.git/$': typeof HandleChar123repoChar125DotgitSplatRoute
+  '/$handle/{$repo}.git/git-receive-pack': typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  '/$handle/{$repo}.git/git-upload-pack': typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   '/.well-known/oauth-protected-resource_/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/organizations/$handle/$section': typeof OrganizationsHandleSectionRoute
   '/$handle/$repo/': typeof HandleRepoIndexRoute
+  '/$handle/$repo/changes/$n': typeof HandleRepoChangesNRoute
   '/$handle/$repo/commit/$sha': typeof HandleRepoCommitShaRoute
+  '/$handle/$repo/issues/$n': typeof HandleRepoIssuesNRoute
   '/$handle/$repo/releases/download/$tag/$asset': typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 export interface FileRouteTypes {
@@ -404,6 +469,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/inbox'
+    | '/install.ps1'
+    | '/install.sh'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/mcp'
@@ -427,15 +494,20 @@ export interface FileRouteTypes {
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
+    | '/uploads/$id'
     | '/$handle/'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
+    | '/$handle/{$repo}.git/git-receive-pack'
+    | '/$handle/{$repo}.git/git-upload-pack'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
     | '/organizations/$handle/$section'
     | '/$handle/$repo/'
+    | '/$handle/$repo/changes/$n'
     | '/$handle/$repo/commit/$sha'
+    | '/$handle/$repo/issues/$n'
     | '/$handle/$repo/releases/download/$tag/$asset'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -447,6 +519,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/inbox'
+    | '/install.ps1'
+    | '/install.sh'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/mcp'
@@ -470,15 +544,20 @@ export interface FileRouteTypes {
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
+    | '/uploads/$id'
     | '/$handle'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
+    | '/$handle/{$repo}.git/git-receive-pack'
+    | '/$handle/{$repo}.git/git-upload-pack'
     | '/.well-known/oauth-protected-resource/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
     | '/organizations/$handle/$section'
     | '/$handle/$repo'
+    | '/$handle/$repo/changes/$n'
     | '/$handle/$repo/commit/$sha'
+    | '/$handle/$repo/issues/$n'
     | '/$handle/$repo/releases/download/$tag/$asset'
   id:
     | '__root__'
@@ -490,6 +569,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/inbox'
+    | '/install.ps1'
+    | '/install.sh'
     | '/llms-full.txt'
     | '/llms.txt'
     | '/mcp'
@@ -513,15 +594,20 @@ export interface FileRouteTypes {
     | '/organizations/join'
     | '/organizations/new'
     | '/settings/$section'
+    | '/uploads/$id'
     | '/$handle/'
     | '/$handle/$repo/$tab'
     | '/$handle/{$repo}.git/$'
+    | '/$handle/{$repo}.git/git-receive-pack'
+    | '/$handle/{$repo}.git/git-upload-pack'
     | '/.well-known/oauth-protected-resource_/mcp'
     | '/api/auth/$'
     | '/api/v1/$'
     | '/organizations/$handle/$section'
     | '/$handle/$repo/'
+    | '/$handle/$repo/changes/$n'
     | '/$handle/$repo/commit/$sha'
+    | '/$handle/$repo/issues/$n'
     | '/$handle/$repo/releases/download/$tag/$asset'
   fileRoutesById: FileRoutesById
 }
@@ -534,6 +620,8 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   InboxRoute: typeof InboxRoute
+  InstallDotps1Route: typeof InstallDotps1Route
+  InstallDotshRoute: typeof InstallDotshRoute
   LlmsFullDottxtRoute: typeof LlmsFullDottxtRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   McpRoute: typeof McpRoute
@@ -557,15 +645,20 @@ export interface RootRouteChildren {
   OrganizationsJoinRoute: typeof OrganizationsJoinRoute
   OrganizationsNewRoute: typeof OrganizationsNewRoute
   SettingsSectionRoute: typeof SettingsSectionRoute
+  UploadsIdRoute: typeof UploadsIdRoute
   HandleIndexRoute: typeof HandleIndexRoute
   HandleRepoTabRoute: typeof HandleRepoTabRoute
   HandleChar123repoChar125DotgitSplatRoute: typeof HandleChar123repoChar125DotgitSplatRoute
+  HandleChar123repoChar125DotgitGitReceivePackRoute: typeof HandleChar123repoChar125DotgitGitReceivePackRoute
+  HandleChar123repoChar125DotgitGitUploadPackRoute: typeof HandleChar123repoChar125DotgitGitUploadPackRoute
   DotwellKnownOauthProtectedResourceMcpRoute: typeof DotwellKnownOauthProtectedResourceMcpRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   OrganizationsHandleSectionRoute: typeof OrganizationsHandleSectionRoute
   HandleRepoIndexRoute: typeof HandleRepoIndexRoute
+  HandleRepoChangesNRoute: typeof HandleRepoChangesNRoute
   HandleRepoCommitShaRoute: typeof HandleRepoCommitShaRoute
+  HandleRepoIssuesNRoute: typeof HandleRepoIssuesNRoute
   HandleRepoReleasesDownloadTagAssetRoute: typeof HandleRepoReleasesDownloadTagAssetRoute
 }
 
@@ -625,6 +718,20 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install.ps1': {
+      id: '/install.ps1'
+      path: '/install.ps1'
+      fullPath: '/install.ps1'
+      preLoaderRoute: typeof InstallDotps1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install.sh': {
+      id: '/install.sh'
+      path: '/install.sh'
+      fullPath: '/install.sh'
+      preLoaderRoute: typeof InstallDotshRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llms-full.txt': {
@@ -795,6 +902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsSectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/uploads/$id': {
+      id: '/uploads/$id'
+      path: '/uploads/$id'
+      fullPath: '/uploads/$id'
+      preLoaderRoute: typeof UploadsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$handle/$repo/': {
       id: '/$handle/$repo/'
       path: '/$handle/$repo'
@@ -814,6 +928,20 @@ declare module '@tanstack/react-router' {
       path: '/$handle/{$repo}.git/$'
       fullPath: '/$handle/{$repo}.git/$'
       preLoaderRoute: typeof HandleChar123repoChar125DotgitSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$handle/{$repo}.git/git-receive-pack': {
+      id: '/$handle/{$repo}.git/git-receive-pack'
+      path: '/$handle/{$repo}.git/git-receive-pack'
+      fullPath: '/$handle/{$repo}.git/git-receive-pack'
+      preLoaderRoute: typeof HandleChar123repoChar125DotgitGitReceivePackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$handle/{$repo}.git/git-upload-pack': {
+      id: '/$handle/{$repo}.git/git-upload-pack'
+      path: '/$handle/{$repo}.git/git-upload-pack'
+      fullPath: '/$handle/{$repo}.git/git-upload-pack'
+      preLoaderRoute: typeof HandleChar123repoChar125DotgitGitUploadPackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource_/mcp': {
@@ -844,11 +972,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizationsHandleSectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$handle/$repo/changes/$n': {
+      id: '/$handle/$repo/changes/$n'
+      path: '/$handle/$repo/changes/$n'
+      fullPath: '/$handle/$repo/changes/$n'
+      preLoaderRoute: typeof HandleRepoChangesNRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$handle/$repo/commit/$sha': {
       id: '/$handle/$repo/commit/$sha'
       path: '/$handle/$repo/commit/$sha'
       fullPath: '/$handle/$repo/commit/$sha'
       preLoaderRoute: typeof HandleRepoCommitShaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$handle/$repo/issues/$n': {
+      id: '/$handle/$repo/issues/$n'
+      path: '/$handle/$repo/issues/$n'
+      fullPath: '/$handle/$repo/issues/$n'
+      preLoaderRoute: typeof HandleRepoIssuesNRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$handle/$repo/releases/download/$tag/$asset': {
@@ -870,6 +1012,8 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   InboxRoute: InboxRoute,
+  InstallDotps1Route: InstallDotps1Route,
+  InstallDotshRoute: InstallDotshRoute,
   LlmsFullDottxtRoute: LlmsFullDottxtRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   McpRoute: McpRoute,
@@ -895,17 +1039,24 @@ const rootRouteChildren: RootRouteChildren = {
   OrganizationsJoinRoute: OrganizationsJoinRoute,
   OrganizationsNewRoute: OrganizationsNewRoute,
   SettingsSectionRoute: SettingsSectionRoute,
+  UploadsIdRoute: UploadsIdRoute,
   HandleIndexRoute: HandleIndexRoute,
   HandleRepoTabRoute: HandleRepoTabRoute,
   HandleChar123repoChar125DotgitSplatRoute:
     HandleChar123repoChar125DotgitSplatRoute,
+  HandleChar123repoChar125DotgitGitReceivePackRoute:
+    HandleChar123repoChar125DotgitGitReceivePackRoute,
+  HandleChar123repoChar125DotgitGitUploadPackRoute:
+    HandleChar123repoChar125DotgitGitUploadPackRoute,
   DotwellKnownOauthProtectedResourceMcpRoute:
     DotwellKnownOauthProtectedResourceMcpRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,
   OrganizationsHandleSectionRoute: OrganizationsHandleSectionRoute,
   HandleRepoIndexRoute: HandleRepoIndexRoute,
+  HandleRepoChangesNRoute: HandleRepoChangesNRoute,
   HandleRepoCommitShaRoute: HandleRepoCommitShaRoute,
+  HandleRepoIssuesNRoute: HandleRepoIssuesNRoute,
   HandleRepoReleasesDownloadTagAssetRoute:
     HandleRepoReleasesDownloadTagAssetRoute,
 }

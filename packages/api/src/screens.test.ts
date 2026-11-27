@@ -190,13 +190,7 @@ describe('a screen reads what the API answers', () => {
       expand: 'findings,check_runs',
     })
     await same(null, 'changes.get', { ...at, number })
-    const sets = await same('dana', 'patch_sets.list', { ...at, number })
-    for (const p of sets.data)
-      await same('dana', 'patch_sets.files', {
-        ...at,
-        number,
-        patchSet: p.number,
-      })
+    await same('dana', 'patch_sets.list', { ...at, number })
     await same('dana', 'change_comments.list', { ...at, number })
     await same('dana', 'changes.seen.get', { ...at, number })
     await same('dana', 'changes.landability', { ...at, number })

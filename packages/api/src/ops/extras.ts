@@ -9,6 +9,7 @@ import { Domain, defineOp, reply } from '../registry'
 import { iso } from '../domain'
 import * as S from '../schemas'
 import { repoParams } from './common'
+import { applyEnvSchema, parseEnvSchema } from '../env-schema'
 import type { ConfirmationRec, Environment, RepoExtras } from '../extras'
 import type { Principal } from '../auth'
 import type { DomainPort } from '../domain'
@@ -302,6 +303,21 @@ const whoOf = (p: Principal) => {
   return `${p.handle} on ${r.machine ?? 'an unnamed machine'}${r.tool ? ` via ${r.tool}` : ''}${r.model ? ` (${r.model})` : ''}`
 }
 
+/**
+ * The repository's extras with its variables read again from `.env.schema`
+ * on the default branch, so a variable exists as soon as its line is merged.
+ */
+async function withSchema(d: DomainPort, full: string) {
+  const x = await d.svc.extras.open(full)
+  const bytes = await d.svc.git.blob(full, '.env.schema').catch(() => null)
+  if (
+    bytes &&
+    applyEnvSchema(x.env, parseEnvSchema(new TextDecoder().decode(bytes)))
+  )
+    await d.svc.extras.flush?.()
+  return x
+}
+
 async function boxOf(d: DomainPort) {
   const box = await d.svc.secrets
   if (!box)
@@ -407,7 +423,7 @@ export const listEnv = defineOp({
           ctx.principal,
           'read',
         )
-        return (await d.svc.extras.open(full)).env.map((v) => ({
+        return (await withSchema(d, full)).env.map((v) => ({
           object: 'env_var' as const,
           name: v.name,
           kind: v.kind,
@@ -450,7 +466,15 @@ export const setEnv = defineOp({
   idempotent: true,
   dryRun: true,
   secretRequest: true,
-  body: z.strictObject({ value: z.string().min(1).max(65536) }),
+  body: z.strictObject({
+    value: z.string().min(1).max(65536),
+    declare: z
+      .boolean()
+      .optional()
+      .describe(
+        'Add the name when the schema on the default branch does not have it yet: for a value whose .env.schema line is in a commit that has not landed (cb env commit sends both).',
+      ),
+  }),
   response: S.EnvVar,
   errors: [
     'not_found',
@@ -473,7 +497,19 @@ export const setEnv = defineOp({
         )
         const box = await boxOf(d)
         const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
-        const x = await d.svc.extras.open(full)
+        const x = await withSchema(d, full)
+        if (
+          ctx.body.declare &&
+          !x.env.some((e) => e.name === ctx.params.name) &&
+          /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(ctx.params.name)
+        )
+          x.env.push({
+            name: ctx.params.name,
+            kind: 'string',
+            secret: true,
+            set: [],
+            description: `Declared by ${p.handle} with its value; .env.schema names it once that commit lands.`,
+          })
         const v = x.env.find((e) => e.name === ctx.params.name)
         if (!v)
           throw apiError(
@@ -527,6 +563,33 @@ export const setEnv = defineOp({
             },
           )
           if (first) await d.bumpRepo(ctx.params.owner, ctx.params.repo, p)
+          // The linked provider (GitHub) gets the value too, sealed for it.
+          const out = await d.svc.providers
+            ?.pushSecret(full, {
+              name: v.name,
+              value: ctx.body.value,
+              environment: ctx.params.environment,
+            })
+            .catch((e: unknown) => {
+              x.note(
+                whoOf(p),
+                `could not send ${v.name} (${ctx.params.environment}) to the linked host: ${e instanceof Error ? e.message.slice(0, 200) : 'failed'}`,
+                {
+                  target: `${v.name} in ${ctx.params.environment}`,
+                  kind: 'rotate',
+                },
+              )
+              return null
+            })
+          if (out)
+            x.note(
+              whoOf(p),
+              `sent ${v.name} (${ctx.params.environment}) to ${out}`,
+              {
+                target: `${v.name} in ${ctx.params.environment}`,
+                kind: 'rotate',
+              },
+            )
         }
         return {
           object: 'env_var' as const,
@@ -602,7 +665,7 @@ export const envValues = defineOp({
         )
         const box = await boxOf(d)
         const access = await teamOf(d, ctx.params.owner, ctx.params.repo, p)
-        const x = await d.svc.extras.open(full)
+        const x = await withSchema(d, full)
         const confirmed = await requireConfirmed(
           d,
           x,

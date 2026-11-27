@@ -1,6 +1,9 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { CbError } from './output'
 import type { Ctx } from './output'
 import type { RepoRef } from './repo'
+import { varlockCommand, varlockEnv } from './varlock'
 
 export function scrub(text: string, secrets: Record<string, string>): string {
   let out = text
@@ -65,6 +68,7 @@ export async function runWithEnv(opts: {
   only: Array<string> | undefined
   command: Array<string>
   dryRun: boolean
+  noValidate?: boolean
 }): Promise<RunResult> {
   const api = opts.ctx.api()
   const names = opts.only?.join(',')
@@ -113,8 +117,14 @@ export async function runWithEnv(opts: {
       .filter((n) => n in read.values)
       .map((n) => [n, read.values[n]]),
   )
-  const proc = Bun.spawn(opts.command, {
-    env: { ...process.env, ...read.values },
+  const argv = withVarlock(opts.command, opts.noValidate)
+  const proc = Bun.spawn(argv, {
+    env: {
+      ...process.env,
+      ...read.values,
+      // Only the varlock in front of the command: the command itself runs as it is.
+      ...(argv !== opts.command ? varlockEnv : {}),
+    },
     stdout: 'pipe',
     stderr: 'pipe',
   })
@@ -131,4 +141,23 @@ export async function runWithEnv(opts: {
     stdout: scrub(stdout, secrets),
     stderr: scrub(stderr, secrets),
   }
+}
+
+/**
+ * Run through Varlock when the repository has a .env.schema: it checks the
+ * values against the schema (required, types) before the command starts,
+ * and redacts sensitive ones in what the command prints.
+ */
+export function withVarlock(
+  command: Array<string>,
+  skip = false,
+): Array<string> {
+  if (skip) return command
+  const root = Bun.spawnSync(['git', 'rev-parse', '--show-toplevel'], {
+    stderr: 'ignore',
+  })
+    .stdout.toString()
+    .trim()
+  if (!root || !existsSync(join(root, '.env.schema'))) return command
+  return [...varlockCommand(), 'run', '--path', root, '--', ...command]
 }

@@ -357,6 +357,16 @@ export const schema: Array<CommandSpec> = [
     example: 'cb agent start #4 --target t3',
   },
   {
+    command: 'upgrade',
+    summary:
+      'Replace this cb with the latest release (or --to), checked against its SHA-256.',
+    args: '[--to x.y.z]',
+    mutates: true,
+    idempotent: true,
+    exits: [2],
+    example: 'cb upgrade',
+  },
+  {
     command: 'auth status',
     summary:
       'Whether you are signed in, to what, as whom, and with which scopes.',

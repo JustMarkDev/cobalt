@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { newId } from '@cobaltforge/api/ids'
-import { runnerScopes } from '@cobaltforge/api/auth'
+import { scopesForRunner } from '@cobaltforge/api/auth'
 import {
   LEASE_MS,
   MAX_CONCURRENCY,
@@ -10,13 +10,14 @@ import {
   labelShape,
   labelsMatch,
   mayServe,
+  needsState,
   normalizeLabels,
   runnerStatus,
 } from '@cobaltforge/api/runners'
 import type { RunnerLike } from '@cobaltforge/api/runners'
 import { query } from '../_generated/server'
 import { mutation } from '../lib/functions'
-import { actorOf, signedIn } from '../lib/actor'
+import { actorOf, signedIn, system } from '../lib/actor'
 import type { Actor } from '../lib/actor'
 import {
   accountByHandle,
@@ -289,7 +290,7 @@ export const create = mutation({
       kind: 'runner',
       handle: account,
       actingAs: account,
-      scopes: [...runnerScopes],
+      scopes: scopesForRunner(labels),
       repos: names ?? null,
       runnerId: publicId,
       device: a.name,
@@ -476,8 +477,31 @@ export const claim = mutation({
     for (const { repo, doc } of offered) {
       const run = await load(ctx, doc)
       if (run.runsOnPending) continue
+      // A job whose needed job failed never runs: it is skipped.
+      let skipped = false
+      for (const j of run.jobs)
+        if (j.status === 'queued' && needsState(j, run.jobs) === 'blocked') {
+          j.status = 'skipped'
+          for (const s of j.steps) s.status = 'skipped'
+          skipped = true
+        }
+      if (skipped) {
+        if (
+          run.jobs.every(
+            (j) => !['queued', 'running', 'waiting'].includes(j.status),
+          )
+        )
+          run.status = run.jobs.some((j) => j.status === 'failure')
+            ? 'failure'
+            : 'success'
+        run.version++
+        await save(ctx, repo, doc, run)
+      }
       const ji = run.jobs.findIndex(
-        (j) => j.status === 'queued' && labelsMatch(j.runsOn ?? [], r.labels),
+        (j) =>
+          j.status === 'queued' &&
+          needsState(j, run.jobs) === 'ready' &&
+          labelsMatch(j.runsOn ?? [], r.labels),
       )
       if (ji < 0) continue
       const j = run.jobs[ji]
@@ -598,5 +622,24 @@ export const wait = mutation({
     await seen(ctx, r, Date.now())
     const run = await applyWait(ctx, repo, doc, a, p.handle)
     return out(await shown(ctx, repo, doc, run))
+  },
+})
+
+/**
+ * Whether an account has a runner that takes jobs with this label (not
+ * revoked): an AI review or a hand-off is only queued when one would take it.
+ */
+export const hasLabel = query({
+  args: { account: v.string(), label: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const docs = await ctx.db
+      .query('runners')
+      .withIndex('by_account_and_name', (q) => q.eq('account', a.account))
+      .take(500)
+    return out(
+      docs.some((r) => r.status === 'active' && r.labels.includes(a.label)),
+    )
   },
 })

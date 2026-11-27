@@ -968,6 +968,17 @@
                 "gitea"
               ]
             }
+          },
+          {
+            "name": "login",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Forget only this account. Without it, every account linked on the host.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
           }
         ],
         "responses": {
@@ -12505,7 +12516,7 @@
       "get": {
         "operationId": "repos.contributors",
         "summary": "Who wrote the code",
-        "description": "Authors of the newest 1,000 commits on the default branch, by email, most commits first. Up to 100. A repository with no history answers an empty list.",
+        "description": "People who wrote the newest 1,000 commits on the default branch, most commits first. One person's addresses count once: a GitHub no-reply address and a commit signed with that login are one contributor, and so are identities a cobalt account proved its own (`handle`). Bots are left out. Up to 100. A repository with no history answers an empty list.",
         "tags": [
           "repositories"
         ],
@@ -12826,6 +12837,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 65536
+                  },
+                  "declare": {
+                    "description": "Add the name when the schema on the default branch does not have it yet: for a value whose .env.schema line is in a commit that has not landed (cb env commit sends both).",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -14286,6 +14301,168 @@
           "token_expired",
           "token_invalid",
           "token_revoked",
+          "unsupported_version"
+        ],
+        "x-cb-async": false,
+        "x-cb-secret-response": false,
+        "x-cb-secret-request": false
+      }
+    },
+    "/repos/{owner}/{repo}/handoffs": {
+      "post": {
+        "operationId": "handoffs.start",
+        "summary": "Hand an issue, a change or a failed run to your agent",
+        "description": "What the Hand off button does: queues a job for your own agent, a runner labelled `t3` (`cb runner register <name> --labels t3`, then `cb runner start`), which opens a T3 Code thread on its machine with the prompt built from the issue or change. Nothing to copy or run by hand. `agent` says whether such a runner exists; without one the job waits for it. The same subject on the same commit is queued once.",
+        "tags": [
+          "pipelines"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Account handle. A repository `rep_` id can stand in for owner and repo."
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Repository name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "pattern": "^(#?\\d+|run:\\d+)$",
+                    "description": "An issue or change number, or run:N for a pipeline run"
+                  },
+                  "to": {
+                    "default": "t3",
+                    "type": "string",
+                    "enum": [
+                      "t3"
+                    ]
+                  }
+                },
+                "required": [
+                  "subject"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "headers": {
+              "Cb-Request-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "const": "handoff"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string",
+                      "const": "t3"
+                    },
+                    "run": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The pipeline run that carries it, or null when it was already queued"
+                    },
+                    "agent": {
+                      "type": "boolean",
+                      "description": "Whether a runner labelled t3 exists to take it"
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "subject",
+                    "to",
+                    "run",
+                    "agent"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": [
+              "repo:write"
+            ]
+          }
+        ],
+        "x-cb-safety": "write",
+        "x-cb-idempotent": true,
+        "x-cb-dry-run": false,
+        "x-cb-pool": "write",
+        "x-cb-cost": 1,
+        "x-cb-scopes": [
+          "repo:write"
+        ],
+        "x-cb-errors": [
+          "backend_unavailable",
+          "concurrency_limited",
+          "forbidden",
+          "idempotency_key_reused",
+          "insufficient_scope",
+          "internal",
+          "invalid_request",
+          "moved",
+          "not_found",
+          "payload_too_large",
+          "rate_limited",
+          "request_in_progress",
+          "token_expired",
+          "token_invalid",
+          "token_revoked",
+          "unauthenticated",
+          "unsupported_media_type",
           "unsupported_version"
         ],
         "x-cb-async": false,
@@ -25375,6 +25552,10 @@
                     "description": "Land a change by itself once it can. You answer for what lands this way",
                     "type": "boolean"
                   },
+                  "github_bot_writes": {
+                    "description": "On a repository mirrored to GitHub, let people without a linked GitHub account write: the cobalt app posts for them, naming them",
+                    "type": "boolean"
+                  },
                   "vouched": {
                     "description": "Accounts you trust; their changes come first. Replaces the list",
                     "maxItems": 1000,
@@ -30583,6 +30764,10 @@
             "type": "boolean",
             "description": "Whether a change lands by itself once it can, under the account that turned this on"
           },
+          "github_bot_writes": {
+            "type": "boolean",
+            "description": "On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text (the default). Off, they need a linked account (`link_required`)"
+          },
           "vouched": {
             "type": "array",
             "items": {
@@ -30662,6 +30847,7 @@
           "maintainers",
           "declined_models",
           "auto_land",
+          "github_bot_writes",
           "vouched",
           "denounced",
           "open_changes",
@@ -31568,6 +31754,7 @@
               "adopted",
               "unlinked",
               "relinked",
+              "published",
               "needs_reconnect"
             ]
           },
@@ -33772,6 +33959,13 @@
           "email": {
             "type": "string"
           },
+          "handle": {
+            "description": "The cobalt account that proved one of these commit identities its own, or null",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "commits": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -33786,6 +33980,7 @@
           "object",
           "name",
           "email",
+          "handle",
           "commits",
           "last_commit_at"
         ]
@@ -38275,6 +38470,11 @@
       "exit_code": 5
     },
     "confirmation_required": {
+      "status": 403,
+      "retryable": false,
+      "exit_code": 6
+    },
+    "link_required": {
       "status": 403,
       "retryable": false,
       "exit_code": 6

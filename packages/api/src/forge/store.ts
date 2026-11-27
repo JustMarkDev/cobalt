@@ -42,6 +42,8 @@ export type RemoteMeta = {
 
 export type RemoteRec = {
   id: string
+  /** The repository lets people without a linked GitHub account write through the app. */
+  botWrites?: boolean
   provider: ProviderId
   instance: string
   externalId: string
@@ -106,6 +108,7 @@ export type AuditAction =
   | 'adopted'
   | 'unlinked'
   | 'relinked'
+  | 'published'
   | 'needs_reconnect'
 
 export type AuditRec = {

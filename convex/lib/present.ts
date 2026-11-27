@@ -107,6 +107,7 @@ export async function presentRepo(
     maintainers: [...x.maintainers].sort(),
     declined_models: [...(x.declinedModels ?? [])],
     auto_land: !!x.autoLand,
+    github_bot_writes: x.githubBotWrites !== false,
     vouched: [...(x.vouched ?? [])].sort(),
     denounced: (x.denounced ?? []).map((d) => ({
       handle: d.handle,

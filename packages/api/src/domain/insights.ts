@@ -1,3 +1,4 @@
+import { groupAuthors } from '../contributors'
 import { GB, planLimits } from '../plans'
 import { apiError } from '../problem'
 import {
@@ -101,11 +102,9 @@ export abstract class DomainInsights extends DomainImports {
     const now = this.now()
     const commits = await this.history(r, 1000)
     const weeks = Array.from({ length: WEEKS }, () => 0)
-    const people = new Set<string>()
     for (const c of commits) {
       const w = Math.floor((now - Date.parse(c.date)) / (7 * DAY))
       if (w >= 0 && w < WEEKS) weeks[WEEKS - 1 - w]++
-      people.add(c.author.email.toLowerCase())
     }
     const changes = [...r.changes.values()]
     const issues = [...r.issues.values()]
@@ -129,7 +128,9 @@ export abstract class DomainInsights extends DomainImports {
         by_week: weeks,
         by_model: byModel,
       },
-      contributors: people.size,
+      contributors: groupAuthors(
+        commits.map((c) => ({ ...c.author, date: c.date })),
+      ).length,
       downloads: this.downloadsOf([r], now),
       stars: { total: r.stars, today: this.presentRepo(r).stars_today },
       issues: {

@@ -125,6 +125,11 @@ export class ApiClient {
     )
   }
 
+  /** Send bytes to an address the API handed out (an upload's `upload_url`). */
+  send(url: string, init: RequestInit) {
+    return this.transport(new Request(url, init))
+  }
+
   get = (path: string, init?: Init) => this.call('GET', path, init)
   post = (path: string, init?: Init) => this.call('POST', path, init)
   patch = (path: string, init?: Init) => this.call('PATCH', path, init)
