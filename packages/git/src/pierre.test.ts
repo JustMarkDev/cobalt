@@ -49,6 +49,26 @@ const client = (over: Record<string, unknown> = {}) =>
             ],
           }),
       },
+      blame: {
+        get: () =>
+          Promise.resolve({
+            ref: 'main',
+            commit_sha: 's1',
+            path: 'a',
+            lines: [
+              {
+                line_number: 1,
+                commit_sha: 's0',
+                author_name: 'a',
+                author_email: 'a@x',
+                author_time: '2026-11-24T10:00:00Z',
+                summary: 'first',
+                original_path: 'old',
+                original_line_number: 4,
+              },
+            ],
+          }),
+      },
       ...over,
     },
   }) as unknown as Pierre
@@ -99,4 +119,41 @@ test('a missing file answers 404, a missing repository throws', async () => {
     .catch((e: unknown) => e)
   expect(err).toBeInstanceOf(GitError)
   expect((err as GitError).status).toBe(404)
+})
+
+test('blame maps lines, compare asks for the merge base', async () => {
+  const seen: Array<Record<string, unknown>> = []
+  const repo = pierreRepo(
+    client({
+      diff: {
+        get: (p: Record<string, unknown>) => {
+          seen.push(p)
+          return Promise.resolve({
+            sha: 'h',
+            base_sha: 'b',
+            merge_base_sha: 'm',
+            files: [
+              { path: 'a', state: 'M', additions: 1, deletions: 1, raw: 'r' },
+            ],
+          })
+        },
+      },
+    }),
+    'r',
+  )
+  const blame = await repo.blame({ path: 'a', ref: 'main' })
+  expect(blame.sha).toBe('s1')
+  expect(blame.lines[0]).toEqual({
+    line: 1,
+    sha: 's0',
+    authorName: 'a',
+    authorEmail: 'a@x',
+    date: new Date('2026-11-24T10:00:00Z'),
+    summary: 'first',
+    originalPath: 'old',
+    originalLine: 4,
+  })
+  const c = await repo.compare({ base: 'b', head: 'h', paths: ['src'] })
+  expect(c).toMatchObject({ sha: 'h', baseSha: 'b', mergeBaseSha: 'm' })
+  expect(seen[0]).toMatchObject({ ref: 'h', base_ref: 'b', path: ['src'] })
 })

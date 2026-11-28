@@ -189,6 +189,18 @@ export const change: Command = async (
     return
   }
 
+  if (sub === 'ready') {
+    const r = (
+      await api.post(`${repo.path}/changes/${c.number}/ready`, { dryRun: dry })
+    ).json
+    print(
+      ctx,
+      { ...r, id: String(c.number), dryRun: dry },
+      () => `${dry ? 'would mark' : 'marked'} #${c.number} ready for review`,
+    )
+    return
+  }
+
   if (sub === 'land') {
     try {
       await api.post(`${repo.path}/changes/${c.number}/land`, {

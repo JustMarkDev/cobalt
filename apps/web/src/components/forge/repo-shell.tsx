@@ -2,15 +2,15 @@ import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   CheckIcon,
-  ClipboardDocumentIcon,
+  CopyIcon,
+  GitForkIcon,
   StarIcon,
-} from '@heroicons/react/24/outline'
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import * as m from 'motion/react-m'
 import { useSignInGate } from './auth'
 import { Avatar } from './bits'
 import type { Repo } from '~/lib/model/data'
-import { GitForkIcon } from '~/components/icons'
 import { PageTransition } from '~/components/motion'
 import { LinkTabs } from '~/components/ui/tabs'
 import { Button } from '~/components/ui/button'
@@ -84,7 +84,7 @@ export function CopyField({
         {copied ? (
           <CheckIcon className="size-3.5 text-success" />
         ) : (
-          <ClipboardDocumentIcon className="size-3.5" />
+          <CopyIcon className="size-3.5" />
         )}
       </button>
     </div>
@@ -180,7 +180,8 @@ export function RepoHeader({
               className="inline-flex"
             >
               <StarIcon
-                className={cn(starred && 'fill-brand text-brand-ink')}
+                weight={starred ? 'fill' : 'regular'}
+                className={cn(starred && 'text-brand')}
               />
             </m.span>
             {starred ? 'Starred' : 'Star'}

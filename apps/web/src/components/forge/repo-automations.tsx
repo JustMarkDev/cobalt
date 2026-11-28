@@ -1,9 +1,9 @@
 import { useSuspenseQueries } from '@tanstack/react-query'
 import {
-  BoltIcon,
-  ExclamationTriangleIcon,
-  ServerStackIcon,
-} from '@heroicons/react/24/outline'
+  HardDrivesIcon,
+  LightningIcon,
+  WarningIcon,
+} from '@phosphor-icons/react'
 import { Chip, EmptyState, Panel, SectionLabel } from './bits'
 import type { Repo } from '~/lib/model/data'
 import { opQuery, useOp, useOpMaybe } from '~/lib/forge'
@@ -25,7 +25,7 @@ export function AutomationsPage({ repo }: { repo: Repo }) {
       {t.errors.length > 0 && (
         <Panel className="space-y-2 border-warning/40 p-4 text-sm">
           <p className="flex items-center gap-2 font-medium">
-            <ExclamationTriangleIcon className="size-4 text-warning" />
+            <WarningIcon className="size-4 text-warning" />
             The newest trigger files did not read. The triggers below are the
             last ones that did.
           </p>
@@ -49,7 +49,7 @@ export function AutomationsPage({ repo }: { repo: Repo }) {
         <Panel as="div" className="divide-y">
           {t.triggers.map((x) => (
             <div key={x.id} className="flex items-start gap-3 p-4 text-sm">
-              <BoltIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <LightningIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{x.id}</span>
@@ -158,7 +158,7 @@ export function RepoRunnersPage({ repo }: { repo: Repo }) {
           key={labels}
           className="flex items-start gap-2 border-warning/40 p-4 text-sm"
         >
-          <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+          <WarningIcon className="mt-0.5 size-4 shrink-0 text-warning" />
           <span>
             No runner offers <code>{labels}</code>, so{' '}
             {runs.map((n) => `#${n}`).join(', ')} wait
@@ -186,7 +186,7 @@ export function RepoRunnersPage({ repo }: { repo: Repo }) {
           <Panel as="div" className="divide-y">
             {serving.map((r) => (
               <div key={r.id} className="flex items-start gap-3 p-4 text-sm">
-                <ServerStackIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                <HardDrivesIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{r.name}</span>

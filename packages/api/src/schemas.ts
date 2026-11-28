@@ -147,6 +147,11 @@ export const Repo = named(
       .describe(
         'Whether a change lands by itself once it can, under the account that turned this on',
       ),
+    github_bot_writes: z
+      .boolean()
+      .describe(
+        'On a repository mirrored to GitHub: whether people without a linked GitHub account may write here, their issues, comments and changes posted on GitHub by the cobalt app with their name in the text (the default). Off, they need a linked account (`link_required`)',
+      ),
     vouched: z
       .array(z.string())
       .describe('Accounts the owners trust. Their changes come first'),
@@ -194,6 +199,12 @@ export const Contributor = named(
     object: z.literal('contributor'),
     name: z.string(),
     email: z.string(),
+    handle: z
+      .string()
+      .nullable()
+      .describe(
+        'The cobalt account that proved one of these commit identities its own, or null',
+      ),
     commits: z.number().int(),
     last_commit_at: ts,
   }),
@@ -1009,6 +1020,11 @@ export const Landing = named(
     resolve: z
       .enum(['author', 'any_reviewer'])
       .describe('Who may settle a review thread'),
+    verify: z
+      .enum(['before', 'after'])
+      .describe(
+        '`before`: the `wait_checks` must pass before a change lands. `after`: it lands when its rules are met, and the `wait_checks` are verified on what landed (see `verification` on the landability)',
+      ),
     steps: z
       .array(z.record(z.string(), z.unknown()))
       .describe(
@@ -1127,6 +1143,21 @@ export const Landability = named(
       ),
     requirements: z.array(Requirement),
     landing: Landing,
+    verification: z
+      .object({
+        state: z.enum(['pending', 'passed', 'failed']),
+        checks: z.array(
+          z.object({
+            name: z.string(),
+            state: z.enum(['pass', 'fail', 'pending']),
+          }),
+        ),
+      })
+      .strict()
+      .nullable()
+      .describe(
+        'With `landing.verify: after`, whether the `wait_checks` hold on this change: `failed` is the signal to fix forward or revert. Null otherwise',
+      ),
   }),
 )
 
@@ -1445,6 +1476,7 @@ export const ProviderAudit = named(
       'adopted',
       'unlinked',
       'relinked',
+      'published',
       'needs_reconnect',
     ]),
     repo: z.string().nullable(),
@@ -2245,29 +2277,73 @@ export const GitBlob = named(
   }),
 )
 
+const GitDiffFile = obj({
+  path: z.string(),
+  state: z.enum(['added', 'modified', 'deleted']),
+  additions: z.number().int(),
+  deletions: z.number().int(),
+  patch: z
+    .string()
+    .describe('Unified diff hunks. Cut at 64 KB; see `truncated`'),
+  truncated: z.boolean(),
+})
+
+const DiffStats = obj({
+  files: z.number().int(),
+  additions: z.number().int(),
+  deletions: z.number().int(),
+})
+
 export const GitCommitDiff = named(
   'GitCommitDiff',
   obj({
     object: z.literal('commit_diff'),
     sha: z.string(),
     base_sha: z.string().nullable(),
-    stats: obj({
-      files: z.number().int(),
-      additions: z.number().int(),
-      deletions: z.number().int(),
-    }),
-    files: z.array(
+    stats: DiffStats,
+    files: z.array(GitDiffFile),
+  }),
+)
+
+export const GitCompare = named(
+  'GitCompare',
+  obj({
+    object: z.literal('comparison'),
+    base: z.string().describe('The commit `base` was resolved to'),
+    head: z.string().describe('The commit `head` was resolved to'),
+    merge_base: z
+      .string()
+      .nullable()
+      .describe(
+        'The commit where the two histories split. The diff starts here, so it holds only what `head` changed since. Equal to `head` when `head` is already in `base`',
+      ),
+    stats: DiffStats,
+    files: z.array(GitDiffFile),
+  }),
+)
+
+export const GitBlame = named(
+  'GitBlame',
+  obj({
+    object: z.literal('blame'),
+    path: z.string(),
+    ref: z.string().describe('The commit the file was read at'),
+    lines: z.array(
       obj({
-        path: z.string(),
-        state: z.enum(['added', 'modified', 'deleted']),
-        additions: z.number().int(),
-        deletions: z.number().int(),
-        patch: z
+        line: z.number().int().describe('1-based, in the file at `ref`'),
+        sha: z.string().describe('The commit that last wrote the line'),
+        author: Person,
+        date: ts,
+        summary: z.string().describe('The first line of that commit message'),
+        original_path: z
           .string()
-          .describe('Unified diff hunks. Cut at 64 KB; see `truncated`'),
-        truncated: z.boolean(),
+          .describe('Where the line was first written, if the file moved'),
+        original_line: z.number().int(),
       }),
     ),
+    has_more: z
+      .boolean()
+      .describe('True when more lines follow `to` and the answer was cut'),
   }),
 )
 

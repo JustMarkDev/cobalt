@@ -12,16 +12,19 @@
     "./openapi.snapshot.json": "./src/openapi.snapshot.json"
   },
   "dependencies": {
-    "@noble/hashes": "^2.4.0",
     "@cobaltforge/git": "workspace:*",
+    "@env-spec/parser": "0.6.3",
+    "@noble/hashes": "^2.4.0",
     "convex": "^1.51.0",
     "effect": "^4.1.5",
     "jose": "^6.2.18",
+    "libsodium-wrappers": "0.7.15",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@cobaltforge/sdk": "workspace:*",
+    "@types/libsodium-wrappers": "0.7.14",
     "convex-test": "^0.0.73",
     "oxfmt": "0.79.0"
   }

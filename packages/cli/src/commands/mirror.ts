@@ -1,6 +1,7 @@
 import { resolveRepo } from '../repo'
 import { CbError, exit, print, table } from '../output'
 import { has, str } from '../args'
+import { githubAccess } from '../github'
 import type { Command } from './types'
 
 type Mirror = {
@@ -36,19 +37,26 @@ export const mirror: Command = async (
       throw new CbError(
         'missing_argument',
         'mirror add needs a host and owner/name.',
-        'Example: cb mirror add codeberg dana/gitfs --direction push',
+        'Example: cb mirror add github you/name',
         exit.usage,
       )
+    const github = host === 'github'
     const r = await api.post(`${repo.path}/mirrors`, {
-      body: { host, slug, direction: str(flags, 'direction') ?? 'push' },
+      body: {
+        host,
+        slug,
+        direction: str(flags, 'direction') ?? (github ? 'two-way' : 'push'),
+        ...(github && !dry
+          ? { github_access: await githubAccess(ctx, api, flags) }
+          : {}),
+      },
       dryRun: dry,
     })
     const created = r.headers.get('cb-outcome') === 'created'
-    print(
-      ctx,
-      { ...r.json, created, dryRun: dry },
-      () =>
-        `${created ? (dry ? 'would add' : 'added') : 'already mirrored'} ${host}:${slug}`,
+    print(ctx, { ...r.json, created, dryRun: dry }, () =>
+      created
+        ? `${dry ? 'would link' : 'linking'} ${host}:${slug}${github && !dry ? ': sending the history there in the background (cb mirror list says how it went)' : ''}`
+        : `already mirrored ${host}:${slug}`,
     )
     return
   }

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useRouterState } from '@tanstack/react-router'
-import { EnvelopeIcon } from '@heroicons/react/24/outline'
+import { EnvelopeSimpleIcon } from '@phosphor-icons/react'
 import { authClient } from '~/lib/auth/client'
 
 export function useResendVerification(email: string | undefined) {
@@ -30,7 +30,7 @@ export function VerifyEmailBanner() {
   return (
     <div className="border-b border-warning/25 bg-warning/8">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-6 py-2.5 text-sm">
-        <EnvelopeIcon className="size-4 shrink-0 text-warning" />
+        <EnvelopeSimpleIcon className="size-4 shrink-0 text-warning" />
         <p className="min-w-0 flex-1">
           <span className="font-medium">Confirm your email.</span>{' '}
           <span className="text-muted-foreground">

@@ -751,6 +751,8 @@ export function seedSample(d: MemoryDomain) {
         id: seededId('pipeline', started, `${full}#${r.number}`),
         started,
         finished: r.duration === null ? null : started + r.duration,
+        // Each API gets its own: a runner's report must not reach another.
+        annotations: r.annotations.map((x) => ({ ...x })),
         jobs: r.jobs.map((j) => ({
           ...j,
           steps: j.steps.map((s) => ({

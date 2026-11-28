@@ -6,6 +6,8 @@ const READS = new Set([
   'listCommits',
   'getCommit',
   'getCommitDiff',
+  'blame',
+  'compare',
 ])
 const MAX_RETRIES = 3
 

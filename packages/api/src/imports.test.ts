@@ -142,7 +142,7 @@ describe('imports', () => {
 })
 
 describe('linked accounts', () => {
-  test('recorded as given, unverified, one per host', async () => {
+  test('recorded as given, unverified, several on one host, each login once', async () => {
     const h = harness()
     const list = (await h.call('GET', '/accounts/dana/links')).json.data
     expect(list[0]).toMatchObject({
@@ -151,18 +151,29 @@ describe('linked accounts', () => {
       verified: false,
     })
     await h.call('PUT', '/accounts/dana/links/github', {
-      body: { login: 'dana-o' },
+      body: { login: 'dana-work' },
     })
-    const after = (await h.call('GET', '/accounts/dana/links')).json.data
-    expect(after).toHaveLength(1)
-    expect(after[0].login).toBe('dana-o')
+    await h.call('PUT', '/accounts/dana/links/github', {
+      body: { login: 'Dana-Work' },
+    })
+    const logins = async () =>
+      (await h.call('GET', '/accounts/dana/links')).json.data
+        .filter((l: { host: string }) => l.host === 'github')
+        .map((l: { login: string }) => l.login)
+    expect(await logins()).toEqual(['dana-okafor', 'Dana-Work'])
     const gitea = await h.call('PUT', '/accounts/dana/links/gitea', {
       body: { login: 'dana' },
     })
     expect(gitea.status).toBe(400)
+    expect(
+      (await h.call('DELETE', '/accounts/dana/links/github?login=dana-work'))
+        .status,
+    ).toBe(204)
+    expect(await logins()).toEqual(['dana-okafor'])
     expect((await h.call('DELETE', '/accounts/dana/links/github')).status).toBe(
       204,
     )
+    expect(await logins()).toEqual([])
   })
 
   test('only your own', async () => {

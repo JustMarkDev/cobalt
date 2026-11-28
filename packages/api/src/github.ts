@@ -1,6 +1,7 @@
 import { apiError } from './problem'
 import { createGithubForge } from './forge/github'
 import { ProviderError } from './forge/types'
+import type { OAuthTokens, ProviderOAuth } from './forge/types'
 
 export type GithubConfig = {
   clientId: string
@@ -25,6 +26,8 @@ export type OauthFinish = {
   login: string
   expiresIn: number
   returnTo: string | null
+  /** The user's own GitHub token, kept (sealed) to act as them. */
+  tokens: OAuthTokens
 }
 
 export type DeviceStart = {
@@ -38,7 +41,13 @@ export type DeviceStart = {
 export type DevicePoll =
   | { status: 'pending' | 'slow_down'; interval: number }
   | { status: 'expired' | 'denied' }
-  | { status: 'authorized'; access: string; login: string; expiresIn: number }
+  | {
+      status: 'authorized'
+      access: string
+      login: string
+      expiresIn: number
+      tokens: OAuthTokens
+    }
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>
 
@@ -329,6 +338,7 @@ export function createGithub(
           return {
             status: 'authorized',
             ...(await seal(String(d.access_token), handle)),
+            tokens: tokensOf(d, now()),
           }
         case 'authorization_pending':
           return { status: 'pending', interval: Number(d.interval ?? 5) }
@@ -388,6 +398,7 @@ export function createGithub(
       return {
         ...(await seal(token, handle)),
         returnTo: s.t,
+        tokens: tokensOf(d, now()),
       }
     },
     async token(access, handle) {
@@ -421,4 +432,79 @@ export function githubFromEnv(
 ): Github | null {
   const cfg = githubConfigFromEnv(env, sealKey)
   return cfg ? createGithub(cfg) : null
+}
+
+/** A GitHub App user token answer: 8-hour access, 6-month refresh. */
+export function tokensOf(d: Record<string, unknown>, at: number): OAuthTokens {
+  const expires = Number(d.expires_in)
+  return {
+    access: String(d.access_token),
+    refresh: typeof d.refresh_token === 'string' ? d.refresh_token : null,
+    expiresAt:
+      Number.isFinite(expires) && expires > 0 ? at + expires * 1000 : null,
+    scopes: [],
+  }
+}
+
+/**
+ * Refreshes the GitHub user tokens kept for linked accounts, so cobalt can
+ * write on GitHub as the person (their comments, issues) and not as the app.
+ * Signing in itself goes through POST /github/oauth and /github/device.
+ */
+export function githubUserOAuth(
+  cfg: { clientId: string; clientSecret: string },
+  o: { fetch?: Fetch; now?: () => number } = {},
+): ProviderOAuth {
+  const f: Fetch = o.fetch ?? ((u, i) => fetch(u, i))
+  const now = o.now ?? Date.now
+  const refuse = () => {
+    throw new ProviderError(
+      'github',
+      400,
+      'Sign in with GitHub instead.',
+      false,
+    )
+  }
+  return {
+    id: 'github',
+    scopes: [],
+    authorizeUrl: refuse,
+    exchange: () => Promise.resolve(refuse()),
+    async refresh(refreshToken) {
+      const res = await f('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/x-www-form-urlencoded',
+          'user-agent': 'cobaltforge',
+        },
+        body: new URLSearchParams({
+          client_id: cfg.clientId,
+          client_secret: cfg.clientSecret,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+        }).toString(),
+      })
+      const d = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      if (!res.ok || d.error || typeof d.access_token !== 'string')
+        throw new ProviderError(
+          'github',
+          401,
+          `GitHub did not refresh the token: ${typeof d.error === 'string' ? d.error : res.status}`,
+        )
+      return tokensOf(d, now())
+    },
+    revoke: () => Promise.resolve(),
+    async whoami(token) {
+      const res = await f(`${API}/user`, { headers: gh(token) })
+      if (!res.ok)
+        throw new ProviderError(
+          'github',
+          res.status,
+          `GitHub answered ${res.status}`,
+        )
+      const me = (await res.json()) as { id: number; login: string }
+      return { id: String(me.id), login: me.login }
+    },
+  }
 }

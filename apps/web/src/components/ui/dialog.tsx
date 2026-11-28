@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Dialog } from '@base-ui/react/dialog'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { XIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 
 function Modal({
@@ -45,7 +45,7 @@ function Modal({
               aria-label="Close"
               className="-mt-2 -mr-2.5 flex size-9 items-center justify-center rounded-lg text-muted-foreground focus-ring hover:bg-muted hover:text-foreground"
             >
-              <XMarkIcon className="size-4" />
+              <XIcon className="size-4" />
             </Dialog.Close>
           </div>
           {children}

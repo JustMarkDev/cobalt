@@ -354,34 +354,109 @@ export class ProviderSync {
     return { connection: fresh, returnTo: s.t }
   }
 
-  async rememberGithub(handle: string, login: string) {
+  /**
+   * After a GitHub sign-in: the account's GitHub connection, with the user's
+   * own token sealed, so writes to GitHub (comments, issues) are theirs and
+   * not the app's. Without a vault the login is kept and writes stay the app's.
+   */
+  /**
+   * After a value is set here, the same value on the provider the repository
+   * is linked to, so its own CI keeps working. Production goes to the
+   * repository's secrets, which workflows read by default; development and
+   * preview to the provider's environments of those names. Says where it went,
+   * or null when the repository is not linked to a provider that keeps secrets.
+   */
+  async pushSecret(
+    full: string,
+    secret: { name: string; value: string; environment: string },
+  ): Promise<string | null> {
+    const r = await this.store.remoteOfRepo(full)
+    if (!r || r.state === 'gone' || r.state === 'archived') return null
+    const forge = this.forge(r.provider)
+    if (!forge.setSecret) return null
+    const auth = await this.authOf(r)
+    if (!auth) return null
+    const environment =
+      secret.environment === 'production' ? null : secret.environment
+    await forge.setSecret(auth, r.fullName, {
+      name: secret.name,
+      value: secret.value,
+      environment,
+    })
+    return environment
+      ? `${hostLabel[r.provider]} environment ${environment}`
+      : `${hostLabel[r.provider]} repository secrets`
+  }
+
+  async rememberGithub(
+    handle: string,
+    login: string,
+    tokens?: {
+      access: string
+      refresh: string | null
+      expiresAt: number | null
+    },
+  ) {
     const had = await this.store.connection(handle, 'github', 'github.com')
-    if (had?.login === login) return
-    await this.store.saveConnection(
-      {
+    const saved =
+      had?.login === login
+        ? had
+        : await this.store.saveConnection(
+            {
+              handle,
+              provider: 'github',
+              instance: 'github.com',
+              externalId: login.toLowerCase(),
+              login,
+              token: null,
+              refresh: null,
+              keyId: null,
+              expiresAt: null,
+              scopes: [],
+              state: 'ok',
+              problem: null,
+            },
+            this.now(),
+          )
+    const v = tokens ? await this.deps.vault : null
+    if (tokens && v)
+      await this.store.patchConnection(
+        saved.id,
+        {
+          token: await v.seal(this.slot(saved, 'token'), tokens.access),
+          refresh: tokens.refresh
+            ? await v.seal(this.slot(saved, 'refresh'), tokens.refresh)
+            : null,
+          keyId: v.current,
+          expiresAt: tokens.expiresAt,
+          state: 'ok',
+          problem: null,
+        },
+        this.now(),
+      )
+    if (had?.login !== login)
+      await this.store.audit({
         handle,
         provider: 'github',
-        instance: 'github.com',
-        externalId: login.toLowerCase(),
-        login,
-        token: null,
-        refresh: null,
-        keyId: null,
-        expiresAt: null,
-        scopes: [],
-        state: 'ok',
-        problem: null,
-      },
-      this.now(),
+        action: had ? 'reconnected' : 'connected',
+        repo: null,
+        detail: login,
+        at: this.now(),
+      })
+  }
+
+  async githubLogin(handle: string) {
+    return (
+      (await this.store.connection(handle, 'github', 'github.com'))?.login ??
+      null
     )
-    await this.store.audit({
-      handle,
-      provider: 'github',
-      action: had ? 'reconnected' : 'connected',
-      repo: null,
-      detail: login,
-      at: this.now(),
-    })
+  }
+
+  /** The user's own GitHub auth, when they signed in with a kept token. */
+  async githubAs(handle: string): Promise<ProviderAuth | null> {
+    const c = await this.store.connection(handle, 'github', 'github.com')
+    if (!c?.token) return null
+    return this.userAuth(c).catch(() => null)
   }
 
   async userAuth(c: ConnectionRec): Promise<ProviderAuth> {
@@ -803,6 +878,117 @@ export class ProviderSync {
     patch.problem = hooked ? null : r.problem
     await this.store.patchRemote(r.id, patch)
     await this.pull({ ...r, ...patch }).catch(() => undefined)
+  }
+
+  /**
+   * Link a repository made here to GitHub, making the GitHub repository when
+   * there is none, so it syncs both ways as an import does. The GitHub one
+   * must be empty: its history comes from here.
+   */
+  async publish(
+    p: Principal,
+    full: string,
+    o: {
+      storeId: string
+      slug: string
+      githubAccess: string
+      private: boolean
+      description: string
+      defaultBranch: string
+      /**
+       * Sends the history here to `target`. Linking makes the store follow
+       * GitHub, so GitHub must have the history first or it is lost here.
+       */
+      sendHistory: (target: {
+        url: string
+        authorization: string
+      }) => Promise<void>
+    },
+  ) {
+    if (await this.store.remoteOfRepo(full))
+      throw apiError('invalid_state', `${full} is already linked to a host.`)
+    const forge = this.forge('github')
+    if (!this.deps.githubToken || !this.deps.git)
+      throw apiError(
+        'backend_unavailable',
+        'Signing in with GitHub is not set up on this server.',
+      )
+    const token = await this.deps.githubToken(o.githubAccess, p.handle)
+    const auth: ProviderAuth = { kind: 'user', token }
+    const found = await forge.getRepo(auth, o.slug).catch((e: unknown) => {
+      if (e instanceof ProviderError && e.status === 404) return null
+      throw this.providerProblem(e)
+    })
+    if (found && found.sizeBytes > 0)
+      throw apiError(
+        'invalid_state',
+        `${o.slug} on GitHub already has history.`,
+        {
+          hint: 'Link an empty repository, or import that one instead with POST /imports.',
+        },
+      )
+    if (!found) {
+      if (!forge.createRepo)
+        throw apiError(
+          'invalid_request',
+          'GitHub repositories cannot be made from here.',
+        )
+      const [owner, name] = o.slug.split('/')
+      await forge
+        .createRepo(auth, {
+          owner,
+          name,
+          private: o.private,
+          description: o.description,
+        })
+        .catch((e: unknown) => {
+          if (e instanceof ProviderError && [403, 404, 422].includes(e.status))
+            throw apiError(
+              'forbidden',
+              `GitHub did not let cobalt make ${o.slug}: ${e.message}`,
+              {
+                hint: 'Make an empty repository with that name on GitHub and link it again, or give the Cobalt GitHub App the Administration permission so it can make them.',
+              },
+            )
+          throw this.providerProblem(e)
+        })
+    }
+    const pr = await this.prepare(p, 'github', o.slug, o.githubAccess)
+    const held = await this.heldBy(pr)
+    if (held)
+      throw apiError(
+        'invalid_state',
+        `${o.slug} is already linked to ${held.repo}.`,
+      )
+    await o
+      .sendHistory({
+        url: `https://github.com/${pr.remote.slug}.git`,
+        authorization: `Basic ${btoa(`x-access-token:${token}`)}`,
+      })
+      .catch((e: unknown) => {
+        throw apiError(
+          'backend_unavailable',
+          `The history did not reach ${pr.remote.slug} on GitHub, so nothing was linked: ${String(e)}`,
+        )
+      })
+    await this.deps.git
+      .relink(o.storeId, upstreamOf('github', pr.remote.slug), o.defaultBranch)
+      .catch((e: unknown) => {
+        throw apiError(
+          'backend_unavailable',
+          `Git storage did not take the GitHub link: ${String(e)}`,
+        )
+      })
+    const done = await this.linked(p, full, pr)
+    await this.store.audit({
+      handle: p.handle,
+      provider: 'github',
+      action: 'published',
+      repo: full,
+      detail: pr.remote.slug,
+      at: this.now(),
+    })
+    return { ...done, slug: pr.remote.slug, made: !found }
   }
 
   async adopt(p: Principal, full: string) {

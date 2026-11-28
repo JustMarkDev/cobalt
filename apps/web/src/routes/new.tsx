@@ -3,7 +3,8 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useWrite } from '~/lib/forge'
 import { startGithubLink } from '~/lib/github-link'
 import { startProviderLink } from '~/lib/provider-link'
-import { CheckIcon } from '@heroicons/react/24/outline'
+import { liveProviders } from '~/components/forge/provider-picker'
+import { CheckIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { RequireAuth } from '~/components/forge/auth'
 import { PageTitle, SectionLabel } from '~/components/forge/bits'
@@ -232,7 +233,7 @@ function Import() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <SectionLabel>Import from GitHub, GitLab or Codeberg</SectionLabel>
+        <SectionLabel>Import from GitHub</SectionLabel>
         <p className="text-sm text-muted-foreground">
           Sign in, then pick which repositories to bring here. Each one stays in
           sync with its host both ways, its pull requests, issues and releases
@@ -248,17 +249,29 @@ function Import() {
             ['gitlab', 'GitLab'],
             ['codeberg', 'Codeberg'],
           ] as const
-        ).map(([host, name]) => (
-          <Button
-            key={host}
-            variant={host === 'github' ? 'brand' : 'outline'}
-            size="lg"
-            disabled={busy !== null}
-            onClick={() => go(host)}
-          >
-            {busy === host ? `Opening ${name}` : `Continue with ${name}`}
-          </Button>
-        ))}
+        ).map(([host, name]) =>
+          liveProviders.has(host) ? (
+            <Button
+              key={host}
+              variant={host === 'github' ? 'brand' : 'outline'}
+              size="lg"
+              disabled={busy !== null}
+              onClick={() => go(host)}
+            >
+              {busy === host ? `Opening ${name}` : `Continue with ${name}`}
+            </Button>
+          ) : (
+            <Button
+              key={host}
+              variant="outline"
+              size="lg"
+              disabled
+              title={`${name} is planned. Not available yet.`}
+            >
+              {name} · Planned
+            </Button>
+          ),
+        )}
       </div>
       {error && (
         <p role="alert" className="text-sm text-danger">

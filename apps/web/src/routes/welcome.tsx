@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { cn } from 'cn'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { CheckIcon } from '@heroicons/react/24/outline'
+import { CheckIcon } from '@phosphor-icons/react'
 import { AuthShell, RequireAuth } from '~/components/forge/auth'
 import { BrandLogo } from '~/components/brand'
 import { Button } from '~/components/ui/button'

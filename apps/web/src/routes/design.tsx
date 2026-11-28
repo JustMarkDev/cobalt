@@ -1,29 +1,27 @@
 import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import {
-  ArrowDownTrayIcon,
   ArrowRightIcon,
   BellIcon,
   CheckCircleIcon,
-  Cog6ToothIcon,
-  CommandLineIcon,
-  CpuChipIcon,
-  KeyIcon,
-  LockClosedIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  ShieldCheckIcon,
-  StarIcon,
-  UsersIcon,
-} from '@heroicons/react/24/outline'
-import type { BrandId } from '~/components/brand'
-import type { BadgeTone } from '~/components/ui/badge'
-import {
+  CpuIcon,
+  DownloadSimpleIcon,
+  GearSixIcon,
   GitBranchIcon,
   GitCommitIcon,
   GitForkIcon,
   GitMergeIcon,
-} from '~/components/icons'
+  KeyIcon,
+  LockIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  StarIcon,
+  TerminalWindowIcon,
+  UsersIcon,
+} from '@phosphor-icons/react'
+import type { BrandId } from '~/components/brand'
+import type { BadgeTone } from '~/components/ui/badge'
 import { BrandLogo, BrandTile, brandName, brands } from '~/components/brand'
 import {
   GroupedBars,
@@ -519,32 +517,29 @@ function Design() {
         <Section
           id="icons"
           title="Icons"
-          note="Heroicons, 24 outline, sized with size-4 in text and size-5 on tiles. Heroicons has no version-control glyphs, so four are drawn to match."
+          note="Phosphor, regular weight, sized with size-4 in text and size-5 on tiles. Every icon comes from it, version control included."
         >
-          <Specimen label="Heroicons" source="@heroicons/react/24/outline">
+          <Specimen label="Phosphor" source="@phosphor-icons/react">
             {[
               MagnifyingGlassIcon,
               BellIcon,
               PlusIcon,
-              Cog6ToothIcon,
+              GearSixIcon,
               StarIcon,
-              LockClosedIcon,
+              LockIcon,
               KeyIcon,
               ShieldCheckIcon,
-              CpuChipIcon,
-              CommandLineIcon,
+              CpuIcon,
+              TerminalWindowIcon,
               UsersIcon,
               CheckCircleIcon,
-              ArrowDownTrayIcon,
+              DownloadSimpleIcon,
               ArrowRightIcon,
             ].map((Icon, i) => (
               <Icon key={i} className="size-5" />
             ))}
           </Specimen>
-          <Specimen
-            label="Version control, drawn to match"
-            source="~/components/icons"
-          >
+          <Specimen label="Version control" source="@phosphor-icons/react">
             <GitBranchIcon className="size-5" />
             <GitCommitIcon className="size-5" />
             <GitForkIcon className="size-5" />
@@ -577,7 +572,7 @@ function Design() {
             </Button>
             <Tip label="Settings">
               <Button size="icon" aria-label="Settings">
-                <Cog6ToothIcon />
+                <GearSixIcon />
               </Button>
             </Tip>
           </Specimen>

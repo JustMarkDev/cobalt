@@ -8,7 +8,7 @@ import { ConvexDomain, run } from './domain/convex'
 import { OAuthServer } from './oauth'
 import { oauthScopes } from './auth'
 import { SearchIndex } from './search'
-import { StoreGit } from './git'
+import { StoreGit, invalidateOnPush } from './git'
 import { HttpTransport } from './webhooks'
 import { UploadSigner } from './uploads'
 import { mailerFromEnv } from './mail'
@@ -29,6 +29,7 @@ import { githubFromEnv } from './github'
 import { providersFromEnv } from './forge/env'
 import { createGitHttp } from './git-http'
 import { codeStorageAdmin } from '@cobaltforge/git/admin'
+import { readCache } from '@cobaltforge/git'
 import { codeStorageStores } from '@cobaltforge/git/stores'
 import { codeStorageRemotes } from '@cobaltforge/git/remote'
 import type { GitRemotes } from '@cobaltforge/git/remote'
@@ -96,9 +97,103 @@ export function createConvexApi(o: ConvexApiOptions) {
   const d = new ConvexDomain(urls, call, events, svc, now)
   providers.attach(d.providerHost())
   ;(svc.git as StoreGit).resolveStore = (full) => d.storeIdOf(full)
+  invalidateOnPush(events, svc.git, (id) => readCache.invalidate(id))
   svc.search = new SearchIndex(() => d.searchDocs(), events)
   const domain = Object.assign(d, {
     oauthState: new ConvexOAuthState(call),
+  })
+  // A push starts the workflows it takes. Old pushes the feed replays on
+  // start are left alone; queueing is once per workflow and commit anyway.
+  events.subscribe((e) => {
+    if (
+      (e.type === 'change.opened' ||
+        (e.type === 'change.updated' &&
+          e.changes.includes('head.patch_set'))) &&
+      e.repo &&
+      e.subject.number !== null &&
+      now() - Date.parse(e.created_at) < 10 * 60_000
+    )
+      void d
+        // A patch set written here becomes a commit first, so the review
+        // reads real code.
+        .commitWrittenPatchSet({ repo: e.repo, number: e.subject.number })
+        .catch((err: unknown) => {
+          console.error('[changes] could not commit', e.repo, err)
+          return null
+        })
+        .then(() => d.queueReview({ repo: e.repo!, number: e.subject.number! }))
+        .then((runs) => {
+          if (runs.length)
+            console.log(
+              '[review]',
+              JSON.stringify({ repo: e.repo, change: e.subject.number, runs }),
+            )
+        })
+        .catch((err: unknown) =>
+          console.error('[review] could not queue', e.repo, err),
+        )
+    if (
+      e.type === 'change.landed' &&
+      e.repo &&
+      e.subject.number !== null &&
+      now() - Date.parse(e.created_at) < 10 * 60_000
+    )
+      void d
+        .landInGit({
+          repo: e.repo,
+          number: e.subject.number,
+          by: e.actor.handle,
+        })
+        .then((r) => {
+          if (r)
+            console.log(
+              '[land]',
+              JSON.stringify({ repo: e.repo, change: e.subject.number, ...r }),
+            )
+        })
+        .catch((err: unknown) =>
+          console.error(
+            '[land] could not merge',
+            e.repo,
+            e.subject.number,
+            err,
+          ),
+        )
+    if (e.type !== 'repository.pushed' || !e.repo) return
+    if (now() - Date.parse(e.created_at) > 10 * 60_000) return
+    const data = e.data as { ref?: string; after?: string } | null
+    if (!data?.ref || !data.after) return
+    void d
+      .queueWorkflows({
+        repo: e.repo,
+        ref: data.ref,
+        after: data.after,
+        actor: e.actor.handle,
+      })
+      .then((runs) => {
+        if (runs.length)
+          console.log(
+            '[pipelines]',
+            JSON.stringify({ repo: e.repo, ref: data.ref, runs }),
+          )
+      })
+      .catch((err: unknown) =>
+        console.error('[pipelines] could not start workflows', e.repo, err),
+      )
+    void d
+      .detectFacts({
+        repo: e.repo,
+        ref: data.ref,
+        after: data.after,
+        by: e.actor.handle,
+      })
+      .catch((err: unknown) =>
+        console.error(
+          '[repos] could not read languages and license',
+          e.repo,
+          err,
+        ),
+      )
   })
   const feed = new ConvexEventFeed(call, events, (rev) => {
     d.accessRevision = rev
@@ -216,6 +311,7 @@ export function createConvexApi(o: ConvexApiOptions) {
     domain,
     remotes: o.gitRemotes ?? codeStorageRemotes(),
     beforeGit: (full, write) => providers.beforeGit(full, write),
+    afterPush: (at, updates) => d.recordPushes(at, updates),
     log: (line) => console.log('[git]', JSON.stringify(line)),
   })
   const serveGit = async (req: Request, ip?: string) => {

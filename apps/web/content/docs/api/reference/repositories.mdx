@@ -39,7 +39,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/device" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=38;t=60
+ratelimit: "write";r=37;t=60
 ```
 
 ```json
@@ -90,7 +90,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/device/poll" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=37;t=60
+ratelimit: "write";r=36;t=60
 ```
 
 ```json
@@ -142,7 +142,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/oauth" \
 
 ```http
 HTTP/1.1 201
-ratelimit: "write";r=36;t=60
+ratelimit: "write";r=35;t=60
 ```
 
 ```json
@@ -192,7 +192,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/github/oauth/finish" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=35;t=60
+ratelimit: "write";r=34;t=60
 ```
 
 ```json
@@ -384,13 +384,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/imports" \
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=34;t=60
+ratelimit: "write";r=33;t=60
 ```
 
 ```json
 {
   "object": "repo",
-  "id": "rep_01m6tq6r80sxhwmfce",
+  "id": "rep_01m6tq6r80jffgqfsw",
   "owner": "dana",
   "name": "dotfiles",
   "full_name": "dana/dotfiles",
@@ -423,6 +423,7 @@ ratelimit: "write";r=34;t=60
   "maintainers": ["dana"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": true,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
@@ -482,7 +483,7 @@ ratelimit: "write";r=109;t=60
 ```json
 {
   "object": "import_job",
-  "id": "imj_twm82smtqfew",
+  "id": "imj_00vqkjacse0r",
   "provider": "github",
   "owner": "dana",
   "state": "running",
@@ -530,20 +531,20 @@ ratelimit: "write";r=109;t=60
 **Example**
 
 ```bash
-curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_kn3xydw000vq" \
+curl "https://api.cobaltforge.dev/v1/imports/jobs/imj_dxwwylb070ve" \
   -H "Authorization: Bearer $CB_TOKEN"
 ```
 
 ```http
 HTTP/1.1 200
-etag: W/"wFfQ6aobTvbSHQ6M"
+etag: W/"fc-u5abfQwSdnKTd"
 ratelimit: "read";r=1198;t=60
 ```
 
 ```json
 {
   "object": "import_job",
-  "id": "imj_kn3xydw000vq",
+  "id": "imj_dxwwylb070ve",
   "provider": "github",
   "owner": "dana",
   "state": "running",
@@ -955,7 +956,7 @@ curl "https://api.cobaltforge.dev/v1/repos?limit=2" \
 
 ```http
 HTTP/1.1 200
-etag: W/"6U4bUyNgm07Shdvs"
+etag: W/"odMPOAphPfhnB4-x"
 ratelimit: "read";r=1197;t=60
 ```
 
@@ -986,6 +987,7 @@ ratelimit: "read";r=1197;t=60
       "maintainers": ["dana", "hollis"],
       "declined_models": [],
       "auto_land": false,
+      "github_bot_writes": true,
       "vouched": [],
       "denounced": [],
       "open_changes": 3,
@@ -1019,6 +1021,7 @@ ratelimit: "read";r=1197;t=60
       "maintainers": ["dana"],
       "declined_models": [],
       "auto_land": false,
+      "github_bot_writes": true,
       "vouched": [],
       "denounced": [],
       "open_changes": 0,
@@ -1112,6 +1115,7 @@ ratelimit: "write";r=79;t=60
   "maintainers": ["dana"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": true,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
@@ -1168,7 +1172,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/repos/northwind/scratch2?confirm=
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=14;t=60
+ratelimit: "write";r=13;t=60
 ```
 
 ### `repos.get`
@@ -1252,6 +1256,7 @@ ratelimit: "read";r=1196;t=60
   "maintainers": ["dana", "hollis"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": true,
   "vouched": ["hollis", "ines"],
   "denounced": [],
   "open_changes": 5,
@@ -1296,21 +1301,22 @@ Owners of the account and admins of the organization only. Send `If-Match` with 
 
 **Request body**
 
-| Member            | Type                                                                   | Notes                                                                                                                                                                                                                      |
-| ----------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`            | string (pattern)                                                       |                                                                                                                                                                                                                            |
-| `description`     | string (up to 500 characters)                                          |                                                                                                                                                                                                                            |
-| `visibility`      | `public` or `private`                                                  |                                                                                                                                                                                                                            |
-| `default_branch`  | string (up to 200 characters, at least 1)                              |                                                                                                                                                                                                                            |
-| `maintainers`     | array of string                                                        | People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. |
-| `category`        | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
-| `website`         | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `docs_url`        | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
-| `install`         | string (up to 1000 characters, at least 1) or null                     |                                                                                                                                                                                                                            |
-| `declined_models` | array of string (up to 80 characters, at least 1)                      | Declared models to take no changes from, compared without case. Replaces the list                                                                                                                                          |
-| `auto_land`       | boolean                                                                | Land a change by itself once it can. You answer for what lands this way                                                                                                                                                    |
-| `vouched`         | array of string (pattern)                                              | Accounts you trust; their changes come first. Replaces the list                                                                                                                                                            |
-| `denounced`       | array of object                                                        | Accounts that may not open changes or issues here. Replaces the list                                                                                                                                                       |
+| Member              | Type                                                                   | Notes                                                                                                                                                                                                                      |
+| ------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`              | string (pattern)                                                       |                                                                                                                                                                                                                            |
+| `description`       | string (up to 500 characters)                                          |                                                                                                                                                                                                                            |
+| `visibility`        | `public` or `private`                                                  |                                                                                                                                                                                                                            |
+| `default_branch`    | string (up to 200 characters, at least 1)                              |                                                                                                                                                                                                                            |
+| `maintainers`       | array of string                                                        | People who can approve core-path changes. A maintainer also has repository write access: adding one grants it, and removing one revokes the write access that maintainer list granted unless the person has another grant. |
+| `category`          | `Developer tools` or `Apps` or `Infrastructure` or `Databases` or null |                                                                                                                                                                                                                            |
+| `website`           | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
+| `docs_url`          | string (up to 300 characters, pattern) or null                         |                                                                                                                                                                                                                            |
+| `install`           | string (up to 1000 characters, at least 1) or null                     |                                                                                                                                                                                                                            |
+| `declined_models`   | array of string (up to 80 characters, at least 1)                      | Declared models to take no changes from, compared without case. Replaces the list                                                                                                                                          |
+| `auto_land`         | boolean                                                                | Land a change by itself once it can. You answer for what lands this way                                                                                                                                                    |
+| `github_bot_writes` | boolean                                                                | On a repository mirrored to GitHub, let people without a linked GitHub account write: the cobalt app posts for them, naming them                                                                                           |
+| `vouched`           | array of string (pattern)                                              | Accounts you trust; their changes come first. Replaces the list                                                                                                                                                            |
+| `denounced`         | array of object                                                        | Accounts that may not open changes or issues here. Replaces the list                                                                                                                                                       |
 
 **Errors**
 
@@ -1327,7 +1333,7 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/notes2" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=16;t=60
+ratelimit: "write";r=15;t=60
 ```
 
 ```json
@@ -1354,6 +1360,7 @@ ratelimit: "write";r=16;t=60
   "maintainers": ["dana"],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": true,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,
@@ -1470,7 +1477,7 @@ curl -X DELETE "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/dea
 
 ```http
 HTTP/1.1 204
-ratelimit: "write";r=54;t=60
+ratelimit: "write";r=53;t=60
 ```
 
 ### `access_rules.put`
@@ -1528,7 +1535,7 @@ curl -X PUT "https://api.cobaltforge.dev/v1/repos/dana/gitfs/access-rules/deal" 
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=55;t=60
+ratelimit: "write";r=54;t=60
 ```
 
 ```json
@@ -1629,6 +1636,7 @@ ratelimit: "read";r=1195;t=60
     "maintainers": ["dana", "hollis"],
     "declined_models": [],
     "auto_land": false,
+    "github_bot_writes": true,
     "vouched": ["hollis", "ines"],
     "denounced": [],
     "open_changes": 5,
@@ -1707,7 +1715,7 @@ ratelimit: "read";r=1195;t=60
 
 **Who wrote the code**
 
-Authors of the newest 1,000 commits on the default branch, by email, most commits first. Up to 100. A repository with no history answers an empty list.
+People who wrote the newest 1,000 commits on the default branch, most commits first. One person's addresses count once: a GitHub no-reply address and a commit signed with that login are one contributor, and so are identities a cobalt account proved its own (`handle`). Bots are left out. Up to 100. A repository with no history answers an empty list.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |
@@ -1737,7 +1745,7 @@ curl "https://api.cobaltforge.dev/v1/repos/dana/gitfs/contributors" \
 
 ```http
 HTTP/1.1 200
-etag: W/"yybYoFOxXbEiTkmD"
+etag: W/"gIYAba0jFFi1Njrp"
 ratelimit: "read";r=1153;t=60
 ```
 
@@ -1749,6 +1757,7 @@ ratelimit: "read";r=1153;t=60
       "object": "contributor",
       "name": "Dana Okafor",
       "email": "dana@users.cobaltforge.dev",
+      "handle": null,
       "commits": 19,
       "last_commit_at": "2026-10-20T16:45:00.000Z"
     },
@@ -1756,10 +1765,11 @@ ratelimit: "read";r=1153;t=60
       "object": "contributor",
       "name": "Kofi Mensah",
       "email": "kofi@users.cobaltforge.dev",
+      "handle": null,
       "commits": 10,
       "last_commit_at": "2026-08-08T15:34:06.245Z"
     },
-    "…and 5 more"
+    "…and 4 more"
   ],
   "has_more": false,
   "next_cursor": null
@@ -1820,7 +1830,7 @@ ratelimit: "heavy";r=115;t=60
       }
     ]
   },
-  "contributors": 7,
+  "contributors": 6,
   "downloads": {
     "total": 60950,
     "daily": [53, 42, "…and 28 more"],
@@ -1898,7 +1908,7 @@ ratelimit: "read";r=1194;t=60
 
 **Where a line of code came from**
 
-Follows a line to the conversation that produced it: the commit that wrote it (by blame, up to 200 commits back), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With `change`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.
+Follows a line to the conversation that produced it: the commit that wrote it (by the store's blame), the change it landed through, the patch set, and the agent run that pushed that patch set, with its task, summary, links and transcript. With `change`, the line is read in that change's newest patch set instead, and the answer is the patch set of the change that wrote it; a line that was on the base already is followed there.
 
 | About      |                                            |
 | ---------- | ------------------------------------------ |
@@ -2922,13 +2932,13 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases" \
 ```http
 HTTP/1.1 201
 cb-outcome: created
-ratelimit: "write";r=46;t=60
+ratelimit: "write";r=45;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r8038hr519j",
+  "id": "rel_01m6tq6r804c154ye9",
   "tag": "v0.9.1",
   "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
@@ -3117,13 +3127,13 @@ curl -X PATCH "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1" 
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=45;t=60
+ratelimit: "write";r=44;t=60
 ```
 
 ```json
 {
   "object": "release",
-  "id": "rel_01m6tq6r8038hr519j",
+  "id": "rel_01m6tq6r804c154ye9",
   "tag": "v0.9.1",
   "url": "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.1",
   "html_url": "https://cobaltforge.dev/dana/gitfs/releases",
@@ -3202,7 +3212,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/gitfs/releases/v0.9.0/as
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=44;t=60
+ratelimit: "write";r=43;t=60
 ```
 
 ```json
@@ -3432,7 +3442,7 @@ curl -X POST "https://api.cobaltforge.dev/v1/repos/dana/scratch2/transfer" \
 
 ```http
 HTTP/1.1 200
-ratelimit: "write";r=15;t=60
+ratelimit: "write";r=14;t=60
 ```
 
 ```json
@@ -3459,6 +3469,7 @@ ratelimit: "write";r=15;t=60
   "maintainers": [],
   "declined_models": [],
   "auto_land": false,
+  "github_bot_writes": true,
   "vouched": [],
   "denounced": [],
   "open_changes": 0,

@@ -1,7 +1,11 @@
 import { NotFoundError, Pierre } from '@pierre/sdk'
 import { GitError } from './types'
-import type { Commit, FileDiff as WireDiff } from '@pierre/sdk'
-import type { CommitInfo, FileDiff, GitRepo } from './types'
+import type {
+  Commit,
+  BlameLine as WireBlame,
+  FileDiff as WireDiff,
+} from '@pierre/sdk'
+import type { BlameLine, CommitInfo, FileDiff, GitRepo } from './types'
 
 const commitOf = (c: Commit): CommitInfo => ({
   sha: c.sha,
@@ -23,6 +27,17 @@ const diffOf = (f: WireDiff): FileDiff => ({
   additions: f.additions,
   deletions: f.deletions,
   raw: f.raw,
+})
+
+const blameOf = (l: WireBlame): BlameLine => ({
+  line: l.line_number,
+  sha: l.commit_sha,
+  authorName: l.author_name,
+  authorEmail: l.author_email,
+  date: new Date(l.author_time),
+  summary: l.summary,
+  originalPath: l.original_path,
+  originalLine: l.original_line_number,
 })
 
 export class GitNotConfigured extends Error {
@@ -90,6 +105,38 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
         return wrap(() => Promise.reject(e))
       }
     },
+    commitFiles: (o) =>
+      wrap(async () => {
+        const r = await pierre.repos.commits.create({
+          repo_name: storeId,
+          target_branch: o.branch,
+          base_branch: o.base,
+          commit_message: o.message,
+          author: o.author,
+          files: o.files.map((f) =>
+            f.content === null
+              ? { path: f.path, operation: 'delete' as const }
+              : { path: f.path, content: f.content },
+          ),
+        })
+        return r.commit.commit_sha
+      }),
+    merge: (o) =>
+      wrap(async () => {
+        const r = await pierre.repos.merge({
+          repo_name: storeId,
+          source_ref: o.source,
+          expected_source_sha: o.sha,
+          target_branch: o.target,
+          // A rebase lands the change's commits on the target as they are,
+          // which is a fast-forward when the target has not moved.
+          strategy: o.strategy === 'merge' ? 'merge' : 'ff_prefer',
+          ...(o.strategy === 'squash' ? { squash: true } : {}),
+          author: o.author,
+          commit_message: o.message,
+        })
+        return { sha: r.commit_sha, before: r.target.old_sha || null }
+      }),
     listCommits: (opts) =>
       wrap(async () => {
         const page = await pierre.repos.commits.list({
@@ -122,14 +169,58 @@ export function pierreRepo(pierre: Pierre, storeId: string): GitRepo {
         const d = await pierre.repos.diff.get({
           repo_name: storeId,
           ref: opts.sha,
+          ...(opts.base ? { base_ref: opts.base } : {}),
         })
         const base =
+          d.merge_base_sha ??
           d.base_sha ??
           (await pierre.repos.commits.get({ repo_name: storeId, ref: d.sha }))
             .commit.parent_shas[0]
         return {
           sha: d.sha,
           ...(base ? { baseSha: base } : {}),
+          // Lock files and large files come without a patch; keep them listed.
+          files: [
+            ...d.files.map(diffOf),
+            // Older answers leave `filtered_files` out.
+            ...(
+              (d.filtered_files as typeof d.filtered_files | undefined) ?? []
+            ).map((f): FileDiff => ({
+              path: f.path,
+              state: stateOf(f.state),
+              additions: 0,
+              deletions: 0,
+              raw: '',
+            })),
+          ],
+        }
+      }),
+    blame: (opts) =>
+      wrap(async () => {
+        const b = await pierre.repos.blame.get({
+          repo_name: storeId,
+          path: opts.path,
+          ...(opts.ref ? { ref: opts.ref } : {}),
+        })
+        return {
+          ref: b.ref,
+          sha: b.commit_sha,
+          path: b.path,
+          lines: b.lines.map(blameOf),
+        }
+      }),
+    compare: (opts) =>
+      wrap(async () => {
+        const d = await pierre.repos.diff.get({
+          repo_name: storeId,
+          ref: opts.head,
+          base_ref: opts.base,
+          ...(opts.paths?.length ? { path: opts.paths } : {}),
+        })
+        return {
+          sha: d.sha,
+          ...(d.base_sha ? { baseSha: d.base_sha } : {}),
+          ...(d.merge_base_sha ? { mergeBaseSha: d.merge_base_sha } : {}),
           files: d.files.map(diffOf),
         }
       }),

@@ -1,14 +1,11 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import {
-  ArrowUpRightIcon,
-  CloudIcon,
-  ComputerDesktopIcon,
-} from '@heroicons/react/24/outline'
+import { ArrowUpRightIcon, CloudIcon, DesktopIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { CopyField } from './repo-shell'
 import { Modal } from './bits'
 import { Button } from '~/components/ui/button'
+import { useWrite } from '~/lib/forge'
 
 type Subject = {
   kind: 'issue' | 'change' | 'run'
@@ -19,7 +16,7 @@ type Subject = {
 const targets = [
   {
     id: 't3',
-    icon: ComputerDesktopIcon,
+    icon: DesktopIcon,
     name: 'T3 Code',
     body: 'On your machine, with the agents and subscriptions you already use. Opens a thread in a new worktree.',
   },
@@ -44,6 +41,26 @@ export function HandOff({
   const [target, setTarget] =
     React.useState<(typeof targets)[number]['id']>('t3')
   const command = `cb handoff ${subject.ref.replace(/^#/, '')} -R ${repo} --to ${target}`
+  const write = useWrite()
+  const [sent, setSent] = React.useState<
+    | { state: 'idle' }
+    | { state: 'sending' }
+    | { state: 'sent'; agent: boolean; run: number | null }
+    | { state: 'failed'; message: string }
+  >({ state: 'idle' })
+  const [owner, name] = repo.split('/')
+  const send = () => {
+    setSent({ state: 'sending' })
+    void write('handoffs.start', {
+      owner,
+      repo: name,
+      body: { subject: subject.ref.replace(/^#/, ''), to: 't3' },
+    }).then((r) =>
+      r.error
+        ? setSent({ state: 'failed', message: r.error.message })
+        : setSent({ state: 'sent', agent: r.data.agent, run: r.data.run }),
+    )
+  }
 
   return (
     <>
@@ -81,8 +98,58 @@ export function HandOff({
           ))}
         </div>
 
+        {target === 't3' && (
+          <div className="space-y-2 rounded-lg border p-3 text-sm">
+            {sent.state === 'sent' ? (
+              sent.agent ? (
+                <p>
+                  Sent. Your agent opens the T3 Code thread on its machine
+                  {sent.run ? ` (pipeline run #${sent.run})` : ''}.
+                </p>
+              ) : (
+                <p>
+                  Queued, but no agent takes hand-offs yet. Once, on the machine
+                  with T3 Code:{' '}
+                  <code className="font-mono text-xs">
+                    cb runner register my-mac --labels t3,reviewer &&
+                    CB_RUNNER_TOKEN=… cb runner start
+                  </code>
+                  . It takes this one when it starts, and every later one for
+                  all your repositories.
+                </p>
+              )
+            ) : sent.state === 'failed' ? (
+              <p className="text-danger">{sent.message}</p>
+            ) : (
+              <p className="text-muted-foreground">
+                Your agent (cb runner start, labelled t3) opens the thread for
+                you. Nothing to copy.
+              </p>
+            )}
+            <Button
+              variant="brand"
+              disabled={sent.state === 'sending' || sent.state === 'sent'}
+              onClick={send}
+            >
+              {sent.state === 'sending'
+                ? 'Sending'
+                : sent.state === 'sent'
+                  ? 'Sent'
+                  : 'Send to T3 Code'}
+            </Button>
+          </div>
+        )}
+
         <div className="space-y-2">
-          <CopyField value={command} prefix="$" />
+          {target !== 't3' && <CopyField value={command} prefix="$" />}
+          {target === 't3' && (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer">Or run it yourself</summary>
+              <div className="mt-2">
+                <CopyField value={`${command} --start`} prefix="$" />
+              </div>
+            </details>
+          )}
           <p className="text-xs text-muted-foreground">
             Run it where you are signed in. It sends the{' '}
             {subject.kind === 'run' ? 'failing log, the ' : ''}

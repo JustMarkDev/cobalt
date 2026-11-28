@@ -150,6 +150,12 @@ A token cannot confirm production access, not even its own. Open the page in a b
 
 Open confirm_url on a device where you are signed in, confirm, then retry. A confirmation covers this one login for a while.
 
+### `link_required`
+
+**403.** Link your GitHub account first. Not retryable. CLI exit code 6.
+
+This repository is mirrored to GitHub and its owners turned off writing through the cobalt app, so what you write there must appear under your own GitHub account. Link GitHub in Settings, Accounts, then retry.
+
 ### `denounced`
 
 **403.** This account may not contribute here. Not retryable. CLI exit code 5.

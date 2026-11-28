@@ -5,10 +5,10 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import {
   CheckIcon,
-  ClipboardDocumentIcon,
+  CopyIcon,
   LinkIcon,
-  ListBulletIcon,
-} from '@heroicons/react/24/outline'
+  ListBulletsIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { LicenseView } from './license-view'
 import type { Components, Options } from 'react-markdown'
@@ -111,7 +111,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
           {copied ? (
             <CheckIcon className="size-3.5 text-success" />
           ) : (
-            <ClipboardDocumentIcon className="size-3.5" />
+            <CopyIcon className="size-3.5" />
           )}
           {copied ? 'Copied' : 'Copy'}
         </button>
@@ -348,7 +348,7 @@ export function ReadmeCard({
           <Dropdown
             trigger={
               <Button variant="ghost">
-                <ListBulletIcon /> Outline
+                <ListBulletsIcon /> Outline
               </Button>
             }
           >

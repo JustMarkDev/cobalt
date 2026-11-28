@@ -1,4 +1,5 @@
 import { CbError, exit } from './output'
+import { resolve } from './config'
 
 function git(args: Array<string>): string | undefined {
   try {
@@ -18,11 +19,10 @@ export function gitContext(): {
     let made: { value: T } | undefined
     return () => (made ??= { value: make() }).value
   }
-  const slug = lazy(() =>
-    git(['remote', 'get-url', 'origin'])
-      ?.match(/cobaltforge\.dev[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)
-      ?.at(1),
-  )
+  const slug = lazy(() => {
+    const url = git(['remote', 'get-url', 'origin'])
+    return url ? slugOfRemote(url, serverHosts()) : undefined
+  })
   const branch = lazy(() => git(['rev-parse', '--abbrev-ref', 'HEAD']))
   const subject = lazy(() => git(['log', '-1', '--format=%s']))
   return {
@@ -63,4 +63,30 @@ export function resolveRepo(flag: string | undefined): RepoRef {
       exit.usage,
     )
   return { slug, owner, name, path: `/repos/${owner}/${name}` }
+}
+
+/** Hosts whose remotes are this cobalt: the public one and the one cb talks to. */
+function serverHosts(): Array<string> {
+  const out = new Set(['cobaltforge.dev'])
+  for (const v of [resolve('api').value, resolve('host').value])
+    try {
+      if (v) out.add(new URL(v).host)
+    } catch {
+      // Not a URL: nothing to add.
+    }
+  return [...out]
+}
+
+/** `owner/name` from a remote on one of `hosts`, over HTTPS or SSH. */
+export function slugOfRemote(
+  url: string,
+  hosts: ReadonlyArray<string>,
+): string | undefined {
+  for (const h of hosts) {
+    const at = url.replace(/^\w+:\/\/(?:[^@/]*@)?/, '').replace(/^[^@/]*@/, '')
+    if (!at.toLowerCase().startsWith(h.toLowerCase())) continue
+    const m = /^[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(at.slice(h.length))
+    if (m) return m[1]
+  }
+  return undefined
 }

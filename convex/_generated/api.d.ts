@@ -42,6 +42,7 @@ import type * as forge_releases from "../forge/releases.js";
 import type * as forge_repos from "../forge/repos.js";
 import type * as forge_runners from "../forge/runners.js";
 import type * as forge_search from "../forge/search.js";
+import type * as forge_sourceFiles from "../forge/sourceFiles.js";
 import type * as forge_stackLanding from "../forge/stackLanding.js";
 import type * as forge_sync from "../forge/sync.js";
 import type * as forge_teams from "../forge/teams.js";
@@ -130,6 +131,7 @@ declare const fullApi: ApiFromModules<{
   "forge/repos": typeof forge_repos;
   "forge/runners": typeof forge_runners;
   "forge/search": typeof forge_search;
+  "forge/sourceFiles": typeof forge_sourceFiles;
   "forge/stackLanding": typeof forge_stackLanding;
   "forge/sync": typeof forge_sync;
   "forge/teams": typeof forge_teams;

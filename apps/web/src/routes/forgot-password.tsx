@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { AuthField, AuthShell, SubmitButton } from '~/components/forge/auth'
 import { Button } from '~/components/ui/button'
 import { Callout } from '~/components/ui/callout'

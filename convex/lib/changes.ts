@@ -1,3 +1,4 @@
+import { v } from 'convex/values'
 import { seesChange } from './accessRules'
 import {
   changeActions,
@@ -79,7 +80,7 @@ export async function loadPolicy(
       ? (JSON.parse(doc.exceptions) as Array<PolicyExceptionRec>)
       : [],
     landing: doc?.landing
-      ? (JSON.parse(doc.landing) as Landing)
+      ? ({ ...DEFAULT_LANDING, ...JSON.parse(doc.landing) } as Landing)
       : DEFAULT_LANDING,
     file:
       doc?.sourceText !== undefined
@@ -534,5 +535,22 @@ export async function viewFor(
     (b) => owners.get(b) ?? null,
     viewer ? await canWrite(ctx, repo, viewer) : false,
     opts.expandRepo ? await presentRepo(ctx, repo, now) : null,
+  )
+}
+
+/** The files a patch set touches, as the API reads them from git. */
+export const fileStatsValidator = v.array(
+  v.object({ path: v.string(), add: v.number(), del: v.number() }),
+)
+
+export function filesOfStats(
+  stats: ReadonlyArray<{ path: string; add: number; del: number }>,
+  sha: string,
+): PatchSetRec['files'] {
+  return Object.fromEntries(
+    stats.map((f) => [
+      f.path,
+      { hash: sha.slice(0, 6), add: f.add, del: f.del },
+    ]),
   )
 }

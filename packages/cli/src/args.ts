@@ -25,6 +25,8 @@ const booleans = new Set([
   'private',
   'here',
   'leave',
+  'no-validate',
+  'staged',
 ])
 
 export function parse(argv: ReadonlyArray<string>): Parsed {

@@ -28,7 +28,9 @@ import { mutation } from '../lib/functions'
 import { actorOf, signedIn, system } from '../lib/actor'
 import { accessStamp, repoByPublicId, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
-import { counters } from '../lib/events'
+import { counters, emit } from '../lib/events'
+import { branchOwner, hydrate, saveChange } from '../lib/changes'
+import { newId } from '@cobaltforge/api/ids'
 import { repoUrl, urls } from '../lib/present'
 import { notify } from './notifications'
 import type { Doc, Id } from '../_generated/dataModel'
@@ -138,6 +140,7 @@ export async function save(
   doc: Doc<'pipelineRuns'>,
   r: PipelineRun,
 ) {
+  const was = doc.status
   await ctx.db.patch('pipelineRuns', doc._id, {
     status: r.status,
     json: stripped(r),
@@ -146,6 +149,65 @@ export async function save(
   await ctx.db.patch('repoCounters', c._id, {
     pipelineRev: (c.pipelineRev ?? 0) + 1,
   })
+  if (was !== r.status) await runAsCheck(ctx, repo, r)
+}
+
+/**
+ * A workflow run on a change's branch, at the change's newest patch set, is a
+ * check on that tree (`cobalt:<workflow>`): its evidence for landing, as
+ * GitHub's checks are for a linked repository. Agent runs (review, hand-off)
+ * are not checks.
+ */
+async function runAsCheck(
+  ctx: MutationCtx,
+  repo: Doc<'repos'>,
+  r: PipelineRun,
+) {
+  if (r.file.startsWith('cobalt:') || r.branch === repo.defaultBranch) return
+  const owner = await branchOwner(ctx, repo, r.branch)
+  if (!owner) return
+  const l = await hydrate(ctx, owner)
+  const c = l.rec
+  const head = c.patchSets[c.patchSets.length - 1]
+  if (head.sha !== r.sha) return
+  const state =
+    r.status === 'success'
+      ? ('pass' as const)
+      : r.status === 'failure' || r.status === 'canceled'
+        ? ('fail' as const)
+        : ('pending' as const)
+  const key = `cobalt:${r.workflow}`
+  const at = Date.now()
+  const found = c.checks.find((k) => k.key === key && k.tree === head.tree)
+  if (found?.state === state) return
+  if (found) {
+    found.state = state
+    found.updated = at
+  } else
+    c.checks.push({
+      id: newId('check', at),
+      key,
+      name: r.workflow,
+      state,
+      tree: head.tree,
+      detailsUrl: `${repoUrl(repo)}/pipelines/${r.number}`,
+      created: at,
+      updated: at,
+    })
+  c.updated = Math.max(at, c.updated + 1)
+  c.version++
+  await saveChange(ctx, l)
+  const n = await counters(ctx, repo)
+  await ctx.db.patch('repoCounters', n._id, { changeRev: n.changeRev + 1 })
+  await emit(
+    ctx,
+    repo,
+    state === 'fail' ? 'ci.failed' : 'check.reported',
+    { id: 'acc_cobaltpipelines0', handle: 'cobalt' },
+    { object: 'change', id: c.id, number: c.number },
+    ['checks', 'policy.state'],
+    null,
+  )
 }
 
 export async function runnersOf(
@@ -938,5 +1000,51 @@ export const setRunsOn = mutation({
     r.version++
     await save(ctx, repo, doc, r)
     return out(null)
+  },
+})
+
+/**
+ * Queue the runs a push started (planned from its workflow files by the
+ * API). The same workflow on the same commit, by the same kind of trigger,
+ * is queued once, however many times the push is reported.
+ */
+export const queuePlanned = mutation({
+  args: {
+    storeId: v.string(),
+    actor: v.string(),
+    runs: v.array(v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    await system(ctx)
+    const repo = await ctx.db
+      .query('repos')
+      .withIndex('by_storeId', (q) => q.eq('storeId', a.storeId))
+      .unique()
+    if (!repo) return out([])
+    const recent = await ctx.db
+      .query('pipelineRuns')
+      .withIndex('by_repoId_and_started', (q) => q.eq('repoId', repo._id))
+      .order('desc')
+      .take(200)
+    const seen = new Set(
+      recent.map((d) => {
+        const r = JSON.parse(d.json) as PipelineRunRec
+        return `${r.workflow}\u0000${r.sha}\u0000${r.trigger}`
+      }),
+    )
+    const queued: Array<number> = []
+    for (const text of a.runs.slice(0, 20)) {
+      const r = JSON.parse(text) as PipelineRunRec
+      const key = `${r.workflow}\u0000${r.sha}\u0000${r.trigger}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const c = await counters(ctx, repo)
+      r.number = (c.pipelineNumber ?? 0) + 1
+      r.actor = a.actor
+      await insertRun(ctx, repo, r)
+      queued.push(r.number)
+    }
+    return out(queued)
   },
 })

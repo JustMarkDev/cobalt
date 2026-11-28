@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { File } from '@pierre/diffs/react'
-import { PlusIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Chip, Modal, Panel, SectionLabel, Seg } from './bits'
 import type { Repo } from '~/lib/model/data'
@@ -676,6 +676,25 @@ function LandingSettings({
           checked={landing.fresh_approvals}
           disabled={!editable}
           onChange={(e) => onChange({ fresh_approvals: e.target.checked })}
+          className="size-4"
+        />
+      </label>
+      <label className="flex items-center justify-between gap-3 px-4 py-3">
+        <div>
+          <p className="font-medium">Verify after landing</p>
+          <p className="text-xs text-muted-foreground">
+            A change lands when its rules are met, and the checks the landing
+            waits for are verified on what landed. A failure is fixed forward
+            instead of holding everything behind it.
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={landing.verify === 'after'}
+          disabled={!editable}
+          onChange={(e) =>
+            onChange({ verify: e.target.checked ? 'after' : 'before' })
+          }
           className="size-4"
         />
       </label>

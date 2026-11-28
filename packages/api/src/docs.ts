@@ -638,6 +638,9 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       headers: { 'idempotency-key': '0b7c2e4f-1a3d-4e6b-9c8a-5d2f7e1b3a90' },
     })
     await call('pipelines.cancel', 'POST', `${R}/pipelines/1840/cancel`)
+    await call('handoffs.start', 'POST', `${R}/handoffs`, {
+      body: { subject: '4', to: 't3' },
+    })
     await call('pipelines.start', 'POST', `${R}/pipelines`, {
       body: { workflow: 'build', branch: 'main' },
       headers: { 'idempotency-key': '6d2a9f4b-3c1e-4b7a-8e5d-0f9c2b4a6e13' },
@@ -931,6 +934,20 @@ export async function captureExamples(): Promise<Map<string, Recorded>> {
       .sha as string
     await call('git.commit', 'GET', `${R}/git/commits/${sha}`)
     await call('git.diff', 'GET', `${R}/git/commits/${sha}/diff`)
+    await call(
+      'git.blame',
+      'GET',
+      `${R}/git/blame?path=src/refs.rs&from=1&to=4`,
+    )
+    const root = (
+      ((await call(null, 'GET', `${R}/git/commits?limit=100`)).json as Json)
+        .data as Array<Json>
+    ).at(-1)!.sha as string
+    await call(
+      'git.compare',
+      'GET',
+      `${R}/git/compare?base=${root}&head=${sha}`,
+    )
     await call('repos.update', 'PATCH', '/repos/dana/notes2', {
       body: { name: 'scratch2', description: 'Scratch space' },
     })
@@ -1254,7 +1271,7 @@ const pages: Array<{
     title: 'Discovery, identity and batch',
     description:
       'The root, the OpenAPI document, every error and limit, who a token is, and several requests in one.',
-    icon: 'ServerIcon',
+    icon: 'HardDriveIcon',
     match: (id) =>
       id.startsWith('api.') ||
       id.startsWith('auth.') ||
@@ -1288,14 +1305,14 @@ const pages: Array<{
     description:
       'Pipeline runs, their jobs, steps and logs; steps that wait on a person; the runners that take jobs; the triggers that start them.',
     icon: 'PlayIcon',
-    match: (id) => /^(pipelines|runners|triggers)\./.test(id),
+    match: (id) => /^(pipelines|runners|triggers|handoffs)\./.test(id),
   },
   {
     file: 'git-data',
     title: 'Git data',
     description:
       'Directories, files, history and diffs, read from the repository itself.',
-    icon: 'CodeBracketIcon',
+    icon: 'CodeIcon',
     match: (id) => id.startsWith('git.'),
   },
   {
@@ -1322,7 +1339,7 @@ const pages: Array<{
     title: 'Issues',
     description:
       'List, open, edit, assign and close issues; their labels and comments.',
-    icon: 'ListBulletIcon',
+    icon: 'ListBulletsIcon',
     match: (id) => /^(issues|labels|comments)\./.test(id),
   },
   {
@@ -1330,7 +1347,7 @@ const pages: Array<{
     title: 'Events, sync and operations',
     description:
       'The event log, the stream, keeping a local copy in sync, and long-running operations.',
-    icon: 'ArrowPathIcon',
+    icon: 'ArrowClockwiseIcon',
     match: (id) =>
       id.startsWith('events.') ||
       id.startsWith('sync.') ||
@@ -1349,14 +1366,14 @@ const pages: Array<{
     title: 'Webhooks',
     description:
       'Create an endpoint, watch deliveries, send one again, replay what was missed.',
-    icon: 'ArrowPathIcon',
+    icon: 'ArrowClockwiseIcon',
     match: (id) => id.startsWith('webhooks.'),
   },
   {
     file: 'search',
     title: 'Search',
     description: 'One query across repositories, changes and issues.',
-    icon: 'ListBulletIcon',
+    icon: 'ListBulletsIcon',
     match: (id) => id.startsWith('search.'),
   },
   {
@@ -1364,7 +1381,7 @@ const pages: Array<{
     title: 'Uploads and evidence',
     description:
       'Announce a file, send it to a signed address, attach it to a change.',
-    icon: 'ArrowDownTrayIcon',
+    icon: 'DownloadSimpleIcon',
     match: (id) =>
       id.startsWith('uploads.') ||
       id.startsWith('evidence.') ||
@@ -1375,7 +1392,7 @@ const pages: Array<{
     title: 'Secrets and mirrors',
     description:
       "Environment variables and their sealed values for the repository's team, confirmations for production values, and copies on other hosts.",
-    icon: 'LockClosedIcon',
+    icon: 'LockIcon',
     match: (id) =>
       id.startsWith('env.') ||
       id.startsWith('confirmations.') ||
@@ -1545,6 +1562,7 @@ const ERROR_GROUPS: Array<[string, Array<string>]> = [
       'forbidden',
       'session_required',
       'confirmation_required',
+      'link_required',
       'denounced',
       'model_declined',
     ],

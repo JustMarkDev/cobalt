@@ -1,4 +1,4 @@
-export const version = '0.1.0'
+export const version = '0.2.0'
 
 export const topHelp = `cb ${version}: the cobalt command line
 
@@ -7,9 +7,9 @@ Output is JSON when piped or with --json.
 
 Commands
   repo      list, view, create, clone
-  import    link a GitHub, GitLab or Codeberg repository, in sync both ways
-  change    list, view, create, land, checkout
-  issue     list, view, create, close
+  import    link a GitHub repository, in sync both ways
+  change    list, view, create, ready, land, checkout
+  issue     list, view, create, attach, close
   env       list, set, run, pull, confirmations
   policy    check, explain
   mirror    list, add, sync, remove
@@ -23,6 +23,7 @@ Commands
   skill     print or install the agent skill that teaches cb
   mcp       serve the MCP server over stdio
   auth      status, login
+  upgrade   replace this cb with the latest release
   completion  bash, zsh, fish
 
 Using an agent? Run: cb skill install   (then it knows cb), or: cb commands
@@ -53,6 +54,7 @@ export const groupHelp: Record<string, string> = {
                           --here [--path f] says you are; --leave that you left
   guide [number]          what it does and the order to read its files in
                           --set '{"summary":…,"order":[{"path","why","risk"}]}'
+  ready [number]          a draft is ready for review (and can land)
   land [number]           land exactly the tree it just read, if policy allows
   checkout <number>       print the git command to switch to its branch
 `,
@@ -70,7 +72,10 @@ export const groupHelp: Record<string, string> = {
   view <n>
   timeline <n>            comments, reviews, linked changes, oldest first
   presence <n>            who else is looking (--here, --leave)
-  create <title>          --label bug,docs. Same title twice returns the open one.
+  create <title>          --label bug,docs --body <text> | --body-file <file|->
+                          --screenshot a.png,b.webm [--caption <text>]
+                          Same title twice returns the open one.
+  attach <n> <file...>    add screenshots or recordings to an issue (--caption)
   close <n>
 `,
   env: `cb env <command>   (--env development|preview|production)
@@ -78,8 +83,16 @@ export const groupHelp: Record<string, string> = {
   list                    names, kinds and whether each has a value. Never values.
   set <NAME> -            set a value from stdin; the server seals it. Team only.
   run -- <command>        run with values injected into that process only; output is scrubbed
+                          with a .env.schema, Varlock checks the values first
+                          (required, types) and redacts sensitive ones (--no-validate)
   pull --plaintext        write .env.local (0600). Prefer run: a file is what leaks.
   confirmations           your production confirmations, and where to confirm one
+  commit [files] [--staged] .env files into cobalt, not into git: each value
+                          sealed for its file's environment (.env and .env.local:
+                          development, .env.preview, .env.production), names
+                          added to .env.schema, the files kept out of the index
+  hook install|uninstall  a pre-commit hook: git add .env && git commit runs
+                          cb env commit --staged
 
   Values follow your login: on the repository's team, any machine you sign in
   on (cb auth login) reads them, and so does an agent you run there. Production
@@ -114,10 +127,14 @@ export const groupHelp: Record<string, string> = {
   mirror: `cb mirror <command>
 
   list
+  add github <owner/name> publish this repository to GitHub and keep the two
+                          in sync both ways. The GitHub repository must be
+                          empty, or not exist yet (cobalt makes it when its
+                          GitHub App may). Signs in with GitHub like import.
   sync <id>               fetch from its host now
   remove <id>             unlinks it. History here is untouched.
 
-  A repository is linked to its host when it is imported: cb import.
+  A repository from another host is linked when it is imported: cb import.
 `,
   pipeline: `cb pipeline <command>
 
@@ -137,7 +154,16 @@ export const groupHelp: Record<string, string> = {
   revoke <id>             disables it; its token stops working at once
   start [--workdir dir] [--once]
                           with CB_RUNNER_TOKEN set: heartbeat, claim jobs its
-                          labels cover, run each step's run: and report it
+                          labels cover and run them as GitHub's runner would:
+                          run: steps, JavaScript and composite actions, matrix,
+                          needs, if:, outputs, GITHUB_ENV and GITHUB_PATH
+
+  One runner serves every repository of the account. Two labels make it your
+  agent too:
+    t3        the Hand off button opens a T3 Code thread on this machine
+    reviewer  each new change or patch set gets an AI review: opencode (or
+              CB_REVIEW_COMMAND) reads the diff and posts findings
+  Example: cb runner register my-mac --labels ubuntu-latest,self-hosted,t3,reviewer
 `,
   handoff: `cb handoff <issue|change|run:N>   (--to t3|boat)
 
@@ -159,6 +185,11 @@ export const groupHelp: Record<string, string> = {
     4. the account saved by cb account switch
     5. you
 `,
+  upgrade: `cb upgrade [--to x.y.z] [--dry-run]
+
+  Replaces this cb with the latest release (or --to), checked against
+  its SHA-256. Installed with npm or run from a checkout: update it that way.
+`,
   auth: `cb auth <command>
 
   status                  signed in? to what, as whom, with which scopes (exit 4: no)
@@ -179,13 +210,13 @@ export const groupHelp: Record<string, string> = {
 }
 
 export const completions: Record<string, string> = {
-  bash: `_cb() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
+  bash: `_cb() { COMPREPLY=($(compgen -W "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion" -- "\${COMP_WORDS[COMP_CWORD]}")); }
 complete -F _cb cb cobalt
 `,
   zsh: `#compdef cb cobalt
-_arguments '1: :(repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion)'
+_arguments '1: :(repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion)'
 `,
-  fish: `complete -c cb -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
-complete -c cobalt -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp commands completion"
+  fish: `complete -c cb -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion"
+complete -c cobalt -f -a "repo import change issue env policy mirror pipeline runner handoff context config account auth skill mcp upgrade commands completion"
 `,
 }

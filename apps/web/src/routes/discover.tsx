@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { Category } from '~/lib/model/data'
 import { Stagger } from '~/components/motion'
@@ -206,7 +206,7 @@ function Discover() {
                     }
                     className="ml-3 inline-flex items-center gap-1 text-foreground hover:underline"
                   >
-                    <XMarkIcon className="size-3.5" /> Clear filters
+                    <XIcon className="size-3.5" /> Clear filters
                   </button>
                 )}
               </p>

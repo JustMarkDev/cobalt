@@ -2,19 +2,20 @@ import * as React from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Dialog } from '@base-ui/react/dialog'
 import {
-  ArrowTurnDownLeftIcon,
-  ArrowsRightLeftIcon,
-  BellIcon,
+  ArrowElbowDownLeftIcon,
+  ArrowsLeftRightIcon,
   BookOpenIcon,
+  CaretDownIcon,
   CheckIcon,
-  ChevronDownIcon,
-  CommandLineIcon,
-  GlobeAltIcon,
+  GearSixIcon,
+  GlobeIcon,
   KeyIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  SignalIcon,
-} from '@heroicons/react/24/outline'
+  PulseIcon,
+  SignOutIcon,
+  TerminalWindowIcon,
+} from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { useOpMaybe } from '~/lib/forge'
 import { Kbd } from './bits'
@@ -46,22 +47,18 @@ export function Logo({ className }: { className?: string }) {
   )
 }
 
-function UserMenu({ unread }: { unread: number }) {
+function UserMenu() {
   const navigate = useNavigate()
   const { me, accounts, active } = useAccounts()
   if (!me || !active) return null
   const org = active.kind === 'organization'
   return (
     <Dropdown
-      className="w-72"
+      className="w-64"
       trigger={
         <button
           type="button"
-          aria-label={
-            unread > 0
-              ? `${active.name}, ${unread} unread notifications`
-              : active.name
-          }
+          aria-label={`${active.name}, account menu`}
           title={active.name}
           className={cn(
             'relative flex focus-ring',
@@ -69,59 +66,33 @@ function UserMenu({ unread }: { unread: number }) {
           )}
         >
           <AccountTile account={active} className="size-9 text-xs" />
-          {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-brand ring-2 ring-background" />
-          )}
         </button>
       }
     >
+      <div className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground">
+        Signed in as{' '}
+        <span className="font-medium text-foreground">@{me.handle}</span>
+      </div>
       {accounts.map((a) => (
-        <MenuItem
-          key={a.id}
-          onClick={() => switchAccount(me, a.handle)}
-          className="gap-3 py-2"
-        >
-          <AccountTile account={a} className="size-7 text-xs" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium text-foreground">
-              {a.name}
-            </span>
-            <span className="block truncate text-xs text-muted-foreground">
-              {a.kind === 'person' ? `@${a.handle} · you` : 'Organization'}
-            </span>
-          </span>
-          {a.id === active.id && (
-            <CheckIcon className="size-4 text-foreground" />
+        <MenuItem key={a.id} onClick={() => switchAccount(me, a.handle)}>
+          <AccountTile account={a} className="size-5 text-[9px]" />
+          <span className="min-w-0 flex-1 truncate">{a.name}</span>
+          {a.id === active.id ? (
+            <CheckIcon className="text-foreground!" />
+          ) : (
+            a.kind === 'organization' && (
+              <span className="text-xs text-muted-foreground">Org</span>
+            )
           )}
         </MenuItem>
       ))}
-      <MenuItem render={<Link to="/organizations/new" />}>
+      <MenuItem
+        render={<Link to="/organizations/new" />}
+        className="text-muted-foreground"
+      >
         <PlusIcon /> New organization
       </MenuItem>
       <MenuSeparator />
-      <MenuItem render={<Link to="/inbox" />}>
-        <BellIcon />
-        <span className="flex-1">Inbox</span>
-        {unread > 0 && (
-          <span className="rounded-full bg-brand px-1.5 font-mono text-xs text-brand-foreground tabular-nums">
-            {unread > 99 ? '99+' : unread}
-          </span>
-        )}
-      </MenuItem>
-      <MenuItem render={<Link to="/dashboard" />}>Dashboard</MenuItem>
-      {org ? (
-        <MenuItem
-          render={<Link to="/$handle" params={{ handle: active.handle }} />}
-        >
-          Public page
-        </MenuItem>
-      ) : (
-        <MenuItem
-          render={<Link to="/dashboard" search={{ view: 'profile' }} />}
-        >
-          Public profile
-        </MenuItem>
-      )}
       <MenuItem
         render={
           org ? (
@@ -134,35 +105,18 @@ function UserMenu({ unread }: { unread: number }) {
           )
         }
       >
-        {org ? 'Organization settings' : 'Settings'}
+        <GearSixIcon />
+        <span className="flex-1">Settings</span>
+        <span className="font-mono text-xs text-muted-foreground">G S</span>
       </MenuItem>
-      {org ? (
-        <MenuItem
-          render={
-            <Link to="/settings/$section" params={{ section: 'profile' }} />
-          }
-        >
-          Your personal settings
-        </MenuItem>
-      ) : (
-        <MenuItem
-          render={
-            <Link
-              to="/settings/$section"
-              params={{ section: 'integrations' }}
-            />
-          }
-        >
-          Integrations
-        </MenuItem>
-      )}
       <MenuSeparator />
       <MenuItem
-        className="text-muted-foreground"
+        className="text-danger data-[highlighted]:bg-danger/10 [&_svg]:text-danger"
         onClick={() => {
           void navigate({ to: '/' }).then(() => authClient.signOut())
         }}
       >
+        <SignOutIcon />
         Sign out
       </MenuItem>
     </Dropdown>
@@ -208,7 +162,7 @@ function CommandPalette({
       {
         id: 'dashboard',
         label: 'Dashboard',
-        hint: 'What needs you, and your public profile',
+        hint: 'Your inbox, your repositories and your numbers',
         group: 'Go to',
         keys: 'g d',
         run: () => void navigate({ to: '/dashboard' }),
@@ -227,7 +181,7 @@ function CommandPalette({
         hint: 'Reviews, mentions and releases',
         group: 'Go to',
         keys: 'g i',
-        run: () => void navigate({ to: '/inbox' }),
+        run: () => void navigate({ to: '/dashboard' }),
       },
       {
         id: 'settings',
@@ -449,7 +403,7 @@ function CommandPalette({
                     </span>
                   )}
                   {i === active && (
-                    <ArrowTurnDownLeftIcon className="size-3.5 text-muted-foreground" />
+                    <ArrowElbowDownLeftIcon className="size-3.5 text-muted-foreground" />
                   )}
                 </button>
               </li>
@@ -477,14 +431,25 @@ const navActive = 'font-medium text-foreground'
 function NavItem({
   pill,
   label,
+  count = 0,
   ...link
-}: LinkProps & { pill: string; label: string }) {
+}: LinkProps & { pill: string; label: string; count?: number }) {
   return (
-    <Link {...link} className={navItem} activeProps={{ className: navActive }}>
+    <Link
+      {...link}
+      className={navItem}
+      activeProps={{ className: navActive }}
+      aria-label={count > 0 ? `${label}, ${count} unread` : undefined}
+    >
       {({ isActive }) => (
         <>
           {isActive && <Pill id={pill} />}
           <span className="relative">{label}</span>
+          {count > 0 && (
+            <span className="relative ml-1.5 rounded-full bg-brand px-1.5 font-mono text-[11px] leading-4 text-brand-foreground tabular-nums">
+              {count > 99 ? '99+' : count}
+            </span>
+          )}
         </>
       )}
     </Link>
@@ -493,7 +458,7 @@ function NavItem({
 
 const productLinks = [
   {
-    icon: ArrowsRightLeftIcon,
+    icon: ArrowsLeftRightIcon,
     label: 'Import and mirrors',
     hint: 'From any host, in both directions',
     link: {
@@ -502,7 +467,7 @@ const productLinks = [
     },
   },
   {
-    icon: CommandLineIcon,
+    icon: TerminalWindowIcon,
     label: 'Agents',
     hint: 'MCP and CLI, built in',
     link: { to: '/docs/$', params: { _splat: 'concepts/agents' } },
@@ -521,8 +486,8 @@ const resourceLinks = [
     label: 'Documentation',
     link: { to: '/docs/$', params: { _splat: '' } },
   },
-  { icon: GlobeAltIcon, label: 'Discover', link: { to: '/discover' } },
-  { icon: SignalIcon, label: 'Status', link: { to: '/status' } },
+  { icon: GlobeIcon, label: 'Discover', link: { to: '/discover' } },
+  { icon: PulseIcon, label: 'Status', link: { to: '/status' } },
 ] as const
 
 function ProductMenu({
@@ -680,7 +645,7 @@ export function SiteHeader() {
         if (e.key === 'e') void navigate({ to: '/discover' })
         if (!signedInRef.current) return
         if (e.key === 'd') void navigate({ to: '/dashboard' })
-        if (e.key === 'i') void navigate({ to: '/inbox' })
+        if (e.key === 'i') void navigate({ to: '/dashboard' })
         if (e.key === 's')
           void navigate({
             to: '/settings/$section',
@@ -766,7 +731,7 @@ export function SiteHeader() {
               )}
             >
               Product
-              <ChevronDownIcon
+              <CaretDownIcon
                 className={cn(
                   'size-3.5 transition-transform',
                   productOpen && 'rotate-180',
@@ -775,7 +740,13 @@ export function SiteHeader() {
             </button>
           )}
           {links.map((l) => (
-            <NavItem key={l.to} pill={desktopPill} to={l.to} label={l.label} />
+            <NavItem
+              key={l.to}
+              pill={desktopPill}
+              to={l.to}
+              label={l.label}
+              count={l.to === '/dashboard' ? unread : 0}
+            />
           ))}
           <NavItem
             pill={desktopPill}
@@ -795,7 +766,7 @@ export function SiteHeader() {
               <PlusIcon className="size-4" />
             </Link>
             <span className="ml-1">
-              <UserMenu unread={unread} />
+              <UserMenu />
             </span>
           </div>
         ) : (
@@ -831,7 +802,13 @@ export function SiteHeader() {
         <nav aria-label="Main" className="trough flex h-11 w-fit max-w-full">
           <div className="trough-scroll">
             {links.map((l) => (
-              <NavItem key={l.to} pill={mobilePill} to={l.to} label={l.label} />
+              <NavItem
+                key={l.to}
+                pill={mobilePill}
+                to={l.to}
+                label={l.label}
+                count={l.to === '/dashboard' ? unread : 0}
+              />
             ))}
             <NavItem
               pill={mobilePill}

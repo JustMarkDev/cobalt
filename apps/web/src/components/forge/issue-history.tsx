@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowsRightLeftIcon } from '@heroicons/react/24/outline'
+import { ArrowsLeftRightIcon } from '@phosphor-icons/react'
 import { Chip, Panel, SectionLabel } from './bits'
 import type { Repo } from '~/lib/model/data'
 import { useOpMaybe } from '~/lib/forge'
@@ -21,7 +21,7 @@ export function IssueHistory({ repo, n }: { repo: Repo; n: number }) {
       {refs.map((e) =>
         e.item.object === 'reference' ? (
           <Panel key={e.id} className="flex items-center gap-2 p-3 text-sm">
-            <ArrowsRightLeftIcon className="size-4 text-muted-foreground" />
+            <ArrowsLeftRightIcon className="size-4 text-muted-foreground" />
             <Link
               to="/$handle/$repo/$tab"
               params={{ handle: repo.owner, repo: repo.name, tab: 'changes' }}

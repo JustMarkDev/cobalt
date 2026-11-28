@@ -1,3 +1,12 @@
+import { handoffPlan, reviewPlan } from '../agent-runs'
+import { isTriggerFile } from '../trigger-file'
+import { POLICY_FILE } from '../policy-file'
+import type { Planned } from '../actions'
+import { LICENSE_FILES, languagesOf, licenseOf } from '../detect'
+import { isWorkflowFile, planPush, runOf } from '../actions'
+import { codeStorageRemotes } from '@cobaltforge/git/remote'
+import { copyHistory } from '@cobaltforge/git/transfer'
+import { groupAuthors } from '../contributors'
 import { receiptFor } from '../receipt'
 import { runsOnOf } from '../workflow'
 import { INBOX_MAX, dashboardNeeds, needsFrom, presentInbox } from '../inbox'
@@ -13,7 +22,7 @@ const scoped = <T>(fn: () => Promise<T>): Promise<T> =>
 import type { Prepared, SyncHost } from '../forge/sync'
 import type { ProviderId } from '../forge/types'
 import { ConvexError } from 'convex/values'
-import { apiError } from '../problem'
+import { ApiError, apiError } from '../problem'
 import { Pre } from '../registry'
 import { pageSorted } from '../cursor'
 import { heldKey } from '../idempotency'
@@ -40,6 +49,8 @@ import { Moved } from './records'
 import type { Attached, Urls, Viewer } from './records'
 import type { EventLog } from '../events'
 import type { DomainPort } from './port'
+import type * as S from '../schemas'
+import type { z } from 'zod'
 
 export type ConvexCall = (
   kind: 'query' | 'mutation' | 'action',
@@ -456,14 +467,118 @@ export class ConvexDomain implements DomainPort {
     this.q('issues:get', { owner, name, number: n }, p)
   issueVersion: Port['issueVersion'] = (owner, name, n, p) =>
     this.q('issues:version', { owner, name, number: n }, p)
-  createIssue: Port['createIssue'] = (owner, name, p, body, dry) =>
-    this.m('issues:create', { owner, name, ...body, dry }, p)
-  updateIssue: Port['updateIssue'] = (owner, name, n, p, body, ifMatch, dry) =>
-    this.m(
-      'issues:update',
-      { owner, name, number: n, body, fields: Object.keys(body), ifMatch, dry },
-      p,
-    )
+  createIssue: Port['createIssue'] = async (owner, name, p, body, dry) => {
+    // A repository linked to GitHub opens the issue there first: it gets
+    // GitHub's number, so the two never number different issues alike.
+    if (!dry && p && this.svc.providers) {
+      const full = await this.repoAccess(owner, name, p, 'read')
+      const link = await this.svc.providers.store.remoteOfRepo(full)
+      if (link?.provider === 'github') {
+        const same = (
+          await this.q<{ items: Array<{ number: number; title: string }> }>(
+            'issues:list',
+            { owner, name, state: 'open', after: null, limit: 100 },
+            p,
+          ).catch(() => ({ items: [] }))
+        ).items.find((i) => i.title === body.title)
+        if (same)
+          return {
+            issue: await this.getIssue(owner, name, same.number, p),
+            outcome: 'unchanged',
+          }
+        const n = await this.svc.providers.items
+          .createIssue(
+            full,
+            {
+              title: body.title,
+              body: body.body ?? '',
+              labels: body.labels ?? [],
+            },
+            p.handle,
+          )
+          .catch((e: unknown) => {
+            throw this.svc.providers!.providerProblem(e)
+          })
+        if (n !== null) {
+          const issue = await this.getIssue(owner, name, n, p).catch(() => {
+            throw apiError(
+              'backend_unavailable',
+              `Opened on GitHub as #${n}; it shows here once GitHub answers again.`,
+              {
+                retryAfter: 60,
+                hint: 'Sending it again is safe: the same title by you in the last minutes is the same issue.',
+              },
+            )
+          })
+          return { issue, outcome: 'created' }
+        }
+      }
+    }
+    return this.m('issues:create', { owner, name, ...body, dry }, p)
+  }
+  updateIssue: Port['updateIssue'] = async (
+    owner,
+    name,
+    n,
+    p,
+    body,
+    ifMatch,
+    dry,
+  ) => {
+    const local = (b: typeof body, match: typeof ifMatch) =>
+      this.m<z.infer<typeof S.Issue>>(
+        'issues:update',
+        {
+          owner,
+          name,
+          number: n,
+          body: b,
+          fields: Object.keys(b),
+          ifMatch: match,
+          dry,
+        },
+        p,
+      )
+    // An issue of a repository linked to GitHub changes there first, then
+    // comes back here, so both sides agree.
+    const synced = await this.issueOnGithub(owner, name, n, p)
+    if (dry || !synced) return local(body, ifMatch)
+    if (ifMatch !== null) {
+      const now = await this.getIssue(owner, name, n, p)
+      if (String(now.version) !== String(ifMatch).replace(/"/g, ''))
+        return local(body, ifMatch)
+    }
+    const { assignees, ...there } = body
+    if (Object.keys(there).length)
+      await synced.items
+        .updateIssue(synced.full, n, there, p!.handle)
+        .catch((e: unknown) => {
+          throw synced.problem(e)
+        })
+    if (assignees) return local({ assignees }, null)
+    return this.getIssue(owner, name, n, p)
+  }
+
+  /** The sync for an issue that came from (or went to) GitHub, if any. */
+  private async issueOnGithub(
+    owner: string,
+    name: string,
+    n: number,
+    p: Viewer,
+  ) {
+    const sync = this.svc.providers
+    if (!sync || !p) return null
+    const full = await this.repoAccess(owner, name, p, 'read')
+    const link = await sync.store.remoteOfRepo(full)
+    if (link?.provider !== 'github') return null
+    const issue = await this.getIssue(owner, name, n, p).catch(() => null)
+    if (!issue?.id.startsWith('iss_github_')) return null
+    return {
+      full,
+      items: sync.items,
+      problem: (e: unknown) => sync.providerProblem(e),
+    }
+  }
   listLabels: Port['listLabels'] = (owner, name, p) =>
     this.q('issues:listLabels', { owner, name }, p)
   labelsVersion: Port['labelsVersion'] = (owner, name, p) =>
@@ -489,12 +604,36 @@ export class ConvexDomain implements DomainPort {
     this.q('issues:listComments', { owner, name, number: n, ...q }, p)
   commentsVersion: Port['commentsVersion'] = (owner, name, n, p) =>
     this.q('issues:commentsVersion', { owner, name, number: n }, p)
-  createComment: Port['createComment'] = (owner, name, n, p, body, dry) =>
-    this.m(
+  createComment: Port['createComment'] = async (
+    owner,
+    name,
+    n,
+    p,
+    body,
+    dry,
+  ) => {
+    const synced = dry ? null : await this.issueOnGithub(owner, name, n, p)
+    if (synced && p) {
+      const id = await synced.items
+        .commentIssue(synced.full, n, body.body, p.handle)
+        .catch((e: unknown) => {
+          throw synced.problem(e)
+        })
+      if (id) {
+        const all = await this.listComments(owner, name, n, p, {
+          after: null,
+          limit: 200,
+        })
+        const mine = all.items.find((c) => c.id === `cmt_github_${id}`)
+        if (mine) return mine
+      }
+    }
+    return this.m(
       'issues:createComment',
       { owner, name, number: n, body: body.body, dry },
       p,
     )
+  }
   updateComment: Port['updateComment'] = (
     owner,
     name,
@@ -611,9 +750,94 @@ export class ConvexDomain implements DomainPort {
     )
   provenance: Port['provenance'] = (owner, name, p, q) =>
     this.q('changes:provenance', { owner, name, ...q, at: this.now() }, p)
-  createChange: Port['createChange'] = (owner, name, p, body) => {
+  createChange: Port['createChange'] = async (owner, name, p, body) => {
     const { dry_run, ...rest } = body
-    return this.m('changes:create', { owner, name, ...rest, dry: dry_run }, p)
+    // A repository linked to GitHub opens the pull request there first, so
+    // the change has GitHub's number (issues and pull requests share them).
+    if (!dry_run && p && this.svc.providers && !body.sha) {
+      const full = await this.repoAccess(owner, name, p, 'write')
+      const link = await this.svc.providers.store.remoteOfRepo(full)
+      if (link?.provider === 'github') {
+        const repo = await this.q<{ default_branch: string }>(
+          'repos:get',
+          { owner, name, at: this.now() },
+          p,
+        )
+        const n = await this.svc.providers.items
+          .createPull(
+            full,
+            {
+              head: body.branch,
+              base: body.base ?? repo.default_branch,
+              title: body.title ?? body.branch,
+              body: body.description ?? '',
+              draft: body.draft ?? false,
+            },
+            p.handle,
+          )
+          .catch((e: unknown) => {
+            throw this.svc.providers!.providerProblem(e)
+          })
+        if (n !== null) {
+          const change = await this.q<z.infer<typeof S.Change>>(
+            'changes:get',
+            { owner, name, ref: String(n), expand: [], at: this.now() },
+            p,
+          ).catch(() => {
+            throw apiError(
+              'backend_unavailable',
+              `Opened on GitHub as #${n}; it shows here once GitHub answers again.`,
+              {
+                retryAfter: 60,
+                hint: 'Sending it again is safe: the branch has one pull request.',
+              },
+            )
+          })
+          return { change, outcome: 'created' }
+        }
+      }
+    }
+    // The branch's real head and files, read from git; the sample has none.
+    const real =
+      !body.sha && p ? await this.branchDiff(owner, name, p, body) : null
+    return this.m(
+      'changes:create',
+      {
+        owner,
+        name,
+        ...rest,
+        ...(real ? { sha: real.sha, stats: real.stats } : {}),
+        dry: dry_run,
+      },
+      p,
+    )
+  }
+
+  /** What `branch` changes against `base`, as git says: its head and files. */
+  private async branchDiff(
+    owner: string,
+    name: string,
+    p: Viewer,
+    body: { branch: string; base?: string },
+  ) {
+    try {
+      const full = await this.repoAccess(owner, name, p, 'write')
+      const base =
+        body.base ??
+        (
+          await this.q<{ default_branch: string }>(
+            'repos:get',
+            { owner, name, at: this.now() },
+            p,
+          )
+        ).default_branch
+      const sha = await this.svc.git.head?.(full, body.branch)
+      if (!sha) return null
+      const d = await this.svc.git.diff(full, sha, base)
+      return { sha, stats: statsOf(d.files) }
+    } catch {
+      return null
+    }
   }
   updateChange: Port['updateChange'] = (
     owner,
@@ -681,8 +905,75 @@ export class ConvexDomain implements DomainPort {
       { owner, name, ref, id, ...body, dry },
       p,
     )
-  getPatchSetFiles: Port['getPatchSetFiles'] = (owner, name, ref, n, p) =>
-    this.q('changes:getPatchSetFiles', { owner, name, ref, n }, p)
+  getPatchSetFiles: Port['getPatchSetFiles'] = async (
+    owner,
+    name,
+    ref,
+    n,
+    p,
+  ) => {
+    const stored = await this.q<z.infer<typeof S.PatchSetFiles>>(
+      'changes:getPatchSetFiles',
+      { owner, name, ref, n },
+      p,
+    )
+    if (stored.available) return stored
+    return (await this.patchSetFilesFromGit(owner, name, ref, n, p)) ?? stored
+  }
+
+  /**
+   * A change imported from a provider keeps no file contents, only the commit
+   * of each patch set. Read them from git: the files `sha` touches since it
+   * split from the base branch, as the provider shows a pull request.
+   */
+  private async patchSetFilesFromGit(
+    owner: string,
+    name: string,
+    ref: string,
+    n: number,
+    p: Viewer,
+  ): Promise<z.infer<typeof S.PatchSetFiles> | null> {
+    const MAX_FILES = 300
+    const MAX_BYTES = 1_000_000
+    const full = await this.repoAccess(owner, name, p, 'read')
+    const [change, ps] = await Promise.all([
+      this.q<{ number: number; base: string }>(
+        'changes:get',
+        { owner, name, ref, expand: [], at: this.now() },
+        p,
+      ),
+      this.getPatchSet(owner, name, ref, n, p),
+    ])
+    const diff = await this.svc.git
+      .diff(full, ps.sha, change.base)
+      .catch(() => null)
+    if (!diff || diff.files.length > MAX_FILES) return null
+    const text = (bytes: Uint8Array | null) =>
+      bytes && bytes.length <= MAX_BYTES && !bytes.includes(0)
+        ? new TextDecoder().decode(bytes)
+        : null
+    const read = (path: string, at: string | null) =>
+      at
+        ? this.svc.git
+            .blob(full, path, at)
+            .then(text)
+            .catch(() => null)
+        : Promise.resolve(null)
+    const files = await Promise.all(
+      diff.files.map(async (f) => ({
+        path: f.path,
+        base: f.state === 'added' ? null : await read(f.path, diff.base),
+        content: f.state === 'deleted' ? null : await read(f.path, diff.sha),
+      })),
+    )
+    return {
+      object: 'patch_set_files',
+      change: change.number,
+      patch_set: ps.number,
+      available: true,
+      files: files.sort((x, y) => (x.path < y.path ? -1 : 1)),
+    }
+  }
   comparePatchSets: Port['comparePatchSets'] = (
     owner,
     name,
@@ -1309,12 +1600,431 @@ export class ConvexDomain implements DomainPort {
     dry,
   ) =>
     this.m('integrations:setRepoIntegration', { owner, name, id, on, dry }, p)
+  /**
+   * Start the GitHub Actions workflows a push takes (.github/workflows at the
+   * pushed commit), queued for a runner. Runs once per workflow and commit.
+   */
+  async queueWorkflows(e: {
+    repo: string
+    ref: string
+    after: string
+    actor: string
+  }) {
+    if (/^0+$/.test(e.after)) return []
+    const storeId = await this.storeIdOf(e.repo)
+    if (!storeId) return []
+    const listed = await this.svc.git
+      .files(e.repo, e.after)
+      .catch(() => ({ paths: [] as Array<string> }))
+    const files: Record<string, string> = {}
+    for (const path of listed.paths.filter(isWorkflowFile).slice(0, 30)) {
+      const bytes = await this.svc.git
+        .blob(e.repo, path, e.after)
+        .catch(() => null)
+      if (bytes) files[path] = new TextDecoder().decode(bytes)
+    }
+    // Reusable workflows of other repositories, read from GitHub (public ones).
+    for (const text of Object.values({ ...files })) {
+      for (const m of text.matchAll(
+        /^\s{2,}uses:\s*['"]?([\w.-]+\/[\w.-]+\/\.github\/workflows\/[\w.-]+\.ya?ml@[\w./-]+)/gm,
+      )) {
+        const uses = m[1]
+        if (uses in files) continue
+        const at = /^([\w.-]+)\/([\w.-]+)\/(.+)@(.+)$/.exec(uses)
+        if (!at) continue
+        const res = await fetch(
+          `https://raw.githubusercontent.com/${at[1]}/${at[2]}/${at[4]}/${at[3]}`,
+        ).catch(() => null)
+        if (res?.ok) files[uses] = await res.text()
+      }
+    }
+    const planned = planPush(files, {
+      ref: e.ref,
+      sha: e.after,
+      actor: e.actor,
+    })
+    if (!planned.length) return []
+    const at = this.now()
+    return run<Array<number>>(
+      this.call,
+      'mutation',
+      'forge/pipelines:queuePlanned',
+      {
+        storeId,
+        actor: e.actor,
+        runs: planned.map((p) =>
+          JSON.stringify(runOf(p, { number: 0, actor: e.actor, at })),
+        ),
+      },
+      'system',
+    )
+  }
+
+  /**
+   * After a push to the default branch of a repository made here: its
+   * languages and license, read from its files.
+   */
+  async detectFacts(e: {
+    repo: string
+    ref: string
+    after: string
+    by?: string
+  }) {
+    if (/^0+$/.test(e.after) || !e.ref.startsWith('refs/heads/')) return
+    const storeId = await this.storeIdOf(e.repo)
+    if (!storeId) return
+    const listed = await this.svc.git.files(e.repo, e.after).catch(() => null)
+    if (!listed) return
+    const top = listed.paths.filter((p) => !p.includes('/'))
+    const licensePath = top.find((p) => LICENSE_FILES.test(p))
+    const text = licensePath
+      ? await this.svc.git
+          .blob(e.repo, licensePath, e.after)
+          .then((b) => (b ? new TextDecoder().decode(b) : null))
+          .catch(() => null)
+      : null
+    await run(
+      this.call,
+      'mutation',
+      'forge/providers:setDetected',
+      {
+        storeId,
+        ref: e.ref,
+        languages: languagesOf(listed.paths.map((path) => ({ path }))),
+        license: text ? licenseOf(text) : null,
+      },
+      'system',
+    )
+    // The policy and triggers the branch now has (applied on the default
+    // branch only; the mutation checks).
+    const read = (path: string) =>
+      this.svc.git
+        .blob(e.repo, path, e.after)
+        .then((b) => (b ? new TextDecoder().decode(b) : null))
+        .catch(() => null)
+    const triggerPaths = listed.paths.filter(isTriggerFile)
+    const [policy, ...triggers] = await Promise.all([
+      listed.paths.includes(POLICY_FILE) ? read(POLICY_FILE) : null,
+      ...triggerPaths.map(read),
+    ])
+    await run(
+      this.call,
+      'mutation',
+      'forge/sourceFiles:fromGit',
+      {
+        storeId,
+        ref: e.ref,
+        sha: e.after,
+        ...(e.by ? { by: e.by } : {}),
+        policy,
+        triggers: triggerPaths.flatMap((path, i) =>
+          typeof triggers[i] === 'string' ? [{ path, text: triggers[i] }] : [],
+        ),
+      },
+      'system',
+    )
+  }
+
+  private agentOnline(account: string, label: string) {
+    return this.q<boolean>(
+      'runners:hasLabel',
+      { account, label },
+      'system',
+    ).catch(() => false)
+  }
+
+  private async queueAgent(full: string, plan: Planned, actor: string) {
+    const storeId = await this.storeIdOf(full)
+    if (!storeId) return []
+    return run<Array<number>>(
+      this.call,
+      'mutation',
+      'forge/pipelines:queuePlanned',
+      {
+        storeId,
+        actor,
+        runs: [
+          JSON.stringify(runOf(plan, { number: 0, actor, at: this.now() })),
+        ],
+      },
+      'system',
+    )
+  }
+
+  /**
+   * The Hand off button: a job for the person's own agent (a runner labelled
+   * t3, started once with cb runner start), which opens the T3 Code thread.
+   * Nothing to copy. The same subject on the same commit is queued once.
+   */
+  async startHandoff(
+    owner: string,
+    name: string,
+    p: Principal,
+    subject: string,
+  ) {
+    const full = await this.repoAccess(owner, name, p, 'write')
+    const run_ = /^run:(\d+)$/.exec(subject)
+    let title = subject
+    if (run_)
+      title = (
+        await this.q<{ title: string }>(
+          'pipelines:get',
+          { owner, name, n: Number(run_[1]) },
+          p,
+        ).catch(() => ({ title: subject }))
+      ).title
+    else {
+      const n = Number(subject.replace(/^#/, ''))
+      const issue = await this.q<{ title: string } | null>(
+        'issues:get',
+        { owner, name, number: n },
+        p,
+      ).catch(() => null)
+      const change = issue
+        ? null
+        : await this.q<{ title: string }>(
+            'changes:get',
+            { owner, name, ref: String(n), expand: [], at: this.now() },
+            p,
+          ).catch(() => null)
+      if (!issue && !change)
+        throw apiError(
+          'not_found',
+          `#${n} is not an issue or change in ${full}.`,
+        )
+      title = (issue ?? change)!.title
+    }
+    const repo = await this.q<{ default_branch: string }>(
+      'repos:get',
+      { owner, name, at: this.now() },
+      p,
+    )
+    const sha =
+      (await this.svc.git.commits(full, 1).catch(() => []))[0]?.sha ?? ''
+    const runs = await this.queueAgent(
+      full,
+      handoffPlan({
+        subject: subject.replace(/^#/, ''),
+        title,
+        branch: repo.default_branch,
+        sha,
+      }),
+      p.handle,
+    )
+    return {
+      run: runs[0] ?? null,
+      agent: await this.agentOnline(owner, 't3'),
+    }
+  }
+
+  /**
+   * After a change is opened or gets a patch set: an AI review, when the
+   * account has a runner labelled reviewer to take it.
+   */
+  async queueReview(e: { repo: string; number: number }) {
+    const [owner, name] = e.repo.split('/')
+    if (!(await this.agentOnline(owner, 'reviewer'))) return []
+    const c = await this.q<{
+      number: number
+      title: string
+      branch: string
+      state: string
+      head: { patch_set: number; sha: string }
+    }>(
+      'changes:get',
+      { owner, name, ref: String(e.number), expand: [], at: this.now() },
+      'system',
+    ).catch(() => null)
+    if (!c || (c.state !== 'open' && c.state !== 'draft')) return []
+    return this.queueAgent(
+      e.repo,
+      reviewPlan({
+        change: c.number,
+        patchSet: c.head.patch_set,
+        title: c.title,
+        branch: c.branch,
+        sha: c.head.sha,
+      }),
+      'cobalt',
+    )
+  }
+
+  /**
+   * A patch set written here (an edit in the browser, a policy proposal) as
+   * a real commit on the change's branch, so a runner can check it out and
+   * landing can merge it. Pushed patch sets are commits already.
+   */
+  async commitWrittenPatchSet(e: { repo: string; number: number }) {
+    const [owner, name] = e.repo.split('/')
+    if (!this.svc.git.commitFiles || !this.svc.git.head) return null
+    const src = await run<{
+      n: number
+      sha: string
+      branch: string
+      base: string
+      title: string
+      author: string
+      contents: Record<string, string | null>
+    } | null>(
+      this.call,
+      'query',
+      'forge/changes:headSource',
+      { owner, name, number: e.number },
+      'system',
+    )
+    if (!src) return null
+    const before = await this.svc.git.head(e.repo, src.branch).catch(() => null)
+    if (before === src.sha) return null
+    const sha = await this.svc.git.commitFiles(e.repo, {
+      branch: src.branch,
+      base: src.base,
+      files: Object.entries(src.contents).map(([path, content]) => ({
+        path,
+        content,
+      })),
+      message: `${src.title}\n\nPatch set ${src.n} of #${e.number}, written on cobalt.`,
+      author: {
+        name: src.author,
+        email: `${src.author}@users.cobaltforge.dev`,
+      },
+    })
+    await run(
+      this.call,
+      'mutation',
+      'forge/changes:setPatchSetSha',
+      { owner, name, number: e.number, n: src.n, was: src.sha, sha },
+      'system',
+    )
+    // As a push to the branch: the workflows it takes run on it.
+    const storeId = await this.storeIdOf(e.repo)
+    if (storeId)
+      await this.recordPushes({ full: e.repo, storeId, by: src.author }, [
+        {
+          ref: `refs/heads/${src.branch}`,
+          before: before ?? '0'.repeat(40),
+          after: sha,
+        },
+      ])
+    return { patchSet: src.n, sha }
+  }
+
+  /**
+   * A landed change's code on its base branch: the change's branch merged in
+   * the store at the commit that was checked, with the repository's landing
+   * strategy, as whoever landed it. Then it counts as a push to the base, so
+   * the workflows it takes start. A repository linked to a host lands there.
+   */
+  async landInGit(e: { repo: string; number: number; by: string }) {
+    const [owner, name] = e.repo.split('/')
+    if (!this.svc.git.merge) return null
+    const link = await this.svc.providers?.store
+      .remoteOfRepo(e.repo)
+      .catch(() => null)
+    if (link) return null
+    const c = await this.q<{
+      number: number
+      title: string
+      branch: string
+      base: string
+      state: string
+      head: { sha: string }
+      policy?: { landing?: { strategy?: 'squash' | 'merge' | 'rebase' } }
+    }>(
+      'changes:get',
+      { owner, name, ref: String(e.number), expand: [], at: this.now() },
+      'system',
+    )
+    if (c.state !== 'landed') return null
+    const r = await this.svc.git.merge(e.repo, {
+      source: c.branch,
+      sha: c.head.sha,
+      target: c.base,
+      strategy: c.policy?.landing?.strategy ?? 'squash',
+      author: { name: e.by, email: `${e.by}@users.cobaltforge.dev` },
+      message: `${c.title} (#${c.number})\n\nLanded-by: ${e.by}`,
+    })
+    const storeId = await this.storeIdOf(e.repo)
+    if (storeId && r.before !== r.sha)
+      await this.recordPushes({ full: e.repo, storeId, by: e.by }, [
+        {
+          ref: `refs/heads/${c.base}`,
+          before: r.before ?? '0'.repeat(40),
+          after: r.sha,
+        },
+      ])
+    return r
+  }
+
+  /** Pushes that went through the API's git endpoint, with their messages. */
+  async recordPushes(
+    at: { full: string; storeId: string; by?: string },
+    updates: ReadonlyArray<{ ref: string; before: string; after: string }>,
+  ) {
+    for (const u of updates) {
+      const deleted = /^0+$/.test(u.after)
+      const message = deleted
+        ? undefined
+        : await this.svc.git
+            .commit(at.full, u.after)
+            .then((c) => c.message.slice(0, 65536))
+            .catch(() => undefined)
+      // A push to a change's branch is its next patch set: its files, from git.
+      const branch = u.ref.startsWith('refs/heads/')
+        ? u.ref.slice('refs/heads/'.length)
+        : null
+      const base =
+        deleted || !branch
+          ? null
+          : await run<string | null>(
+              this.call,
+              'query',
+              'forge/pushes:baseOfBranch',
+              { storeId: at.storeId, branch },
+              'system',
+            ).catch(() => null)
+      const stats = base
+        ? await this.svc.git
+            .diff(at.full, u.after, base)
+            .then((d) => statsOf(d.files))
+            .catch(() => undefined)
+        : undefined
+      await run(
+        this.call,
+        'mutation',
+        'forge/pushes:recordPushFromApi',
+        {
+          storeId: at.storeId,
+          ref: u.ref,
+          before: u.before,
+          after: u.after,
+          pushedAt: this.now(),
+          ...(at.by ? { by: at.by } : {}),
+          ...(message === undefined ? {} : { message }),
+          ...(stats ? { stats } : {}),
+        },
+        'system',
+      )
+    }
+  }
+
+  handlesOfLogins: Port['handlesOfLogins'] = (host, logins) =>
+    logins.length
+      ? this.q(
+          'integrations:handlesOfLogins',
+          { host, logins: [...logins] },
+          'system',
+        )
+      : Promise.resolve({})
   listLinks: Port['listLinks'] = (handle, p) =>
     this.q('integrations:listLinks', { handle }, p)
   linkAccount: Port['linkAccount'] = (handle, host, p, body) =>
     this.m('integrations:link', { handle, host, ...body }, p)
-  unlinkAccount: Port['unlinkAccount'] = (handle, host, p) =>
-    this.m('integrations:unlink', { handle, host }, p)
+  unlinkAccount: Port['unlinkAccount'] = (handle, host, p, login) =>
+    this.m(
+      'integrations:unlink',
+      { handle, host, ...(login ? { login } : {}) },
+      p,
+    )
   private readonly forgeOps = forgeOps(
     () => this.svc.providers,
     (owner, name, p, need) => this.repoAccess(owner, name, p, need),
@@ -1539,7 +2249,9 @@ export class ConvexDomain implements DomainPort {
     deviceStart(this.svc.github)
 
   githubDevicePoll: Port['githubDevicePoll'] = async (p, deviceCode) => {
-    const r = await devicePoll(this.svc.github, p, deviceCode)
+    const r = await devicePoll(this.svc.github, p, deviceCode, (login, t) =>
+      this.keepGithub(p.handle, login, t),
+    )
     if (r.status === 'authorized' && r.login)
       await this.m(
         'integrations:markVerified',
@@ -1549,11 +2261,29 @@ export class ConvexDomain implements DomainPort {
     return r
   }
 
+  private async keepGithub(
+    handle: string,
+    login: string,
+    tokens: {
+      access: string
+      refresh: string | null
+      expiresAt: number | null
+    },
+  ) {
+    await this.svc.providers
+      ?.rememberGithub(handle, login, tokens)
+      .catch((e: unknown) =>
+        console.error('[github] could not keep the sign-in', String(e)),
+      )
+  }
+
   githubOauthStart: Port['githubOauthStart'] = (p, redirectUri, returnTo) =>
     oauthStart(this.svc.github, p, redirectUri, returnTo)
 
   githubOauthFinish: Port['githubOauthFinish'] = async (p, body) => {
-    const r = await oauthFinish(this.svc.github, p, body)
+    const r = await oauthFinish(this.svc.github, p, body, (login, t) =>
+      this.keepGithub(p.handle, login, t),
+    )
     await this.m(
       'integrations:markVerified',
       { handle: p.handle, login: r.login },
@@ -1595,7 +2325,7 @@ export class ConvexDomain implements DomainPort {
     return { full, x, m }
   }
 
-  createMirror: Port['createMirror'] = async (p, owner, name, body) => {
+  createMirror: Port['createMirror'] = async (p, owner, name, body, dry) => {
     if (body.host !== 'github')
       throw apiError(
         'invalid_request',
@@ -1612,11 +2342,93 @@ export class ConvexDomain implements DomainPort {
         mirror: presentMirror(this.urls.api, full, same),
         created: false,
       }
-    throw apiError(
-      'invalid_state',
-      'A repository is linked to GitHub when it is imported, not afterwards.',
-      { hint: 'Import it with POST /imports and a `github_access`.' },
-    )
+    if (!body.github_access)
+      throw apiError(
+        'invalid_request',
+        'Linking a repository to GitHub needs `github_access`.',
+        {
+          hint: 'Sign in with GitHub first: POST /github/device, then poll /github/device/poll.',
+        },
+      )
+    const sync = this.providersFor('github')
+    const [o, n] = full.split('/')
+    const repo = await this.q<{
+      visibility: string
+      description: string
+      default_branch: string
+    }>('repos:get', { owner: o, name: n, at: this.now() }, p)
+    const storeId = await this.storeIdOf(full)
+    if (!storeId) throw apiError('not_found', `${full} has no git storage.`)
+    if (dry)
+      return {
+        mirror: presentMirror(this.urls.api, full, {
+          id: 'mir_dry_run_00000000000',
+          host: 'github',
+          slug: body.slug,
+          direction: 'two-way',
+          state: 'syncing',
+          lastSync: this.now(),
+          detail: null,
+          created: this.now(),
+        }),
+        created: true,
+      }
+    const x = await this.svc.extras.open(full)
+    const m = {
+      id: `mir_${this.now().toString(36)}0`.padEnd(22, '0').slice(0, 22),
+      host: 'github',
+      slug: body.slug,
+      direction: 'two-way' as const,
+      state: 'syncing' as 'syncing' | 'failing' | 'in-sync',
+      lastSync: this.now(),
+      detail: `Sending the history to ${body.slug} on GitHub.` as string | null,
+      created: this.now(),
+    }
+    x.mirrors.push(m)
+    await this.svc.extras.flush?.()
+    // Copying the history and linking outlast a request: the mirror says how
+    // it went, as an import's job does.
+    const settle = async (patch: Partial<typeof m>) =>
+      scoped(async () => {
+        const y = await this.svc.extras.open(full)
+        const mine = y.mirrors.find((z) => z.id === m.id)
+        if (!mine) return
+        Object.assign(mine, patch, { lastSync: this.now() })
+        await this.svc.extras.flush?.()
+      })
+    void sync
+      .publish(p, full, {
+        storeId,
+        slug: body.slug,
+        githubAccess: body.github_access,
+        private: repo.visibility !== 'public',
+        description: repo.description,
+        defaultBranch: repo.default_branch,
+        sendHistory: async (target) => {
+          const source = await codeStorageRemotes().open(storeId, {
+            write: false,
+            subject: p.handle,
+          })
+          await copyHistory(source, target, {
+            first: `refs/heads/${repo.default_branch}`,
+          })
+        },
+      })
+      .then((done) =>
+        settle({
+          slug: done.slug,
+          detail: done.made
+            ? `Made ${done.slug} on GitHub and sent it the history.`
+            : `Sent the history to ${done.slug} on GitHub and linked it.`,
+        }),
+      )
+      .catch((e: unknown) =>
+        settle({
+          state: 'failing',
+          detail: e instanceof ApiError ? e.detail : String(e),
+        }),
+      )
+    return { mirror: presentMirror(this.urls.api, full, m), created: true }
   }
 
   syncMirror: Port['syncMirror'] = async (p, owner, name, mirror, dry) => {
@@ -1785,17 +2597,17 @@ export class ConvexDomain implements DomainPort {
     }>('insights:repoFacts', { owner, name, at: now }, p)
     const WEEKS = 26
     const weeks = Array.from({ length: WEEKS }, () => 0)
-    const people = new Set<string>()
     for (const c of commits) {
       const w = Math.floor((now - Date.parse(c.date)) / (7 * 86_400_000))
       if (w >= 0 && w < WEEKS) weeks[WEEKS - 1 - w]++
-      people.add(c.author.email.toLowerCase())
     }
     return {
       object: 'repo_insights' as const,
       repo: f.repo,
       commits: { total: commits.length, by_week: weeks, by_model: f.byModel },
-      contributors: people.size,
+      contributors: groupAuthors(
+        commits.map((c) => ({ ...c.author, date: c.date })),
+      ).length,
       downloads: this.downloadsOf(f.downloads, now),
       stars: f.stars,
       issues: { open: f.issues.open ?? 0, closed: f.issues.closed ?? 0 },
@@ -2167,3 +2979,12 @@ export class ConvexDomain implements DomainPort {
       dry,
     )
 }
+
+const statsOf = (
+  files: ReadonlyArray<{ path: string; additions: number; deletions: number }>,
+) =>
+  files.slice(0, 1000).map((f) => ({
+    path: f.path,
+    add: f.additions,
+    del: f.deletions,
+  }))

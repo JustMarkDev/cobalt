@@ -18,7 +18,9 @@ import { runner } from './commands/runner'
 import { policy } from './commands/policy'
 import { repo } from './commands/repo'
 import { commandsList, skill } from './commands/skill'
+import { upgrade } from './commands/upgrade'
 import { makeClient } from './client'
+import { AS_VARLOCK, beVarlock } from './varlock'
 import type { ApiClient } from './client'
 import type { Ctx } from './output'
 import type { Command } from './commands/types'
@@ -38,6 +40,7 @@ const commands: Record<string, Command> = {
   config,
   account,
   auth,
+  upgrade,
   skill,
   mcp,
   commands: commandsList,
@@ -131,4 +134,7 @@ export async function run(
   }
 }
 
-if (import.meta.main) process.exitCode = await run(process.argv.slice(2))
+if (import.meta.main) {
+  if (process.env[AS_VARLOCK] === '1') await beVarlock()
+  else process.exitCode = await run(process.argv.slice(2))
+}
