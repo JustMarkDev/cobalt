@@ -257,25 +257,28 @@ function PaidCard({
 }) {
   const n = plan.perSeat ? seats : 1
   const one = price(plan, cycle)
-  const total = one.total * n
+  const cents = (x: number) => Math.round(x * 100) / 100
+  // What a month costs, discounted when paid by the year.
+  const monthly = cents(one.monthly * n)
   const saving = plan.monthly * (12 - YEARLY_MONTHS) * n
+  const perSeat = plan.perSeat
+    ? `${money(cents(one.monthly), currency)} per seat a month. `
+    : ''
   return (
     <article className={cardClass(plan.featured)}>
       <h2 className="text-lg font-semibold">{plan.name}</h2>
       <div>
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-5xl font-semibold tracking-tight tabular-nums">
-            {money(total, currency)}
+            {money(monthly, currency)}
           </span>
-          <span className="text-sm text-muted-foreground">
-            / {cycle === 'year' ? 'year' : 'month'}
-          </span>
+          <span className="text-sm text-muted-foreground">/ month</span>
           {cycle === 'year' && (
             <s
               className="text-lg text-muted-foreground tabular-nums"
-              aria-label={`instead of ${money(one.full * n, currency)}`}
+              aria-label={`instead of ${money(plan.monthly * n, currency)}`}
             >
-              {money(one.full * n, currency)}
+              {money(plan.monthly * n, currency)}
             </s>
           )}
         </p>
@@ -283,15 +286,14 @@ function PaidCard({
           {cycle === 'year' ? (
             <>
               <span className="rounded-full bg-success/12 px-2 py-0.5 text-xs font-semibold text-success">
-                Save {money(saving, currency)}
+                Save {money(saving, currency)} a year
               </span>
-              {plan.perSeat
-                ? `${money(one.total, currency)} per seat a year`
-                : `${money(Math.round(one.monthly * 100) / 100, currency)} a month`}
+              {perSeat}
+              Billed {money(one.total * n, currency)} yearly
             </>
           ) : (
             <>
-              {plan.perSeat && `${money(one.total, currency)} per seat. `}
+              {perSeat}
               <button
                 type="button"
                 onClick={onYearly}
