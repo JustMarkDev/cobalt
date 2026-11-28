@@ -27,9 +27,6 @@ export type AuditAction =
   | 'policy.rule_set'
   | 'policy.rule_removed'
   | 'plan.changed'
-  | 'sso.configured'
-  | 'sso.removed'
-  | 'sso.enforced'
 
 type Who = Pick<Actor, 'handle' | 'via'> | { handle: string; via?: null }
 

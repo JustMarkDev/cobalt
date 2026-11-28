@@ -8,7 +8,7 @@ import {
 import { internalMutation, internalQuery, query } from './_generated/server'
 import { signedIn } from './lib/actor'
 import { fail, out } from './lib/errors'
-import { accountByHandle } from './lib/access'
+import { accountByHandle, roleIn } from './lib/access'
 import { planOf, seatsOf } from './lib/plan'
 import { usageOf } from './lib/usage'
 import { audit } from './lib/audit'
@@ -53,6 +53,44 @@ export const mine = query({
               requested: account.deletionRequested ?? null,
               purgeAt: account.purgeAt,
             },
+    })
+  },
+})
+
+// An organization's plan, as its owners and admins see it on its settings.
+export const ofOrganization = query({
+  args: { handle: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const p = await signedIn(ctx)
+    const org = await accountByHandle(ctx, a.handle)
+    if (!org || org.kind !== 'organization')
+      fail('not_found', `No organization ${a.handle}.`)
+    const role = await roleIn(ctx, org, p.handle)
+    if (!role) fail('not_found', `No organization ${a.handle}.`)
+    const now = Date.now()
+    const effective = await planOf(ctx, org._id, now)
+    const usage = await usageOf(ctx, org._id, now)
+    const seats = await seatsOf(ctx, org._id, effective)
+    const members = (
+      await ctx.db
+        .query('memberships')
+        .withIndex('by_organizationId_and_personId', (q) =>
+          q.eq('organizationId', org._id),
+        )
+        .take(1000)
+    ).length
+    return out({
+      handle: org.handle,
+      manage: role === 'owner',
+      plan: effective.plan,
+      source: effective.source,
+      until: effective.until,
+      unlimited: effective.unlimited,
+      seats,
+      members,
+      limits: effective.unlimited ? null : limitsFor(effective.plan, seats),
+      usage,
     })
   },
 })

@@ -20,6 +20,7 @@ import {
 } from '~/lib/auth/accounts'
 import { useOpMaybe, useWrite } from '~/lib/forge'
 import { toRepo } from '~/lib/repo'
+import { OrgAudit, OrgPlan, OrgPolicies } from './org-business'
 
 export function AccountTile({
   account,
@@ -173,18 +174,23 @@ export function OrgPage({
   )
 }
 
-export type OrgSection = 'general' | 'members'
+export type OrgSection = 'general' | 'members' | 'plan' | 'policies' | 'audit'
 export const orgSections: Array<[OrgSection, string]> = [
   ['general', 'General'],
   ['members', 'Members'],
+  ['plan', 'Plan'],
+  ['policies', 'Policies'],
+  ['audit', 'Audit log'],
 ]
 
 export function OrgSettings({
   handle,
   section,
+  choice = {},
 }: {
   handle: string
   section: OrgSection
+  choice?: Partial<PlanChoice>
 }) {
   const found = useOrganization(handle)
   const { me } = useAccounts()
@@ -234,8 +240,14 @@ export function OrgSettings({
       />
       {section === 'general' ? (
         <General key={`${org.id}.${org.name}`} {...ctx} />
-      ) : (
+      ) : section === 'members' ? (
         <Members key={org.id} {...ctx} />
+      ) : section === 'plan' ? (
+        <OrgPlan handle={org.handle} choice={choice} />
+      ) : section === 'policies' ? (
+        <OrgPolicies handle={org.handle} />
+      ) : (
+        <OrgAudit handle={org.handle} role={role} />
       )}
     </div>
   )

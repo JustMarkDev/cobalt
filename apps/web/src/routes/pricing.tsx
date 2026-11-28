@@ -25,7 +25,6 @@ type Cycle = 'month' | 'year'
 type Who = 'personal' | 'organization'
 
 const businessAdds = [
-  'Single sign-on with SAML or OIDC',
   'An audit log of who changed what, kept for a year',
   'Policies set once for every repository',
 ]
@@ -112,7 +111,7 @@ function Pricing() {
       <section className="-mt-12 space-y-6">
         {who === 'personal' ? (
           <div className="mx-auto grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
-            <FreeCard />
+            <FreeCard currency={currency} />
             {personalPlans.map((p) => (
               <PaidCard
                 key={p.id}
@@ -192,25 +191,36 @@ const cardClass = (featured?: boolean) =>
       : 'border p-7',
   )
 
-function Limits({ rows }: { rows: Array<[string, string]> }) {
+function Limits({
+  rows,
+  note,
+}: {
+  rows: Array<[string, string]>
+  note?: string
+}) {
   return (
-    <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">{k}</dt>
-          <dd className="text-right font-medium">{v}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="space-y-2">
+      <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="text-right font-medium">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {note && <p className="text-xs text-muted-foreground">{note}</p>}
+    </div>
   )
 }
 
-function FreeCard() {
+function FreeCard({ currency }: { currency: '$' | '€' }) {
   return (
     <article className={cardClass()}>
       <h2 className="text-lg font-semibold">Free</h2>
       <div>
-        <span className="text-5xl font-semibold tracking-tight">$0</span>
+        <span className="text-5xl font-semibold tracking-tight">
+          {currency}0
+        </span>
         <p className="mt-2 text-sm text-muted-foreground">No card needed</p>
       </div>
       <Button
@@ -249,9 +259,6 @@ function PaidCard({
   const one = price(plan, cycle)
   const total = one.total * n
   const saving = plan.monthly * (12 - YEARLY_MONTHS) * n
-  const shared = plan.perSeat
-    ? `, shared by ${n} ${n === 1 ? 'seat' : 'seats'}`
-    : ''
   return (
     <article className={cardClass(plan.featured)}>
       <h2 className="text-lg font-semibold">{plan.name}</h2>
@@ -322,9 +329,14 @@ function PaidCard({
       <Limits
         rows={[
           ['Repositories', 'Public and private'],
-          ['Storage', `${size(plan.limits.storageGb * n)}${shared}`],
-          ['Transfer', `${size(plan.limits.transferGb * n)} a month${shared}`],
+          ['Storage', size(plan.limits.storageGb * n)],
+          ['Transfer', `${size(plan.limits.transferGb * n)} a month`],
         ]}
+        note={
+          plan.perSeat
+            ? `For ${n} ${n === 1 ? 'seat' : 'seats'}, shared by the whole organization.`
+            : undefined
+        }
       />
       {plan.id === 'business' && (
         <ul className="space-y-1.5 text-sm text-muted-foreground">
