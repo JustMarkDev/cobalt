@@ -10,7 +10,7 @@ import {
   resolve,
 } from '../lib/access'
 import { fail, out } from '../lib/errors'
-import { planOf } from '../lib/plan'
+import { limitsOf, planOf } from '../lib/plan'
 import { GB, planLimits } from '@cobaltforge/api/plans'
 import { counters } from '../lib/events'
 import { presentRepo } from '../lib/present'
@@ -339,12 +339,15 @@ export const dashboardFacts = query({
       .withIndex('by_handle_and_at', (q) => q.eq('handle', me).gte('at', since))
       .take(10_000)
     const holder = await accountByHandle(ctx, account)
-    const plan = holder
-      ? await planOf(ctx, holder._id, a.at)
-      : { plan: 'free' as const, unlimited: false }
+    const effective = holder ? await planOf(ctx, holder._id, a.at) : null
+    const plan = effective ?? { plan: 'free' as const, unlimited: false }
+    const limits =
+      holder && effective
+        ? await limitsOf(ctx, holder._id, effective)
+        : planLimits.free
     return out({
       account,
-      storageLimit: planLimits[plan.plan].storageGb * GB,
+      storageLimit: limits.storageGb * GB,
       unlimited: plan.unlimited,
       owned: ownedFacts,
       toReview,

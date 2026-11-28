@@ -4,6 +4,7 @@ import { ConvexError } from 'convex/values'
 import { Link } from '@tanstack/react-router'
 import { api } from '../../../../../convex/_generated/api'
 import { billingMessage } from '~/components/forge/checkout-button'
+import { planName } from '~/lib/pricing'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 
@@ -65,7 +66,7 @@ export function PlanAndData() {
 }
 
 function Plan({ mine }: { mine: Mine }) {
-  const name = mine.plan[0].toUpperCase() + mine.plan.slice(1)
+  const name = planName(mine.plan)
   return (
     <Card>
       <div className="flex items-baseline justify-between gap-4">
@@ -78,7 +79,7 @@ function Plan({ mine }: { mine: Mine }) {
                 ? `Given to this account until ${day(mine.until)}.`
                 : mine.source === 'subscription'
                   ? 'Paid.'
-                  : 'Free, with no end date. Public repositories.'}
+                  : 'Free, with no end date.'}
           </p>
         </div>
         {mine.source === 'subscription' ? (
@@ -136,7 +137,7 @@ function Plan({ mine }: { mine: Mine }) {
   )
 }
 
-function Billing() {
+export function Billing({ account }: { account?: string }) {
   const portal = useAction(api.billing.portal)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -144,7 +145,7 @@ function Billing() {
     setBusy(true)
     setError('')
     try {
-      window.location.assign(await portal({}))
+      window.location.assign(await portal(account ? { account } : {}))
     } catch (e) {
       setError(billingMessage(e))
       setBusy(false)

@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { audit } from '../lib/audit'
 import { normalizeModels } from '@cobaltforge/api/via'
 import { tally, track } from '../lib/stats'
 import { newId, seededId } from '@cobaltforge/api/ids'
@@ -193,6 +194,9 @@ export const create = mutation({
       await ctx.db.delete('repoAliases', a._id)
     await bumpAcl(ctx, acct)
     const repo = (await ctx.db.get('repos', id))!
+    await audit(ctx, acct, p, 'repo.created', `${repo.owner}/${repo.name}`, {
+      visibility: repo.visibility,
+    })
     return finish(args.dry, {
       repo: await presentRepo(ctx, repo, at),
       created: true,
@@ -394,6 +398,19 @@ export const update = mutation({
         })
       }
       const after = (await ctx.db.get('repos', repo._id))!
+      await audit(
+        ctx,
+        await ctx.db.get('accounts', repo.ownerId),
+        p,
+        'repo.updated',
+        `${after.owner}/${after.name}`,
+        {
+          changed,
+          ...(changed.includes('visibility')
+            ? { visibility: after.visibility }
+            : {}),
+        },
+      )
       await emit(
         ctx,
         after,
@@ -600,6 +617,7 @@ export const remove = mutation({
     })
     const acct = await ctx.db.get('accounts', repo.ownerId)
     if (acct) await bumpAcl(ctx, acct)
+    await audit(ctx, acct, p, 'repo.deleted', full)
     await dropRepoHooks(ctx, repo._id)
     // Its link to another host goes too, or the sync keeps reading it.
     for (const r of await ctx.db

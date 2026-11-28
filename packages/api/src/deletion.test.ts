@@ -93,12 +93,30 @@ async function settle(t: ReturnType<typeof convexTest>) {
 }
 
 describe('the Free plan', () => {
-  test('public repositories are open to everyone; private ones need a paid plan', async () => {
-    const { as } = await world()
-    const alice = as('user_alice')
+  const org = async (
+    w: Awaited<ReturnType<typeof world>>,
+    handle: string,
+    by = 'user_alice',
+  ) => {
+    await w.as(by).mutation(api.forge.accounts.createOrganization, { handle })
+  }
+
+  test('a person keeps private repositories on Free; an organization on Free has public ones only', async () => {
+    const w = await world()
+    const alice = w.as('user_alice')
     expect(
       await codeOf(
         alice.mutation(api.forge.repos.create, {
+          name: 'closed',
+          visibility: 'private',
+        }),
+      ),
+    ).toBe('ok')
+    await org(w, 'acme')
+    expect(
+      await codeOf(
+        alice.mutation(api.forge.repos.create, {
+          owner: 'acme',
           name: 'open',
           visibility: 'public',
         }),
@@ -107,6 +125,7 @@ describe('the Free plan', () => {
     expect(
       await codeOf(
         alice.mutation(api.forge.repos.create, {
+          owner: 'acme',
           name: 'closed',
           visibility: 'private',
         }),
@@ -114,10 +133,13 @@ describe('the Free plan', () => {
     ).toBe('plan_required')
   })
 
-  test('a grant opens private repositories for a while, and only for that account', async () => {
-    const { t, as } = await world()
+  test('a grant opens private repositories for a while, and only for that organization', async () => {
+    const w = await world()
+    const { t, as } = w
+    await org(w, 'acme')
+    await org(w, 'bobco', 'user_bob')
     await t.mutation(internal.plans.grant, {
-      handle: 'alice',
+      handle: 'acme',
       plan: 'business',
       days: 60,
       reason: 'Trying it',
@@ -125,6 +147,7 @@ describe('the Free plan', () => {
     expect(
       await codeOf(
         as('user_alice').mutation(api.forge.repos.create, {
+          owner: 'acme',
           name: 'closed',
           visibility: 'private',
         }),
@@ -133,11 +156,18 @@ describe('the Free plan', () => {
     expect(
       await codeOf(
         as('user_bob').mutation(api.forge.repos.create, {
+          owner: 'bobco',
           name: 'closed',
           visibility: 'private',
         }),
       ),
     ).toBe('plan_required')
+    await t.mutation(internal.plans.grant, {
+      handle: 'alice',
+      plan: 'business',
+      days: 60,
+      reason: 'Trying it',
+    })
     const mine = JSON.parse(await as('user_alice').query(api.plans.mine, {}))
     expect(mine).toMatchObject({ plan: 'business', source: 'grant' })
     expect(mine.until).toBe(START + 60 * DAY)
@@ -169,28 +199,34 @@ describe('the Free plan', () => {
     })
     expect(
       await t.mutation(internal.plans.revokeGrants, { handle: 'alice' }),
-    ).toEqual({ handle: 'alice', revoked: 1 })
+    ).toEqual({
+      handle: 'alice',
+      revoked: 1,
+    })
     const list = await t.query(internal.plans.grants, { handle: 'alice' })
     expect(list).toHaveLength(1)
     expect(list[0].live).toBe(false)
   })
 
-  test('when a grant ends, a private repository still reads and clones, and stops taking writes', async () => {
-    const { t, as } = await world()
+  test('when a grant ends, a private repository of an organization still reads and clones, and stops taking writes', async () => {
+    const w = await world()
+    const { t, as } = w
+    await org(w, 'acme')
     await t.mutation(internal.plans.grant, {
-      handle: 'alice',
-      plan: 'solo',
+      handle: 'acme',
+      plan: 'team',
       days: 30,
       reason: 'Try',
     })
     const alice = as('user_alice')
     await alice.mutation(api.forge.repos.create, {
+      owner: 'acme',
       name: 'closed',
       visibility: 'private',
     })
     const access = (need: 'read' | 'write') =>
       alice.query(api.forge.repos.access, {
-        owner: 'alice',
+        owner: 'acme',
         name: 'closed',
         need,
         strict: false,
@@ -202,7 +238,7 @@ describe('the Free plan', () => {
     expect(
       await codeOf(
         alice.mutation(api.forge.repos.update, {
-          owner: 'alice',
+          owner: 'acme',
           name: 'closed',
           body: { visibility: 'public' },
         }),
@@ -900,7 +936,10 @@ describe('Polar tells us about a subscription', () => {
     )
     expect(
       JSON.parse(await as('user_alice').query(api.plans.mine, {})),
-    ).toMatchObject({ plan: 'team', source: 'subscription' })
+    ).toMatchObject({
+      plan: 'team',
+      source: 'subscription',
+    })
     expect(
       (
         await signedPost(
@@ -915,7 +954,9 @@ describe('Polar tells us about a subscription', () => {
     ).toBe(200)
     expect(
       JSON.parse(await as('user_alice').query(api.plans.mine, {})),
-    ).toMatchObject({ plan: 'free' })
+    ).toMatchObject({
+      plan: 'free',
+    })
   })
 
   test('an event that arrives late does not undo a newer one', async () => {

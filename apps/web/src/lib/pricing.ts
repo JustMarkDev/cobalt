@@ -8,97 +8,67 @@ export type Limits = PlanLimits
 export type Plan = {
   id: PaidPlanId
   name: string
-  blurb: string
   monthly: number
   perSeat: boolean
   limits: Limits
-  features: Array<string>
-  lead?: string
   featured?: boolean
 }
 
+// A year is ten months for twelve.
 export const YEARLY_MONTHS = 10
 
-export const overage = { storagePerGbMonth: 3.5, transferPerGb: 0.3 }
+export const freeLimits = planLimits.free
 
-export type FreePlan = Omit<Plan, 'id' | 'monthly' | 'perSeat' | 'featured'> & {
-  id: 'free'
-  monthly: 0
-}
-
-export const freePlan: FreePlan = {
-  id: 'free',
-  name: 'Free',
-  blurb: 'For open source, and for trying it out.',
-  monthly: 0,
-  limits: planLimits.free,
-  lead: 'Includes',
-  features: [
-    'Public repositories, with no card',
-    'Import history from the hosts you use',
-    'Unlimited mirrors',
-    'The CLI, the MCP server and the agent skill',
-  ],
-}
-
-export const plans: Array<Plan> = [
+export const personalPlans: Array<Plan> = [
   {
     id: 'solo',
-    name: 'Solo',
-    blurb: 'For your own projects and your own history.',
-    monthly: 15,
+    name: 'Pro',
+    monthly: 20,
     perSeat: false,
-    lead: 'Includes',
     limits: planLimits.solo,
-    features: [
-      'Public and private repositories',
-      'Import history from the hosts you use',
-      'Unlimited mirrors, so a copy lives elsewhere too',
-      'Changes, policies and secrets in git',
-      'The CLI, the MCP server and the agent skill',
-      'Agent access to development secrets, with grants',
-    ],
+    featured: true,
   },
+]
+
+export const organizationPlans: Array<Plan> = [
   {
     id: 'team',
     name: 'Team',
-    blurb: 'For groups that review each other’s work.',
     monthly: 25,
     perSeat: true,
     limits: planLimits.team,
-    lead: 'Everything in Solo, plus',
-    features: [
-      'Teams as approvers, and approver classes for agents',
-      'Shared policies across repositories',
-      'Secrets recipients managed for the whole team',
-      'Storage and transfer pooled across seats',
-      'Two years of audit log',
-      'Priority support',
-    ],
     featured: true,
   },
   {
     id: 'business',
     name: 'Business',
-    blurb: 'For larger codebases and heavier agent use.',
-    monthly: 50,
+    monthly: 70,
     perSeat: true,
     limits: planLimits.business,
-    lead: 'Everything in Team, plus',
-    features: [
-      'Sync alerts for every mirror',
-      'Policy dry runs and expiring exceptions',
-      'Spend caps and token history for agents',
-      'Five years of audit log',
-      'Support with a named contact',
-    ],
   },
 ]
 
-export function perMonth(plan: Plan, cycle: 'month' | 'year'): number {
-  return cycle === 'year'
-    ? Math.floor((plan.monthly * YEARLY_MONTHS) / 12)
-    : plan.monthly
+export const plans: Array<Plan> = [...personalPlans, ...organizationPlans]
+
+export const planName = (id: PaidPlanId | 'free'): string =>
+  id === 'free' ? 'Free' : (plans.find((p) => p.id === id)?.name ?? id)
+
+// What one seat (or the one person on Pro) costs for a period.
+export function price(
+  plan: Plan,
+  cycle: 'month' | 'year',
+): { total: number; monthly: number; full: number } {
+  if (cycle === 'month')
+    return { total: plan.monthly, monthly: plan.monthly, full: plan.monthly }
+  const total = plan.monthly * YEARLY_MONTHS
+  return { total, monthly: total / 12, full: plan.monthly * 12 }
 }
 
-export const perYear = (plan: Plan): number => perMonth(plan, 'year') * 12
+export function money(n: number, currency: '$' | '€'): string {
+  const v = Number.isInteger(n) ? n.toLocaleString('en-US') : n.toFixed(2)
+  return `${currency}${v}`
+}
+
+export function size(gb: number): string {
+  return gb < 1 ? `${Math.round(gb * 1000)} MB` : `${+gb.toFixed(1)} GB`
+}

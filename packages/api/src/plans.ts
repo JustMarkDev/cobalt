@@ -14,17 +14,48 @@ export type PlanLimits = {
   pushGb: number
 }
 
+// Team and Business are sold by the seat: their limits are for one seat, and
+// an organization has them times its seats, shared by every member.
 export const planLimits: Record<PlanId, PlanLimits> = {
-  free: { storageGb: 0.25, transferGb: 1, pushGb: 0.25 },
-  solo: { storageGb: 4, transferGb: 20, pushGb: 4 },
-  team: { storageGb: 8, transferGb: 32, pushGb: 8 },
-  business: { storageGb: 20, transferGb: 80, pushGb: 20 },
+  free: { storageGb: 0.1, transferGb: 0.5, pushGb: 0.1 },
+  solo: { storageGb: 3, transferGb: 50, pushGb: 10 },
+  team: { storageGb: 3, transferGb: 50, pushGb: 10 },
+  business: { storageGb: 10, transferGb: 100, pushGb: 30 },
+}
+
+export const planNames: Record<PlanId, string> = {
+  free: 'Free',
+  solo: 'Pro',
+  team: 'Team',
+  business: 'Business',
+}
+
+export const perSeat = (plan: PlanId): boolean =>
+  plan === 'team' || plan === 'business'
+
+export function limitsFor(plan: PlanId, seats = 1): PlanLimits {
+  const l = planLimits[plan]
+  const n = perSeat(plan) ? Math.max(1, Math.floor(seats)) : 1
+  return {
+    storageGb: l.storageGb * n,
+    transferGb: l.transferGb * n,
+    pushGb: l.pushGb * n,
+  }
 }
 
 export const isPlanId = (x: unknown): x is PlanId =>
   typeof x === 'string' && (planOrder as ReadonlyArray<string>).includes(x)
 
-export const allowsPrivate = (plan: PlanId): boolean => plan !== 'free'
+export type AccountKind = 'person' | 'organization'
+
+// A person may keep private repositories on Free, inside its allowance. An
+// organization needs Team or Business for them.
+export const allowsPrivate = (plan: PlanId, kind: AccountKind): boolean =>
+  kind === 'person' || plan !== 'free'
+
+export const hasBusiness = (plan: PlanId): boolean => plan === 'business'
+
+export const AUDIT_KEEP_MS = 366 * 86_400_000
 
 const DAY = 86_400_000
 
@@ -124,12 +155,13 @@ export function repoState(
   plan: PlanId,
   visibility: 'public' | 'private',
   pendingDeletion: boolean,
+  kind: AccountKind,
   quota: Quota | null = null,
 ):
   | { writable: true }
   | { writable: false; why: 'plan' | 'deletion' | 'quota' } {
   if (pendingDeletion) return { writable: false, why: 'deletion' }
-  if (visibility === 'private' && !allowsPrivate(plan))
+  if (visibility === 'private' && !allowsPrivate(plan, kind))
     return { writable: false, why: 'plan' }
   if (quota) return { writable: false, why: 'quota' }
   return { writable: true }

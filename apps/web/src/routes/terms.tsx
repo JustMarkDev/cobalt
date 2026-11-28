@@ -138,10 +138,11 @@ function Terms() {
         </p>
         <ul>
           <li>
-            Every account starts on the Free plan: public repositories, a small
-            allowance, no card and no end date. There is no trial of the paid
-            plans. If you pay and change your mind, the right of withdrawal the
-            law gives you where you live applies, and we refund it.
+            Every account starts on the Free plan: public repositories, private
+            ones on a person&rsquo;s own account, a small allowance, no card and
+            no end date. There is no trial of the paid plans. If you pay and
+            change your mind, the right of withdrawal the law gives you where
+            you live applies, and we refund it.
           </li>
           <li>
             On a paid plan, going over your limits never breaks anything. Extra

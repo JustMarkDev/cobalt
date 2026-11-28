@@ -33,9 +33,19 @@ type Props = {
   cycle: 'month' | 'year'
   children: React.ReactNode
   variant?: React.ComponentProps<typeof Button>['variant']
+  // An organization to buy the plan for, and how many seats.
+  account?: string
+  seats?: number
 }
 
-export function CheckoutButton({ plan, cycle, children, variant }: Props) {
+export function CheckoutButton({
+  plan,
+  cycle,
+  children,
+  variant,
+  account,
+  seats,
+}: Props) {
   const { isAuthenticated, isLoading } = useConvexAuth()
   const checkout = useAction(api.billing.checkout)
   const europe = useEurope()
@@ -58,7 +68,13 @@ export function CheckoutButton({ plan, cycle, children, variant }: Props) {
     setError('')
     try {
       window.location.assign(
-        await checkout({ plan, cycle, currency: europe ? 'eur' : 'usd' }),
+        await checkout({
+          plan,
+          cycle,
+          currency: europe ? 'eur' : 'usd',
+          ...(account ? { account } : {}),
+          ...(seats ? { seats } : {}),
+        }),
       )
     } catch (e) {
       setError(billingMessage(e))

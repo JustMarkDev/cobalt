@@ -125,7 +125,7 @@ export const errorCatalog = {
     title: 'This needs a paid plan',
     retryable: false,
     exit: 5,
-    hint: 'Upgrade the account that owns it. Private repositories are on the paid plans; the Free plan is for public ones.',
+    hint: 'Upgrade the account that owns it. An organization needs Team or Business for private repositories, and Business for its audit log and policies.',
   },
   read_only: {
     status: 409,

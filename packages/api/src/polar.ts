@@ -128,4 +128,4 @@ export const polarProducts: Record<
   },
 }
 
-export const perSeat = (plan: PaidPlanId): boolean => plan !== 'solo'
+export { perSeat } from './plans'

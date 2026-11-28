@@ -7,6 +7,7 @@ import { accountByHandle, assertMatch, orgFor, resolve } from '../lib/access'
 import { fail, finish, out } from '../lib/errors'
 import { iso, urls } from '../lib/present'
 import { bumpAcl } from './accounts'
+import { audit } from '../lib/audit'
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
@@ -146,6 +147,7 @@ export const create = mutation({
       updated: at,
       version: 1,
     })
+    await audit(ctx, acct, p, 'team.created', args.slug)
     return finish(args.dry, {
       team: await presentTeam(ctx, (await ctx.db.get('teams', id))!),
       created: true,
@@ -165,7 +167,7 @@ export const update = mutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     const p = await signedIn(ctx)
-    await orgFor(ctx, args.org, p, 'admin')
+    const { acct } = await orgFor(ctx, args.org, p, 'admin')
     const t = await teamRec(ctx, args.org, args.slug)
     const current = await presentTeam(ctx, t)
     assertMatch(args.ifMatch, `${t.publicId}.${t.version}`, () => current)
@@ -179,6 +181,7 @@ export const update = mutation({
       updated: Date.now(),
       version: t.version + 1,
     })
+    await audit(ctx, acct, p, 'team.updated', args.slug)
     return finish(
       args.dry,
       await presentTeam(ctx, (await ctx.db.get('teams', t._id))!),
@@ -199,6 +202,7 @@ export const remove = mutation({
       await ctx.db.delete('teamRepos', r.row._id)
     await ctx.db.delete('teams', t._id)
     await bumpAcl(ctx, acct)
+    await audit(ctx, acct, p, 'team.deleted', args.slug)
     return finish(args.dry, null)
   },
 })
@@ -226,6 +230,9 @@ export const setMember = mutation({
       await ctx.db.insert('teamMembers', { teamId: t._id, handle: args.login })
       await touch(ctx, t)
       await bumpAcl(ctx, acct)
+      await audit(ctx, acct, p, 'team.member_added', args.slug, {
+        member: args.login,
+      })
     }
     return finish(
       args.dry,
@@ -251,6 +258,9 @@ export const removeMember = mutation({
     await ctx.db.delete('teamMembers', row._id)
     await touch(ctx, t)
     await bumpAcl(ctx, acct)
+    await audit(ctx, acct, p, 'team.member_removed', args.slug, {
+      member: args.login,
+    })
     return finish(args.dry, null)
   },
 })
@@ -297,6 +307,10 @@ export const setRepo = mutation({
       })
     await touch(ctx, t)
     await bumpAcl(ctx, acct)
+    await audit(ctx, acct, p, 'team.repo_added', args.slug, {
+      repo: `${repo.owner}/${repo.name}`,
+      permission: args.permission,
+    })
     return finish(
       args.dry,
       await presentTeam(ctx, (await ctx.db.get('teams', t._id))!),
@@ -332,6 +346,9 @@ export const removeRepo = mutation({
     await ctx.db.delete('teamRepos', row._id)
     await touch(ctx, t)
     await bumpAcl(ctx, acct)
+    await audit(ctx, acct, p, 'team.repo_removed', args.slug, {
+      repo: `${repo.owner}/${repo.name}`,
+    })
     return finish(args.dry, null)
   },
 })

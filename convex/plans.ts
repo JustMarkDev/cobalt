@@ -2,15 +2,16 @@ import { v } from 'convex/values'
 import {
   GRANT_MAX_MS,
   LAPSED_KEEP_MS,
+  limitsFor,
   overQuota,
-  planLimits,
 } from '@cobaltforge/api/plans'
 import { internalMutation, internalQuery, query } from './_generated/server'
 import { signedIn } from './lib/actor'
 import { fail, out } from './lib/errors'
-import { accountByHandle } from './lib/access'
-import { planOf } from './lib/plan'
+import { accountByHandle, roleIn } from './lib/access'
+import { planOf, seatsOf } from './lib/plan'
 import { usageOf } from './lib/usage'
+import { audit } from './lib/audit'
 
 const paid = v.union(
   v.literal('solo'),
@@ -28,6 +29,7 @@ export const mine = query({
     const now = Date.now()
     const effective = await planOf(ctx, account._id, now)
     const usage = await usageOf(ctx, account._id, now)
+    const seats = await seatsOf(ctx, account._id, effective)
     return out({
       handle: account.handle,
       usage: {
@@ -38,7 +40,8 @@ export const mine = query({
       source: effective.source,
       until: effective.until,
       unlimited: effective.unlimited,
-      limits: effective.unlimited ? null : planLimits[effective.plan],
+      seats,
+      limits: effective.unlimited ? null : limitsFor(effective.plan, seats),
       keptUntil:
         effective.lapsedAt === null
           ? null
@@ -50,6 +53,44 @@ export const mine = query({
               requested: account.deletionRequested ?? null,
               purgeAt: account.purgeAt,
             },
+    })
+  },
+})
+
+// An organization's plan, as its owners and admins see it on its settings.
+export const ofOrganization = query({
+  args: { handle: v.string() },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const p = await signedIn(ctx)
+    const org = await accountByHandle(ctx, a.handle)
+    if (!org || org.kind !== 'organization')
+      fail('not_found', `No organization ${a.handle}.`)
+    const role = await roleIn(ctx, org, p.handle)
+    if (!role) fail('not_found', `No organization ${a.handle}.`)
+    const now = Date.now()
+    const effective = await planOf(ctx, org._id, now)
+    const usage = await usageOf(ctx, org._id, now)
+    const seats = await seatsOf(ctx, org._id, effective)
+    const members = (
+      await ctx.db
+        .query('memberships')
+        .withIndex('by_organizationId_and_personId', (q) =>
+          q.eq('organizationId', org._id),
+        )
+        .take(1000)
+    ).length
+    return out({
+      handle: org.handle,
+      manage: role === 'owner',
+      plan: effective.plan,
+      source: effective.source,
+      until: effective.until,
+      unlimited: effective.unlimited,
+      seats,
+      members,
+      limits: effective.unlimited ? null : limitsFor(effective.plan, seats),
+      usage,
     })
   },
 })
@@ -181,6 +222,19 @@ export const setSubscription = internalMutation({
       eventAt: a.at,
       updated: now,
     }
+    if (!row || row.plan !== a.plan || row.status !== a.status)
+      await audit(
+        ctx,
+        account,
+        { handle: 'cobalt' },
+        'plan.changed',
+        account.handle,
+        {
+          plan: a.plan,
+          status: a.status,
+          ...(a.seats === undefined ? {} : { seats: a.seats }),
+        },
+      )
     if (row)
       await ctx.db.replace('subscriptions', row._id, {
         accountId: account._id,

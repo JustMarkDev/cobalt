@@ -1,288 +1,412 @@
 import * as React from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { CheckIcon } from '@phosphor-icons/react'
 import { cn } from 'cn'
-import type { BrandId } from '~/components/brand'
-import type { FreePlan, Plan } from '~/lib/pricing'
-import { BrandLogo, brandName } from '~/components/brand'
+import type { Plan } from '~/lib/pricing'
 import { CheckoutButton, useEurope } from '~/components/forge/checkout-button'
 import { ContactSales } from '~/components/forge/contact-sales'
 import { Button } from '~/components/ui/button'
 import { Segmented } from '~/components/ui/tabs'
-import { freePlan, overage, perMonth, perYear, plans } from '~/lib/pricing'
+import {
+  YEARLY_MONTHS,
+  freeLimits,
+  money,
+  organizationPlans,
+  personalPlans,
+  price,
+  size,
+} from '~/lib/pricing'
 
 export const Route = createFileRoute('/pricing')({
   head: () => ({ meta: [{ title: 'Pricing · cobalt' }] }),
   component: Pricing,
 })
 
-const own: Array<{ title: string; body: string; names: Array<BrandId> }> = [
-  {
-    title: 'Runners',
-    body: 'Run workflows on any runner you like.',
-    names: ['blacksmith', 'namespace', 'depot', 'warpbuild'],
-  },
-  {
-    title: 'Models and agents',
-    body: 'Claude Code, Codex, OpenCode or your own. Your keys, your bill.',
-    names: ['claudereview', 'bugbot', 'coderabbit', 'greptile', 'qodo'],
-  },
-  {
-    title: 'Environments',
-    body: 'Hand work to a machine you choose.',
-    names: ['t3code', 'boat', 'e2b', 'daytona'],
-  },
+type Cycle = 'month' | 'year'
+type Who = 'personal' | 'organization'
+
+const businessAdds = [
+  'An audit log of who changed what, kept for a year',
+  'Policies set once for every repository',
+]
+
+const reasons: Array<[string, string]> = [
+  [
+    'We do not resell compute or tokens',
+    'There are no CI minutes or AI credits in these plans, and none to run out of. Run your pipelines on any runner and your agents on any model, and pay those providers directly, without our markup on top.',
+  ],
+  [
+    'Agents work here the way people do',
+    'An agent signs in, takes a seat, opens changes and waits for the same approvals and policies as everyone else. The CLI, the MCP server and the agent skill come with every plan, Free included.',
+  ],
+  [
+    'Your history always lives somewhere else too',
+    'Every plan mirrors to as many hosts as you like, with no limit. If you leave, or we go away, a full copy of every repository is already on GitHub, GitLab or wherever you chose.',
+  ],
 ]
 
 const questions: Array<[string, string]> = [
   [
-    'Is there a free plan?',
-    `Yes, and it does not expire. Free is for public repositories: ${size(freePlan.limits.storageGb)} of storage, ${size(freePlan.limits.transferGb)} of transfer a month and unlimited mirrors, with no card. Private repositories, agent access to secrets and more room need a paid plan.`,
+    'Can I keep private repositories on Free?',
+    `Yes, on your own account, as long as everything fits in ${size(freeLimits.storageGb)}. An organization needs Team or Business for private repositories; on Free it can host public ones.`,
   ],
   [
-    'Is there a trial of the paid plans?',
-    'No. Free is how you try cobalt. If you pay and it is not for you, you have the withdrawal period the law gives you where you live, and we refund it.',
+    'Who needs a seat?',
+    'Everyone who belongs to an organization on Team or Business, people and agents alike. You choose how many seats to buy, and storage and transfer grow with them, shared by the whole organization.',
   ],
   [
-    'Why are there no CI minutes or AI credits?',
-    'Because we would have to pick for you. cobalt works with any runner, model, harness and agent, and stays out of the way of the ones you already pay for. We never resell compute or tokens, so there is no markup and no credit to run out of.',
+    'My team is small but has a large codebase. What should we pick?',
+    `Business. A seat on Business comes with ${size(organizationPlans[1].limits.storageGb)} instead of ${size(organizationPlans[0].limits.storageGb)}, so two people with a big repository do not have to buy seats they do not use.`,
   ],
   [
     'What counts as transfer?',
-    'Data leaving cobalt: clones, fetches and mirror pushes. Agents and CI clone a lot, so heavy automation uses more. Pushing data in has its own, smaller allowance. Release downloads do not count.',
+    'Data leaving cobalt: clones, fetches and mirror pushes. Release downloads do not count.',
   ],
   [
     'What happens if I go over?',
-    `Nothing breaks. Extra storage is $${overage.storagePerGbMonth.toFixed(2)} per GB a month and extra transfer is $${overage.transferPerGb.toFixed(2)} per GB, billed after the month. You can set a cap.`,
+    'On Free, pushes pause until you make room; nothing is deleted. On a paid plan nothing stops.',
   ],
   [
-    'What happens to my history if I stop paying?',
-    'Your account moves to Free. Your history stays readable, cloneable and exportable for 90 days, and we tell you before anything is deleted. Over the Free limits, pushes pause; going over never deletes anything. Mirrors on other hosts keep their copy.',
+    'Which currency will I pay in?',
+    'Euros in Europe, at the same number as in dollars, and dollars everywhere else. Prices exclude tax.',
   ],
   [
-    'Is there a self-hosted version?',
-    'No. We do not offer or support a self-hosted version. Your repositories are plain git, and mirrors keep copies on other hosts, so you are never locked in.',
-  ],
-  [
-    'Do agents cost extra?',
-    'Agents use the same seats as people. What they cost to run is between you and the provider you chose. Their use of storage and transfer counts toward your allowance.',
+    'What happens if I stop paying?',
+    'You move to Free. Your history stays readable, cloneable and exportable for 90 days, and we tell you before anything is deleted. Mirrors on other hosts keep their copy.',
   ],
 ]
 
-function size(gb: number): string {
-  return gb < 1 ? `${Math.round(gb * 1000)} MB` : `${gb} GB`
-}
-
-const isPaid = (p: Plan | FreePlan): p is Plan => p.id !== 'free'
-
-function limitLines(plan: Plan | FreePlan): Array<[string, string]> {
-  const l = plan.limits
-  const unit = isPaid(plan) && plan.perSeat ? ' per seat' : ''
-  return [
-    ['Storage', `${size(l.storageGb)}${unit}`],
-    ['Transfer out', `${size(l.transferGb)} a month${unit}`],
-    ['Mirrors', 'Unlimited'],
-  ]
-}
-
 function Pricing() {
-  const [billing, setBilling] = React.useState<'month' | 'year'>('year')
-  const money = useEurope() ? '€' : '$'
+  const [who, setWho] = React.useState<Who>('personal')
+  const [cycle, setCycle] = React.useState<Cycle>('year')
+  const [seats, setSeats] = React.useState(3)
+  const currency = useEurope() ? '€' : '$'
   return (
-    <div className="space-y-20">
-      <header className="mx-auto max-w-2xl space-y-4 text-center">
+    <div className="space-y-24">
+      <header className="mx-auto max-w-2xl space-y-8 text-center">
         <h1 className="text-4xl font-semibold tracking-tight text-balance">
-          Pay to keep your work, not to run it.
+          Start free. Pay as your code and your team grow.
         </h1>
-        <p className="text-lg text-muted-foreground">
-          Plans cover storage, transfer, history and seats. Bring your own
-          runner, model and agent. We never resell compute or tokens.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Just here to download software? That is free, and never needs an
-          account or a plan.
-        </p>
-        <div className="pt-2">
+        <div className="flex flex-wrap justify-center gap-3">
+          <Segmented
+            label="Who the plans are for"
+            value={who}
+            onChange={setWho}
+            options={[
+              ['personal', 'Personal'],
+              ['organization', 'Organizations'],
+            ]}
+          />
           <Segmented
             label="Billing"
-            value={billing}
-            onChange={setBilling}
+            value={cycle}
+            onChange={setCycle}
             options={[
-              ['year', 'Yearly, save about 20%'],
+              ['year', 'Yearly'],
               ['month', 'Monthly'],
             ]}
           />
         </div>
       </header>
 
-      <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {[freePlan, ...plans].map((p) => (
-          <article
-            key={p.id}
-            className={cn(
-              'surface flex flex-col gap-6 rounded-2xl bg-card',
-              isPaid(p) && p.featured
-                ? 'border-2 border-brand-ink p-[calc(1.75rem-1px)] dark:border-brand/45'
-                : 'border p-7',
-            )}
-          >
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">{p.name}</h2>
-              <p className="text-sm text-muted-foreground">{p.blurb}</p>
-            </div>
-            <div>
-              <span className="text-4xl font-semibold tracking-tight tabular-nums">
-                {money}
-                {isPaid(p) ? perMonth(p, billing) : 0}
-              </span>
-              <span className="ml-1.5 text-sm text-muted-foreground">
-                {isPaid(p) && p.perSeat ? 'per seat, per month' : 'per month'}
-              </span>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {!isPaid(p)
-                  ? 'Free, with no card'
-                  : billing === 'year'
-                    ? `Billed yearly, ${money}${perYear(p)}${p.perSeat ? ' per seat' : ''}`
-                    : 'Billed monthly'}
-              </p>
-            </div>
-            {isPaid(p) ? (
-              <CheckoutButton
-                plan={p.id}
-                cycle={billing}
-                variant={p.featured ? 'brand' : 'outline'}
-              >
-                Choose {p.name}
-              </CheckoutButton>
-            ) : (
-              <Button
-                size="lg"
-                variant="outline"
-                render={<Link to="/sign-up" />}
-                nativeButton={false}
-              >
-                Sign up free
-              </Button>
-            )}
-            <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
-              {limitLines(p).map(([k, v]) => (
-                <div
-                  key={k}
-                  className="flex justify-between gap-4 max-sm:flex-col max-sm:gap-0.5 xl:flex-col xl:gap-0.5"
-                >
-                  <dt className="text-muted-foreground">{k}</dt>
-                  <dd className="font-medium">{v}</dd>
-                </div>
+      <section className="-mt-12 space-y-6">
+        {who === 'personal' ? (
+          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-2">
+            <FreeCard currency={currency} />
+            {personalPlans.map((p) => (
+              <PaidCard
+                key={p.id}
+                plan={p}
+                cycle={cycle}
+                seats={1}
+                currency={currency}
+                onYearly={() => setCycle('year')}
+              />
+            ))}
+          </div>
+        ) : (
+          <>
+            <Seats seats={seats} onChange={setSeats} />
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+              {organizationPlans.map((p) => (
+                <PaidCard
+                  key={p.id}
+                  plan={p}
+                  cycle={cycle}
+                  seats={seats}
+                  currency={currency}
+                  onYearly={() => setCycle('year')}
+                />
               ))}
-            </dl>
-            <div className="space-y-3 text-sm">
-              {p.lead && <p className="font-medium">{p.lead}</p>}
-              <ul className="space-y-2.5">
-                {p.features.map((i) => (
-                  <li key={i} className="flex gap-2.5">
-                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-success" />
-                    <span className="text-muted-foreground">{i}</span>
-                  </li>
-                ))}
-              </ul>
+              <EnterpriseCard />
             </div>
-          </article>
+          </>
+        )}
+        <p className="mx-auto max-w-[68ch] text-center text-sm text-balance text-muted-foreground">
+          A year is {YEARLY_MONTHS} months for 12. Prices exclude tax.
+        </p>
+      </section>
+
+      <section className="grid grid-cols-1 gap-x-10 gap-y-8 md:grid-cols-3">
+        <h2 className="text-2xl font-semibold tracking-tight md:col-span-3">
+          What the price pays for
+        </h2>
+        {reasons.map(([title, body]) => (
+          <div key={title} className="space-y-2">
+            <h3 className="font-medium">{title}</h3>
+            <p className="text-sm text-muted-foreground">{body}</p>
+          </div>
         ))}
       </section>
 
-      <p className="mx-auto -mt-12 max-w-[68ch] text-center text-sm text-balance text-muted-foreground">
-        Beyond a plan: ${overage.storagePerGbMonth.toFixed(2)} per extra GB of
-        storage a month, ${overage.transferPerGb.toFixed(2)} per extra GB
-        transferred, in dollars. Plans are charged in euros in Europe, at the
-        same number as in dollars, and in dollars elsewhere. Prices exclude tax.
-      </p>
-
-      <section className="surface rounded-2xl border bg-card p-8 md:p-10">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2fr]">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              Enterprise
-            </h2>
-            <p className="text-muted-foreground">
-              SSO, audit export, data residency and an SLA, with someone to
-              call.
-            </p>
-            <div className="pt-2">
-              <ContactSales>Talk to us</ContactSales>
-            </div>
-          </div>
-          <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 text-sm text-muted-foreground sm:grid-cols-2">
-            {[
-              'SAML and SCIM',
-              'Audit log export',
-              'Data residency',
-              'Uptime SLA',
-              'Volume pricing on storage and transfer',
-              'Dedicated support',
-            ].map((i) => (
-              <li key={i} className="flex gap-2.5">
-                <CheckIcon className="mt-0.5 size-4 shrink-0 text-success" />
-                {i}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="space-y-8">
-        <div className="mx-auto max-w-2xl space-y-2 text-center">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Bring your own
-          </h2>
-          <p className="text-muted-foreground">
-            These are things you connect, not things we sell. The list is open:
-            anything that speaks to a git host can join it.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {own.map((o) => (
-            <div
-              key={o.title}
-              className="surface space-y-4 rounded-2xl border bg-card p-6"
-            >
-              <div>
-                <h3 className="font-medium">{o.title}</h3>
-                <p className="text-sm text-muted-foreground">{o.body}</p>
-              </div>
-              <ul className="flex flex-wrap gap-2">
-                {o.names.map((id) => (
-                  <li
-                    key={id}
-                    className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1 text-sm"
-                  >
-                    <BrandLogo id={id} className="size-4" />
-                    {brandName(id)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-3xl space-y-6">
-        <h2 className="text-center text-2xl font-semibold tracking-tight">
-          Common questions
-        </h2>
-        <div className="surface divide-y overflow-hidden rounded-2xl border bg-card">
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <h2 className="text-2xl font-semibold tracking-tight">Questions</h2>
+        <div className="surface divide-y overflow-hidden rounded-2xl border bg-card lg:col-span-2">
           {questions.map(([q, a]) => (
             <details key={q} className="group p-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
                 {q}
-                <span className="text-muted-foreground transition-transform group-open:rotate-45">
+                <span
+                  aria-hidden
+                  className="text-muted-foreground transition-transform group-open:rotate-45 motion-reduce:transition-none"
+                >
                   +
                 </span>
               </summary>
-              <p className="mt-3 text-sm text-muted-foreground">{a}</p>
+              <p className="mt-3 max-w-[65ch] text-sm text-muted-foreground">
+                {a}
+              </p>
             </details>
           ))}
         </div>
       </section>
+    </div>
+  )
+}
+
+const cardClass = (featured?: boolean) =>
+  cn(
+    'surface flex flex-col gap-6 rounded-2xl bg-card',
+    featured
+      ? 'border-2 border-brand-ink p-[calc(1.75rem-1px)] dark:border-brand/45'
+      : 'border p-7',
+  )
+
+function Limits({
+  rows,
+  note,
+}: {
+  rows: Array<[string, string]>
+  note?: string
+}) {
+  return (
+    <div className="space-y-2">
+      <dl className="well space-y-2 rounded-xl border bg-muted/60 p-4 text-sm">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="text-right font-medium">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {note && <p className="text-xs text-muted-foreground">{note}</p>}
+    </div>
+  )
+}
+
+function FreeCard({ currency }: { currency: '$' | '€' }) {
+  return (
+    <article className={cardClass()}>
+      <h2 className="text-lg font-semibold">Free</h2>
+      <div>
+        <span className="text-5xl font-semibold tracking-tight">
+          {currency}0
+        </span>
+        <p className="mt-2 text-sm text-muted-foreground">No card needed</p>
+      </div>
+      <Button
+        size="lg"
+        variant="outline"
+        render={<Link to="/sign-up" />}
+        nativeButton={false}
+      >
+        Sign up free
+      </Button>
+      <Limits
+        rows={[
+          ['Repositories', 'Public and private'],
+          ['Storage', size(freeLimits.storageGb)],
+          ['Transfer', `${size(freeLimits.transferGb)} a month`],
+        ]}
+      />
+    </article>
+  )
+}
+
+function PaidCard({
+  plan,
+  cycle,
+  seats,
+  currency,
+  onYearly,
+}: {
+  plan: Plan
+  cycle: Cycle
+  seats: number
+  currency: '$' | '€'
+  onYearly: () => void
+}) {
+  const n = plan.perSeat ? seats : 1
+  const one = price(plan, cycle)
+  const cents = (x: number) => Math.round(x * 100) / 100
+  // What a month costs, discounted when paid by the year.
+  const monthly = cents(one.monthly * n)
+  const saving = plan.monthly * (12 - YEARLY_MONTHS) * n
+  const perSeat = plan.perSeat
+    ? `${money(cents(one.monthly), currency)} per seat a month. `
+    : ''
+  return (
+    <article className={cardClass(plan.featured)}>
+      <h2 className="text-lg font-semibold">{plan.name}</h2>
+      <div>
+        <p className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-5xl font-semibold tracking-tight tabular-nums">
+            {money(monthly, currency)}
+          </span>
+          <span className="text-sm text-muted-foreground">/ month</span>
+          {cycle === 'year' && (
+            <s
+              className="text-lg text-muted-foreground tabular-nums"
+              aria-label={`instead of ${money(plan.monthly * n, currency)}`}
+            >
+              {money(plan.monthly * n, currency)}
+            </s>
+          )}
+        </p>
+        <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {cycle === 'year' ? (
+            <>
+              <span className="rounded-full bg-success/12 px-2 py-0.5 text-xs font-semibold text-success">
+                Save {money(saving, currency)} a year
+              </span>
+              {perSeat}
+              Billed {money(one.total * n, currency)} yearly
+            </>
+          ) : (
+            <>
+              {perSeat}
+              <button
+                type="button"
+                onClick={onYearly}
+                className="font-medium text-brand-ink underline-offset-4 hover:underline"
+              >
+                Save {money(saving, currency)} a year, paying yearly
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+      {plan.id !== 'solo' ? (
+        <Button
+          size="lg"
+          variant={plan.featured ? 'brand' : 'outline'}
+          render={
+            <Link
+              to="/organizations/new"
+              search={{ plan: plan.id, seats: n, cycle }}
+            />
+          }
+          nativeButton={false}
+        >
+          Choose {plan.name}
+        </Button>
+      ) : (
+        <CheckoutButton
+          plan={plan.id}
+          cycle={cycle}
+          variant={plan.featured ? 'brand' : 'outline'}
+        >
+          Choose {plan.name}
+        </CheckoutButton>
+      )}
+      <Limits
+        rows={[
+          ['Repositories', 'Public and private'],
+          ['Storage', size(plan.limits.storageGb * n)],
+          ['Transfer', `${size(plan.limits.transferGb * n)} a month`],
+        ]}
+        note={
+          plan.perSeat
+            ? `For ${n} ${n === 1 ? 'seat' : 'seats'}, shared by the whole organization.`
+            : undefined
+        }
+      />
+      {plan.id === 'business' && (
+        <ul className="space-y-1.5 text-sm text-muted-foreground">
+          {businessAdds.map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+        </ul>
+      )}
+    </article>
+  )
+}
+
+function EnterpriseCard() {
+  return (
+    <article className={cardClass()}>
+      <h2 className="text-lg font-semibold">Enterprise</h2>
+      <p className="text-sm text-muted-foreground">
+        Everything in Business, with room and seats priced for your volume, a
+        yearly contract and invoices.
+      </p>
+      <div className="mt-auto">
+        <ContactSales>Talk to us</ContactSales>
+      </div>
+    </article>
+  )
+}
+
+function Seats({
+  seats,
+  onChange,
+}: {
+  seats: number
+  onChange: (n: number) => void
+}) {
+  const set = (n: number) => onChange(Math.min(500, Math.max(1, n)))
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <label htmlFor="seats" className="text-sm text-muted-foreground">
+        Seats
+      </label>
+      <div className="inline-flex items-center overflow-hidden rounded-xl border bg-card">
+        <button
+          type="button"
+          aria-label="One seat fewer"
+          onClick={() => set(seats - 1)}
+          disabled={seats <= 1}
+          className="grid size-10 place-items-center text-lg hover:bg-muted disabled:opacity-40"
+        >
+          −
+        </button>
+        <input
+          id="seats"
+          type="number"
+          min={1}
+          max={500}
+          value={seats}
+          onChange={(e) => set(Number(e.target.value) || 1)}
+          className="w-14 bg-transparent text-center font-semibold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          aria-label="One seat more"
+          onClick={() => set(seats + 1)}
+          className="grid size-10 place-items-center text-lg hover:bg-muted"
+        >
+          +
+        </button>
+      </div>
     </div>
   )
 }

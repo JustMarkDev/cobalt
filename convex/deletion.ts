@@ -66,6 +66,9 @@ export const TABLES: Record<TableNames, string> = {
   reviewSeen: 'scrub: by handle, and with its change',
   presenceRooms: 'none: rooms, not people',
   repoPolicy: 'wipe: with its repository',
+  auditEvents:
+    'kept: an organization’s record, with the address as a pseudonym; each event expires after a year',
+  orgPolicies: 'none: belong to organizations',
   repoTriggers: 'wipe: with its repository',
   repoAccessRules: 'wipe: with its repository',
   triggerRuns: 'wipe: with its repository',
